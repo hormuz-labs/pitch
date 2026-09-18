@@ -2,9 +2,9 @@
 .new-shell-main,
 .new-project-page,
 .account-topnav {
-  --new-bg: #111111;
-  --new-surface: #202020;
-  --new-raised: #292929;
+  --new-bg: var(--workspace-canvas, #202020);
+  --new-surface: var(--workspace-surface, #282828);
+  --new-raised: var(--workspace-raised, #303030);
   --new-border: #383838;
   --new-input-border: #484848;
   --new-ink: #eeeeee;

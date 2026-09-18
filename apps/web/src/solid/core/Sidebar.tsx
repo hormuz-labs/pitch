@@ -2,7 +2,6 @@ import { A, useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
   FileText,
-  LoaderCircle,
   MoreHorizontal,
   PanelLeftClose,
   Pencil,
@@ -11,9 +10,20 @@ import {
   Trash2,
   X,
 } from 'lucide-solid'
-import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from 'solid-js'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js'
+import { createStore, reconcile } from 'solid-js/store'
 import newMessageIcon from '../../assets/new-message.png'
 import tabLogo from '../../assets/tabLogoB.svg'
+import { Orb } from '../../components/ui/Orb'
 import type { Project } from '../../lib/studio-api'
 import type { SettingsSection } from '../account/SettingsView'
 import { SidebarAccountMenu } from '../account/SidebarAccountMenu'
@@ -38,18 +48,22 @@ export function Sidebar(props: {
 }) {
   const navigate = useNavigate()
   const location = useLocation()
+  // Polling returns new objects. Preserve each row so a refresh cannot remove
+  // a pressed button before its click fires (or discard focus and rename state).
+  const [projects, setProjects] = createStore<Project[]>([])
+  createEffect(() => setProjects(reconcile(props.projects, { key: 'id' })))
   const go = (path: string) => {
     navigate(path)
     if (path === '/new') window.dispatchEvent(new Event('pitch:new-chat'))
     if (props.isMobile) props.close()
   }
   const pinnedProjects = createMemo(() =>
-    [...props.projects]
+    [...projects]
       .filter(project => project.pinnedAt)
       .sort((a, b) => Date.parse(b.pinnedAt!) - Date.parse(a.pinnedAt!)),
   )
   const recentProjects = createMemo(() =>
-    [...props.projects]
+    [...projects]
       .filter(project => !project.pinnedAt)
       .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
       .slice(0, 7),
@@ -146,7 +160,7 @@ export function Sidebar(props: {
             title={project.busy ? 'Work in progress' : 'Completed'}
           >
             <Show when={project.busy} fallback={<i />}>
-              <LoaderCircle size={15} />
+              <Orb decorative />
             </Show>
           </span>
         </Show>

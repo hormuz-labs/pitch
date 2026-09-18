@@ -1,12 +1,5 @@
 import { useNavigate } from '@solidjs/router'
-import {
-  ChevronDown,
-  ChevronUp,
-  MessageSquare,
-  MonitorPlay,
-  MoreHorizontal,
-  Share2,
-} from 'lucide-solid'
+import { ChevronDown, ChevronUp, MonitorPlay, MoreHorizontal, Share2 } from 'lucide-solid'
 import {
   createEffect,
   createMemo,
@@ -402,9 +395,10 @@ export function Actions(props: { store: ProjectStore }) {
 export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
     navigate = useNavigate(),
-    chatId = createUniqueId(),
+    previewId = createUniqueId(),
     timelineId = createUniqueId(),
-    [chatOpen, setChatOpen] = createSignal(false),
+    [mobileLayout, setMobileLayout] = createSignal(window.innerWidth <= 840),
+    [previewCollapsed, setPreviewCollapsed] = createSignal(false),
     [showJumpToLatest, setShowJumpToLatest] = createSignal(false),
     [timelineOpen, setTimelineOpen] = createSignal(true),
     [view, setView] = createSignal<'preview' | 'files'>('preview'),
@@ -461,7 +455,7 @@ export function StudioView(props: { projectId: string }) {
     }
   }
   createEffect(() => {
-    chatOpen()
+    previewCollapsed()
     s.busy
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
     queueMicrotask(() => {
@@ -475,6 +469,9 @@ export function StudioView(props: { projectId: string }) {
           s.project?.description.preview?.kind === 'html'
         ? 'scenes'
         : null,
+  )
+  const emptyTimeline = createMemo(
+    () => stripKind() === 'scenes' && !s.project?.description.scenes?.length,
   )
   const trayMaximum = () => {
     const element = document.getElementById(timelineId)
@@ -495,16 +492,22 @@ export function StudioView(props: { projectId: string }) {
     )
   })
   const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
+  const previewHidden = () => mobileLayout() && previewCollapsed()
+  const previewLabel = () =>
+    ['html', 'video'].includes(s.project?.description.preview?.kind ?? '') ? 'video' : 'preview'
   const emptyChat = createMemo(() => !showStage() && !s.entries.length && !s.busy)
   createEffect(() => {
     const available = hasPreview()
     if (available && !hadPreview) {
       setView('preview')
-      setChatOpen(false)
+      setPreviewCollapsed(false)
     }
     hadPreview = available
   })
   onMount(() => {
+    const resize = () => setMobileLayout(window.innerWidth <= 840)
+    window.addEventListener('resize', resize)
+    onCleanup(() => window.removeEventListener('resize', resize))
     const observer = new ResizeObserver(() => {
       if (stage && stage.clientHeight > 0) resizeTray(tray())
     })
@@ -517,7 +520,8 @@ export function StudioView(props: { projectId: string }) {
       classList={{
         'is-chat-only': !showStage(),
         'is-chat-empty': emptyChat(),
-        'is-chat-expanded': chatOpen(),
+        'is-chat-expanded': true,
+        'is-preview-collapsed': previewHidden(),
       }}
     >
       <Show
@@ -532,7 +536,7 @@ export function StudioView(props: { projectId: string }) {
         <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
           <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
             <header class="job-topbar job-topbar-split">
-              <div class="topbar-split-left" style={{ width: `${sidebar()}px` }}>
+              <div class="topbar-split-left">
                 <div class="nav-crumb">
                   <StudioProjectControls
                     title={s.project?.title}
@@ -550,10 +554,13 @@ export function StudioView(props: { projectId: string }) {
                     <button
                       aria-label="Preview"
                       class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
-                      onClick={() => setView('preview')}
+                      onClick={() => {
+                        setView('preview')
+                        setPreviewCollapsed(false)
+                      }}
                     >
                       <MonitorPlay size={15} />
-                      <span>Preview</span>
+                      <span class="preview-pane-tab__label">Preview</span>
                     </button>
                   </Show>
                   <Show when={s.assets.length > 0}>
@@ -562,6 +569,7 @@ export function StudioView(props: { projectId: string }) {
                       active={view() === 'files'}
                       onClick={() => {
                         s.player.current?.pause?.()
+                        setPreviewCollapsed(false)
                         setView(current => (current === 'files' ? 'preview' : 'files'))
                       }}
                     />
@@ -574,7 +582,6 @@ export function StudioView(props: { projectId: string }) {
             </header>
             <div class="editor">
               <aside
-                id={chatId}
                 class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
                 ref={side}
                 style={{ '--sidebar-w': `${sidebar()}px` }}
@@ -620,37 +627,6 @@ export function StudioView(props: { projectId: string }) {
                   <Composer store={s} />
                 </div>
               </aside>
-              <Show when={showStage()}>
-                <button
-                  type="button"
-                  class="mobile-chat-toggle"
-                  aria-controls={chatId}
-                  aria-expanded={chatOpen()}
-                  onClick={() => {
-                    if (!chatOpen()) {
-                      setView('preview')
-                      setTimelineOpen(false)
-                    }
-                    setChatOpen(open => !open)
-                  }}
-                >
-                  <MessageSquare size={18} />
-                  <span class="mobile-chat-toggle__label">{chatOpen() ? 'Hide chat' : 'Chat'}</span>
-                  <span class="mobile-chat-toggle__status">
-                    {s.targets.length
-                      ? `${s.targets.length} selected`
-                      : s.busy
-                        ? s.status
-                        : s.draft.trim()
-                          ? 'Draft message'
-                          : 'Ask for a change…'}
-                  </span>
-                  <Show when={s.busy}>
-                    <span class="spinner" aria-hidden="true" />
-                  </Show>
-                  {chatOpen() ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-                </button>
-              </Show>
               <div
                 class="resize-handle"
                 hidden={!showStage()}
@@ -677,7 +653,32 @@ export function StudioView(props: { projectId: string }) {
                 onPointerCancel={() => (drag = null)}
                 onLostPointerCapture={() => (drag = null)}
               />
-              <div class="editor-stage" ref={stage} hidden={!showStage()}>
+              <Show when={hasPreview() && view() === 'preview'}>
+                <button
+                  type="button"
+                  class="mobile-preview-toggle"
+                  aria-controls={previewId}
+                  aria-expanded={!previewHidden()}
+                  onClick={() => {
+                    if (!previewCollapsed()) {
+                      s.player.current?.pause?.()
+                    }
+                    setPreviewCollapsed(collapsed => !collapsed)
+                  }}
+                >
+                  <MonitorPlay size={16} aria-hidden="true" />
+                  <span>
+                    {previewHidden() ? 'Expand' : 'Collapse'} {previewLabel()}
+                  </span>
+                  {previewHidden() ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                </button>
+              </Show>
+              <div
+                class="editor-stage"
+                id={previewId}
+                ref={stage}
+                hidden={!showStage() || previewHidden()}
+              >
                 <div class="studio-preview-view" hidden={view() !== 'preview'}>
                   <div class="player">
                     <div class="player-stage">
@@ -686,7 +687,7 @@ export function StudioView(props: { projectId: string }) {
                       </Show>
                     </div>
                   </div>
-                  <Show when={stripKind() && timelineOpen()}>
+                  <Show when={stripKind() && timelineOpen() && !emptyTimeline()}>
                     <div
                       class="resize-handle-h"
                       role="separator"
@@ -738,13 +739,18 @@ export function StudioView(props: { projectId: string }) {
                       <span class="editor-tracks-toggle__hint">
                         {timelineOpen() ? 'Collapse' : 'Expand'}
                       </span>
-                      {timelineOpen() ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                      {timelineOpen() !== mobileLayout() ? (
+                        <ChevronDown size={16} />
+                      ) : (
+                        <ChevronUp size={16} />
+                      )}
                     </button>
                     <div
                       id={timelineId}
                       class="tray"
+                      classList={{ 'is-empty': emptyTimeline() }}
                       hidden={!timelineOpen()}
-                      style={{ height: `${tray()}px` }}
+                      style={{ height: emptyTimeline() ? 'auto' : `${tray()}px` }}
                     >
                       <Switch>
                         <Match when={stripKind() === 'slides'}>

@@ -91,6 +91,11 @@
 
 /* ── Dark theme ───────────────────────────────────────────────────── */
 [data-theme="dark"] {
+  /* Shared workspace surfaces keep the shell, chat and preview on one canvas. */
+  --workspace-canvas: #202020;
+  --workspace-surface: #282828;
+  --workspace-raised: #303030;
+
   /* Backgrounds */
   --bg-page:        #070709;
   --bg-surface:     #111113;

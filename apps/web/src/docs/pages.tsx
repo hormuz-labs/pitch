@@ -745,7 +745,7 @@ const credits: DocPage = {
   "model": "usage",
   "creditUsd": 0.0025,
   "computeUsdPerSecond": 0.002,
-  "providedSkillModelMultiplier": 250,
+  "providedSkillModelMultiplier": 2.5,
   "explanation": "Projects are not priced up front..."
 }`,
     },

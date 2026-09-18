@@ -1,10 +1,10 @@
 # Pitch — Pricing
 
-> Machine-readable pricing for trypitch.co. Last updated: 2026-09-18.
+> Machine-readable pricing for trypitch.co. Last updated: 2026-09-19.
 
 **Currency:** USD
 **Billing:** Monthly auto-renewing subscriptions, plus a one-time credit pack that needs no subscription.
-**Credit economics:** Credits are metered, not per-video. The studio bills model usage plus machine time spent recording and rendering at one credit per $0.0025. A turn that loads a provided Pitch skill applies a 250x multiplier to that turn's model usage only; host compute and provider charges are not multiplied. Credits you buy outright are yours to keep; whatever is left of a monthly allowance is forfeited when the subscription ends, including after a failed renewal payment.
+**Credit economics:** Credits are metered, not per-video. The studio bills model usage plus machine time spent recording and rendering at one credit per $0.0025. A turn that loads a provided Pitch skill applies a 2.5x multiplier (250% of cost) to that turn's model usage only; host compute and provider charges are not multiplied. Credits you buy outright are yours to keep; whatever is left of a monthly allowance is forfeited when the subscription ends, including after a failed renewal payment.
 **Payment provider:** Dodo Payments.
 
 ## Plans
@@ -20,7 +20,7 @@
 
 | Work                       | Credits (~) |
 |----------------------------|-------------|
-| Provided-skill model usage | 250x model cost |
+| Provided-skill model usage | 250% of model cost (2.5x) |
 | Host compute               | $0.002 per second |
 | Provider charges           | Pass through without the skill multiplier |
 | Authenticated browser session | 80       |

@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from '@solidjs/router'
-import { Check, Globe, Lock, Maximize, Plus, RefreshCw, Shield, Trash2 } from 'lucide-solid'
+import { ArrowUpRight, Check, Globe, Lock, Maximize, Plus, RefreshCw, Trash2 } from 'lucide-solid'
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { API_URL } from '../../config'
 import { api } from '../../lib/api'
@@ -185,40 +185,51 @@ export function SessionsView() {
     }
   }
   return (
-    <div class="sessions-page min-h-full px-4 py-6 sm:px-6 lg:px-10">
-      <div class="mx-auto max-w-[1100px]">
-        <header class="sessions-header mb-7 flex flex-wrap items-end justify-between gap-5 border-b pb-7">
+    <div class="sessions-page">
+      <div class="sessions-topbar">
+        <Globe size={15} />
+        <span>Browser sessions</span>
+      </div>
+      <div class="sessions-content">
+        <header class="sessions-header">
           <div>
-            <p class="text-[11px] uppercase tracking-[.16em] text-gray-500">Browser access</p>
-            <h1 class="text-[34px] font-semibold tracking-[-.04em]">
-              Keep your signed-in sites ready.
-            </h1>
-            <p class="mt-2 text-sm text-gray-500">
-              Authenticate a private site once so the agent can reuse the login.
+            <p class="sessions-eyebrow">Your connected workspace</p>
+            <h1>Pick up where you signed in.</h1>
+            <p class="sessions-description">
+              Connect your sites once. Pitch can use your saved logins whenever your work needs
+              them.
             </p>
           </div>
           <button
             id="add-login-btn"
             disabled={!!session()}
-            class="sessions-primary flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm disabled:opacity-50"
+            class="sessions-primary sessions-connect"
             onClick={() => setModal(true)}
           >
-            <Plus size={14} />
-            Authenticate with URL
-            <CreditChip amount={80} class="bg-white text-gray-900" />
+            <Plus size={16} />
+            Connect a site
+            <CreditChip amount={80} class="sessions-credit" />
           </button>
         </header>
         <Show when={error()}>
-          <p class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error()}</p>
+          <p class="sessions-error" role="alert">
+            {error()}
+          </p>
         </Show>
         <Show when={!loading()} fallback={<Loading />}>
           <Show when={session()}>
             {active => (
-              <section class="sessions-card mb-8 rounded-2xl border p-5">
-                <div class="mb-4 flex items-center justify-between">
-                  <b>Live authentication session</b>
+              <section class="sessions-card sessions-live">
+                <div class="sessions-section-heading">
+                  <div>
+                    <span class="sessions-live-label">
+                      <span />
+                      Browser open
+                    </span>
+                    <h2>Sign in, then save your session.</h2>
+                  </div>
                   <button
-                    class="sessions-secondary flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold"
+                    class="sessions-primary"
                     disabled={closing()}
                     onClick={() => void close()}
                   >
@@ -226,7 +237,7 @@ export function SessionsView() {
                     {closing() ? 'Finishing...' : 'Complete & Save'}
                   </button>
                 </div>
-                <div class="aspect-video overflow-hidden rounded-xl bg-gray-900">
+                <div class="sessions-browser">
                   <Show
                     when={active().noVncUrl}
                     fallback={<Loading label="Initializing remote display..." />}
@@ -237,26 +248,58 @@ export function SessionsView() {
               </section>
             )}
           </Show>
-          <section class="sessions-card rounded-2xl border p-5">
-            <h2 class="font-semibold">Logged-in sites</h2>
+          <section class="sessions-card sessions-sites">
+            <div class="sessions-section-heading">
+              <div class="sessions-section-title">
+                <h2>Connected sites</h2>
+                <span class="sessions-count">{profile()?.loggedInOrigins.length ?? 0}</span>
+              </div>
+              <span class="sessions-section-note">Ready for your next project</span>
+            </div>
             <Show
               when={profile()?.loggedInOrigins.length}
               fallback={
-                <div class="py-12 text-center text-sm text-gray-500">
-                  <Shield class="mx-auto mb-3 text-gray-300" />
-                  No saved logins yet
+                <div class="sessions-empty">
+                  <div class="sessions-empty-icon">
+                    <Globe size={28} strokeWidth={1.3} />
+                    <span>
+                      <Lock size={12} />
+                    </span>
+                  </div>
+                  <h3>Your workspace, connected.</h3>
+                  <p>
+                    Add a site you use for work. Sign in through the browser and save it for your
+                    next project.
+                  </p>
+                  <button
+                    class="sessions-empty-action"
+                    disabled={!!session()}
+                    onClick={() => setModal(true)}
+                  >
+                    Connect your first site <ArrowUpRight size={15} />
+                  </button>
                 </div>
               }
             >
-              <ul class="mt-4 grid gap-2 md:grid-cols-2">
+              <ul class="sessions-list">
                 <For each={profile()?.loggedInOrigins}>
                   {origin => (
-                    <li class="sessions-origin flex items-center gap-3 rounded-lg border p-3">
-                      <Globe size={14} />
-                      <span class="min-w-0 flex-1 truncate text-sm">{new URL(origin).host}</span>
+                    <li class="sessions-origin">
+                      <span class="sessions-site-icon">
+                        <Globe size={19} strokeWidth={1.5} />
+                      </span>
+                      <div class="sessions-site-copy">
+                        <span>{new URL(origin).host}</span>
+                        <small>Saved browser login</small>
+                      </div>
+                      <span class="sessions-saved">
+                        <Check size={12} />
+                        Connected
+                      </span>
                       <button
                         class="sessions-remove"
                         aria-label={`Remove ${origin}`}
+                        title="Remove saved login"
                         disabled={deleting() === origin}
                         onClick={() => void remove(origin)}
                       >
@@ -272,9 +315,40 @@ export function SessionsView() {
               </ul>
             </Show>
           </section>
+          <div class="sessions-how">
+            <p class="sessions-eyebrow">A little setup. A smoother workflow.</p>
+            <ol>
+              <li>
+                <span>01</span>
+                <div>
+                  <h3>Open your site</h3>
+                  <p>Enter a URL to launch a browser.</p>
+                </div>
+              </li>
+              <li>
+                <span>02</span>
+                <div>
+                  <h3>Sign in as usual</h3>
+                  <p>Log in directly on the website.</p>
+                </div>
+              </li>
+              <li>
+                <span>03</span>
+                <div>
+                  <h3>Save and create</h3>
+                  <p>Your login is ready for Pitch to use.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
         </Show>
       </div>
-      <Dialog open={modal()} title="Authenticate a site" onClose={() => setModal(false)}>
+      <Dialog
+        open={modal()}
+        title="Connect a site"
+        class="sessions-dialog"
+        onClose={() => setModal(false)}
+      >
         <form
           noValidate
           onSubmit={event => {
@@ -282,20 +356,25 @@ export function SessionsView() {
             if (!starting()) void start()
           }}
         >
-          <div class="flex items-center gap-2">
-            <Lock size={18} />
-            <h2 class="text-lg font-semibold">Authenticate a site</h2>
-          </div>
-          <p class="my-3 text-sm text-gray-500">
-            Open a secure browser, complete the login, then save the session.
+          <span class="sessions-site-icon">
+            <Globe size={21} />
+          </span>
+          <h2>Connect a site</h2>
+          <p class="sessions-description">
+            Open your site, sign in, and save the session for Pitch to use.
           </p>
+          <label class="sessions-input-label" for="session-site-url">
+            Website URL
+          </label>
           <input
+            id="session-site-url"
             aria-label="Site URL"
             aria-invalid={!!urlError()}
+            aria-describedby={urlError() ? 'session-url-error' : undefined}
             required
             autofocus
             type="url"
-            class="w-full rounded-lg border p-3 text-sm"
+            class="sessions-input"
             placeholder="https://example.com"
             value={url()}
             onInput={event => {
@@ -304,21 +383,18 @@ export function SessionsView() {
             }}
           />
           <Show when={urlError()}>
-            <p class="mt-1 text-xs text-red-600">{urlError()}</p>
+            <p id="session-url-error" class="sessions-error" role="alert">
+              {urlError()}
+            </p>
           </Show>
-          <div class="mt-5 flex justify-end gap-2">
-            <button
-              type="button"
-              class="sessions-secondary rounded-lg px-4 py-2 text-sm"
-              onClick={() => setModal(false)}
-            >
+          <p class="sessions-cost">
+            <CreditChip amount={80} class="sessions-credit" /> credits per browser session
+          </p>
+          <div class="sessions-dialog-actions">
+            <button type="button" class="sessions-secondary" onClick={() => setModal(false)}>
               Cancel
             </button>
-            <button
-              type="submit"
-              class="sessions-primary rounded-lg px-4 py-2 text-sm"
-              disabled={starting()}
-            >
+            <button type="submit" class="sessions-primary" disabled={starting()}>
               {starting() ? 'Starting browser...' : 'Open browser'}
             </button>
           </div>

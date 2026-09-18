@@ -96,7 +96,7 @@ describe('Studio UI style contract', () => {
 
   it('uses the full chat-only surface with centered readable content', () => {
     expect(previewCss).toMatch(
-      /\.lv-studio\.is-chat-only \.edit-sidebar\s*\{[^}]*--chat-content-width:\s*900px;[^}]*width:\s*100%;[^}]*max-width:\s*none;/s,
+      /\.lv-studio:not\(\.new-project-page\)\.is-chat-only \.edit-sidebar\s*\{[^}]*--chat-content-width:\s*600px;[^}]*width:\s*100%;[^}]*max-width:\s*none;/s,
     )
     expect(previewCss).toMatch(
       /\.lv-studio\.is-chat-only \.feed > \.thread\s*\{[^}]*max-width:\s*var\(--chat-content-width\);[^}]*margin-inline:\s*auto;/s,
@@ -258,7 +258,7 @@ describe('Studio UI style contract', () => {
   })
 
   it('swaps sidebar completion state for the overflow menu on hover or focus', () => {
-    expect(shellCss).toContain('.sidebar-recent-project__state.is-working svg')
+    expect(shellCss).toContain('.sidebar-recent-project__state.is-working {')
     expect(shellCss).toContain('.sidebar-recent-project__state.is-ready i')
     expect(shellCss).toMatch(
       /\.sidebar-recent-project:is\(:hover, :focus-within\) \.sidebar-recent-project__actions[^}]*opacity: 1;/s,

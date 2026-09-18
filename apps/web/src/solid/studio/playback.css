@@ -4,6 +4,11 @@
 .lv-studio .studio-preview-view > .player { flex: 1 1 0; min-width: 0; min-height: 0; }
 .lv-studio .studio-preview-view > .tray { flex: 0 0 auto; min-height: 0; max-height: calc(100% - 180px); overflow: hidden; }
 .lv-studio .studio-preview-view > .tray[hidden] { display: none; }
+.lv-studio:not(.new-project-page) .studio-preview-view > .tray.is-empty { max-height: none; }
+.lv-studio .timeline.pro-multi-track-timeline.is-empty { height: auto; min-width: 0; padding: 16px; user-select: auto; }
+.lv-studio .tray > .timeline.is-empty .timeline-header { flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px; }
+.lv-studio .timeline.is-empty .timeline-meta { min-width: 0; overflow-wrap: anywhere; }
+.lv-studio .timeline.is-empty .timeline-empty { padding: 0; line-height: 1.5; }
 .lv-studio .editor-tracks-toggle { display: flex; align-items: center; flex: 0 0 40px; width: 100%; min-width: 0; gap: 8px; padding: 0 12px; border: 0; border-top: 1px solid var(--border); background: var(--panel); color: var(--ink); text-align: left; font-size: 12px; }
 .lv-studio .editor-tracks-toggle__hint { margin-left: auto; color: var(--muted); font-size: 11px; }
 .lv-studio .editor-tracks-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
@@ -49,6 +54,14 @@
 .lv-studio .timeline-follow-btn:hover:not(:disabled), .lv-studio .timeline-follow-btn.is-active { background: var(--control-hover); color: var(--ink); }
 .lv-studio .timeline-follow-btn.is-active { border-color: var(--muted); }
 .lv-studio .timeline-playhead { position: absolute; top: 4px; bottom: 20px; left: 112px; z-index: 46; width: 2px; background: #ec6b62; pointer-events: none; will-change: transform; }
+[data-theme="dark"] .lv-studio :is(.live-preview, .native-preview):not(.is-fullscreen) {
+  background: var(--workspace-canvas);
+  border-color: var(--border);
+}
+[data-theme="dark"] .lv-studio .media-controls {
+  background: var(--workspace-surface);
+  border-color: var(--border);
+}
 .timeline-playhead::before { content: ''; position: absolute; top: 0; left: -4px; width: 10px; height: 8px; background: #ec6b62; clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .lv-studio:not(.new-project-page) .pro-timeline-canvas { gap: 0; }
 @media (max-width: 1000px) {
@@ -58,7 +71,8 @@
   .lv-studio:not(.new-project-page) .editor-stage { height: auto; min-height: 0; flex: 1 1 0; }
   .lv-studio:not(.new-project-page) .edit-sidebar { width: 100%; max-width: none; flex: 1 1 0; min-height: 0; }
   .lv-studio:not(.new-project-page) .studio-preview-view > .player { padding: 6px; }
-  .lv-studio:not(.new-project-page) .studio-preview-view > .tray { height: clamp(160px, 28dvh, 220px) !important; max-height: 45%; overflow: hidden; }
+  .lv-studio:not(.new-project-page) .studio-preview-view > .tray:not(.is-empty) { height: clamp(160px, 28dvh, 220px) !important; max-height: 45%; overflow: hidden; }
+  .lv-studio .timeline.pro-multi-track-timeline.is-empty { padding: 12px; }
   .lv-studio .pro-timeline-grid { touch-action: pan-x pan-y; }
   .media-controls__row { gap: 2px; }
   .lv-studio .media-controls { padding-inline: 5px; }

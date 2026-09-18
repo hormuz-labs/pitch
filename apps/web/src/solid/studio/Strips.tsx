@@ -133,6 +133,7 @@ export function SceneStrip(props: { store: ProjectStore }) {
   return (
     <div
       class="timeline pro-multi-track-timeline"
+      classList={{ 'is-empty': !scenes().length }}
       style={{
         '--timeline-content-w': `${contentWidth()}px`,
       }}

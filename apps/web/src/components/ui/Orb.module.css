@@ -1,0 +1,53 @@
+.glyph {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+  contain: strict;
+}
+
+.lattice {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  transform-origin: 0 0;
+  /* Centre the 15px grid on the 28px stage before scaling. */
+  transform: scale(var(--orb-k, 1)) translate(6.5px, 6.5px);
+  --orb-rest: 0.14;
+}
+
+:global([data-theme="dark"]) .lattice {
+  --orb-rest: 0.2;
+}
+
+.cell {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: var(--orb-rest);
+  animation: orb-wave 1.7s cubic-bezier(0.66, 0, 0.34, 1) infinite both;
+}
+
+@keyframes orb-wave {
+  0%, 56%, 100% {
+    opacity: var(--orb-rest);
+    transform: scale(1);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    animation: none;
+  }
+  .cell[data-mid] {
+    opacity: 1;
+  }
+}

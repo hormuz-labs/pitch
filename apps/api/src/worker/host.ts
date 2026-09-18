@@ -52,6 +52,7 @@ import {
 import { projectThumbnail } from '../projects/thumbnails.js'
 import {
   chargeTurn,
+  creditLimitMessage,
   effectiveModelMultiplier,
   generationReservationFromEstimate,
   projectedCreditsOwed,
@@ -527,6 +528,8 @@ function guardTurnCredits(
       ])
       if (stopped) return
       if (!row) return
+      const usedProvidedSkill = activeTurnUsesProvidedSkill(p.id, turn)
+      const multiplier = effectiveModelMultiplier(modelCreditMultiplier(model), usedProvidedSkill)
       const owed = projectedCreditsOwed(
         row.usageUsd,
         row.creditsCharged,
@@ -534,23 +537,35 @@ function guardTurnCredits(
           modelUsd: peekModelCost(p.id),
           computeSeconds: peekComputeSeconds(workspaceOf(p).internal),
         },
-        effectiveModelMultiplier(
-          modelCreditMultiplier(model),
-          activeTurnUsesProvidedSkill(p.id, turn),
-        ),
+        multiplier,
       )
       if (owed <= 0) return
-      const allowance = reservation?.status === 'pending' ? reservation.credits + balance : balance
+      const held = reservation?.status === 'pending' ? reservation.credits : 0
+      const allowance = held + balance
       emitProjectEvent(p.id, {
         type: 'credit_balance',
-        balance: Math.max(0, balance - Math.max(0, owed - (reservation?.credits ?? 0))),
+        balance: Math.max(0, balance - Math.max(0, owed - held)),
         pending: true,
       })
       if (owed <= allowance) return
       stopped = true
+      logger.warn(
+        {
+          projectId: p.id,
+          turn,
+          model,
+          owed,
+          allowance,
+          balance,
+          held,
+          multiplier,
+          usedProvidedSkill,
+        },
+        'generation stopped: accrued usage exceeds available credits',
+      )
       emitProjectEvent(p.id, {
         type: 'credit_exhausted',
-        message: 'Your credits ran out, so generation was stopped.',
+        message: creditLimitMessage(owed, allowance, usedProvidedSkill),
       })
       await stopSession(p.id)
     } catch (err) {

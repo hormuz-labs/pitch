@@ -31,6 +31,7 @@ vi.mock('../apps/api/src/studio/model-picker.js', () => ({
 
 import {
   chargeTurn,
+  creditLimitMessage,
   effectiveModelMultiplier,
   generationReservationCredits,
   generationReservationFromEstimate,
@@ -112,17 +113,42 @@ describe('model credit pricing', () => {
 
   it('composes the provided-skill multiplier with the selected model multiplier', () => {
     expect(effectiveModelMultiplier(2, false)).toBe(2)
-    expect(effectiveModelMultiplier(2, true)).toBe(500)
+    expect(effectiveModelMultiplier(2, true)).toBe(5)
   })
 
-  it('multiplies skill model usage by 250 without multiplying compute or provider cost', () => {
-    expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10, providerUsd: 0.5 }, 250, 1)).toBeCloseTo(
-      25 + 0.02 + 0.5,
-    )
+  it('charges 250% of skill model usage without multiplying compute or provider cost', () => {
+    expect(
+      usageUsd(
+        { modelUsd: 0.1, computeSeconds: 10, providerUsd: 0.5 },
+        effectiveModelMultiplier(1, true),
+        1,
+      ),
+    ).toBeCloseTo(0.25 + 0.02 + 0.5)
   })
 
   it('projects the unpaid credits accrued during an active turn', () => {
     expect(projectedCreditsOwed(0.1, 40, { modelUsd: 0.02, computeSeconds: 5 }, 1, 1)).toBe(12)
+  })
+
+  it('keeps the Monid turn affordable at 250% instead of 250 times model cost', () => {
+    const owed = projectedCreditsOwed(
+      13.981906875,
+      5592,
+      { modelUsd: 0.1587972, computeSeconds: 0 },
+      effectiveModelMultiplier(1, true),
+      1.25,
+    )
+    expect(owed).toBe(199)
+    expect(owed).toBeLessThan(4426)
+  })
+
+  it('explains a positive-balance stop with the corrected built-in skill rate', () => {
+    const message = creditLimitMessage(199, 100, true)
+    expect(message).toContain('199 credits')
+    expect(message).toContain('100 credits are available')
+    expect(message).toContain('2.5× built-in skill')
+    expect(message).not.toContain('ran out')
+    expect(creditLimitMessage(50, 40, false)).not.toContain('skill')
   })
 
   it('prices a teaser below a walkthrough and a cinematic film above it', () => {
@@ -160,11 +186,11 @@ describe('model credit pricing', () => {
     await chargeTurn(project(), 0.001, 'product', 'provider/astra', 0, 0, undefined, true)
 
     expect(mocks.projectUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ usageUsd: 0.625 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ usageUsd: 0.00625 }) }),
     )
     expect(mocks.deductCredit).toHaveBeenCalledWith(
       'user_1',
-      250,
+      2,
       expect.any(String),
       expect.any(Object),
     )

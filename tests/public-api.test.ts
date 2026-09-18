@@ -34,7 +34,7 @@ vi.mock('../apps/api/src/projects/export.js', () => ({
 vi.mock('../apps/api/src/projects/usage.js', () => ({
   CREDIT_USD: 0.0025,
   COMPUTE_USD_PER_SEC: 0.002,
-  PROVIDED_SKILL_MODEL_MULTIPLIER: 250,
+  PROVIDED_SKILL_MODEL_MULTIPLIER: 2.5,
 }))
 
 const { createFromApi, exportFromApi, exportStatusFromApi, listFromApi, pricing } = await import(
@@ -102,7 +102,7 @@ describe('shared public API', () => {
 
   it('discloses provided-skill model pricing separately from compute', () => {
     expect(pricing()).toMatchObject({
-      providedSkillModelMultiplier: 250,
+      providedSkillModelMultiplier: 2.5,
       computeUsdPerSecond: 0.002,
     })
     expect(pricing().explanation).toContain('host compute and provider charges are not multiplied')

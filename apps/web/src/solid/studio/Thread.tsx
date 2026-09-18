@@ -262,7 +262,7 @@ export function Thread(props: {
                 }
               >
                 <div class="credit-exhausted" role="alert">
-                  <strong>Credits ran out</strong>
+                  <strong>Not enough credits to continue</strong>
                   <span>{e.text}</span>
                   <a href="/pricing">Add one-time credits</a>
                 </div>

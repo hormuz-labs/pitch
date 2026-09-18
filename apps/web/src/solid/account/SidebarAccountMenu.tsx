@@ -4,6 +4,7 @@ import {
   ChevronUp,
   CircleHelp,
   Code2,
+  Gem,
   Gift,
   LogOut,
   Megaphone,
@@ -32,17 +33,23 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
   const [plan, setPlan] = createSignal('Free')
   const planName = (key?: string) =>
     PLANS.find(item => item.key === key || item.annual?.key === key)?.name ?? key ?? 'Free'
+  let creditsRequest = 0
   const loadCredits = async () => {
-    const token = await getToken()
-    if (!token) return
-    const response = await fetch(`${API_URL}/credits`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    })
-    if (response.ok) {
+    const request = ++creditsRequest
+    try {
+      const token = await getToken()
+      if (!token) return
+      const response = await fetch(`${API_URL}/credits`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      if (!response.ok) return
       const summary = await response.json()
+      if (request !== creditsRequest) return
       setCredits(summary.balance)
       setPlan(planName(summary.activeSubscription?.planKey))
+    } catch (error) {
+      console.warn('Could not refresh account credits', error)
     }
   }
   onMount(() => {
@@ -58,6 +65,7 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
           side="top"
           width={224}
           triggerClass="sidebar-account-trigger"
+          onOpen={() => void loadCredits()}
           trigger={
             <>
               <span class="sidebar-account-avatar">
@@ -66,7 +74,14 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
                 </Show>
               </span>
               <span class="sidebar-account-name">{user()?.firstName || 'Your account'}</span>
-              <span class="sidebar-account-plan">{plan()}</span>
+              <span
+                class="sidebar-account-plan"
+                classList={{ 'is-paid': plan() !== 'Free' }}
+                title={`Current plan: ${plan()}`}
+              >
+                <Gem size={11} strokeWidth={1.6} aria-hidden="true" />
+                <span>{plan()}</span>
+              </span>
               <ChevronUp class="sidebar-account-chevron" size={12} />
             </>
           }

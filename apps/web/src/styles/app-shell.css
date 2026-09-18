@@ -65,6 +65,7 @@
 
 .app-shell-bg {
   --shell-sidebar-width: 286px;
+  --shell-nav-top: 21px;
   --shell-bg: #f3f3f1;
   --shell-panel: #ffffff;
   --shell-raised: #e9e9e6;
@@ -620,6 +621,7 @@
   background: var(--shell-panel) !important;
 }
 
+.app-shell-bg.is-new-shell { --shell-nav-top: 19px; }
 .app-shell-bg.is-new-shell .app-shell-panel { margin: 6px 6px 6px 0; border: 1px solid var(--shell-border) !important; border-radius: 14px; }
 @media (min-width: 1024px) {
   /* With no sidebar the page floats evenly inset on every side. */
@@ -627,8 +629,37 @@
 }
 .app-shell-bg.is-new-shell .conversation-sidebar { background: var(--shell-bg); }
 
-.app-shell-panel--studio {
+.app-shell-bg .app-shell-panel--studio {
+  border: 1px solid var(--shell-border) !important;
   box-shadow: none;
+}
+
+/* Both headers share a centerline, including the editor's margin and border. */
+.app-shell-bg:has(> .app-shell-panel--studio) {
+  --studio-panel-offset: 9px;
+  --studio-header-top: 10px;
+  --studio-header-bottom: 10px;
+  --studio-header-control: 36px;
+}
+.app-shell-bg:has(> .app-shell-panel--studio) .conversation-sidebar__brand {
+  height: calc(var(--studio-panel-offset) + var(--studio-header-top) + var(--studio-header-control) + var(--studio-header-bottom));
+  padding-top: calc(var(--studio-panel-offset) + var(--studio-header-top));
+  padding-bottom: var(--studio-header-bottom);
+}
+.app-shell-bg:has(> .app-shell-panel--studio) :is(.conversation-sidebar__wordmark, .conversation-sidebar__icon) {
+  height: var(--studio-header-control);
+}
+.app-shell-bg:has(> .app-shell-panel--studio) .conversation-sidebar__wordmark-svg { padding-bottom: 0; }
+@media (max-width: 1023px) {
+  .app-shell-bg:has(> .app-shell-panel--studio) {
+    --studio-panel-offset: 1px;
+    --studio-header-top: max(15px, env(safe-area-inset-top));
+    --studio-header-bottom: 8px;
+  }
+}
+
+:root:not([data-theme="dark"]) .app-shell-bg:has(> .app-shell-panel--studio) {
+  --shell-bg: #ffffff;
 }
 
 .app-shell-main {
@@ -702,9 +733,9 @@
 
 /* Workspace navigation stays compact; recent work and everyday controls are separate. */
 .app-shell-bg { --shell-bg: #fbfaf9; --shell-raised: #fff; --shell-hover: #f1f0ef; --shell-active: #ecebea; --shell-border: #e2e1df; --shell-text: #191919; --shell-muted: #5f5d5a; --shell-faint: #9a9692; }
-[data-theme="dark"] .app-shell-bg { --shell-bg: #191919; --shell-panel: #111; --shell-raised: #202020; --shell-hover: #262626; --shell-active: #2d2d2d; --shell-border: #303030; --shell-text: #d9d9d9; --shell-muted: #aaa; --shell-faint: #777; }
-.conversation-sidebar__brand { height: 52px; padding: 9px 12px; justify-content: space-between; gap: 8px; }
-.conversation-sidebar__wordmark-svg { display: none; }
+[data-theme="dark"] .app-shell-bg { --shell-bg: var(--workspace-canvas); --shell-panel: var(--workspace-canvas); --shell-raised: var(--workspace-surface); --shell-hover: var(--workspace-raised); --shell-active: #383838; --shell-border: #3a3a3a; --shell-text: #eeeeeb; --shell-muted: #b3b3ae; --shell-faint: #92928d; }
+.conversation-sidebar__brand { height: auto; padding: var(--shell-nav-top) 12px 9px; justify-content: space-between; gap: 8px; }
+.conversation-sidebar__wordmark-svg { display: block; padding-bottom: 4px; }
 .conversation-sidebar__wordmark img { width: 28px; height: 28px; border-radius: 7px; }
 @media (max-width: 1023px) {
   .conversation-sidebar__brand { height: auto; padding-top: max(15px, env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); }
@@ -712,13 +743,13 @@
 .conversation-sidebar__primary { gap: 2px; padding: 0 10px; max-height: calc(100% - 180px); overflow-y: auto; scrollbar-width: thin; }
 .conversation-sidebar__new {
   min-width: 0;
-  min-height: 46px;
-  height: 46px;
+  min-height: 38px;
+  height: 38px;
   margin-bottom: 10px;
-  padding: 0 10px;
+  padding: 0 8px;
   gap: 7px;
   border: 0.5px solid var(--shell-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--shell-raised);
   color: var(--shell-text);
   font-weight: 430;
@@ -765,12 +796,9 @@
 .conversation-sidebar .sidebar-recent-project:is(:hover, :focus-within) .sidebar-recent-project__actions, .conversation-sidebar .sidebar-recent-project__actions[aria-expanded='true'] { opacity: 1; pointer-events: auto; }
 .conversation-sidebar .sidebar-recent-project__actions:is(:hover, :focus-visible) { background: transparent; color: var(--shell-text); }
 .conversation-sidebar .sidebar-recent-project__state { position: absolute; top: 50%; right: 12px; width: 14px; height: 14px; display: grid; place-items: center; color: #4f67ff; transform: translateY(-50%); transition: opacity 120ms ease; pointer-events: none; }
-.conversation-sidebar .sidebar-recent-project__state.is-working { color: var(--shell-muted); }
-.conversation-sidebar .sidebar-recent-project__state.is-working svg { animation: sidebar-project-spin 900ms linear infinite; }
+.conversation-sidebar .sidebar-recent-project__state.is-working { right: 9px; width: 20px; height: 20px; color: var(--shell-muted); }
 .conversation-sidebar .sidebar-recent-project__state.is-ready i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .conversation-sidebar .sidebar-recent-project:is(:hover, :focus-within) .sidebar-recent-project__state { opacity: 0; }
-@keyframes sidebar-project-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .conversation-sidebar .sidebar-recent-project__state.is-working svg { animation: none; } }
 .sidebar-recent-project__rename { padding-right: 30px; }
 .sidebar-recent-project__rename input { width: 100%; height: 25px; padding: 2px 5px; border: 1px solid var(--shell-muted); border-radius: 5px; background: var(--shell-raised); color: var(--shell-text); font: 430 14px/1.45 var(--font-sans); outline: none; }
 .sidebar-recent-project__rename input:focus { border-color: var(--shell-text); }
@@ -785,11 +813,36 @@
 .conversation-sidebar__footer { padding: 6px 10px; border-top: 1px solid var(--shell-border); }
 .sidebar-footer-stack { display: flex; flex-direction: column; gap: 5px; }
 .sidebar-account-row { display: flex; align-items: center; gap: 4px; }
-.sidebar-account-trigger { flex: 1; min-width: 0; height: 40px; display: flex; align-items: center; gap: 7px; padding: 4px; border: 0; border-radius: 9px; color: var(--shell-text); background: transparent; cursor: pointer; }
+.sidebar-account-trigger { flex: 1; min-width: 0; height: 40px; display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border: 0; border-radius: 9px; color: var(--shell-text); background: transparent; cursor: pointer; }
 .sidebar-account-trigger:hover, .sidebar-account-trigger[aria-expanded="true"] { background: var(--shell-hover); }
 .sidebar-account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
-.sidebar-account-plan { flex: none; max-width: 72px; overflow: hidden; padding: 2px 5px; border-radius: 3px; background: var(--shell-text); color: var(--shell-bg); font-size: 9px; font-weight: 600; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-account-chevron { flex: none; margin-left: auto; color: var(--shell-faint); }
+.sidebar-account-plan {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 104px;
+  min-height: 22px;
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid #d6d3ce;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #fff 0%, #eeece8 52%, #faf9f7 100%);
+  color: #5c5750;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%), 0 1px 2px rgb(35 28 16 / 5%);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sidebar-account-plan > svg { flex: none; }
+.sidebar-account-plan > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-account-plan.is-paid { border-color: #d8bd85; background: linear-gradient(135deg, #fff9e9 0%, #f0dfb8 52%, #fff4d9 100%); color: #79551d; }
+[data-theme="dark"] .sidebar-account-plan { border-color: #4b4843; background: linear-gradient(135deg, #3b3834 0%, #292724 52%, #35322e 100%); color: #ddd7ce; box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 1px 3px rgb(0 0 0 / 18%); }
+[data-theme="dark"] .sidebar-account-plan.is-paid { border-color: #705a34; background: linear-gradient(135deg, #4a3c28 0%, #30291f 52%, #403522 100%); color: #ebce91; }
+.sidebar-account-chevron { flex: none; color: var(--shell-faint); }
 .sidebar-account-avatar { width: 28px; height: 28px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--shell-active); }
 .sidebar-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
 @media (min-width: 1024px) {

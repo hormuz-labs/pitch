@@ -33,8 +33,8 @@ export const CREDIT_USD = 0.0025
  */
 export const COMPUTE_USD_PER_SEC = 0.002
 
-/** Model-usage pricing for turns that successfully load a provided Pitch skill. */
-export const PROVIDED_SKILL_MODEL_MULTIPLIER = 250
+/** 250% of model cost (2.5×) for turns that successfully load a provided Pitch skill. */
+export const PROVIDED_SKILL_MODEL_MULTIPLIER = 2.5
 
 export function effectiveModelMultiplier(modelMultiplier: number, usedProvidedSkill: boolean) {
   return Math.max(0, modelMultiplier) * (usedProvidedSkill ? PROVIDED_SKILL_MODEL_MULTIPLIER : 1)
@@ -78,6 +78,17 @@ export function projectedCreditsOwed(
   margin = platformMargin(),
 ): number {
   return creditsOwed(usageSoFarUsd + usageUsd(pending, multiplier, margin), charged)
+}
+
+export function creditLimitMessage(owed: number, allowance: number, usedProvidedSkill: boolean) {
+  const format = (value: number) => Math.max(0, Math.floor(value)).toLocaleString('en-US')
+  return (
+    `Generation stopped because this turn's accrued usage requires ${format(owed)} credits, ` +
+    `but only ${format(allowance)} credits are available to this project.` +
+    (usedProvidedSkill
+      ? ` This includes the ${PROVIDED_SKILL_MODEL_MULTIPLIER}× built-in skill model-usage rate.`
+      : '')
+  )
 }
 
 export function noLossCredits(billableCostUsd: number): number {

@@ -5,22 +5,22 @@
   --accent-soft: color-mix(in srgb, var(--ink) 12%, transparent);
   --accent-ink: var(--ink);
 }
-.lv-studio :is(.mobile-chat-toggle, .editor-tracks-toggle):is(:hover, :active):not(:disabled) {
+.lv-studio :is(.mobile-preview-toggle, .editor-tracks-toggle):is(:hover, :active):not(:disabled) {
   background: var(--control-hover);
   color: var(--ink);
 }
 .lv-studio :is(button, a, input) { -webkit-tap-highlight-color: transparent; }
 .lv-studio .editor-stage[hidden],
 .lv-studio .resize-handle[hidden] { display: none; }
-.lv-studio .mobile-chat-toggle { display: none; }
+.lv-studio .mobile-preview-toggle { display: none; }
 .lv-studio .job-topbar .nav-crumb { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; min-width: 0; width: 100%; }
 .lv-studio .job-topbar .editor-project { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lv-studio .job-topbar :is(.project-kind, .project-state) { flex-shrink: 0; white-space: nowrap; }
-.lv-studio.is-chat-only { --paper: var(--bg-surface); --panel: var(--bg-surface); }
-.lv-studio.is-chat-only .editor { padding: 0; gap: 0; justify-content: center; }
-.lv-studio.is-chat-only .edit-sidebar {
+/* Outrank the shared pane styles regardless of route stylesheet load order. */
+.lv-studio:not(.new-project-page).is-chat-only .editor { padding: 0; gap: 0; justify-content: center; }
+.lv-studio:not(.new-project-page).is-chat-only .edit-sidebar {
   --chat-inset: 24px;
-  --chat-content-width: 900px;
+  --chat-content-width: 600px;
   width: 100%;
   max-width: none;
   min-width: 0;
@@ -32,10 +32,8 @@
   box-shadow: none;
   background: var(--paper);
 }
-.lv-studio.is-chat-only .edit-sidebar.is-working { background: var(--paper); box-shadow: none; }
-.lv-studio.is-chat-only .topbar-split-left { width: auto !important; max-width: none; flex: 1; min-width: 0; }
-.lv-studio.is-chat-only .topbar-split-right { flex: 0 0 auto; }
-.lv-studio.is-chat-only .feed {
+.lv-studio:not(.new-project-page).is-chat-only .edit-sidebar.is-working { background: var(--paper); box-shadow: none; }
+.lv-studio:not(.new-project-page).is-chat-only .feed {
   margin: 0;
   padding: 24px var(--chat-inset);
   min-width: 0;
@@ -47,7 +45,19 @@
 .lv-studio.is-chat-only .feed > .thread {
   width: 100%;
   max-width: var(--chat-content-width);
+  min-width: 0;
   margin-inline: auto;
+}
+.lv-studio:not(.new-project-page).is-chat-only .msg.assistant {
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+.lv-studio:not(.new-project-page).is-chat-only .user-message .message-edit {
+  order: -1;
 }
 .lv-studio.is-chat-only .studio-composer-dock {
   width: 100%;
@@ -62,7 +72,7 @@
 .lv-studio .composer-queue .message-state { margin: 0; font-size: 10px; color: var(--muted); }
 .lv-studio .composer-queue .message-steer:disabled { opacity: .5; cursor: default; }
 .lv-studio .composer-queue-error { grid-column: 1 / -1; color: var(--ink); font-size: 11px; }
-.lv-studio.is-chat-only .job-composer {
+.lv-studio:not(.new-project-page).is-chat-only .job-composer {
   flex: 0 0 auto;
   padding: 12px var(--chat-inset) 24px;
   border-top: 0;
@@ -89,13 +99,17 @@
 }
 .lv-studio.is-chat-empty .job-composer { max-height: none; overflow: visible; }
 
-/* Both panes share an outer frame; clip their contents to the same corners. */
+/* Keep both panes clipped; only the preview gets a visible frame. */
 .lv-studio:not(.is-chat-only) :is(.edit-sidebar, .editor-stage) {
   min-height: 0;
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+}
+.lv-studio:not(.new-project-page):not(.is-chat-only) .edit-sidebar {
+  border: 0;
+  box-shadow: none;
 }
 @media (min-width: 721px) {
   .lv-studio:not(.is-chat-only) .editor { align-items: stretch; }
@@ -115,20 +129,10 @@
 .lv-studio .build-process__shots { padding-bottom: 2px; }
 .lv-studio .build-process__shots img { width: 72px; background: var(--control); object-fit: contain; }
 
-@media (max-width: 1023px) {
-  .lv-studio:not(.new-project-page) .job-topbar.job-topbar-split {
-    height: calc(max(15px, env(safe-area-inset-top)) + 35.2px + 8px);
-    min-height: calc(max(15px, env(safe-area-inset-top)) + 35.2px + 8px);
-    padding-top: max(15px, env(safe-area-inset-top));
-    padding-bottom: 8px;
-    padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px);
-  }
-  .lv-studio:not(.new-project-page) .topbar-split-left { padding-left: 0; }
-}
-
 @media (max-width: 840px) {
-  .lv-studio:not(.new-project-page) .topbar-split-left { flex: 1 1 0; max-width: none; }
-  .lv-studio:not(.new-project-page) .topbar-split-right { flex: 0 0 auto; }
+  .lv-studio .mobile-preview-toggle { display: flex; align-items: center; gap: 8px; order: 0; flex: none; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--paper); color: var(--muted); font-size: 12px; text-align: left; }
+  .lv-studio .mobile-preview-toggle > span { flex: 1; }
+  .lv-studio .mobile-preview-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
   .lv-studio .job-topbar :is(.project-kind, .project-state) { display: none; }
   .app-shell-bg:has(.lv-studio) { height: 100dvh; }
   .lv-studio:not(.is-chat-only) .editor { position: relative; gap: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
@@ -139,11 +143,13 @@
     min-height: 240px;
     width: auto;
     max-width: none;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    border: 0;
+    box-shadow: none;
   }
   .lv-studio:not(.is-chat-only).is-chat-expanded .editor { overflow-y: auto; overscroll-behavior: contain; }
   .lv-studio:not(.is-chat-only).is-chat-expanded .editor-stage { flex: 0 0 auto; height: auto; }
+  .lv-studio:not(.is-chat-only).is-preview-collapsed .edit-sidebar { flex: 1 1 0; min-height: 0; height: auto; }
+  .lv-studio:not(.is-chat-only).is-preview-collapsed .editor { overflow: hidden; }
   .lv-studio.is-chat-expanded .studio-preview-view { flex: none; height: auto; }
   .lv-studio .studio-preview-view > .player { flex: none; }
   .lv-studio .player-stage { height: auto; aspect-ratio: 16 / 9; }
@@ -154,26 +160,6 @@
   .lv-studio .video-container { height: auto; }
   .lv-studio .studio-preview-view { overflow-y: auto; }
   .lv-studio:not(.new-project-page) .studio-preview-view > .tray { max-height: none; }
-  .lv-studio.is-chat-expanded .mobile-chat-toggle { position: sticky; bottom: 0; z-index: 30; }
-  .lv-studio .mobile-chat-toggle {
-    display: flex;
-    align-items: center;
-    order: 4;
-    flex: 0 0 52px;
-    width: 100%;
-    min-width: 0;
-    gap: 10px;
-    padding: 0 14px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--bg-surface);
-    color: var(--ink);
-    text-align: left;
-  }
-  .lv-studio .mobile-chat-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
-  .lv-studio .mobile-chat-toggle > svg, .lv-studio .mobile-chat-toggle > .spinner { flex: none; }
-  .lv-studio .mobile-chat-toggle__label { flex: none; font-size: 13px; font-weight: 600; }
-  .lv-studio .mobile-chat-toggle__status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
   .lv-studio .job-composer { max-height: 60%; overflow-y: auto; }
   .lv-studio:not(.new-project-page) .job-composer-box { min-height: 100px; padding: 12px 12px 9px; border-radius: 22px; }
   .lv-studio .job-composer-box textarea { min-height: 40px; font-size: 16px; max-height: min(180px, 30dvh); }
@@ -184,12 +170,76 @@
   .lv-studio .model-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lv-studio:not(.new-project-page) .job-send-round { width: 38px; height: 38px; min-width: 38px; min-height: 38px; max-width: 38px; max-height: 38px; flex: 0 0 38px; }
   .lv-studio:not(.new-project-page) .job-attach-plus { width: 32px; height: 38px; min-width: 32px; min-height: 38px; max-width: 32px; max-height: 38px; flex: 0 0 32px; }
-  .lv-studio.is-chat-only .edit-sidebar { --chat-inset: 10px; }
-  .lv-studio.is-chat-only .feed { padding: 16px; }
-  .lv-studio.is-chat-only .job-composer { margin: 0; padding: 8px var(--chat-inset) max(10px, env(safe-area-inset-bottom)); border-radius: 0; }
-  .lv-studio.is-chat-only .topbar-split-right { gap: 4px; padding-right: 6px; }
+  .lv-studio:not(.new-project-page).is-chat-only .edit-sidebar { --chat-inset: 10px; }
+  .lv-studio:not(.new-project-page).is-chat-only .feed { padding: 16px var(--chat-inset); }
+  .lv-studio:not(.new-project-page).is-chat-only .job-composer { margin: 0; padding: 8px var(--chat-inset) max(10px, env(safe-area-inset-bottom)); border-radius: 0; }
   .lv-studio .build-process { padding: 12px; gap: 9px; }
   .lv-studio .build-process__shots img { width: 48px; }
+}
+
+/* One header row for conversation-only and preview projects, with compact
+   mobile actions and a flexible project title. */
+.app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split {
+  height: calc(var(--studio-header-top) + var(--studio-header-control) + var(--studio-header-bottom));
+  min-height: calc(var(--studio-header-top) + var(--studio-header-control) + var(--studio-header-bottom));
+  padding: var(--studio-header-top) 16px var(--studio-header-bottom);
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+.app-shell-panel--studio .lv-studio .job-topbar .topbar-split-left {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 0;
+}
+.app-shell-panel--studio .lv-studio .job-topbar .nav-crumb { gap: 6px; }
+.app-shell-panel--studio .lv-studio .job-topbar .topbar-project-menu {
+  max-width: 100%;
+  height: var(--studio-header-control);
+}
+.app-shell-panel--studio .lv-studio .job-topbar .topbar-new-chat { height: var(--studio-header-control); padding: 0; }
+.app-shell-panel--studio .lv-studio .job-topbar :is(.preview-pane-tab, .topbar-btn) { height: var(--studio-header-control); min-height: var(--studio-header-control); align-items: center; }
+.app-shell-panel--studio .lv-studio .job-topbar .topbar-split-right {
+  flex: 0 0 auto;
+  padding: 0;
+  gap: 12px;
+}
+.app-shell-panel--studio .lv-studio .job-topbar .topbar-split-right:not(:has(button)) { display: none; }
+.app-shell-panel--studio .lv-studio .job-topbar :is(.topbar-actions, .topbar-split-tabs) {
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+.app-shell-panel--studio .lv-studio .job-topbar .preview-pane-tab { width: auto; flex: none; }
+.app-shell-panel--studio .lv-studio .job-topbar .preview-pane-tab svg { flex: none; }
+.app-shell-bg.is-sidebar-collapsed .app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split { padding-left: 55px; }
+.app-shell-panel--studio .conversation-sidebar__open { top: var(--studio-header-top); height: var(--studio-header-control); }
+
+@media (max-width: 1023px) {
+  .app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split {
+    padding-top: var(--studio-header-top);
+    padding-bottom: var(--studio-header-bottom);
+  }
+  .app-shell-bg.is-sidebar-collapsed .app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split {
+    padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px);
+  }
+  .app-shell-panel--studio .conversation-sidebar__open { top: var(--studio-header-top); }
+}
+
+@media (max-width: 620px) {
+  .app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split,
+  .app-shell-bg.is-sidebar-collapsed .app-shell-panel--studio .lv-studio .job-topbar.job-topbar-split {
+    display: flex;
+    gap: 8px;
+    padding-left: calc(max(16px, env(safe-area-inset-left)) + 35.2px + 8px);
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .app-shell-panel--studio .conversation-sidebar__open { left: max(16px, env(safe-area-inset-left)); }
+  .app-shell-panel--studio .lv-studio .job-topbar .topbar-split-right { gap: 4px; }
+  .app-shell-panel--studio .lv-studio .job-topbar :is(.preview-pane-tab, .topbar-more) { width: 36px; min-width: 36px; height: 36px; padding: 0; gap: 0; justify-content: center; }
+  .app-shell-panel--studio .lv-studio .job-topbar :is(.preview-pane-tab__label, .preview-pane-tab__count, .topbar-more .export-label) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lv-studio .build-process__stage > img { animation: none; }

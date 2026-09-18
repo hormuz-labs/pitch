@@ -363,22 +363,21 @@ export function AppShell(props: ParentProps) {
         <div
           class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden${studio() ? ' app-shell-panel--studio' : ''}`}
         >
-          {/* The collapsed sidebar leaves nothing behind; its opener floats
-              inside the page's own corner, so the content gets the full width. */}
-          <Show when={collapsed()}>
-            <button
-              type="button"
-              class="conversation-sidebar__open"
-              onClick={() => setCollapsed(false)}
-              aria-label="Open navigation"
-              title="Open navigation (Ctrl+B)"
-            >
-              <PanelLeftOpen size={18} />
-            </button>
-          </Show>
           <main
             class={`app-shell-main relative flex-1 overflow-x-hidden${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
           >
+            {/* Keep the opener inside the scroll area so it leaves with the page header. */}
+            <Show when={collapsed()}>
+              <button
+                type="button"
+                class="conversation-sidebar__open"
+                onClick={() => setCollapsed(false)}
+                aria-label="Open navigation"
+                title="Open navigation (Ctrl+B)"
+              >
+                <PanelLeftOpen size={18} />
+              </button>
+            </Show>
             {props.children}
           </main>
         </div>

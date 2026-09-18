@@ -1,3 +1,4 @@
+import { ArrowRight, Check } from 'lucide-solid'
 import { createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import type { Ask } from './types'
 
@@ -23,7 +24,7 @@ export function QuestionCard(props: {
     questions = () => props.ask.questions,
     q = () => questions()[step()],
     confirming = () => step() >= questions().length
-  const summary = createMemo(() =>
+  const responses = createMemo(() =>
     questions()
       .filter(x => (picked()[x.id] ?? []).length || custom()[x.id]?.trim())
       .map(x => {
@@ -31,9 +32,13 @@ export function QuestionCard(props: {
           ...(picked()[x.id] ?? []),
           ...(custom()[x.id]?.trim() ? [custom()[x.id].trim()] : []),
         ]
-        return `${x.question} → ${values.join(', ')}`
+        return { question: x.question, value: values.join(', ') }
       }),
   )
+  const summary = () =>
+    responses()
+      .map(x => `${x.question} → ${x.value}`)
+      .join('\n')
   const answer = () => ({
     askEntryId: props.entryId,
     selections: questions().map(question => ({
@@ -46,6 +51,7 @@ export function QuestionCard(props: {
   })
   const send = (text: string) => {
     if (locked()) return
+    goToStep(questions().length)
     setSent(true)
     props.onSend(text, answer())
   }
@@ -77,7 +83,7 @@ export function QuestionCard(props: {
     if (locked()) return
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (confirming()) send(summary().join('\n'))
+      if (confirming()) send(summary())
       else if (hasAnswer()) goToStep(step() + 1)
       return
     }
@@ -102,7 +108,11 @@ export function QuestionCard(props: {
     >
       <div class="ask-head">
         <span class="ask-progress">
-          {confirming() ? 'Review answers' : `Question ${step() + 1} of ${questions().length}`}
+          {sent()
+            ? 'Answers sent'
+            : confirming()
+              ? 'Review answers'
+              : `Question ${step() + 1} of ${questions().length}`}
         </span>
         <div class="ask-dots" aria-label="Question navigation">
           <For each={questions()}>
@@ -121,7 +131,7 @@ export function QuestionCard(props: {
           </For>
         </div>
       </div>
-      <Show when={props.ask.intro && !locked()}>
+      <Show when={props.ask.intro}>
         <p class="ask-intro">{props.ask.intro}</p>
       </Show>
       <Show
@@ -133,7 +143,7 @@ export function QuestionCard(props: {
                 <p class="ask-q">
                   {cur.question}
                   <Show when={cur.multi}>
-                    <span class="ask-any"> · any</span>
+                    <span class="ask-any">Select any</span>
                   </Show>
                 </p>
                 <ul class={`ask-list ${cur.multi ? 'is-multiple' : 'is-single'}`}>
@@ -147,7 +157,14 @@ export function QuestionCard(props: {
                           disabled={locked()}
                           onClick={() => choose(o.label)}
                         >
-                          <span class="ask-key">{LETTERS[i()]}</span>
+                          <span class="ask-key" aria-hidden="true">
+                            <Show
+                              when={(picked()[cur.id] ?? []).includes(o.label)}
+                              fallback={LETTERS[i()]}
+                            >
+                              <Check size={12} strokeWidth={2.5} />
+                            </Show>
+                          </span>
                           <span class="ask-text">{o.label}</span>
                           <Show when={o.hint}>
                             <span class="ask-hint">{o.hint}</span>
@@ -195,6 +212,7 @@ export function QuestionCard(props: {
                         onClick={() => goToStep(step() + 1)}
                       >
                         {step() === questions().length - 1 ? 'Review answers' : 'Confirm & next'}
+                        <ArrowRight size={13} aria-hidden="true" />
                       </button>
                     </div>
                     <button
@@ -223,14 +241,32 @@ export function QuestionCard(props: {
           </Show>
         }
       >
-        <p class="ask-q">{locked() ? 'Answered' : 'Send this?'}</p>
+        <p class="ask-q">{sent() ? 'Your direction is set.' : 'Ready to move forward?'}</p>
         <ul class="ask-summary">
-          <For each={summary()}>{line => <li>{line}</li>}</For>
+          <For each={responses()}>
+            {response => (
+              <li>
+                <span class="ask-summary-question">{response.question}</span>
+                <span class="ask-summary-value">{response.value}</span>
+              </li>
+            )}
+          </For>
         </ul>
-        <Show when={!locked()}>
+        <Show
+          when={!locked()}
+          fallback={
+            <Show when={sent()}>
+              <div class="ask-receipt" role="status">
+                <Check size={14} aria-hidden="true" />
+                Answers sent
+              </div>
+            </Show>
+          }
+        >
           <div class="ask-actions">
-            <button type="button" class="ask-send" onClick={() => send(summary().join('\n'))}>
+            <button type="button" class="ask-send" onClick={() => send(summary())}>
               Send
+              <ArrowRight size={13} aria-hidden="true" />
             </button>
             <button type="button" class="ask-flat" onClick={() => goToStep(questions().length - 1)}>
               Back

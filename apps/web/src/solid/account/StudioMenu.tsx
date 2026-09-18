@@ -12,11 +12,17 @@ export function StudioMenu(props: {
   side?: 'top' | 'bottom'
   width?: number
   triggerClass?: string
+  onOpen?: () => void
 }) {
   const [open, setOpen] = createSignal(false)
   const [position, setPosition] = createSignal({ left: 0, top: 0 })
   let trigger!: HTMLButtonElement
   let content: HTMLDivElement | undefined
+  const expand = () => {
+    if (open()) return
+    setOpen(true)
+    props.onOpen?.()
+  }
   const close = (focus = false) => {
     setOpen(false)
     if (focus) trigger.focus()
@@ -98,11 +104,11 @@ export function StudioMenu(props: {
         aria-label={props.label}
         aria-haspopup="menu"
         aria-expanded={open()}
-        onClick={() => setOpen(value => !value)}
+        onClick={() => (open() ? close() : expand())}
         onKeyDown={event => {
           if (event.key === 'ArrowDown') {
             event.preventDefault()
-            setOpen(true)
+            expand()
             queueMicrotask(() => items()[0]?.focus())
           }
         }}

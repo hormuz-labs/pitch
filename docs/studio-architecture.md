@@ -349,7 +349,7 @@ and bills that (`apps/api/src/projects/usage.ts`):
 
 Each model has a relative credit multiplier (configured with
 `STUDIO_MODEL_CREDIT_MULTIPLIERS`). When a turn successfully reads one of
-Pitch's registered skills, a `250x` provided-skill multiplier composes with the
+Pitch's registered skills, a `2.5x` (250% of model cost) provided-skill multiplier composes with the
 model multiplier. Both affect model usage only; host compute and provider costs
 are not multiplied. A platform margin (`STUDIO_PLATFORM_MARGIN`, default
 `1.25`) is applied afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as

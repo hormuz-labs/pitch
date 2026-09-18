@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@solidjs/testing-library'
 import userEvent from '@testing-library/user-event'
-import type { JSX } from 'solid-js'
+import { createSignal, type JSX } from 'solid-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '../src/lib/studio-api'
 
@@ -42,7 +42,10 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   ...overrides,
 })
 
-function renderSidebar(projects: Project[] = [project()], unreadProjectIds = new Set<string>()) {
+function renderSidebar(
+  projects: Project[] | (() => Project[]) = [project()],
+  unreadProjectIds = new Set<string>(),
+) {
   const actions = {
     close: vi.fn(),
     toggle: vi.fn(),
@@ -56,7 +59,7 @@ function renderSidebar(projects: Project[] = [project()], unreadProjectIds = new
       collapsed={false}
       isMobile={false}
       isAdmin={false}
-      projects={projects}
+      projects={typeof projects === 'function' ? projects() : projects}
       projectsLoading={false}
       unreadProjectIds={unreadProjectIds}
       selectedKey="new"
@@ -114,11 +117,24 @@ describe('Sidebar chat actions', () => {
     expect(navigate).toHaveBeenCalledWith('/p/project-1')
   })
 
-  it('shows a spinner while a chat is working', () => {
+  it('opens on the first click even when the project list refreshes during the click', async () => {
+    const [projects, setProjects] = createSignal([project({ busy: true, status: 'working' })])
+    renderSidebar(projects)
+    const user = userEvent.setup()
+    const button = screen.getByRole('button', { name: 'Launch film, working' })
+    await user.pointer({ target: button, keys: '[MouseLeft>]' })
+    setProjects([project({ busy: false })])
+    const refreshed = screen.getByRole('button', { name: 'Launch film' })
+    await user.pointer({ target: refreshed, keys: '[/MouseLeft]' })
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('/p/project-1')
+  })
+
+  it('shows an orb with an accessible status while a chat is working', () => {
     renderSidebar([project({ busy: true, status: 'working' })])
     const state = screen.getByRole('status', { name: 'Work in progress' })
     expect(state.classList.contains('is-working')).toBe(true)
-    expect(state.querySelector('svg')).toBeTruthy()
+    expect(state.querySelector('[aria-hidden="true"]')).toBeTruthy()
+    expect(state.querySelector('svg')).toBeNull()
   })
 
   it('shows a blue-dot state when a chat is complete', () => {

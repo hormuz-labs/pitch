@@ -54,5 +54,10 @@ describe('QuestionCard', () => {
         { questionId: 'timing', optionIds: ['now'] },
       ],
     })
+    expect(screen.getByRole('status').textContent).toContain('Answers sent')
+    expect(screen.getByText('Use hand-drawn animation')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+    fireEvent.keyDown(screen.getByText('Your direction is set.'), { key: 'Enter' })
+    expect(onSend).toHaveBeenCalledTimes(1)
   })
 })

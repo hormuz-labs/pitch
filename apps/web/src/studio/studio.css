@@ -727,9 +727,8 @@
  * one vertical line at two different heights, right where the eye goes. Now
  * there is exactly one line between the two panes.
  *
- * Redefining the tokens rather than restyling each class is deliberate: the
- * strips, the tray tabs, the asset cards and their buttons all read from
- * these, so they follow the ground they are standing on.
+ * The strips, tray tabs and asset cards inherit the studio theme so their
+ * surfaces stay consistent with the conversation pane.
  */
 .lv-studio .editor-stage {
   flex: 1;
@@ -737,14 +736,6 @@
   display: flex;
   flex-direction: column;
   background: var(--stage);
-
-  --paper: transparent;
-  --panel: rgba(255, 255, 255, 0.06);
-  --panel-2: rgba(255, 255, 255, 0.1);
-  --ink: #edebe8;
-  --muted: #a3a09b;
-  --faint: #78756f;
-  --border: rgba(255, 255, 255, 0.11);
 }
 /* Player */
 
@@ -1522,18 +1513,20 @@
   outline: none;
 }
 .lv-studio .question-card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--panel));
+  border-radius: 18px;
   background: var(--panel);
-  box-shadow: 0 1px 2px rgb(17 24 39 / 4%);
-  gap: 12px;
-  padding: 16px;
+  box-shadow: 0 2px 4px rgb(17 24 39 / 3%), 0 8px 24px rgb(17 24 39 / 4%);
+  gap: 16px;
+  padding: 20px;
 }
-.lv-studio .ask.locked {
-  opacity: 0.55;
+.lv-studio .question-card:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
-.lv-studio .ask.answered {
-  display: none;
+.lv-studio .ask.locked,
+.lv-studio .ask button:disabled {
+  opacity: 1;
 }
 .lv-studio .ask-head {
   display: flex;
@@ -1542,7 +1535,7 @@
   gap: 12px;
 }
 .lv-studio .ask-progress {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1562,6 +1555,9 @@
   border: 0;
   border-radius: 50%;
   background: transparent;
+}
+.lv-studio .ask-dot:hover:not(:disabled) {
+  background: var(--panel-2);
 }
 .lv-studio .ask-dot::after {
   content: '';
@@ -1593,18 +1589,26 @@
 .lv-studio .ask-intro {
   margin: -2px 0 0;
   color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .lv-studio .ask-q {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.35;
+  letter-spacing: -0.025em;
+  line-height: 1.5;
 }
 .lv-studio .ask-any {
-  font-weight: 400;
-  color: var(--faint);
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
 }
 .lv-studio .ask-list,
 .lv-studio .ask-summary {
@@ -1615,34 +1619,35 @@
 .lv-studio .ask-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .lv-studio .ask-row {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  column-gap: 8px;
-  row-gap: 2px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 4px;
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--paper);
-  color: inherit;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
   font: inherit;
   font-size: 12.5px;
-  line-height: 1.35;
+  line-height: 1.6;
   text-align: left;
-  padding: 10px;
+  padding: 12px;
   cursor: pointer;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
 }
-.lv-studio .ask-row:hover:not(:disabled),
-.lv-studio .ask-row.on {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.lv-studio .ask-row:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 30%, var(--border));
+  background: var(--paper);
 }
-.lv-studio .ask-row.on .ask-key {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+.lv-studio .ask-row.on,
+.lv-studio .ask-row.on:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 4%, var(--panel));
+  box-shadow: inset 0 0 0 0.5px var(--ink);
 }
 .lv-studio .ask-row:disabled {
   cursor: default;
@@ -1670,15 +1675,15 @@
   border-radius: 5px;
 }
 .lv-studio .ask-row:hover:not(:disabled) .ask-key {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--border));
   background: var(--panel);
-  color: var(--accent-ink);
+  color: var(--ink);
 }
 .lv-studio .ask-row.on:hover:not(:disabled) .ask-key,
 .lv-studio .ask-row.on .ask-key {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--panel);
 }
 .lv-studio .ask-text {
   min-width: 0;
@@ -1686,9 +1691,9 @@
 }
 .lv-studio .ask-hint {
   grid-column: 2;
-  color: var(--faint);
-  font-size: 11px;
-  line-height: 1.35;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 .lv-studio .ask-other .ask-row {
   cursor: text;
@@ -1728,47 +1733,90 @@
   color: var(--faint);
   opacity: 1;
 }
+.lv-studio .ask-summary {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
 .lv-studio .ask-summary li {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
   font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.lv-studio .ask-summary li + li {
+  border-top: 1px solid var(--border);
+}
+.lv-studio .ask-summary-question {
+  font-size: 11px;
   color: var(--muted);
-  line-height: 1.45;
+}
+.lv-studio .ask-summary-value {
+  color: var(--ink);
+  font-weight: 500;
 }
 .lv-studio .ask-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
   justify-content: space-between;
-  padding: 2px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 14px 0 0;
 }
 .lv-studio .ask-nav {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .lv-studio .ask-send,
 .lv-studio .ask-flat {
-  border-radius: 8px;
-  min-height: 34px;
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  min-height: 36px;
+  padding: 8px 12px;
   font: inherit;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--paper);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--panel);
+}
+.lv-studio .ask-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 88%, var(--panel));
+  border-color: var(--ink);
 }
 .lv-studio .ask-flat {
   background: transparent;
   border-color: transparent;
-  color: var(--faint);
-}
-.lv-studio .ask-flat:hover {
   color: var(--muted);
+}
+.lv-studio .ask-flat:hover:not(:disabled) {
+  color: var(--ink);
   background: var(--panel-2);
 }
 .lv-studio .ask-send:disabled {
-  opacity: 0.4;
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--muted);
   cursor: default;
+}
+.lv-studio .ask-receipt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Composer */
@@ -4190,13 +4238,6 @@
 .lv-studio .editor-stage {
   min-width: 0;
   background: var(--stage);
-  --paper: #ffffff;
-  --panel: #ffffff;
-  --panel-2: #f3f4f6;
-  --ink: #18181b;
-  --muted: #52525b;
-  --faint: #8b8b93;
-  --border: #e2e3e6;
 }
 
 .lv-studio .player {
@@ -5106,44 +5147,44 @@
 /* Kimi-style workspace contract. The shell, conversation, and top bar form one
    quiet canvas; the artifact is the only recessed surface. */
 .lv-studio:not(.new-project-page) {
-  --paper: #f3f3f1;
-  --panel: #f3f3f1;
+  --paper: #ffffff;
+  --panel: #ffffff;
   --panel-2: #e9e9e6;
   --ink: #242422;
   --muted: #71716d;
   --faint: #9b9b96;
   --border: #dededb;
-  --stage: #e9e9e6;
+  --stage: #ffffff;
   --control: #ffffff;
   --control-hover: #e3e3e0;
   --composer: #ffffff;
   --composer-border: #d4d4d0;
-  --composer-shadow: 0 12px 36px rgb(42 42 38 / 8%);
+  --composer-shadow: none;
   --timeline-row: #f1f1ef;
   --timeline-cell: #fafaf8;
-  --working-panel: #fafaf8;
+  --working-panel: #ffffff;
   --working-border: #d7d7d2;
   background: var(--paper);
 }
 
 [data-theme="dark"] .lv-studio:not(.new-project-page) {
-  --paper: #171817;
-  --panel: #171817;
-  --panel-2: #222322;
+  --paper: var(--workspace-canvas);
+  --panel: var(--workspace-canvas);
+  --panel-2: var(--workspace-raised);
   --ink: #eeeeeb;
-  --muted: #aaa9a5;
-  --faint: #777974;
-  --border: rgb(255 255 255 / 10%);
-  --stage: #101110;
-  --control: #222322;
-  --control-hover: #2b2d2b;
-  --composer: #222322;
-  --composer-border: #4b4d49;
+  --muted: #b3b3ae;
+  --faint: #92928d;
+  --border: #3a3a3a;
+  --stage: var(--workspace-canvas);
+  --control: var(--workspace-surface);
+  --control-hover: var(--workspace-raised);
+  --composer: var(--workspace-surface);
+  --composer-border: #484848;
   --composer-shadow: none;
-  --timeline-row: #191a19;
-  --timeline-cell: #1e201e;
-  --working-panel: #1c1d1c;
-  --working-border: rgb(255 255 255 / 13%);
+  --timeline-row: var(--workspace-surface);
+  --timeline-cell: var(--workspace-surface);
+  --working-panel: var(--workspace-canvas);
+  --working-border: #484848;
 }
 
 .lv-studio:not(.new-project-page) :is(
@@ -5176,7 +5217,7 @@
 
 .lv-studio:not(.new-project-page) .job-composer-box:focus-within {
   border-color: var(--muted);
-  box-shadow: var(--composer-shadow), 0 0 0 3px color-mix(in srgb, var(--ink) 5%, transparent);
+  box-shadow: none;
 }
 
 .lv-studio:not(.new-project-page) .job-composer-box textarea {
@@ -5471,7 +5512,7 @@
   max-width: 42%;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg-surface);
+  background: var(--panel);
   box-shadow: var(--shadow-sm);
   transition: background-color 180ms ease, box-shadow 180ms ease;
 }
@@ -5484,7 +5525,7 @@
 .lv-studio:not(.new-project-page) .feed {
   position: relative;
   padding: 20px 18px 10px;
-  background: var(--bg-surface);
+  background: var(--panel);
   overscroll-behavior: contain;
 }
 
@@ -5513,7 +5554,7 @@
   transform: translateX(-50%);
   border: 1px solid var(--border);
   border-radius: 50%;
-  background: var(--bg-surface);
+  background: var(--control);
   color: var(--ink);
   box-shadow: 0 3px 10px rgb(0 0 0 / 8%);
   cursor: pointer;
@@ -5540,25 +5581,10 @@
 
 .lv-studio:not(.new-project-page) .editor-stage {
   --paper: transparent;
-  --panel: #f3f3f1;
-  --panel-2: #e9e9e6;
-  --ink: #242422;
-  --muted: #71716d;
-  --faint: #9b9b96;
-  --border: #dededb;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--stage);
-}
-
-[data-theme="dark"] .lv-studio:not(.new-project-page) .editor-stage {
-  --panel: #171817;
-  --panel-2: #222322;
-  --ink: #eeeeeb;
-  --muted: #aaa9a5;
-  --faint: #777974;
-  --border: rgb(255 255 255 / 10%);
 }
 
 .lv-studio:not(.new-project-page) .player { padding: 14px; }
