@@ -70,7 +70,10 @@ export const studio = {
   steerQueued: (token: string, id: string, entryId: string) =>
     api.post<{ steered: boolean }>(`${p(id)}/queue/${encodeURIComponent(entryId)}/steer`, token),
   messages: (token: string, id: string) =>
-    api.get<{ entries: Entry[]; busy: boolean }>(`${p(id)}/messages`, token),
+    api.get<{ entries: Entry[]; busy: boolean; activeModel: string | null }>(
+      `${p(id)}/messages`,
+      token,
+    ),
   eventsUrl: (id: string, token: string) => mediaUrl(`${p(id)}/events`, token) as string,
   thumbnailUrl: (id: string, t: number, token: string, version: number) =>
     mediaUrl(`${p(id)}/thumbnail`, token, version, { t: String(t) }) as string,

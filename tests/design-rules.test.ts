@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   designSummary,
   lintDesign,
+  lintEffectSources,
   lintWhileBuilding,
 } from '../.pi/scripts/launch-video/lib/design-rules.mjs'
 
@@ -108,6 +109,20 @@ describe('lintWhileBuilding', () => {
     expect(lintWhileBuilding(film([{ dur: -1 }]))).toEqual([
       expect.objectContaining({ level: 'fail', code: 'duration' }),
     ])
+  })
+})
+
+describe('lintEffectSources', () => {
+  it('requires source inspection for every cited lab implementation', () => {
+    const spec = film([{ lab: 'text/inspected' }, { lab: 'brand/card-only' }, { type: 'bespoke' }])
+    expect(lintEffectSources(spec, ['text/inspected'])).toEqual([
+      expect.objectContaining({
+        level: 'fail',
+        code: 'lab-source',
+        msg: expect.stringContaining('pitch effects show brand/card-only --source'),
+      }),
+    ])
+    expect(lintEffectSources(spec, ['text/inspected', 'brand/card-only'])).toEqual([])
   })
 })
 

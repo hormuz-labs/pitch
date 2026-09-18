@@ -24,10 +24,10 @@
  * only enters or a whole desktop is heard while the film is being built.
  * Exit 1 on a page error or a page that never becomes ready.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
-import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
+import { extractSpec, lintEffectSources, lintWhileBuilding } from "./lib/design-rules.mjs";
 import { actionableOverruns } from "./lib/overruns.mjs";
 
 const args = process.argv.slice(2);
@@ -36,6 +36,14 @@ const outArg = args.find(a => a.startsWith("--out="));
 const out = outArg ? outArg.slice(6) : "audio/cues.json";
 const CHECK = args.includes("--check");
 const cdpArg = args.find(a => a.startsWith("--cdp="));
+const inspectedEffects = (() => {
+  try {
+    const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
+    return Array.isArray(receipt.effects) ? receipt.effects : [];
+  } catch {
+    return [];
+  }
+})();
 
 // The browser is the CloakBrowser, so it cannot see this folder: the page and
 // every file it pulls are served into it from disk (see lib/browser.mjs).
@@ -87,10 +95,15 @@ for (const o of overruns) {
   if (speed < 1.1) continue; // a 2% squeeze is invisible; retiming it cost a run thirteen turns
   console.log(`⚠ overrun: ${o.id ?? "?"} (${o.type ?? "?"}) factory timeline ${Number(o.ran ?? 0).toFixed(2)}s in a ${Number(o.dur ?? 0).toFixed(2)}s shot — compressed ${speed.toFixed(2)}×${speed > 1.6 ? " (audit FAILS above 1.6×)" : ""}; time the factory as fractions of D`);
 }
+if (overruns.length) console.log("   Include repeats and stagger: a tween at .6*D with duration .3*D and repeat:1 ends at 1.2*D. yoyo does not shorten it.");
 if (CHECK) {
   // The shot-list rules, now — the audit says the same things after a render,
   // and a film that hears them there gets rebuilt instead of built.
-  for (const l of spec ? lintWhileBuilding(spec) : []) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
+  const buildLint = spec ? [...lintWhileBuilding(spec), ...lintEffectSources(spec, inspectedEffects)] : [];
+  for (const l of buildLint) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
+  if (buildLint.some(l => l.code === "lab-source")) {
+    process.exit(1);
+  }
 }
 if (errors.length) {
   console.log(`\n❌ page errors:\n   - ${errors.join("\n   - ")}`);
@@ -104,5 +117,5 @@ if (CHECK) {
   const missing = data.shots.filter((s) => !byLabel.has(s.id));
   if (missing.length) console.log(`⚠ shots without a timeline label: ${missing.map((s) => s.id).join(", ")}`);
   console.log(`   ${out} refreshed; no separate cues call is needed for this cut.`);
-  console.log(`   The preview shows this cut. Add the next shots before running a full audit. After the first audit/review, batch fixes and use --shots <changed-ids>; audio-only edits need only motion mix.`);
+  console.log(`   The preview shows this cut. Check the complete film with one compact contact sheet; extra frames only for a specific unresolved issue. Launch MP4 export belongs to the user. Audio-only edits need only motion mix.`);
 }

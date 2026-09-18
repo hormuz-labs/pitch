@@ -38,7 +38,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadShots, voStartOf } from "./lib/vo-words.mjs";
 import { breathFilter, breathsFromSpec } from "./lib/breaths.mjs";
-import { balanceProblems, measureAudioWindows } from "./lib/audio-levels.mjs";
+import { balanceProblems, balanceRegions, measureAudioWindows } from "./lib/audio-levels.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,6 +49,7 @@ const flag = (name, dflt = null) => {
   return argv.includes(`--${name}`) ? true : dflt;
 };
 const abs = p => (isAbsolute(p) ? p : resolve(process.cwd(), p));
+const firstExisting = files => files.find(file => existsSync(abs(file))) || null;
 const SETTINGS = abs("audio/mix-settings.json");
 let settings = {};
 if (existsSync(SETTINGS)) settings = JSON.parse(readFileSync(SETTINGS, "utf8"));
@@ -56,8 +57,8 @@ const setting = (name, fallback) => flag(name, settings[name] ?? fallback);
 
 const DURATION = Number(flag("duration", 0));
 const OUT = abs(flag("out", "audio/mix.wav"));
-const MUSIC = flag("music", null);
-const SFX = flag("sfx", null);
+const MUSIC = flag("music", firstExisting(["audio/music.mp3", "audio/music.wav", "audio/music.m4a", "audio/music.aac", "audio/music.ogg", "audio/music.flac"]));
+const SFX = flag("sfx", firstExisting(["audio/sfx_bus.wav"]));
 const VO_MAP = flag("vo-map", null);
 const VO_LEAD = Number(flag("vo-lead", 0.3));     // gap between scene start and its line
 const DRY = !!flag("dry-run");
@@ -73,6 +74,9 @@ const TAIL = 1.4;                                  // mix must outlast the video
  * shipping a silent-narration cut.
  */
 const MUSIC_ONLY = !!flag("music-only");
+if (MUSIC_ONLY && !MUSIC && !SFX) {
+  throw new Error("No audio inputs: supply --music or --sfx, or place the bed at audio/music.<ext>. Nothing was mixed.");
+}
 
 // --- mix targets (measured means, not filter settings) ----------------------
 const VO_TARGET_MEAN = -18;      // dense speech
@@ -421,6 +425,11 @@ if (SFX_STEM) {
     if (bad.length) {
       const worst = bad.reduce((a, b) => a.reduceDb > b.reduceDb ? a : b);
       issues.push(`SFX overpower music near ${worst.t.toFixed(2)}s: RMS ${worst.meanDelta.toFixed(1)}dB / peak ${worst.peakDelta.toFixed(1)}dB above bed (limits 0 / 6dB). Lower --sfx-db by at least ${Math.ceil(worst.reduceDb)}dB or rebalance that cue`);
+      issues.push(`For a global trim, re-run with --sfx-db ${SFX_TRIM_DB - Math.ceil(worst.reduceDb) - 1} (absolute gain, including 1dB margin); no SFX rebuild needed.`);
+      issues.push("For per-cue edits, fix ALL affected ranges before rebuilding SFX + mixing:");
+      for (const region of balanceRegions(bad)) {
+        issues.push(`  ${region.start.toFixed(2)}–${Math.min(DURATION, region.end).toFixed(2)}s: reduce local SFX by at least ${Math.ceil(region.worst.reduceDb)}dB`);
+      }
     }
   }
   if (issues.length) {
@@ -546,6 +555,7 @@ if (!failed && !problems.length && !flag("out")) {
     const mixedAt = statSync(OUT).mtime;
     utimesSync(SETTINGS, mixedAt, mixedAt);
   }
+  console.log("   The studio preview and Export use audio/mix.wav automatically; no shots.js or index.html audio wiring is needed. If the picture checks are complete, report the actual runtime and finish. Launch MP4 export belongs to the user: do not render a review copy or a final video. A level-only edit needs no visual audit.");
 }
 rmSync(tmp, { recursive: true, force: true });
 process.exit(failed || problems.length ? 1 : 0);

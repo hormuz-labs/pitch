@@ -38,11 +38,11 @@ export function ChatHistoryView() {
       .filter(project =>
         search ? `${project.title} ${project.prompt}`.toLowerCase().includes(search) : true,
       )
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
     const now = new Date().getFullYear()
     const grouped = new Map<string, Project[]>()
     for (const project of rows) {
-      const year = new Date(project.updatedAt).getFullYear()
+      const year = new Date(project.lastActivityAt).getFullYear()
       const label = year === now ? 'This year' : String(year)
       grouped.set(label, [...(grouped.get(label) ?? []), project])
     }
@@ -92,7 +92,7 @@ export function ChatHistoryView() {
                           <span class="chat-history-row__heading">
                             <strong>{project.title || 'Untitled project'}</strong>
                             <time>
-                              {new Date(project.updatedAt).toLocaleDateString(undefined, {
+                              {new Date(project.lastActivityAt).toLocaleDateString(undefined, {
                                 month: 'long',
                                 day: 'numeric',
                                 year: 'numeric',

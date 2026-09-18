@@ -93,7 +93,7 @@ export async function busyProjects(rows: ProjectRow[]): Promise<Set<string>> {
 export async function listProjects(userId: string): Promise<ProjectInfo[]> {
   const rows = await db.prisma.project.findMany({
     where: { userId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ lastActivityAt: 'desc' }, { createdAt: 'desc' }],
   })
   const parsed = await Promise.all(rows.map(parseAndUpgradeRow))
   const busy = await busyProjects(parsed)
@@ -130,7 +130,9 @@ export async function getProject(userId: string, id: string): Promise<ProjectDet
   }
 }
 
-export async function getEntries(p: ProjectRow): Promise<{ entries: Entry[]; busy: boolean }> {
+export async function getEntries(
+  p: ProjectRow,
+): Promise<{ entries: Entry[]; busy: boolean; activeModel: string | null }> {
   return withOwner(p.id, w => w.entries(p.id))
 }
 
@@ -265,7 +267,12 @@ export async function promptProject(
   text: string,
   opts: PromptOptions = {},
 ): Promise<PromptProjectResult> {
-  return withOwner(p.id, w => w.prompt(p.id, text, opts))
+  const result = await withOwner(p.id, w => w.prompt(p.id, text, opts))
+  await db.prisma.project.update({
+    where: { id: p.id },
+    data: { lastActivityAt: new Date() },
+  })
+  return result
 }
 
 export async function stopProject(userId: string, id: string): Promise<boolean> {
@@ -284,7 +291,12 @@ export async function steerProject(userId: string, id: string, entryId: string):
 
 export async function rollbackProject(userId: string, id: string, entryId: string) {
   const p = await getRow(userId, id)
-  return withOwner(p.id, w => w.rollback(p.id, entryId))
+  const result = await withOwner(p.id, w => w.rollback(p.id, entryId))
+  const row = await db.prisma.project.update({
+    where: { id: p.id },
+    data: { lastActivityAt: new Date() },
+  })
+  return { ...result, project: parseRow(row) }
 }
 
 export async function deleteProject(userId: string, id: string): Promise<void> {

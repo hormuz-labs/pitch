@@ -76,3 +76,20 @@ export function balanceProblems(bed, sfx, { end = Infinity, maxMean = 0, maxPeak
       reduceDb: Math.max(meanOver, peakOver) }];
   });
 }
+
+/** Collapse overlapping failing windows into ranges so every offending cue
+ * can be fixed in one pass, rather than revealing only the loudest cue.
+ */
+export function balanceRegions(problems, windowSec = 0.4) {
+  const regions = [];
+  for (const problem of [...problems].sort((a, b) => a.t - b.t)) {
+    const last = regions.at(-1);
+    if (last && problem.t <= last.end + 1e-6) {
+      last.end = Math.max(last.end, problem.t + windowSec);
+      if (problem.reduceDb > last.worst.reduceDb) last.worst = problem;
+    } else {
+      regions.push({ start: problem.t, end: problem.t + windowSec, worst: problem });
+    }
+  }
+  return regions;
+}

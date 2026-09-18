@@ -1,7 +1,7 @@
 /**
  * Which moments motion_review looks at. The tool is the agent's eyes on the
- * film; the plan decides that every shot is seen at its three acts and that a
- * named shot can be re-checked alone after a fix.
+ * film; one settled sample is enough by default. Extra moments and scoped
+ * re-checks are available for specific uncertainties.
  */
 import { describe, expect, it } from 'vitest'
 import { fractionsFor, planSamples, sheetOf } from '../.pi/scripts/launch-video/lib/review-plan.mjs'
@@ -18,8 +18,12 @@ const cues = [
 ]
 
 describe('planSamples', () => {
-  it('sees every shot at entrance, second act and exit', () => {
-    const plan = planSamples({ shots, cues, duration: 9 })
+  it('uses one settled frame per shot instead of a routine three-frame review', () => {
+    expect(planSamples({ shots, cues, duration: 9 }).map(s => s.t)).toEqual([1.1, 3.65, 7.2])
+  })
+
+  it('can inspect entrance, second act and exit when explicitly requested', () => {
+    const plan = planSamples({ shots, cues, duration: 9, perShot: 3 })
     expect(plan).toHaveLength(9)
     expect(plan.filter(s => s.shot === 'pain').map(s => s.t)).toEqual([2.6, 3.65, 4.7])
     expect(plan.map(s => s.pct).slice(0, 3)).toEqual([20, 55, 90])

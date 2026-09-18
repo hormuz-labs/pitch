@@ -26,7 +26,7 @@ vi.mock('../apps/api/src/studio/paths.js', () => ({
 }))
 
 const { launchExporter } = await import('../apps/api/src/flows/launch-video/export.js')
-const row = { id: 'p1', userId: 'user_1', name: 'film' } as any
+const row = { id: 'p1', userId: 'user_1', name: 'film', outputs: [] } as any
 const publish = vi.fn(async () => undefined)
 
 beforeEach(async () => {
@@ -69,5 +69,49 @@ describe('launch export reuses a fresh render', () => {
     expect(st.running).toBe(true)
     await vi.waitFor(() => expect(launchExporter.status('p1').stage).toBe('failed'))
     expect(launchExporter.status('p1').error).toMatch(/capture script/)
+  })
+
+  it('answers done with a fresh published render when the workspace file is absent', async () => {
+    await ago(path.join(dir, 'index.html'), 60)
+    await ago(path.join(dir, 'shots.js'), 60)
+    const published = {
+      ...row,
+      id: 'published',
+      outputs: [
+        {
+          kind: 'video',
+          res: '1080p',
+          url: 'https://s3/x.mp4',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }
+
+    const st = await launchExporter.start(published, { res: '1080p' }, publish)
+
+    expect(st.stage).toBe('done')
+    expect(st.running).toBe(false)
+    expect(st.url).toBe('https://s3/x.mp4')
+  })
+
+  it('renders again when sources are newer than the published render', async () => {
+    const published = {
+      ...row,
+      id: 'stale-published',
+      outputs: [
+        {
+          kind: 'video',
+          res: '1080p',
+          url: 'https://s3/x.mp4',
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ],
+    }
+
+    const st = await launchExporter.start(published, { res: '1080p' }, publish)
+
+    expect(st.running).toBe(true)
+    await vi.waitFor(() => expect(launchExporter.status('stale-published').stage).toBe('failed'))
+    expect(launchExporter.status('stale-published').error).toMatch(/capture script/)
   })
 })

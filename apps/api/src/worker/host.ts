@@ -276,6 +276,15 @@ async function refreshArtifactKind(h: Held, strict = false): Promise<void> {
 async function open(row: ProjectRow, epoch: number): Promise<{ h: Held; row: ProjectRow }> {
   const ws = workspaceOf(row)
   const fresh = await reconcile(row, ws)
+  // A turn cannot survive worker/session restoration. Clear the old lease's
+  // marker so project lists do not advertise interrupted work as still active.
+  if (fresh.busyAt) {
+    await db.prisma.project.updateMany({
+      where: { id: row.id, workerId: WORKER_ID, workerEpoch: epoch },
+      data: { busyAt: null },
+    })
+    fresh.busyAt = null
+  }
   const h: Held = {
     id: row.id,
     ws,
@@ -671,9 +680,16 @@ export async function rollback(projectId: string, entryId: string): Promise<Roll
   return { text: result.text, entries: result.entries, project }
 }
 
-export async function entries(projectId: string): Promise<{ entries: Entry[]; busy: boolean }> {
+export async function entries(
+  projectId: string,
+): Promise<{ entries: Entry[]; busy: boolean; activeModel: string | null }> {
   const { row } = await ensureOpen(projectId)
-  return { entries: await getSessionEntries(sessionOptions(row)), busy: isBusy(projectId) }
+  const session = peekSession(projectId)
+  return {
+    entries: await getSessionEntries(sessionOptions(row)),
+    busy: session?.busy ?? false,
+    activeModel: session?.busy ? (session.active?.model ?? null) : null,
+  }
 }
 
 export async function busy(projectId: string): Promise<boolean> {
@@ -758,7 +774,12 @@ export async function subscribe(
 ): Promise<() => void> {
   const { h } = await ensureOpen(projectId)
   h.subscribers++
-  listener({ type: 'hello', busy: isBusy(projectId) })
+  const session = peekSession(projectId)
+  listener({
+    type: 'hello',
+    busy: session?.busy ?? false,
+    ...(session?.busy ? { activeModel: session.active?.model ?? null } : {}),
+  })
   const off = onProjectEvent(projectId, listener)
   let done = false
   return () => {

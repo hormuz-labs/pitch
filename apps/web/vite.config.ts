@@ -12,7 +12,7 @@ export default defineConfig({
   // pass that invalidates module URLs already loaded by the browser. Explicit
   // discovery also avoids Vite 8's scanner parsing transformed Solid JSX.
   optimizeDeps: {
-    include: ['@clerk/clerk-js', '@solidjs/router', 'solid-js'],
+    include: ['@clerk/clerk-js', 'solid-js'],
     extensions: ['.jsx'],
     noDiscovery: true,
   },

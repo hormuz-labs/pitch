@@ -25,9 +25,13 @@ effects/
 ```
 
 The studio agent never browses this folder. It runs `pitch effects`
-(`.pi/cli/effects.ts`): `list` prints the whole shelf a line each, `search`
-scores those lines against words, and `show <id>` returns one effect whole
-(meta, source, strip path) to port into a film's `js/shots.custom.js`.
+(`.pi/cli/effects.ts`): `families` is the compact map; `list` and `search`
+return up to 12 entries by default (`--limit 0` for all). `show <id>` returns
+study notes and a strip path, while `show <id> --source` returns the selected
+implementation to adapt into `js/shots/<type>.js`. Launch-primitives source
+includes the selected preset's shared-file implementation, rather than just
+its wrapper or every unrelated preset. Common integration instructions live
+once in `.pi/skills/launch-video/references/effects.md`.
 `effects/` is a read-only shared root in the sandbox (`.pi/lib/paths.ts`), so
 the paths those commands print resolve for the agent.
 
@@ -38,8 +42,17 @@ only where the Jitter originals' names and blurbs come from, and an effect
 missing from it is named after its folder. This replaced a Gemini-embedded
 `search.json` that went stale every time someone forgot to rebuild it.
 
-After adding or rendering effects, `node effects/build-index.mjs` refreshes
-the human review gallery — that is for you, not for the agent.
+`node effects/serve.mjs` serves the human review gallery at
+`http://127.0.0.1:4173/effects/index.html`. The gallery is generated from the
+current files on each page request. Cards use the effect HTML itself as a live
+preview: visible iframes load and play automatically, then unload offscreen so
+the page never runs all effects at once. The gallery does not need MP4 or poster
+files. “Open live” opens the effect at full size.
+
+For another static server or opening the saved gallery directly, run
+`node effects/build-index.mjs` after adding or rendering effects to refresh
+`effects/index.html`. The saved HTML is a snapshot. MP4 and poster generation
+remain optional tooling for contact strips or offline review, not gallery inputs.
 
 ## Writing an effect
 

@@ -11,6 +11,34 @@ handoffs especially well: a 33s SaaS launch ad with no cut and a 40s promo
 with thirty whole-frame turnovers. These are examples of one approach,
 not a requirement that every launch film keep a shape on screen.
 
+## Make transformation a useful part of the film
+
+Consider shape/object transformations when they explain a connection instead
+of defaulting every beat to another card entrance. Start with the
+product's mechanism: an input becomes an output, a selection becomes a detail,
+or scattered items resolve into one organized result. Choose the connection
+in `direction.md`; if a morph serves it, study `pitch effects morph list --limit 8` and read the
+chosen source before adapting it. A film can mix transformations and clean
+cuts; do not morph unrelated objects just to add motion.
+
+The runtime already loads **MorphSVGPlugin**, **DrawSVGPlugin** and GSAP.
+For simple geometry, animate width, height, corner radius, position and rotation
+to turn a bar into a pill or a panel into its next state. For an actual SVG
+silhouette change, use a shape actor's `path` pose (see
+`pitch motion schema --section actors`) or a bespoke factory with MorphSVG on
+the shot's GSAP timeline. Use DrawSVG for a traced reveal, not as a substitute
+for changing shape. Fetch the applicable schema or lab source rather than
+inventing pose fields. Keep all animation on the seekable timeline; no timers
+or free-running animations.
+
+Stage the handoff: hold the old idea long enough to read, clear its supporting
+copy, transform the focal object, then settle and reveal the new idea. The
+object carries the viewer's eye to the next focus. Do not leave duplicate
+source and destination objects or old labels competing after the landing.
+Check intermediate frames as well as both endpoints for clipping, unexpected
+path twisting and leftover layers. Use explicit initial states so seeking
+backward reproduces the same transformation.
+
 ## The transition is the next subject
 
 Measured at 8 fps from 23.6s in the promo:

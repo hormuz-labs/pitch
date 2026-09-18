@@ -45,6 +45,7 @@ Project {
   thumbnailUrl  String?
   lastError     String?
   isPublic / shareSlug / shareViews
+  lastActivityAt conversation recency (not worker bookkeeping)
   createdAt / updatedAt
 }
 ```
@@ -140,6 +141,48 @@ The four products survive as **host actions** plus a skill, not as flows:
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
 | generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
+
+### Runtime and editorial review
+
+`durationSeconds` is an approximate scope preference, not an exact-length gate.
+The current conversational brief controls explicit exact runtimes or maximums.
+Agents edit content for comprehension and complete actions rather than padding
+or squeezing a timeline to the preference. Source trim ranges remain exact.
+
+The launch skill is an entry point: load one treatment (cinematic, composed
+product walkthrough, kinetic type, teaser, feature announcement or 3D), then
+only the production references the current task needs. Audio has separate
+music, narration, SFX and mixing modules. A music-only film does not load
+narration guidance; a level edit loads mixing rather than the entire production
+workflow. Recorded demos continue to use their separate `demo-video` skill.
+
+`icon-library` is shared across outcomes. `pitch icons search|import` uses the
+offline catalog in `assets/icons/` (pinned Lucide, Simple Icons and SVGL sources).
+Only selected SVGs, licenses and provenance are copied into a project. The skill's
+Node script also works outside Pitch with the catalog; see its portable reference.
+`scripts/vendor-icons.ts` rebuilds the catalog from the GitHub commits recorded
+in `assets/icons/sources.json`; runtime lookups require no network.
+
+`product-research` separates identity from composition. `pitch motion inspect`
+returns bounded rendered-page text and actual navigation/docs links, following
+redirects and saving evidence under `recon/pages/`. The agent chooses which links
+to explore. This avoids repeated brand/font harvesting when learning a workflow;
+the source site's layout is not a template for the resulting video.
+
+`pitch media review` / `media_review` provides Gemini feedback on actual workspace
+audio or video: timestamped observations, suggestions, strengths and limitations.
+It is optional for questions about existing media or an uncertain soundtrack,
+not a routine production gate. Launch films stay as live previews: `motion render`
+is not exposed to the agent; the user's Export action owns MP4 rendering.
+Visual checks default to one settled frame per shot; extra samples require a
+specific unresolved concern. Contact sheets and compile/audio gates remain separate:
+model feedback is not a frame-perfect or factual certification. Inputs are capped
+at 14 MiB (larger files need a compressed copy or segment); reports under
+`review/media/` are cached by media bytes, brief, purpose, model and review version.
+The host uses `GEMINI_REVIEW_MODEL` (falling back to `GEMINI_VISION_MODEL`, then
+`gemini-3-flash-preview`) and `GEMINI_API_KEY` / `GOOGLE_API_KEY`. Review failure
+is reported explicitly rather than treated as success. Restart the worker/API
+and start a fresh session to load updated base prompts and tool guidance.
 
 `video_generate` is the odd one out: everything else RENDERS something that
 exists (a GSAP composition, a real browser session, printed slides), and it
@@ -246,6 +289,13 @@ preview renderer by `description.preview.kind`:
 - `deck`   — the deck iframe with slide strip + element inspector
 - `video`  — the latest render, with the beat strip and moment selection
 - `browser`— the live noVNC view of the browser the demo agent is driving
+
+Messages sent during a run default to `delivery: 'queue'`. They stay in the
+composer's pending-message shelf until consumed, with a **Steer now** button
+(`POST /projects/:id/queue/:entryId/steer`) to inject that same message at the
+next agent boundary. Cmd/Ctrl+Enter sends a draft directly as steering. Pending
+state is included in the first `entry` event; consumption moves the message
+into the thread. A failed steering lookup leaves the message queued.
 
 ## Selecting
 
@@ -397,7 +447,7 @@ everything is released at once and the turns in flight are lost. Then
 
 **The render tier** (`studio/host-actions.ts`, `worker/remote.ts`,
 `renderer/`). A host action registered with `remote: true` is one that
-burns a machine: `launch_export` and `launch_capture` (capture.mjs through
+burns a machine: `launch_export` (capture.mjs through
 the browser, then libx264), `launch_align` and `media_transcribe`
 (whisper), `edit_render`, `demo_encode`, `media_ffmpeg`. On a worker in
 `STUDIO_RENDER=remote` (the default with checkpoints) the registry hands

@@ -376,6 +376,7 @@ model Project {
   artifactKind          String?
   busyAt                DateTime?
   pinnedAt              DateTime?
+  lastActivityAt        DateTime            @default(now())
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt()
   creditTransactions    CreditTransaction[]
@@ -383,6 +384,7 @@ model Project {
 
   @@unique([userId, flow, name])
   @@index([userId])
+  @@index([userId, lastActivityAt])
   @@index([workerId])
 }
 

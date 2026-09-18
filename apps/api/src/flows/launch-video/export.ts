@@ -206,6 +206,28 @@ export const launchExporter: Exporter = {
       jobs.set(p.id, done)
       return statusOf(done)
     }
+    const published = p.outputs.find(
+      o => o.kind === 'video' && o.res === res && Number.isFinite(Date.parse(o.createdAt)),
+    )
+    if (
+      !opts.force &&
+      published &&
+      (await newestMtime(sourceTargets(ws.dir))) <= Date.parse(published.createdAt)
+    ) {
+      const now = Date.now()
+      const done: Job = {
+        ...IDLE,
+        res,
+        url: published.url,
+        progress: 100,
+        stage: 'done',
+        startedAt: now,
+        finishedAt: now,
+        controller: null,
+      }
+      jobs.set(p.id, done)
+      return statusOf(done)
+    }
     const controller = new AbortController()
     const job: Job = {
       ...IDLE,

@@ -18,7 +18,8 @@ import { commands, findCommand, groupsOf, namespaces } from './registry.ts'
  */
 export const BLURBS: Record<string, string> = {
   effects: 'the motion lab — every effect on disk, to search, read and port into a film',
-  motion: 'launch films — recon, scaffold, the engine schema, check, review, audio, render',
+  icons: 'offline brand and interface SVGs — search, import selected assets with provenance',
+  motion: 'launch films — recon, scaffold, the engine schema, check, review, audio; user exports',
   media: 'ffmpeg, probing any media file, and publishing a finished file to the project',
   video: 'generated video from a prompt or a still',
   deck: 'slide decks — render and publish',
@@ -118,7 +119,8 @@ function optionLine(name: string, spec: any, required: boolean): string {
   const enums = Array.isArray(spec?.enum) ? ` one of: ${spec.enum.join(', ')}` : ''
   const need = required ? ' (required)' : ''
   const desc = String(spec?.description ?? '').replace(/\s+/g, ' ')
-  return `  --${name} <${type}>${need}  ${desc}${enums}`.trimEnd()
+  const value = type === 'boolean' ? '[true|false]' : `<${type}>`
+  return `  --${name} ${value}${need}  ${desc}${enums}`.trimEnd()
 }
 
 /** Level 3: one command. */

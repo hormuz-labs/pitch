@@ -31,35 +31,35 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Kinetic typography',
     direction:
-      'Type carries the film: words arriving a word at a time, the accent word last, the stage a colour field rather than a screenshot. The product appears late and briefly.',
+      'Language and typography carry the idea. Choose whole phrases, paced word reveals or layout transformations to suit the copy; keep essential words stable long enough to read. Product evidence appears where it makes the message concrete.',
   },
   {
     id: 'cinematic',
     skill: 'launch-video',
     label: 'Cinematic',
     direction:
-      'A film, not a promo: fewer and longer shots, slow pushes and long dissolves over hard cuts, generated or photographic footage under the type (generated-video), narration in a measured register, music that builds. Keep the density notes answered with movement inside the shot, not more cuts.',
+      'Build a cinematic idea through deliberate framing, light, atmosphere and contrast between movement and stillness. Use product imagery, objects or sourced/generated footage where the concept needs it. One focal subject at a time; preserve readable holds. Narration and music follow the brief, not this preset.',
   },
   {
     id: 'motion-3d',
     skill: 'launch-video',
     label: '3D animation',
     direction:
-      'Dimensional motion: forms turning in space, the product on a device that rotates, depth and light rather than flat cards. Draw from the effects lab families `devices` and `morph` and the three.js ports (`motion_effects({ libs: ["three"] })`), and let the object that crosses every cut be a solid the camera moves around.',
+      'Use geometry, material, lighting and camera movement to explain or reveal the subject in space. Study relevant devices, morph or three.js examples with pitch effects. Keep depth and object motion purposeful; design connected shots without requiring a rotating device or persistent object at every cut.',
   },
   {
     id: 'product-walkthrough',
     skill: 'launch-video',
     label: 'Product walkthrough',
     direction:
-      'The product itself is the subject: real screens, one control at a time, a cursor that does something in every shot, pushes into the part the copy is about. Type is a caption on the work, never the whole frame.',
+      'The product itself is the subject: show a real workflow and its result, directing attention to one meaningful action at a time. Keep controls and outcomes readable; use camera focus where needed and let results settle. Avoid decorative cursor movement and redundant captions.',
   },
   {
     id: 'teaser',
     skill: 'launch-video',
     label: 'Teaser',
     direction:
-      'Short and withholding — aim under 20 seconds, a handful of words, one reveal, and end on the mark or a date. Say what it feels like, not what it does; no feature list.',
+      'Build anticipation around one product-specific reveal, with minimal copy and a clear ending. Keep it concise, letting the reveal and its payoff determine runtime within the user brief; avoid a feature list.',
   },
 
   // Product demos — the live recording pipeline.
@@ -75,14 +75,14 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'demo-video',
     label: 'Feature spotlight',
     direction:
-      'One feature only. Open already inside the product, zoom close and stay close, and spend the whole runtime on that one thing rather than touring around it.',
+      'Demonstrate one feature and the result it enables. Establish enough context to orient the viewer, focus on the relevant action, then show the outcome. Zoom out when the view changes; avoid unrelated tours.',
   },
   {
     id: 'onboarding-tour',
     skill: 'demo-video',
     label: 'Onboarding tour',
     direction:
-      "A brand-new user's first session: sign-up or empty state through to their first real result. Narrate in second person and name every click before you make it.",
+      "A brand-new user's path from setup or empty state to a first real result. Explain the purpose of consequential steps and show their outcome; avoid narrating every incidental click.",
   },
   {
     id: 'how-to',
@@ -142,7 +142,7 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'recording-edit',
     label: 'Tightened tutorial',
     direction:
-      'Cut hard: pauses, mistakes and self-corrections go, and every action gets a zoom onto the control it touches.',
+      'Remove dead time, mistakes and redundant explanation while retaining the context and pauses needed to follow the task. Zoom only onto consequential controls or results; keep camera movement restrained.',
   },
   {
     id: 'short-clips',
@@ -179,7 +179,7 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'docs-to-video',
     label: 'Short summary',
     direction:
-      'Under a minute: the three or four things a reader would take away, and nothing else.',
+      'A concise account of the document’s most important takeaways. Select only what supports the audience’s understanding, with sourced evidence and readable timing; use the requested runtime as a target unless explicitly capped.',
   },
   {
     id: 'doc-data-story',
@@ -198,5 +198,7 @@ export const findStyle = (id: unknown): StudioStyle | undefined =>
 /** The line the agent reads on the first turn, or null when nothing was picked. */
 export function styleDirection(id: unknown): string | null {
   const style = findStyle(id)
-  return style ? `The user chose the "${style.label}" kind: ${style.direction}` : null
+  return style
+    ? `Selected kind: "${style.label}". Starting direction (the current brief overrides this preference): ${style.direction}`
+    : null
 }

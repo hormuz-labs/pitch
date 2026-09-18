@@ -1,0 +1,21 @@
+{
+  "lucide": {
+    "repository": "lucide-icons/lucide",
+    "revision": "d9f72b25256fc57fabf9bfac0972fb97aa84aedd",
+    "license": "ISC + MIT (Feather-derived icons)",
+    "licenseFiles": ["LICENSE"]
+  },
+  "simple-icons": {
+    "repository": "simple-icons/simple-icons",
+    "revision": "a538b54a37be7ab07420198de7a9f9985e2a4528",
+    "release": "16.31.0",
+    "license": "CC0-1.0; individual brand terms may apply",
+    "licenseFiles": ["LICENSE.md", "DISCLAIMER.md"]
+  },
+  "svgl": {
+    "repository": "pheralb/svgl",
+    "revision": "ed75393dbe6eba6e446e208abb6826ecd1abd36d",
+    "license": "MIT (collection); individual brand terms may apply",
+    "licenseFiles": ["LICENSE"]
+  }
+}

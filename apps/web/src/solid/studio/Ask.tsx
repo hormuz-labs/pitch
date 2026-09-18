@@ -10,12 +10,13 @@ export function QuestionCard(props: {
     text: string,
     answer: {
       askEntryId: string
-      selections: Array<{ questionId: string; optionIds: string[] }>
+      selections: Array<{ questionId: string; optionIds: string[]; customText?: string }>
     },
   ) => void
 }) {
   const [step, setStep] = createSignal(0),
     [picked, setPicked] = createSignal<Record<string, string[]>>({}),
+    [custom, setCustom] = createSignal<Record<string, string>>({}),
     [sent, setSent] = createSignal(false)
   let el: HTMLDivElement | undefined
   const locked = () => sent() || props.disabled,
@@ -24,8 +25,14 @@ export function QuestionCard(props: {
     confirming = () => step() >= questions().length
   const summary = createMemo(() =>
     questions()
-      .filter(x => (picked()[x.id] ?? []).length)
-      .map(x => `${x.question} → ${(picked()[x.id] ?? []).join(', ')}`),
+      .filter(x => (picked()[x.id] ?? []).length || custom()[x.id]?.trim())
+      .map(x => {
+        const values = [
+          ...(picked()[x.id] ?? []),
+          ...(custom()[x.id]?.trim() ? [custom()[x.id].trim()] : []),
+        ]
+        return `${x.question} → ${values.join(', ')}`
+      }),
   )
   const answer = () => ({
     askEntryId: props.entryId,
@@ -34,6 +41,7 @@ export function QuestionCard(props: {
       optionIds: question.options
         .filter(option => (picked()[question.id] ?? []).includes(option.label))
         .map(option => option.id),
+      ...(custom()[question.id]?.trim() ? { customText: custom()[question.id].trim() } : {}),
     })),
   })
   const send = (text: string) => {
@@ -53,15 +61,24 @@ export function QuestionCard(props: {
       }))
       return
     }
+    setCustom(values => ({ ...values, [cur.id]: '' }))
     setPicked(p => ({ ...p, [cur.id]: [label] }))
     setStep(v => v + 1)
+  }
+  const hasAnswer = (question = q()) =>
+    Boolean(question && ((picked()[question.id] ?? []).length || custom()[question.id]?.trim()))
+  const setOther = (value: string) => {
+    const cur = q()
+    if (!cur || locked()) return
+    setCustom(values => ({ ...values, [cur.id]: value }))
+    if (!cur.multi && value) setPicked(values => ({ ...values, [cur.id]: [] }))
   }
   const onKey = (e: KeyboardEvent) => {
     if (locked()) return
     if (e.key === 'Enter') {
       e.preventDefault()
       if (confirming()) send(summary().join('\n'))
-      else if (q()?.multi && (picked()[q()!.id] ?? []).length) setStep(v => v + 1)
+      else if (hasAnswer()) setStep(v => v + 1)
       return
     }
     if (e.key === 'Backspace' && step() > 0) {
@@ -78,7 +95,7 @@ export function QuestionCard(props: {
   onMount(() => queueMicrotask(() => !locked() && el?.focus({ preventScroll: true })))
   return (
     <div
-      class={`ask question-card${locked() ? ' locked' : ''}`}
+      class={`ask question-card${locked() ? ' locked' : ''}${sent() ? ' answered' : ''}`}
       ref={el}
       tabIndex={locked() ? -1 : 0}
       onKeyDown={onKey}
@@ -131,19 +148,44 @@ export function QuestionCard(props: {
                       </li>
                     )}
                   </For>
+                  <li class="ask-other">
+                    <label class={`ask-row${custom()[cur.id]?.trim() ? ' on' : ''}`}>
+                      <span class="ask-key">{LETTERS[cur.options.length]}</span>
+                      <span class="ask-other-field">
+                        <span class="ask-text">Something else</span>
+                        <input
+                          type="text"
+                          value={custom()[cur.id] ?? ''}
+                          disabled={locked()}
+                          maxLength={500}
+                          placeholder="Type your answer…"
+                          onInput={event => setOther(event.currentTarget.value)}
+                          onKeyDown={event => {
+                            event.stopPropagation()
+                            if (event.key === 'Enter' && event.currentTarget.value.trim()) {
+                              event.preventDefault()
+                              setStep(value => value + 1)
+                            }
+                          }}
+                        />
+                      </span>
+                    </label>
+                  </li>
                 </ul>
                 <Show when={!locked()}>
                   <div class="ask-actions">
-                    <Show when={cur.multi}>
-                      <button
-                        type="button"
-                        class="ask-send"
-                        disabled={!(picked()[cur.id] ?? []).length}
-                        onClick={() => setStep(v => v + 1)}
-                      >
-                        Next
-                      </button>
-                    </Show>
+                    <div class="ask-nav">
+                      <Show when={step() > 0}>
+                        <button type="button" class="ask-flat" onClick={() => setStep(v => v - 1)}>
+                          Previous
+                        </button>
+                      </Show>
+                      <Show when={hasAnswer(cur)}>
+                        <button type="button" class="ask-send" onClick={() => setStep(v => v + 1)}>
+                          Next
+                        </button>
+                      </Show>
+                    </div>
                     <button
                       type="button"
                       class="ask-flat"
@@ -153,6 +195,7 @@ export function QuestionCard(props: {
                             questions().map(question => [question.id, [question.options[0].label]]),
                           ),
                         )
+                        setCustom({})
                         queueMicrotask(() =>
                           send('You decide — take your own first option for each and get started.'),
                         )

@@ -62,4 +62,18 @@ describe('studio transcript projection', () => {
       'Done',
     ])
   })
+
+  it('marks an interrupted tool call as failed when restoring an idle session', () => {
+    const manager = SessionManager.inMemory('/workspace')
+    manager.appendMessage(userMessage('Build it', 1))
+    manager.appendMessage({
+      ...assistantMessage('', 2),
+      content: [{ type: 'toolCall', id: 'tool-1', name: 'bash', arguments: { command: 'build' } }],
+    } as any)
+
+    expect(sessionEntriesFromTranscript(manager, new Map()).at(-1)).toMatchObject({
+      role: 'tool',
+      tool: { name: 'bash', status: 'error' },
+    })
+  })
 })

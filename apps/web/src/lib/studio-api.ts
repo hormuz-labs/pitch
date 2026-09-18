@@ -119,6 +119,7 @@ export interface Project {
   shareViews: number
   source: string
   pinnedAt: string | null
+  lastActivityAt: string
   createdAt: string
   updatedAt: string
   /** Derived, never stored. */
@@ -198,12 +199,12 @@ export interface Entry {
 }
 
 export type StudioEvent =
-  | { type: 'hello'; busy: boolean }
+  | { type: 'hello'; busy: boolean; activeModel?: string | null }
   | { type: 'entry'; entry: Entry }
   | { type: 'delta'; id: string; delta: string }
   | { type: 'update'; entry: Entry }
   | { type: 'tool'; name: string; args: Record<string, unknown> }
-  | { type: 'status'; busy: boolean }
+  | { type: 'status'; busy: boolean; activeModel?: string | null }
   | { type: 'idle'; aborted?: boolean; busy?: boolean }
   | { type: 'reset'; entries: Entry[] }
   | { type: 'error'; message: string }
@@ -319,7 +320,10 @@ export const stop = (token: string, id: string) =>
   api.post<{ stopped: boolean }>(`${p(id)}/stop`, token)
 
 export const messages = (token: string, id: string) =>
-  api.get<{ entries: Entry[]; busy: boolean }>(`${p(id)}/messages`, token)
+  api.get<{ entries: Entry[]; busy: boolean; activeModel: string | null }>(
+    `${p(id)}/messages`,
+    token,
+  )
 
 /** EventSource URL for the project's SSE stream (token in the query). */
 export const eventsUrl = (id: string, token: string) => fileUrl(`${p(id)}/events`, token)

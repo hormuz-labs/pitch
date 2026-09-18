@@ -295,6 +295,14 @@ and never a rewrite of every type:
 (A single `js/shots.custom.js` + `css/custom.css` from an older project still
 loads.)
 
+**Budget the entire tween, including repeats and stagger, inside `D`.** A
+single-target tween ends at `at + delay + duration * (repeat + 1) + repeatDelay * repeat`.
+`yoyo` changes direction, not duration: `repeat: 1` plays twice. For example,
+starting at `D * .6` with `duration: D * .3, repeat: 1` ends at `1.2 * D`.
+Shorten it to `D * .2`, start earlier, or omit the repeat. For a staggered
+group include the last target's stagger offset, and check the returned
+timeline's total duration. Fractions of `D` alone do not prevent overruns.
+
 `window.ShotKit` also exposes `revealWords(tl, root, at, {each})` and
 `scatterWords(tl, root, at, seed)` for the word-by-word cadence, the canvas
 and asset helpers below, and the

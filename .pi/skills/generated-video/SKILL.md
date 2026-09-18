@@ -29,8 +29,8 @@ meant to be real. If your prompt describes a screen, stop.
 ## The prompt is the craft
 
 Write a shot in a treatment, in this order: **subject** (one thing),
-**action** (what changes over ten seconds — a still-looking shot looks
-broken), **camera** (push in, locked-off wide, handheld tracking, overhead),
+**action or intentional stillness** (what the viewer observes),
+**camera** (push in, locked-off wide, handheld tracking, overhead),
 **lens and light** (35mm, shallow depth, backlit, one practical lamp), **mood
 and grade**. There is no negative-prompt field: say "no text, no logos, no
 people" in the prompt. Ask for text in frame only if you will check it —
@@ -43,8 +43,10 @@ generated lettering is usually misspelled; add titles afterwards.
 
 ## Cost discipline
 
-Draft at 360p. Look at it (`pitch media probe`; pull a still with `pitch media ffmpeg`
-if needed). Refine with `continues` — pass the clip path and make the prompt
+Draft at 360p and inspect it before refining. A probe reports metadata, not
+visual quality. Pull a still for a specific detail; use `pitch media review`
+only when sequence behavior needs assessment. Refine with `continues` — pass
+the clip path and make the prompt
 the *change* ("same shot, slower push, colder light"). Only then re-generate
 at 1080p. One clip, look, refine — never three variations to pick from.
 
@@ -54,7 +56,7 @@ The clip is an ordinary MP4 in `renders/` and the media tools own it from
 there. Its audio will fight your mix: strip it with
 
 ```
-pitch media ffmpeg --args '["-i","renders/gen-01.mp4","-an","-c:v","copy","renders/gen-01-mute.mp4"]' --out renders/gen-01-mute.mp4
+pitch media ffmpeg --args '["-i","renders/gen-01.mp4","-an","-c:v","copy","renders/gen-01-mute.mp4"]' --out renders/gen-01-mute.mp4 --why "Remove generated audio before the film mix"
 ```
 
 unless the ambience *is* the sound design.

@@ -48,6 +48,7 @@ export interface ProjectSummary {
   lastError: string | null
   isPublic: boolean
   shareSlug: string | null
+  lastActivityAt: string
   createdAt: string
   updatedAt: string
   status: 'empty' | 'working' | 'ready' | 'failed'
@@ -77,7 +78,7 @@ export interface Ask {
 }
 export interface AskAnswer {
   askEntryId: string
-  selections: Array<{ questionId: string; optionIds: string[] }>
+  selections: Array<{ questionId: string; optionIds: string[]; customText?: string }>
 }
 export interface Entry {
   id: string
@@ -120,7 +121,7 @@ export interface Asset {
   pages?: number
 }
 export type StudioEvent =
-  | { type: 'hello' | 'status'; busy: boolean }
+  | { type: 'hello' | 'status'; busy: boolean; activeModel?: string | null }
   | { type: 'entry'; entry: Entry }
   | { type: 'delta'; id: string; delta: string }
   | { type: 'update'; entry: Entry }

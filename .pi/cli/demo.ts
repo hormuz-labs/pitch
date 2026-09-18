@@ -781,9 +781,12 @@ export default function demoCommands(): CommandSpec[] {
   commands.push({
     verb: 'narrate',
     description:
-      'Speak one line of narration. Pass `focus` (an element ref) when the line is about a specific element: the page scrolls it to centre before speech. On a PDF/image slide pass `emphasis` (a rectangle from pitch demo analyze-slide or pitch demo ground-region) so the zoom and callout begin with the voice.',
+      'Speak one complete thought from the planned explanation, not a caption for each click or camera move. Each call generates a separate clip, so avoid fragmenting sentences. Brief actions may be silent. Pass focus for the specific element being explained; on a PDF/image slide, emphasis synchronizes its callout with speech.',
     parameters: Type.Object({
-      text: Type.String({ description: 'The text to be spoken' }),
+      text: Type.String({
+        description:
+          'A complete spoken thought explaining intent or consequence; preserve approved script content',
+      }),
       focus: Type.Optional(
         Type.String({
           description:

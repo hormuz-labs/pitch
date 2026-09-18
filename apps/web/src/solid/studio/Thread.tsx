@@ -1,8 +1,7 @@
-import { CornerUpLeft, Pencil } from 'lucide-solid'
+import { Pencil } from 'lucide-solid'
 import { createMemo, For, Show } from 'solid-js'
 import { QuestionCard } from './Ask'
 import { agentActivity } from './agent-activity'
-import { ReasoningSteps } from './ReasoningSteps'
 import { ThinkingOrb } from './ThinkingOrb'
 import type { AskAnswer, Entry } from './types'
 
@@ -190,20 +189,17 @@ export function Thread(props: {
   busy: boolean
   onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
-  onSteer?: (entry: Entry) => void
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
   const activity = createMemo(() => agentActivity(props.entries, props.busy))
-  const activeTurn = createMemo(() => {
-    const entries = props.entries.filter(entry => !entry.pending)
-    const prompt = entries.findLastIndex(entry => entry.role === 'user')
-    return entries.slice(prompt + 1)
-  })
-  const activeEntryIds = createMemo(() => new Set(activeTurn().map(entry => entry.id)))
   return (
     <div class="thread">
-      <For each={props.entries.filter(e => e.role !== 'thinking')}>
+      <For
+        each={props.entries.filter(
+          e => e.role !== 'thinking' && e.pending !== 'queued' && e.pending !== 'steering',
+        )}
+      >
         {e => (
           <Show
             when={e.role === 'question'}
@@ -220,22 +216,13 @@ export function Thread(props: {
                             <AgentMarkdown text={e.text} />
                           </div>
                         ) : (
-                          <div class={`user-message${e.pending === 'queued' ? ' is-queued' : ''}`}>
+                          <div class="user-message">
                             <div class={`msg ${e.role}`}>
-                              <Show when={e.pending === 'queued'}>
-                                <span class="queued-label">Queued</span>
-                              </Show>
                               <span class="message-copy">{e.text}</span>
-                              <Show when={e.pending && e.pending !== 'queued'}>
+                              <Show when={e.pending}>
                                 {pending => <span class="message-state">{pending()}</span>}
                               </Show>
                             </div>
-                            <Show when={e.pending === 'queued'}>
-                              <button class="message-steer" onClick={() => props.onSteer?.(e)}>
-                                <CornerUpLeft size={12} />
-                                <span>Steer now</span>
-                              </button>
-                            </Show>
                             <Show
                               when={
                                 e.role === 'user' &&
@@ -245,9 +232,10 @@ export function Thread(props: {
                               }
                             >
                               <button
+                                type="button"
                                 class="message-edit"
                                 aria-label="Edit and resend from this message"
-                                title="Edit and resend from here"
+                                data-tooltip="Edit and resend"
                                 onClick={() => props.onEdit?.(e)}
                               >
                                 <Pencil size={12} />
@@ -258,20 +246,18 @@ export function Thread(props: {
                       </Show>
                     }
                   >
-                    <Show when={!props.busy || !activeEntryIds().has(e.id)}>
-                      <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
-                        <span class="log-icon">
-                          {e.tool?.status === 'running' ? (
-                            <span class="spinner" />
-                          ) : e.tool?.status === 'error' ? (
-                            '✕'
-                          ) : (
-                            '✓'
-                          )}
-                        </span>
-                        <span class="log-text">{e.text}</span>
-                      </div>
-                    </Show>
+                    <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
+                      <span class="log-icon">
+                        {e.tool?.status === 'running' ? (
+                          <span class="spinner" />
+                        ) : e.tool?.status === 'error' ? (
+                          '✕'
+                        ) : (
+                          '✓'
+                        )}
+                      </span>
+                      <span class="log-text">{e.text}</span>
+                    </div>
                   </Show>
                 }
               >
@@ -283,7 +269,7 @@ export function Thread(props: {
               </Show>
             }
           >
-            <Show when={e.ask}>
+            <Show when={e.ask && e.id === open()?.id}>
               <QuestionCard
                 entryId={e.id}
                 ask={e.ask!}
@@ -307,9 +293,6 @@ export function Thread(props: {
                     : 'Thinking…'}
               </span>
             </div>
-            <Show when={props.busy}>
-              <ReasoningSteps entries={activeTurn()} active />
-            </Show>
           </div>
         )}
       </Show>

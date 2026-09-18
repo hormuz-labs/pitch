@@ -68,7 +68,7 @@ export interface Ask {
 
 export interface AskAnswer {
   askEntryId: string
-  selections: Array<{ questionId: string; optionIds: string[] }>
+  selections: Array<{ questionId: string; optionIds: string[]; customText?: string }>
 }
 
 const optionId = (value: unknown, label: string) =>
@@ -259,6 +259,7 @@ function addEntry(
   text: string,
   tool?: Entry['tool'],
   ask?: Ask,
+  pending?: Entry['pending'],
 ): Entry {
   const entry: Entry = {
     id: `e${++s.counter}`,
@@ -267,6 +268,7 @@ function addEntry(
     at: Date.now(),
     ...(tool ? { tool } : {}),
     ...(ask ? { ask } : {}),
+    ...(pending ? { pending } : {}),
   }
   s.entries.push(entry)
   emit(s, { type: 'entry', entry })
@@ -289,7 +291,11 @@ export function onSessionBusy(hook: BusyHook | null): void {
 function setBusy(s: Session, busy: boolean): void {
   if (s.busy === busy) return
   s.busy = busy
-  emit(s, { type: 'status', busy })
+  emit(s, {
+    type: 'status',
+    busy,
+    ...(busy ? { activeModel: s.active?.model ?? null } : {}),
+  })
   busyHook?.(s.projectId, busy)
 }
 
@@ -383,7 +389,9 @@ export function sessionEntriesFromTranscript(
           id: `${item.id}-tool-${i}`,
           role: 'tool',
           text: toolLabel(part.name, args),
-          tool: { name: part.name, status: ok === false ? 'error' : ok ? 'done' : 'running' },
+          // Transcript projection only happens for an idle, restored session.
+          // A call without a result was interrupted; it cannot still be running.
+          tool: { name: part.name, status: ok ? 'done' : 'error' },
           at,
         })
       }
@@ -444,17 +452,33 @@ export function resolveAskAnswer(
   const s = sessions.get(projectId)
   const entry = s?.entries.find(e => e.id === answer.askEntryId && e.role === 'question' && e.ask)
   if (!entry?.ask) throw new Error('That question is no longer available')
-  const selected = new Map(answer.selections.map(item => [item.questionId, item.optionIds]))
+  return resolveAskSelections(entry.ask, answer)
+}
+
+export function resolveAskSelections(
+  ask: Ask,
+  answer: AskAnswer,
+): {
+  text: string
+  options: Record<string, string | number>
+} {
+  const selected = new Map(answer.selections.map(item => [item.questionId, item]))
   const lines: string[] = []
   const options: Record<string, string | number> = {}
-  for (const question of entry.ask.questions) {
-    const ids = selected.get(question.id) ?? []
+  for (const question of ask.questions) {
+    const selection = selected.get(question.id)
+    const ids = selection?.optionIds ?? []
     const picks = question.options.filter(option => ids.includes(option.id))
-    if (!picks.length || (!question.multi && picks.length !== 1))
+    const customText = String(selection?.customText ?? '')
+      .trim()
+      .slice(0, 500)
+    const count = picks.length + (customText ? 1 : 0)
+    if (!count || (!question.multi && count !== 1))
       throw new Error(`Choose an answer for ${question.question}`)
-    lines.push(`${question.question} → ${picks.map(pick => pick.label).join(', ')}`)
-    if (question.bind === 'videoType') options.videoType = picks[0].id
-    if (question.bind === 'durationSeconds') {
+    const labels = [...picks.map(pick => pick.label), ...(customText ? [customText] : [])]
+    lines.push(`${question.question} → ${labels.join(', ')}`)
+    if (!customText && question.bind === 'videoType') options.videoType = picks[0].id
+    if (!customText && question.bind === 'durationSeconds') {
       const seconds = Number.parseInt(picks[0].label.match(/\d{1,3}/)?.[0] ?? '', 10)
       if (!Number.isFinite(seconds) || seconds < 3 || seconds > 300)
         throw new Error('The selected duration is invalid')
@@ -822,6 +846,9 @@ function updateEntry(s: Session, entry: Entry): void {
 
 async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
   s.active = request
+  // setBusy() runs just before runPrompt(), so publish the model once the
+  // active request is attached. This also updates queued turns as they start.
+  emit(s, { type: 'status', busy: true, activeModel: request.model ?? null })
   let failed = false
   try {
     if (request.model) await applyModel(s, request.model)
@@ -895,8 +922,7 @@ export async function promptSession(
   const s = await getSession(opts)
   if (s.busy) {
     if (delivery === 'steer') {
-      const entry = addEntry(s, 'user', displayText)
-      entry.pending = 'steering'
+      const entry = addEntry(s, 'user', displayText, undefined, undefined, 'steering')
       try {
         if (opts.model) await applyModel(s, opts.model)
         const resolved = typeof context === 'function' ? await context() : context
@@ -933,8 +959,7 @@ export async function promptSession(
         throw error
       }
     }
-    const entry = addEntry(s, 'user', displayText)
-    entry.pending = 'queued'
+    const entry = addEntry(s, 'user', displayText, undefined, undefined, 'queued')
     const request = { text, context, model: opts.model, entry, turn: ++s.turn }
     s.queue.push(request)
     return { session: s, turn: request.turn, entryId: entry.id, delivery: 'queued' }
@@ -950,14 +975,19 @@ export async function promptSession(
 /** Promote an already queued user message into the active model run. */
 export async function steerQueuedPrompt(projectId: string, entryId: string): Promise<boolean> {
   const s = sessions.get(projectId)
-  if (!s?.busy) return false
-  const index = s.queue.findIndex(request => request.entry.id === entryId)
+  if (!s?.busy || s.stopping) return false
+  const request = s.queue.find(request => request.entry.id === entryId)
+  if (!request) return false
+  // Resolve before removing it: a failed context lookup must not lose the
+  // message, and the active run may finish while the lookup is in flight.
+  const context = typeof request.context === 'function' ? await request.context() : request.context
+  const index = s.queue.indexOf(request)
+  if (!s.busy || s.stopping) return false
   if (index < 0) return false
-  const [request] = s.queue.splice(index, 1)
+  s.queue.splice(index, 1)
   request.entry.pending = 'steering'
   request.entry.checkpointId ??= s.active?.entry.checkpointId
   updateEntry(s, request.entry)
-  const context = typeof request.context === 'function' ? await request.context() : request.context
   const full = context
     ? `<studio-context>\n${context}\n</studio-context>\n\n${request.text}`
     : request.text

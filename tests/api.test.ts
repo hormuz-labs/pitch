@@ -208,6 +208,7 @@ const makeJob = (overrides: Record<string, any> = {}) => ({
   videoUrl: undefined,
   audioUrl: undefined,
   createdAt: new Date(),
+  lastActivityAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
 })

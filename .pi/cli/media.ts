@@ -35,6 +35,28 @@ export default function mediaCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'review',
+    description:
+      'Perceptual review of actual workspace audio/video with Gemini. purpose=music: assess a candidate against the audio direction; purpose=film: critique the combined picture and sound for clarity, reading time, motion, transitions and ending. Returns timestamped evidence, suggestions and limitations, not a quality score or technical pass. Reuses a report only for identical bytes, brief, purpose and model. Input up to 14 MiB; prepare a compressed review copy or a segment with ffmpeg if larger. For fast transitions, also inspect targeted frames. Reports live under review/media/.',
+    parameters: Type.Object({
+      file: Type.String({
+        description:
+          'Workspace-relative audio/video file; film review needs the mixed soundtrack in the video',
+      }),
+      purpose: Type.Union([Type.Literal('music'), Type.Literal('film')]),
+      brief: Type.String({
+        minLength: 1,
+        maxLength: 8000,
+        description:
+          'Audience, takeaway, treatment/audio direction, required content, and approximate runtime or explicit delivery constraint',
+      }),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      return text(await hostAction(workspaceOf(ctx), 'media_review', p))
+    },
+  })
+
+  commands.push({
     verb: 'ffmpeg',
     description:
       'Run one ffmpeg command over workspace files for an edit the pipelines do not cover — levels, trim, crop, concat, replace or mix audio, speed, a frame or a clip. `args` are the arguments after `ffmpeg -y`, every path workspace-relative, the output inside the workspace and a NEW file. Probe first; prefer -c copy when only the container changes.',

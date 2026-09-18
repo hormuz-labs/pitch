@@ -58,11 +58,8 @@ registerExporter('launch-video', launchExporter)
 
 // ── Heavy skill scripts, as render actions ────────────────────────────────────
 //
-// capture.mjs (a seek-and-capture through the browser, then an encode) and
-// align.mjs (whisper over the narration) are the two skill scripts that burn
-// a machine. `pitch motion render` and `pitch motion align` reach them
-// through these, so on a fleet they run on a render pod against the
-// workspace checkpoint and what they wrote comes back into the workspace.
+// Narration alignment runs on the render tier against the workspace checkpoint.
+// MP4 capture belongs to the user-triggered exporter in export.ts, not the agent CLI.
 
 const execFileAsync = promisify(execFile)
 
@@ -106,10 +103,8 @@ async function runSkillScript(
   }
 }
 
-registerHostAction(
-  'launch_capture',
-  (ws, params, ctx) => runSkillScript('capture.mjs', ws, scriptArgs(params), 1_200_000, ctx.signal),
-  { remote: true },
+registerHostAction('launch_inspect', (ws, params, ctx) =>
+  runSkillScript('inspect.mjs', ws, scriptArgs(params), 90_000, ctx.signal),
 )
 
 registerHostAction(

@@ -53,6 +53,8 @@ export interface ProjectRow {
   artifactKind: string | null
   busyAt: string | null
   pinnedAt: string | null
+  /** User-visible conversation recency; unaffected by worker bookkeeping. */
+  lastActivityAt: string
   createdAt: string
   updatedAt: string
 }
@@ -71,6 +73,7 @@ export function parseRow(r: any): ProjectRow {
     artifactKind: r.artifactKind ?? null,
     busyAt: r.busyAt ? new Date(r.busyAt).toISOString() : null,
     pinnedAt: r.pinnedAt ? new Date(r.pinnedAt).toISOString() : null,
+    lastActivityAt: new Date(r.lastActivityAt).toISOString(),
     createdAt: new Date(r.createdAt).toISOString(),
     updatedAt: new Date(r.updatedAt).toISOString(),
   }

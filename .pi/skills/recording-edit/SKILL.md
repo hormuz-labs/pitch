@@ -35,8 +35,10 @@ real observation: a phantom zoom is a hard failure, a missed one is soft
      full before any later zoom.
    - `result` (a chart updating, a modal, a list) → `pitch recording record-zoom-in` on the
      result's bbox; no click.
-7. `pitch recording edit-render` — once per turn, when the list is final (a minute or two).
-   Reply with the URL.
+7. `pitch recording edit-render` when the event list is ready, then reply with
+   the URL and actual runtime. Use `pitch media review` on an existing recording
+   only for a specific unresolved concern, not as a routine paid gate. Keep
+   intentional pauses; runtime is approximate unless explicitly exact or capped.
 
 ## Camera discipline
 
@@ -48,8 +50,9 @@ play at 1×. Re-zooming while zoomed **pans** — for adjacent fields
 in time order, and finish zoomed out a couple of seconds before the end.
 
 All times are seconds into the uploaded video; `pitch recording inspect-frames`'
-`actionTimeSec` is authoritative — never hand-estimate. Never trim or cut:
-dead-air trimming is the render's job; your events say what to protect.
+`actionTimeSec` is authoritative — never hand-estimate. For this camera-polish
+workflow, dead-air trimming is the render's job; your events say what to protect.
+An explicit request to trim a source range uses `pitch media ffmpeg` instead.
 
 ## In the studio
 
@@ -63,8 +66,7 @@ path). Do not interview the user. The studio previews the newest render in
 - product name / URL only touch the title cards, and "60fps" is
   `fps: 60`: pass them to `pitch recording edit-render`, nothing else changes.
 
-Finish with a short summary: windows inspected, zooms and clicks recorded,
-the event list (time → type → label), what you skipped and why, the URL.
+Finish briefly with what changed, the URL and any unresolved limitation.
 Artifacts: `recording/demo-state.json`, `recording/transcript.json`,
 `recording/key-moments.json`, `recording/vision-log.jsonl`,
 `renders/edit-<timestamp>.mp4`.
