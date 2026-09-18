@@ -27,6 +27,7 @@ vi.mock('@prisma/client', () => {
       updateMany: vi.fn(),
     },
     discordRewardClaim: { findUnique: vi.fn() },
+    subscription: { update: vi.fn() },
     $transaction: vi.fn(),
   }
   function PrismaClient() {
@@ -45,7 +46,6 @@ import {
   addCredits,
   deductCredit,
   endSubscription,
-  forfeitableCredits,
   getAvailableCreditBalance,
   getCreditBalance,
   getCreditTransactions,
@@ -391,95 +391,16 @@ describe('getCreditTransactions', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * Ending a subscription forfeits what is left of the monthly allowance, but
- * credits the user bought outright — a Flex pack, a promo, a referral reward —
- * are theirs and survive. Spend draws the allowance down first.
- */
-describe('forfeitableCredits', () => {
-  it('forfeits what is left of the subscription allowance', () => {
-    // 2,500 granted, 1,200 spent, plus an 800-credit Flex pack: balance 2,100.
-    expect(
-      forfeitableCredits({ subscriptionGrants: 2500, refunds: 0, spend: 1200, balance: 2100 }),
-    ).toBe(1300)
-  })
-
-  it('leaves purchased credits untouched', () => {
-    const balance = 2100
-    const forfeit = forfeitableCredits({
-      subscriptionGrants: 2500,
-      refunds: 0,
-      spend: 1200,
-      balance,
-    })
-    expect(balance - forfeit).toBe(800)
-  })
-
-  it('forfeits nothing once the allowance is spent', () => {
-    expect(
-      forfeitableCredits({ subscriptionGrants: 2500, refunds: 0, spend: 3000, balance: 300 }),
-    ).toBe(0)
-  })
-
-  it('forfeits nothing from someone who only ever bought credits', () => {
-    expect(forfeitableCredits({ subscriptionGrants: 0, refunds: 0, spend: 0, balance: 800 })).toBe(
-      0,
-    )
-  })
-
-  it('returns refunded work to the allowance it was paid from', () => {
-    expect(
-      forfeitableCredits({ subscriptionGrants: 2500, refunds: 1200, spend: 1200, balance: 3300 }),
-    ).toBe(2500)
-  })
-
-  it('never forfeits more than the balance', () => {
-    expect(
-      forfeitableCredits({ subscriptionGrants: 5000, refunds: 0, spend: 4900, balance: 100 }),
-    ).toBe(100)
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
 describe('endSubscription', () => {
-  /** A ledger where `granted` came from the plan and the rest was bought. */
-  function ledger({ granted = 0, refunded = 0, spent = 0, balance = 0 } = {}) {
-    const create = vi.fn().mockResolvedValue({})
-    const aggregate = vi.fn(async ({ where }: any) => {
-      if (where.type === 'subscription_grant') return { _sum: { delta: granted } }
-      if (where.type === 'refund') return { _sum: { delta: refunded } }
-      if (where.delta?.lt === 0) return { _sum: { delta: -spent } }
-      return { _sum: { delta: balance } }
-    })
-    mockPrisma.$transaction = vi.fn(async (cb: any) =>
-      cb({
-        subscription: {
-          findUnique: vi.fn().mockResolvedValue({ id: 'sub_row', userId: 'user_1' }),
-          update: vi.fn().mockResolvedValue({}),
-        },
-        creditTransaction: { aggregate, findUnique: vi.fn().mockResolvedValue(null), create },
-      }),
-    )
-    return { create }
-  }
-
-  it('forfeits the unused allowance and leaves purchased credits behind', async () => {
-    // 2,500 from the plan, 800 bought as Flex, 1,200 spent.
-    const { create } = ledger({ granted: 2500, spent: 1200, balance: 2100 })
-
+  it('ends plan access without changing the credit ledger', async () => {
+    mockPrisma.subscription.update.mockResolvedValue({ id: 'sub_row', status: 'expired' })
     await endSubscription('sub_dodo', 'expired')
 
-    expect(create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ userId: 'user_1', delta: -1300 }),
+    expect(mockPrisma.subscription.update).toHaveBeenCalledWith({
+      where: { dodoSubscriptionId: 'sub_dodo' },
+      data: { status: 'expired', cancelledAt: expect.any(Date) },
     })
-  })
-
-  it('writes no adjustment when the user only holds credits they bought', async () => {
-    const { create } = ledger({ granted: 0, spent: 0, balance: 800 })
-
-    await endSubscription('sub_dodo', 'cancelled')
-
-    expect(create).not.toHaveBeenCalled()
+    expect(mockPrisma.creditTransaction.create).not.toHaveBeenCalled()
   })
 })
 

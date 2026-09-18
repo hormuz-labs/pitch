@@ -650,8 +650,8 @@ const credits: DocPage = {
       text: (
         <>
           One credit is $0.0025 of measured cost: the agent's model usage plus the machine time
-          spent recording and rendering. Nothing is charged when a project is created — the meter runs as the work
-          happens. These are typical totals, not fixed prices.
+          spent recording and rendering. Nothing is charged when a project is created — the meter
+          runs as the work happens. These are typical totals, not fixed prices.
         </>
       ),
     },
@@ -790,7 +790,7 @@ const credits: DocPage = {
     },
     {
       k: 'p',
-      text: 'Credits you bought outright stay on the balance. Whatever is left of a monthly allowance is forfeited when the subscription ends, including after a failed renewal payment. Spend draws the allowance down first, so a plan never eats the credits you paid for separately.',
+      text: 'Credits remain on your balance until you use them, including credits granted by a plan that later ends. Cancelling stops future renewals; plan-specific features remain available through the paid billing period.',
     },
   ],
 }

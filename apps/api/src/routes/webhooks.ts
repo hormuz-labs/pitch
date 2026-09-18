@@ -199,10 +199,7 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       if (subscriptionId) {
         const status = String(event.type).replace('subscription.', '')
         await db.endSubscription(subscriptionId, status)
-        logger.info(
-          { subscriptionId, status },
-          '[Dodo] Subscription ended; unused plan credits forfeited',
-        )
+        logger.info({ subscriptionId, status }, '[Dodo] Subscription ended; credits retained')
         if (userId) {
           await sendBillingNotification(userId, 'subscription-cancelled', subscriptionId)
         }

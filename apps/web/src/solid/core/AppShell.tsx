@@ -6,6 +6,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
   type ParentProps,
@@ -63,7 +64,9 @@ export function AppShell(props: ParentProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = createSignal(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
+  const [collapsed, setCollapsed] = createSignal(
+    window.innerWidth < 1024 || routeKey(location.pathname) === 'studio',
+  )
   const [projects, setProjects] = createSignal<Project[]>([])
   const [projectsLoading, setProjectsLoading] = createSignal(true)
   const [projectNotifications, setProjectNotifications] = createSignal(
@@ -218,6 +221,12 @@ export function AppShell(props: ParentProps) {
     location.pathname
     void loadProjects()
   })
+
+  createEffect(
+    on(selectedKey, (route, previousRoute) => {
+      if (route === 'studio' && previousRoute !== 'studio') setCollapsed(true)
+    }),
+  )
 
   createEffect(() => {
     const id = selectedProjectId()

@@ -7,15 +7,19 @@ import {
   demoVideos,
   forCadence,
   formatCredits,
-  type Plan,
   PLANS,
+  type Plan,
   pricePerCredit,
 } from '../../../lib/plans'
 import { useAuth } from '../../core/auth'
 
 interface Summary {
   balance: number
-  activeSubscription: null | { planKey: string; creditsPerCycle: number }
+  activeSubscription: null | {
+    planKey: string
+    creditsPerCycle: number
+    currentPeriodEnd?: string
+  }
 }
 
 export function PlansSection() {
@@ -37,19 +41,31 @@ export function PlansSection() {
     }
   })
 
-  const subscriptionPlans = PLANS.filter(plan => plan.kind === 'subscription' || plan.kind === 'contact')
+  const subscriptionPlans = PLANS.filter(
+    plan => plan.kind === 'subscription' || plan.kind === 'contact',
+  )
   const activeKey = () => summary()?.activeSubscription?.planKey ?? ''
+  const isCurrentPlan = (plan: Plan) => activeKey() === plan.key || activeKey() === plan.annual?.key
+  const isRecommendedPlan = (plan: Plan) => !activeKey() && !!plan.popular
 
   const openPortal = async () => {
+    const portal = window.open('', '_blank')
+    if (portal) portal.opener = null
     setPortalLoading(true)
     setError('')
     try {
       const token = await getToken()
       if (!token) return
       const { url } = await api.get<{ url: string }>('/checkout/billing-portal', token)
-      window.location.assign(url)
+      if (portal) portal.location.assign(url)
+      else window.location.assign(url)
     } catch (err) {
-      setError(isApiError(err) && err.status === 404 ? 'No billing history yet.' : 'Could not open the billing portal.')
+      portal?.close()
+      setError(
+        isApiError(err) && err.status === 404
+          ? 'No billing history yet.'
+          : 'Could not open the billing portal.',
+      )
     } finally {
       setPortalLoading(false)
     }
@@ -95,8 +111,9 @@ export function PlansSection() {
               <>
                 <strong class="settings-current-plan__value">
                   {(
-                    PLANS.find(plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey)
-                      ?.name ?? sub().planKey
+                    PLANS.find(
+                      plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey,
+                    )?.name ?? sub().planKey
                   ).toUpperCase()}
                 </strong>
                 <small>{formatCredits(sub().creditsPerCycle)} credits per billing cycle</small>
@@ -108,12 +125,23 @@ export function PlansSection() {
 
       <section class="settings-card settings-billing-portal">
         <div>
-          <strong>Billing portal</strong>
-          <small>View invoices, update billing information, and manage payment methods.</small>
+          <strong>{activeKey() ? 'Manage subscription' : 'Billing portal'}</strong>
+          <small>
+            {activeKey()
+              ? `Change or cancel your plan in the secure billing portal${summary()?.activeSubscription?.currentPeriodEnd ? `. Plan features continue through ${new Date(summary()!.activeSubscription!.currentPeriodEnd!).toLocaleDateString()}` : ''}. Remaining credits stay in your balance until used.`
+              : 'View invoices and manage payment methods from previous purchases.'}
+          </small>
         </div>
-        <button type="button" class="settings-secondary" disabled={portalLoading()} onClick={() => void openPortal()}>
+        <button
+          type="button"
+          class={
+            activeKey() ? 'settings-secondary settings-manage-subscription' : 'settings-secondary'
+          }
+          disabled={portalLoading()}
+          onClick={() => void openPortal()}
+        >
           <ExternalLink size={14} />
-          Open billing portal
+          {activeKey() ? 'Manage or cancel subscription' : 'Open billing portal'}
         </button>
       </section>
 
@@ -121,13 +149,24 @@ export function PlansSection() {
         <p class="settings-field__error">{error()}</p>
       </Show>
 
-      <div class="settings-billing-cycle" role="tablist">
-        <button type="button" class={cadence() === 'monthly' ? 'is-active' : ''} onClick={() => setCadence('monthly')}>
-          Monthly
-        </button>
-        <button type="button" class={cadence() === 'annual' ? 'is-active' : ''} onClick={() => setCadence('annual')}>
-          Annual <span>20% OFF</span>
-        </button>
+      <div class="settings-plans-header">
+        <span>Plans</span>
+        <div class="settings-billing-cycle" role="tablist">
+          <button
+            type="button"
+            class={cadence() === 'monthly' ? 'is-active' : ''}
+            onClick={() => setCadence('monthly')}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            class={cadence() === 'annual' ? 'is-active' : ''}
+            onClick={() => setCadence('annual')}
+          >
+            Annual <span>20% OFF</span>
+          </button>
+        </div>
       </div>
 
       <div class="settings-plans">
@@ -136,11 +175,13 @@ export function PlansSection() {
             const view = () => forCadence(plan, cadence())
             const savings = annualSavingsPercent(plan)
             return (
-              <article class={`settings-card ${plan.popular ? 'is-popular' : ''}`}>
+              <article
+                class={`settings-card ${isCurrentPlan(plan) ? 'is-current' : isRecommendedPlan(plan) ? 'is-popular' : ''}`}
+              >
                 <div class="settings-plan-name">
                   {plan.name}
-                  <Show when={plan.popular}>
-                    <em>Most popular</em>
+                  <Show when={isCurrentPlan(plan) || isRecommendedPlan(plan)}>
+                    <em>{isCurrentPlan(plan) ? 'Current plan' : 'Most popular'}</em>
                   </Show>
                 </div>
                 <Show
@@ -161,11 +202,14 @@ export function PlansSection() {
                   fallback={
                     <button
                       type="button"
-                      disabled={!view() || checkoutKey() === view()?.key || activeKey() === view()?.key}
-                      onClick={() => void subscribe(plan)}
+                      disabled={!view() || checkoutKey() === view()?.key || portalLoading()}
+                      class={isCurrentPlan(plan) ? 'settings-plan-manage' : undefined}
+                      onClick={() =>
+                        isCurrentPlan(plan) ? void openPortal() : void subscribe(plan)
+                      }
                     >
-                      {activeKey() === view()?.key
-                        ? 'Current plan'
+                      {isCurrentPlan(plan)
+                        ? 'Manage or cancel'
                         : checkoutKey() === view()?.key
                           ? 'Redirecting…'
                           : `Choose ${plan.name}`}
@@ -176,11 +220,16 @@ export function PlansSection() {
                 </Show>
                 <Show when={view()?.credits}>
                   <span>
-                    {formatCredits(view()?.credits ?? 0)} credits per {cadence() === 'annual' ? 'year' : 'month'}
+                    {formatCredits(view()?.credits ?? 0)} credits per{' '}
+                    {cadence() === 'annual' ? 'year' : 'month'}
                   </span>
                 </Show>
-                <Show when={pricePerCredit(view() ?? plan)}>{rate => <span>{rate()} / credit</span>}</Show>
-                <Show when={demoVideos(view() ?? plan)}>{count => <span>About {count()} demo videos</span>}</Show>
+                <Show when={pricePerCredit(view() ?? plan)}>
+                  {rate => <span>{rate()} / credit</span>}
+                </Show>
+                <Show when={demoVideos(view() ?? plan)}>
+                  {count => <span>About {count()} demo videos</span>}
+                </Show>
               </article>
             )
           }}
@@ -188,9 +237,8 @@ export function PlansSection() {
       </div>
 
       <p class="settings-note">
-        Flex is a one-time purchase, no subscription required — see Buy credits. Pro and Max
-        include credits for the billing period and auto-renew until cancelled. All purchases are
-        final.
+        Flex is a one-time purchase, no subscription required — see Buy credits. Pro and Max include
+        credits for the billing period and auto-renew until cancelled. All purchases are final.
       </p>
     </>
   )

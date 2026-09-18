@@ -12,8 +12,21 @@ const previewCss = readFileSync(
   resolve(process.cwd(), 'apps/web/src/solid/studio/preview-stage.css'),
   'utf8',
 )
+const appShell = readFileSync(
+  resolve(process.cwd(), 'apps/web/src/solid/core/AppShell.tsx'),
+  'utf8',
+)
 
 describe('Studio UI style contract', () => {
+  it('opens project conversations without the global sidebar', () => {
+    expect(appShell).toContain(
+      "window.innerWidth < 1024 || routeKey(location.pathname) === 'studio'",
+    )
+    expect(appShell).toContain(
+      "if (route === 'studio' && previousRoute !== 'studio') setCollapsed(true)",
+    )
+  })
+
   it('keeps the shared composer groups flexible at narrow widths', () => {
     expect(css).toContain('.lv-studio .composer-shell__footer')
     expect(css).toContain('.lv-studio .composer-shell__group')

@@ -293,7 +293,9 @@ router.post('/', async (req, res) => {
       affCookie === '' || /^[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?$/.test(affCookie),
       'resolveCheckoutAttribution returned a malformed cookie value',
     )
-    const appUrl = process.env.APP_URL || 'https://trypitch.co'
+    const appUrl = new URL(process.env.APP_URL || 'https://trypitch.co')
+    // app.trypitch.co was used during deployment planning but has no public DNS.
+    if (appUrl.hostname === 'app.trypitch.co') appUrl.hostname = 'trypitch.co'
 
     const session = await client.checkoutSessions.create({
       product_cart: [{ product_id: chosen.productId, quantity: 1 }],
@@ -305,7 +307,7 @@ router.post('/', async (req, res) => {
         affiliate_cookie: affCookie,
       },
       // Dodo appends subscription_id and payment_id to the return_url automatically.
-      return_url: `${appUrl}/checkout/return?checkout=success`,
+      return_url: `${appUrl.origin}/checkout/return?checkout=success`,
     })
 
     res.json({ url: session.checkout_url })

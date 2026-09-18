@@ -40,9 +40,8 @@ const PRODUCT_IDS =
  * `subscription_grant` (12 × the monthly allowance) rather than a monthly
  * trickle: Dodo only fires `subscription.renewed` once a year for a
  * year-billed subscription, so there is no once-a-month event to hang a
- * smaller grant off without a separate scheduler. Cancelling mid-year
- * forfeits whatever is left of that grant, same policy as monthly plans —
- * see forfeitableCredits() in packages/db/src/index.ts.
+ * smaller grant off without a separate scheduler. Granted credits remain in
+ * the user's balance after cancellation; only plan-specific capabilities end.
  */
 export const CREDIT_PACKS = {
   pro: { credits: 2500, priceUsd: 45, label: '2,500 Credits/mo', productId: PRODUCT_IDS.pro },
