@@ -24,23 +24,22 @@ effects/
     meta.json           the notes: move, how, moves[], libs[], adapt, port, caveats[], fidelity, loop, size
 ```
 
-The studio agent never browses this folder. It runs `pitch effects`
-(`.pi/cli/effects.ts`): `families` is the compact map; `list` and `search`
-return up to 12 entries by default (`--limit 0` for all). `show <id>` returns
-study notes and a strip path, while `show <id> --source` returns the selected
-implementation to adapt into `js/shots/<type>.js`. Launch-primitives source
-includes the selected preset's shared-file implementation, rather than just
-its wrapper or every unrelated preset. Common integration instructions live
-once in `.pi/skills/launch-video/references/effects.md`.
-`effects/` is a read-only shared root in the sandbox (`.pi/lib/paths.ts`), so
-the paths those commands print resolve for the agent.
+The launch skill contains every effect ID grouped by family. The agent selects
+candidates directly with `pitch effects show <id>` (notes and frame-strip path),
+then fetches `--source` for chosen implementations. Shared integration guidance
+lives in `.pi/skills/launch-video/references/effects.md`.
 
-**There is no index to rebuild.** The commands read this directory, keyed on
-the family folders' mtimes, so an effect you add is listed on the next call.
-Give it an `index.html` and a `meta.json` and it exists; `catalog.json` is
-only where the Jitter originals' names and blurbs come from, and an effect
-missing from it is named after its folder. This replaced a Gemini-embedded
-`search.json` that went stale every time someone forgot to rebuild it.
+**After adding, renaming or removing effects, run `bun run effects:sync`.** This
+updates only the generated inventory section of `launch-video/SKILL.md`. Run
+`bun run effects:sync --check` to verify it; a unit test also catches drift.
+The generator uses the same filesystem inventory as the CLI, including effects
+absent from `catalog.json`. An effect needs an `index.html`; `meta.json` and the
+catalog enrich its notes and search tags.
+
+Optional discovery commands remain live without regeneration: `families` explains
+collections, `browse` varies families/move tags, `list` is alphabetical, and
+`search` matches metadata keywords. The latter three support `--offset` and
+`--limit 0` for complete results. `effects/` is readable in the agent sandbox.
 
 `node effects/serve.mjs` serves the human review gallery at
 `http://127.0.0.1:4173/effects/index.html`. The gallery is generated from the

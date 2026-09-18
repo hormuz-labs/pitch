@@ -6,15 +6,18 @@
    but design the scene yourself: a site's dense grid or dashboard is not the
    film layout. Use icon-library for familiar tools, and capture a real product
    detail only when needed (`pitch motion screenshot --url <url> --out <file>`).
-2. For a narrated film, complete `references/audio/narration.md`'s script and
+2. Explore candidates from the skill's effect inventory before locking the
+   storyboard. Compare their notes and frame strips; use `references/continuity.md`
+   to plan connections between scenes.
+3. For a narrated film, complete `references/audio/narration.md`'s script and
    recording steps before the shot table. Write a short `direction.md`:
-   audience takeaway, visual idea, included content, treatment and sound choice, then
+   audience takeaway, visual idea, included content, treatment, chosen motion
+   language/references and sound choice, then
    `id | focal visual/action | essential copy | duration | connection`.
    Describe the complete visible state; derive narrated shot timing from the read.
-3. Consult the effects lab for a needed mechanism: `pitch effects families`,
-   then one focused search or family listing with a small limit. Before adapting
-   source, read `references/effects.md` and `pitch effects show <id> --source`.
-   Cite `lab` only for inspected implementations. Reuse references across shots.
+4. Before adapting selected implementations, read `references/effects.md` and
+   `pitch effects show <id> --source`.
+   Cite `lab` only for inspected implementations, with a distinct effect ID per shot.
 
 ## Implementation
 

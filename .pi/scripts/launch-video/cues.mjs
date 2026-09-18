@@ -113,7 +113,7 @@ if (CHECK) {
   // and a film that hears them there gets rebuilt instead of built.
   const buildLint = spec ? [...lintWhileBuilding(spec), ...lintEffectSources(spec, inspectedEffects)] : [];
   for (const l of buildLint) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
-  if (buildLint.some(l => l.code === "lab-source")) {
+  if (buildLint.some(l => l.code === "lab-source" || l.code === "lab-repeat")) {
     process.exit(1);
   }
 }

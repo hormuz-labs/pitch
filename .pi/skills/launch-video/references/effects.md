@@ -63,6 +63,8 @@ When needed, give it `padding: .16em .08em .24em` and
 the longest hero line within the safe frame. Review the adapted result.
 
 Credit a genuinely adapted implementation with `lab: "family/slug"` on the shot.
+Each lab ID may appear in only one shot per film; check and audit reject duplicates.
+Select another implementation for another shot instead of removing its citation.
 The source command records that inspection in `.studio/effect-sources.json`;
 never write or edit that receipt yourself. `pitch motion check` and `audit`
 reject a lab citation without its receipt. Record the useful principle and

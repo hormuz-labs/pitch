@@ -156,6 +156,12 @@ music, narration, SFX and mixing modules. A music-only film does not load
 narration guidance; a level edit loads mixing rather than the entire production
 workflow. Recorded demos continue to use their separate `demo-video` skill.
 
+The launch skill embeds every available effect ID, grouped by family. Agents can
+select candidates directly, compare notes/frame strips, then load selected source
+before implementing. Browsing and search remain optional. `bun run effects:sync`
+regenerates the embedded inventory from the live lab; a unit test catches drift.
+Each lab ID is unique within a film; motion check and audit reject duplicate citations.
+
 `icon-library` is shared across outcomes. `pitch icons search|import` uses the
 offline catalog in `assets/icons/` (pinned Lucide, Simple Icons and SVGL sources).
 Only selected SVGs, licenses and provenance are copied into a project. The skill's

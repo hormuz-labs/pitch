@@ -60,8 +60,18 @@ export function lintDesign(spec) {
 /** A lab citation means the implementation source was inspected in this workspace. */
 export function lintEffectSources(spec, inspected = []) {
   const seen = new Set(inspected);
+  const used = new Map();
   const out = [];
   for (const shot of spec?.shots || []) {
+    if (shot.lab) {
+      if (used.has(shot.lab)) {
+        out.push({
+          level: "fail",
+          code: "lab-repeat",
+          msg: `#${shot.id}: lab "${shot.lab}" is already used by #${used.get(shot.lab)}. Each effect may appear in only one shot per film. Choose a different effect; do not hide reuse by removing or renaming its citation.`,
+        });
+      } else used.set(shot.lab, shot.id);
+    }
     if (shot.lab && !seen.has(shot.lab)) {
       out.push({
         level: "fail",

@@ -18,6 +18,12 @@
       "prompt": "The film is good. Just make the music quieter; keep everything else the same.",
       "expected_output": "An existing-project audio edit loading only the mix module. Reuse the current bed and picture; no treatment re-planning, effects search, screenshots, paid review or MP4 render.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Create a launch film for a product that brings scattered work into one coordinated workspace. You decide the visual direction. Make the animation feel considered and connected.",
+      "expected_output": "Uses the complete inventory in the launch skill to select relevant and contrasting effects directly, without first needing a families/list/search call. Before locking the storyboard, compares candidate notes and frame strips and records a product-specific motion language and scene connections in direction.md. Exploration can continue as needed; source is loaded for chosen implementations. Preserves their mechanisms during adaptation and checks important transitions rather than reducing every shot to the same entrance.",
+      "files": []
     }
   ]
 }

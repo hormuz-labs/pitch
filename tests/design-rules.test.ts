@@ -113,6 +113,27 @@ describe('lintWhileBuilding', () => {
 })
 
 describe('lintEffectSources', () => {
+  it('rejects a repeated effect even when its source was inspected and its factory was renamed', () => {
+    const spec = film([
+      { lab: 'text/bold-text-snap', type: 'opener', chapter: 'intro' },
+      { lab: 'brand/apple-news-plus', type: 'cards' },
+      { lab: 'text/bold-text-snap', type: 'renamed-payoff', chapter: 'outro' },
+    ])
+    expect(lintEffectSources(spec, ['text/bold-text-snap', 'brand/apple-news-plus'])).toEqual([
+      expect.objectContaining({
+        level: 'fail',
+        code: 'lab-repeat',
+        msg: expect.stringMatching(/#s3:.*text\/bold-text-snap.*#s1/),
+      }),
+    ])
+  })
+
+  it('allows distinct effects from the same family and reuse in a separate film', () => {
+    const inspected = ['text/bold-text-snap', 'text/elastic-text']
+    expect(lintEffectSources(film(inspected.map(lab => ({ lab }))), inspected)).toEqual([])
+    expect(lintEffectSources(film([{ lab: inspected[0] }]), inspected)).toEqual([])
+  })
+
   it('requires source inspection for every cited lab implementation', () => {
     const spec = film([{ lab: 'text/inspected' }, { lab: 'brand/card-only' }, { type: 'bespoke' }])
     expect(lintEffectSources(spec, ['text/inspected'])).toEqual([

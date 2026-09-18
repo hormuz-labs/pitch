@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Script } from 'node:vm'
@@ -105,6 +105,18 @@ describe('the lab is the directory', () => {
     expect(e.seconds).toBe(4)
     expect(e.description).toBe('From Jitter.')
   })
+
+  it('refreshes catalog-only edits and indexes tags alongside authored moves', async () => {
+    addEffect('text', 'one', { moves: ['mask'] })
+    write(lab, 'catalog.json', [{ familySlug: 'text', slug: 'one', tags: ['mask', 'unfold'] }])
+    const { loadEffects, score } = await import('../.pi/cli/effects.ts')
+    expect(loadEffects()[0].moves).toEqual(['mask', 'unfold'])
+    write(lab, 'catalog.json', [{ familySlug: 'text', slug: 'one', tags: ['accordion'] }])
+    const future = new Date(Date.now() + 2000)
+    utimesSync(join(lab, 'catalog.json'), future, future)
+    expect(score(loadEffects(), 'accordion')[0].effect.id).toBe('text/one')
+    expect(loadEffects()[0].moves).not.toContain('unfold')
+  })
 })
 
 describe('search', () => {
@@ -120,6 +132,12 @@ describe('search', () => {
     addEffect('text', 'fade', { move: 'a title fades up' })
     const { loadEffects, score } = await import('../.pi/cli/effects.ts')
     expect(score(loadEffects(), 'quantum tunnelling')).toHaveLength(0)
+  })
+
+  it('finds a mechanism through its product adaptation notes', async () => {
+    addEffect('icons', 'gather', { adapt: 'Turn fragmented tasks into a coordinated workflow.' })
+    const { loadEffects, score } = await import('../.pi/cli/effects.ts')
+    expect(score(loadEffects(), 'coordinated workflow')[0].effect.id).toBe('icons/gather')
   })
 
   it('needs no network and no key', async () => {
@@ -199,11 +217,59 @@ describe('the commands', () => {
     for (let i = 0; i < 15; i++)
       addEffect('text', `item-${String(i).padStart(2, '0')}`, { move: 'colliding words' })
     const shortlist = await run('effects list')
-    expect(shortlist).toContain('first 12')
+    expect(shortlist).toContain('1–12 of 15')
     expect(shortlist).not.toContain('text/item-14')
     expect(await run('effects list --limit 0')).toContain('text/item-14')
     expect(await run('effects search colliding --limit 2')).not.toContain('text/item-02')
     expect(await run('effects search colliding --limit 0')).toContain('text/item-14')
+  })
+
+  it('lets exploration continue without repeating earlier list or search results', async () => {
+    for (let i = 0; i < 5; i++) addEffect('text', `item-${i}`, { move: 'colliding words' })
+    for (const command of ['list', 'search colliding', 'browse']) {
+      const out = await run(`effects ${command} --offset 2 --limit 2`)
+      expect(out).toContain('3–4 of 5')
+      expect(out).toContain('--offset 4 --limit 2')
+      expect(out).toContain('text/item-2')
+      expect(out).not.toContain('text/item-0')
+      const end = await run(`effects ${command} --offset 4 --limit 0`)
+      expect(end).toContain('text/item-4')
+      expect(end).toContain('End of matches')
+      expect(await run(`effects ${command} --offset 99`)).toContain('0 of 5')
+    }
+  })
+
+  it('browses across families and different mechanisms before repeating a move', async () => {
+    addEffect('ads', 'a', { moves: ['slide'] })
+    addEffect('ads', 'b', { moves: ['slide'] })
+    addEffect('ads', 'c', { moves: ['morph'] })
+    addEffect('text', 'a', { moves: ['mask'] })
+    const out = await run('effects browse --limit 3')
+    expect(out).toContain('ads/a')
+    expect(out).toContain('text/a')
+    expect(out).toContain('ads/c')
+    expect(out).not.toContain('ads/b')
+    expect(await run('effects browse --offset 3')).toContain('ads/b')
+    const family = await run('effects ads browse --limit 2')
+    expect(family).toContain('ads/c')
+    expect(family).not.toContain('text/a')
+    const { explorationOrder, loadEffects } = await import('../.pi/cli/effects.ts')
+    const all = loadEffects()
+    expect(new Set(explorationOrder(all).map(e => e.id)).size).toBe(all.length)
+    expect(all.map(e => e.id)).toEqual(['ads/a', 'ads/b', 'ads/c', 'text/a'])
+  })
+
+  it('explains known families and surfaces new ones with live examples and tags', async () => {
+    addEffect('launch-studies', 'camera', { moves: ['spatial-camera'] })
+    const first = await run('effects families')
+    expect(first).toContain('Multi-beat product-film studies')
+    expect(first).toContain('launch-studies/camera')
+    addEffect('new-worlds', 'assembly', { moves: ['converge'] })
+    const updated = await run('effects families')
+    expect(updated).toContain('new-worlds (1)')
+    expect(updated).toContain('Moves/tags: converge')
+    expect(updated).toContain('new-worlds/assembly')
+    expect(updated).toContain('pitch effects browse')
   })
 
   it('returns the chosen primitive implementation, not just its launcher or every preset', async () => {

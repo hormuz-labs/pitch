@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path'
 import { Script } from 'node:vm'
 import { EFFECTS_DIR, SKILLS_DIR } from '../lib/paths.ts'
+import { FAMILY_GUIDE } from './effect-families.ts'
 import type { CommandSpec } from './registry.ts'
 
 export interface Effect {
@@ -80,7 +81,7 @@ export function families(): string[] {
  * note.
  */
 function signature(): number {
-  let sig = mtime(EFFECTS_DIR)
+  let sig = mtime(EFFECTS_DIR) + mtime(join(EFFECTS_DIR, 'catalog.json'))
   for (const family of families()) {
     const famDir = join(EFFECTS_DIR, family)
     sig += mtime(famDir)
@@ -141,7 +142,12 @@ export function loadEffects(): Effect[] {
         description: cat?.description ?? meta.move ?? '',
         move: meta.move ?? null,
         how: meta.how ?? null,
-        moves: Array.isArray(meta.moves) ? meta.moves : [],
+        moves: [
+          ...new Set([
+            ...(Array.isArray(meta.moves) ? meta.moves : []),
+            ...(Array.isArray(cat?.tags) ? cat.tags : []),
+          ]),
+        ].filter((tag): tag is string => typeof tag === 'string'),
         libs: Array.isArray(meta.libs) ? meta.libs : [],
         adapt: meta.adapt ?? null,
         port: meta.port ?? null,
@@ -191,6 +197,7 @@ export function score(effects: Effect[], query: string): { effect: Effect; score
     add(r.libs.join(' '), 1)
     add(r.how, 1)
     add(r.description, 1)
+    add(r.adapt, 1)
     return bag
   })
   const df = new Map<string, number>()
@@ -315,6 +322,88 @@ function familyCounts(effects: Effect[]): string {
     .join(', ')
 }
 
+/** Cover families round-robin, then different tagged mechanisms within each family.
+ * This is an exploration order, not a ranking of quality or complexity. Every
+ * effect remains reachable with pagination, including ones with sparse metadata.
+ */
+export function explorationOrder(effects: Effect[]): Effect[] {
+  const groups = new Map<string, Effect[]>()
+  for (const effect of effects) {
+    const rows = groups.get(effect.family) ?? []
+    rows.push(effect)
+    groups.set(effect.family, rows)
+  }
+  const seen = new Map<string, Set<string>>()
+  const result: Effect[] = []
+  while (result.length < effects.length) {
+    for (const [family, remaining] of groups) {
+      if (!remaining.length) continue
+      const tags = seen.get(family) ?? new Set<string>()
+      const novelty = (effect: Effect) => new Set(effect.moves.filter(tag => !tags.has(tag))).size
+      let best = 0
+      for (let i = 1; i < remaining.length; i++) {
+        if (novelty(remaining[i]) > novelty(remaining[best])) best = i
+      }
+      const [chosen] = remaining.splice(best, 1)
+      for (const tag of chosen.moves) tags.add(tag)
+      seen.set(family, tags)
+      result.push(chosen)
+    }
+  }
+  return result
+}
+
+/** A live, descriptive table of contents. New families need no registration. */
+export function familyIndex(effects: Effect[]): string {
+  const names = [...new Set(effects.map(e => e.family))].sort()
+  const rows = names.map(family => {
+    const members = effects.filter(e => e.family === family)
+    const tags = new Map<string, number>()
+    for (const member of members) {
+      for (const tag of new Set(member.moves)) tags.set(tag, (tags.get(tag) ?? 0) + 1)
+    }
+    const topTags = [...tags]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([tag]) => tag)
+    const examples = explorationOrder(members)
+      .slice(0, 2)
+      .map(e => e.id)
+    return (
+      `${family} (${members.length}) — ${FAMILY_GUIDE[family] ?? 'New collection; use the examples and tags to explore its mechanisms.'}\n` +
+      (topTags.length ? `  Moves/tags: ${topTags.join(', ')}\n` : '') +
+      `  Examples: ${examples.join(', ')}`
+    )
+  })
+  return (
+    `${effects.length} effects across ${names.length} families. Live discovery index; examples are entry points, not recommendations.\n\n${rows.join('\n\n')}\n\n` +
+    'Explore: pitch effects browse (cross-family), pitch effects <family> browse (different mechanisms), or pitch effects <family> list --limit 0 (complete family).\n' +
+    'Search words from these moves/tags; show <id> returns study notes and a strip to read. Fetch --source only after choosing.'
+  )
+}
+
+function pageRows(
+  rows: Effect[],
+  p: Record<string, any>,
+): { shown: Effect[]; range: string; next: string } {
+  const offset = p.offset === undefined ? 0 : Number(p.offset)
+  if (!Number.isInteger(offset) || offset < 0)
+    throw new Error('offset must be a non-negative integer')
+  const limit = rowLimit(p.limit, rows.length)
+  const shown = rows.slice(offset, offset + limit)
+  const end = offset + shown.length
+  return {
+    shown,
+    range: shown.length
+      ? `${offset + 1}–${end} of ${rows.length}`
+      : `0 of ${rows.length} (offset ${offset})`,
+    next:
+      end < rows.length
+        ? `More available: repeat this command with --offset ${end} --limit ${limit}, or --offset 0 --limit 0 for all matches.`
+        : 'End of matches. Explore another family or query as useful.',
+  }
+}
+
 const out = (text: string) => ({ content: [{ type: 'text' as const, text }], details: {} })
 
 function rowLimit(value: unknown, total: number): number {
@@ -355,35 +444,55 @@ export default function effectsCommands(): CommandSpec[] {
         description: 'Only effects built with every one of these, e.g. three, SplitText.',
       },
       limit: { type: 'integer', minimum: 0, description: 'Max rows (default 12; 0 = all).' },
+      offset: {
+        type: 'integer',
+        minimum: 0,
+        description: 'Skip this many rows to continue exploring (default 0).',
+      },
     },
   }
 
   return [
     {
+      verb: 'browse',
+      description:
+        'Explore different motion possibilities before choosing a mechanism. Rotates across families ' +
+        'and prioritizes unseen move tags within each family. This is coverage, not a quality ranking. ' +
+        'Use --offset to continue, --family to explore a collection, or --limit 0 for the complete shelf.',
+      parameters,
+      async execute(_id, p: any) {
+        const rows = explorationOrder(filtered(p))
+        const { shown, range, next } = pageRows(rows, p)
+        return out(
+          `Exploration: ${range} effects.\n\n${shown.map(line).join('\n')}\n\n${next}\n` +
+            'Use pitch effects families for the full map. Study candidates with show and read their frame strips before choosing.',
+        )
+      },
+    },
+    {
       verb: 'list',
       description:
         'Browse the effects knowledge base: id, length, libraries and the move each makes. ' +
-        'Consult it before implementing a new film. Start with families and narrow with --family, --moves or --libs. ' +
+        'Use when you need more detail than the inventory in the launch skill; filter with --family, --moves or --libs. ' +
         'Returns 12 rows by default; --limit 0 lists all. Study selected effects with show, then fetch source only when implementing.',
       parameters,
       async execute(_id, p: any) {
         const all = loadEffects()
         const rows = filtered(p)
-        const limit = rowLimit(p.limit, rows.length)
-        const shown = rows.slice(0, limit)
+        const { shown, range, next } = pageRows(rows, p)
         if (!shown.length) {
-          return out(`Nothing matches. ${all.length} effects; families: ${familyCounts(all)}`)
+          return out(
+            `${range}. ${all.length} effects; families: ${familyCounts(all)}. Try --offset 0 or different filters.`,
+          )
         }
         const head =
           shown.length === all.length
             ? `${all.length} effects in the lab.`
-            : `${rows.length} of ${all.length} effects${shown.length < rows.length ? `, first ${shown.length}` : ''}.`
+            : `${rows.length} of ${all.length} effects; showing ${range}.`
         return out(
           `${head}\n\n${shown.map(line).join('\n')}\n\n` +
             '`pitch effects show <id>` returns study notes and a frame-strip path; --source returns the implementation.' +
-            (shown.length < rows.length
-              ? '\nNarrow by family/moves/libs, or --limit 0 for all matches.'
-              : ''),
+            `\n${next}`,
         )
       },
     },
@@ -407,14 +516,17 @@ export default function effectsCommands(): CommandSpec[] {
       async execute(_id, p: any) {
         const query = String(p.query ?? '')
         const ranked = score(filtered(p), query)
-        const hits = ranked.slice(0, rowLimit(p.limit, ranked.length))
-        if (!hits.length) {
+        const { shown, range, next } = pageRows(
+          ranked.map(hit => hit.effect),
+          p,
+        )
+        if (!ranked.length) {
           return out(
-            `Nothing matches "${query}". Try other words, or read the shelf: pitch effects list --family <one>`,
+            `Nothing matches "${query}". This is keyword search, not semantic matching. Try related move words, pitch effects families, or pitch effects browse.`,
           )
         }
         return out(
-          `Effects for "${query}":\n\n${hits.map(h => line(h.effect)).join('\n')}\n\n` +
+          `Effects for "${query}" (${range}):\n\n${shown.map(line).join('\n')}\n\n${next}\n` +
             '`pitch effects show <id>` returns study notes; add --source only for an implementation you will adapt.',
         )
       },
@@ -465,11 +577,12 @@ export default function effectsCommands(): CommandSpec[] {
     },
     {
       verb: 'families',
-      description: 'The families and how many effects are in each.',
+      description:
+        'Optional live family guide: descriptions, counts, move tags and example IDs. The launch skill already contains the complete effect inventory.',
       parameters: { type: 'object', properties: {} },
       async execute() {
         const all = loadEffects()
-        return out(`${all.length} effects.\nFamilies: ${familyCounts(all)}`)
+        return out(familyIndex(all))
       },
     },
   ]
