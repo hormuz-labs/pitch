@@ -20,6 +20,11 @@ import { DiscordOfferModal } from '../account/DiscordOfferModal'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { useAuth, useUser } from './auth'
+import {
+  readProjectNotifications,
+  reconcileProjectNotifications,
+  writeProjectNotifications,
+} from './projectNotifications'
 import { Sidebar } from './Sidebar'
 
 interface AppShellContextValue {
@@ -61,9 +66,13 @@ export function AppShell(props: ParentProps) {
   const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [projectsLoading, setProjectsLoading] = createSignal(true)
+  const [projectNotifications, setProjectNotifications] = createSignal(
+    readProjectNotifications(localStorage),
+  )
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [discordPromoOpen, setDiscordPromoOpen] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
+  const pendingProjectPins = new Map<string, string | null>()
   const selectedKey = createMemo(() => routeKey(location.pathname))
   const selectedProjectId = createMemo(() =>
     location.pathname.startsWith('/p/') ? location.pathname.split('/')[2] : undefined,
@@ -100,7 +109,21 @@ export function AppShell(props: ParentProps) {
   const loadProjects = async () => {
     try {
       const token = await auth.getToken()
-      if (token) setProjects(await listProjects(token))
+      if (token) {
+        const next = await listProjects(token)
+        setProjects(
+          next.map(project =>
+            pendingProjectPins.has(project.id)
+              ? { ...project, pinnedAt: pendingProjectPins.get(project.id) ?? null }
+              : project,
+          ),
+        )
+        setProjectNotifications(current => {
+          const updated = reconcileProjectNotifications(current, next, selectedProjectId())
+          writeProjectNotifications(localStorage, updated)
+          return updated
+        })
+      }
     } catch {
       // History must not make primary navigation unavailable.
     } finally {
@@ -123,15 +146,24 @@ export function AppShell(props: ParentProps) {
   }
 
   const toggleProjectPin = async (project: Project) => {
+    const previousPinnedAt = project.pinnedAt
+    const pinnedAt = previousPinnedAt ? null : new Date().toISOString()
+    pendingProjectPins.set(project.id, pinnedAt)
+    setProjects(rows => rows.map(row => (row.id === project.id ? { ...row, pinnedAt } : row)))
     try {
       const token = await auth.getToken()
       if (!token) throw new Error('Not signed in')
-      const updated = await patchProject(token, project.id, {
-        pinnedAt: project.pinnedAt ? null : new Date().toISOString(),
-      })
+      const updated = await patchProject(token, project.id, { pinnedAt })
+      if (pendingProjectPins.get(project.id) !== pinnedAt) return
+      pendingProjectPins.delete(project.id)
       setProjects(rows => rows.map(row => (row.id === project.id ? { ...row, ...updated } : row)))
       window.dispatchEvent(new Event('pitch:projects-changed'))
     } catch (error) {
+      if (pendingProjectPins.get(project.id) !== pinnedAt) return
+      pendingProjectPins.delete(project.id)
+      setProjects(rows =>
+        rows.map(row => (row.id === project.id ? { ...row, pinnedAt: previousPinnedAt } : row)),
+      )
       window.alert(error instanceof Error ? error.message : 'Could not update pin')
     }
   }
@@ -185,6 +217,22 @@ export function AppShell(props: ParentProps) {
   createEffect(() => {
     location.pathname
     void loadProjects()
+  })
+
+  createEffect(() => {
+    const id = selectedProjectId()
+    if (!id) return
+    setProjectNotifications(current => {
+      const updated = reconcileProjectNotifications(current, projects(), id)
+      writeProjectNotifications(localStorage, updated)
+      return updated
+    })
+  })
+
+  createEffect(() => {
+    if (!projects().some(project => project.busy)) return
+    const timer = window.setInterval(() => void loadProjects(), 3000)
+    onCleanup(() => window.clearInterval(timer))
   })
 
   createEffect(() => {
@@ -273,6 +321,7 @@ export function AppShell(props: ParentProps) {
               isAdmin={isAdmin()}
               projects={projects()}
               projectsLoading={projectsLoading()}
+              unreadProjectIds={new Set(projectNotifications().unread)}
               selectedKey={selectedKey()}
               selectedProjectId={selectedProjectId()}
               close={() => setCollapsed(true)}
@@ -291,6 +340,7 @@ export function AppShell(props: ParentProps) {
             isAdmin={isAdmin()}
             projects={projects()}
             projectsLoading={projectsLoading()}
+            unreadProjectIds={new Set(projectNotifications().unread)}
             selectedKey={selectedKey()}
             selectedProjectId={selectedProjectId()}
             close={() => setCollapsed(true)}

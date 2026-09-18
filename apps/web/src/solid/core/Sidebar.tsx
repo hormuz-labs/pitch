@@ -2,16 +2,17 @@ import { A, useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
   FileText,
+  LoaderCircle,
   MoreHorizontal,
   PanelLeftClose,
   Pencil,
   Pin,
-  Plus,
   Shield,
   Trash2,
   X,
 } from 'lucide-solid'
 import { createMemo, createSignal, createUniqueId, For, onCleanup, onMount, Show } from 'solid-js'
+import newMessageIcon from '../../assets/new-message.png'
 import tabLogo from '../../assets/tabLogoB.svg'
 import type { Project } from '../../lib/studio-api'
 import type { SettingsSection } from '../account/SettingsView'
@@ -25,6 +26,7 @@ export function Sidebar(props: {
   isAdmin: boolean
   projects: Project[]
   projectsLoading: boolean
+  unreadProjectIds: ReadonlySet<string>
   selectedKey: string
   selectedProjectId?: string
   close: () => void
@@ -41,31 +43,17 @@ export function Sidebar(props: {
     if (path === '/new') window.dispatchEvent(new Event('pitch:new-chat'))
     if (props.isMobile) props.close()
   }
-  const visibleProjects = createMemo(() =>
+  const pinnedProjects = createMemo(() =>
     [...props.projects]
-      .sort((a, b) => {
-        if (a.pinnedAt && !b.pinnedAt) return -1
-        if (!a.pinnedAt && b.pinnedAt) return 1
-        if (a.pinnedAt && b.pinnedAt) return Date.parse(b.pinnedAt) - Date.parse(a.pinnedAt)
-        return Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
-      })
+      .filter(project => project.pinnedAt)
+      .sort((a, b) => Date.parse(b.pinnedAt!) - Date.parse(a.pinnedAt!)),
+  )
+  const recentProjects = createMemo(() =>
+    [...props.projects]
+      .filter(project => !project.pinnedAt)
+      .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
       .slice(0, 7),
   )
-  const projectState = (project: Project) =>
-    project.busy
-      ? 'Working'
-      : project.status === 'ready'
-        ? 'Ready'
-        : project.status === 'failed'
-          ? 'Needs attention'
-          : 'Draft'
-  const projectDate = (value: string) => {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return ''
-    return date.toDateString() === new Date().toDateString()
-      ? 'Today'
-      : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  }
   const recentProject = (project: Project) => {
     const [expanded, setExpanded] = createSignal(false)
     const [clipped, setClipped] = createSignal(false)
@@ -150,6 +138,18 @@ export function Sidebar(props: {
             </span>
           </button>
         </Show>
+        <Show when={project.busy || props.unreadProjectIds.has(project.id)}>
+          <span
+            class={`sidebar-recent-project__state${project.busy ? ' is-working' : ' is-ready'}`}
+            role="status"
+            aria-label={project.busy ? 'Work in progress' : 'Completed'}
+            title={project.busy ? 'Work in progress' : 'Completed'}
+          >
+            <Show when={project.busy} fallback={<i />}>
+              <LoaderCircle size={15} />
+            </Show>
+          </span>
+        </Show>
         <StudioMenu
           label={`Actions for ${project.title || 'Untitled project'}`}
           align="end"
@@ -184,11 +184,6 @@ export function Sidebar(props: {
           </button>
         </StudioMenu>
         <div class="sidebar-recent-project__meta">
-          <small>
-            <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
-            <span aria-hidden="true">·</span>
-            <time datetime={project.updatedAt}>{projectDate(project.updatedAt)}</time>
-          </small>
           <Show when={clipped() || expanded()}>
             <button
               type="button"
@@ -249,8 +244,8 @@ export function Sidebar(props: {
               if (props.isMobile) props.close()
             }}
           >
-            <Plus size={17} />
-            <span>New project</span>
+            <img class="conversation-sidebar__new-icon" src={newMessageIcon} alt="" />
+            <span>New chat</span>
             <kbd>⌘ K</kbd>
           </A>
           <button
@@ -273,18 +268,7 @@ export function Sidebar(props: {
           </Show>
         </nav>
 
-        <section class="sidebar-recents" aria-label="Recent projects">
-          <div class="conversation-sidebar__projects-head">
-            <h2 class="conversation-sidebar__section-title">Chats</h2>
-            <button
-              type="button"
-              class="conversation-sidebar__all-chats"
-              aria-label="View all chats"
-              onClick={() => go('/chats/history')}
-            >
-              All chats
-            </button>
-          </div>
+        <section class="sidebar-recents" aria-label="Chats">
           <div class="conversation-sidebar__history" aria-busy={props.projectsLoading}>
             <Show
               when={!props.projectsLoading}
@@ -294,11 +278,32 @@ export function Sidebar(props: {
                 </p>
               }
             >
+              <Show when={pinnedProjects().length}>
+                <section class="sidebar-project-group" aria-label="Pinned chats">
+                  <h2 class="conversation-sidebar__section-title">Pinned</h2>
+                  <For each={pinnedProjects()}>{recentProject}</For>
+                </section>
+              </Show>
+              <div class="conversation-sidebar__projects-head">
+                <h2 class="conversation-sidebar__section-title">Chats</h2>
+                <button
+                  type="button"
+                  class="conversation-sidebar__all-chats"
+                  aria-label="View all chats"
+                  onClick={() => go('/chats/history')}
+                >
+                  All chats
+                </button>
+              </div>
               <Show
-                when={visibleProjects().length}
-                fallback={<p class="sidebar-recents__empty">Your recent chats will appear here.</p>}
+                when={recentProjects().length}
+                fallback={
+                  <Show when={!pinnedProjects().length}>
+                    <p class="sidebar-recents__empty">Your recent chats will appear here.</p>
+                  </Show>
+                }
               >
-                <For each={visibleProjects()}>{recentProject}</For>
+                <For each={recentProjects()}>{recentProject}</For>
               </Show>
             </Show>
           </div>

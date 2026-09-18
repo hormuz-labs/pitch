@@ -48,7 +48,9 @@ Every tool returns JSON in a text content block. Failures set `isError: true`.
 ## Billing
 
 Projects are not priced up front. Model spend and timed host compute accrue as
-work runs, including follow-up prompts and exports. One credit currently
+work runs, including follow-up prompts and exports. A turn that successfully
+loads one of Pitch's provided skills applies a 250x multiplier to that turn's
+model usage only. Host compute and provider charges are not multiplied. One credit currently
 represents `$0.0025` of measured cost after configured multipliers and margin.
 A minimum balance is required to start work. Insufficient-credit errors include
 the current balance when available.

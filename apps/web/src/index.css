@@ -6,15 +6,13 @@
 /* Latin subsets only. The full stylesheets declare @font-face for cyrillic,
    cyrillic-ext, greek, greek-ext and vietnamese too — 28 extra rules the app
    never matches, in a stylesheet that blocks first paint on every route. */
-@import "@fontsource-variable/dm-sans";
-@import "@fontsource-variable/geist";
 @import "@fontsource/instrument-serif/latin-400.css";
 @import "@fontsource/instrument-serif/latin-400-italic.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: 'Geist Variable', 'Geist', system-ui, -apple-system, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Noto Sans', Ubuntu, Cantarell, 'Helvetica Neue', sans-serif, Arial, 'PingFang SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC';
   --font-serif: 'Instrument Serif', Georgia, serif;
   --color-brand: #111827;
   --color-brand-hover: #374151;
@@ -25,7 +23,7 @@ html, body, #root {
   padding: 0;
   width: 100%;
   min-height: 100vh;
-  font-family: 'Geist Variable', 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -87,7 +85,7 @@ html, body, #root {
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Noto Sans', Ubuntu, Cantarell, 'Helvetica Neue', sans-serif, Arial, 'PingFang SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC';
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

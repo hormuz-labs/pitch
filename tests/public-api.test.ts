@@ -12,8 +12,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@saas/shared', () => ({
   createLogger: () => ({ warn: vi.fn() }),
-  LAUNCH_VIDEO_RESOLUTIONS: {},
-  launchVideoCreditCost: vi.fn(),
 }))
 vi.mock('@saas/storage', () => ({
   uploadFile: mocks.uploadFile,
@@ -36,9 +34,10 @@ vi.mock('../apps/api/src/projects/export.js', () => ({
 vi.mock('../apps/api/src/projects/usage.js', () => ({
   CREDIT_USD: 0.0025,
   COMPUTE_USD_PER_SEC: 0.002,
+  PROVIDED_SKILL_MODEL_MULTIPLIER: 250,
 }))
 
-const { createFromApi, exportFromApi, exportStatusFromApi, listFromApi } = await import(
+const { createFromApi, exportFromApi, exportStatusFromApi, listFromApi, pricing } = await import(
   '../apps/api/src/lib/public-api.js'
 )
 
@@ -99,5 +98,13 @@ describe('shared public API', () => {
       }),
     ).rejects.toThrow('no worker')
     expect(mocks.deleteFile).toHaveBeenCalledWith('https://storage/file.pdf')
+  })
+
+  it('discloses provided-skill model pricing separately from compute', () => {
+    expect(pricing()).toMatchObject({
+      providedSkillModelMultiplier: 250,
+      computeUsdPerSecond: 0.002,
+    })
+    expect(pricing().explanation).toContain('host compute and provider charges are not multiplied')
   })
 })

@@ -348,9 +348,11 @@ and bills that (`apps/api/src/projects/usage.ts`):
 | host compute | wall clock inside every host action, timed in the bridge |
 
 Each model has a relative credit multiplier (configured with
-`STUDIO_MODEL_CREDIT_MULTIPLIERS`) applied to that turn's model and compute
-cost. A platform margin (`STUDIO_PLATFORM_MARGIN`, default `1.25`) is applied
-afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
+`STUDIO_MODEL_CREDIT_MULTIPLIERS`). When a turn successfully reads one of
+Pitch's registered skills, a `250x` provided-skill multiplier composes with the
+model multiplier. Both affect model usage only; host compute and provider costs
+are not multiplied. A platform margin (`STUDIO_PLATFORM_MARGIN`, default
+`1.25`) is applied afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
 it crosses each `CREDIT_USD` boundary, so a cheap turn is not rounded up to a
 credit and many cheap turns still add up. Asking a question costs almost
 nothing; encoding 4K does not. A turn needs `MIN_BALANCE` credits to start.

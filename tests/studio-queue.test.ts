@@ -13,12 +13,22 @@ import {
 const mocks = vi.hoisted(() => ({
   events: [] as any[],
   create: vi.fn(),
+  subscriber: undefined as ((event: any) => void) | undefined,
 }))
 vi.mock('@earendil-works/pi-coding-agent', () => ({
   ModelRuntime: { create: async () => ({ getModel: () => undefined, setRuntimeApiKey: vi.fn() }) },
   SessionManager: { create: () => ({}) },
   DefaultResourceLoader: class {
     async reload() {}
+    getSkills() {
+      return {
+        skills: [
+          {
+            filePath: join(process.cwd(), '.pi/skills/launch-video/SKILL.md'),
+          },
+        ],
+      }
+    }
     getExtensions() {
       return { extensions: [] }
     }
@@ -72,7 +82,9 @@ async function start() {
   const pi = {
     isStreaming: false,
     sessionManager: { getBranch: () => [] },
-    subscribe: vi.fn(),
+    subscribe: vi.fn((subscriber: (event: any) => void) => {
+      mocks.subscriber = subscriber
+    }),
     prompt: vi.fn(async (_text: string, options?: { streamingBehavior: string }) => {
       if (options?.streamingBehavior === 'steer') return
       pi.isStreaming = true
@@ -100,7 +112,13 @@ async function start() {
   opened.push(opts)
   const active = await promptSession(opts, 'Make a launch film')
   await vi.waitFor(() => expect(pi.prompt).toHaveBeenCalledOnce())
-  return { opts, pi, session: active.session, finish: () => finish() }
+  return {
+    opts,
+    pi,
+    session: active.session,
+    finish: () => finish(),
+    emit: (event: any) => mocks.subscriber?.(event),
+  }
 }
 
 describe('studio queue and steering', () => {
@@ -180,5 +198,57 @@ describe('studio queue and steering', () => {
     await vi.waitFor(() => expect(h.session.busy).toBe(false))
     expect(h.session.entries.find(e => e.id === queued.entryId)?.pending).toBe('cancelled')
     expect(h.pi.prompt).toHaveBeenCalledTimes(1)
+  })
+
+  it('snapshots model cost and provided-skill use before the next queued turn starts', async () => {
+    const h = await start()
+    const queued = await promptSession(h.opts, 'Then answer normally')
+    const skillPath = join(process.cwd(), '.pi/skills/launch-video/SKILL.md')
+    h.emit({
+      type: 'message_end',
+      message: { role: 'assistant', usage: { cost: { total: 0.01 } } },
+    })
+    h.emit({
+      type: 'tool_execution_start',
+      toolCallId: 'skill-1',
+      toolName: 'read',
+      args: { path: skillPath },
+    })
+    h.emit({ type: 'tool_execution_end', toolCallId: 'skill-1', toolName: 'read', isError: false })
+    h.finish()
+
+    await vi.waitFor(() => expect(h.session.active?.entry.id).toBe(queued.entryId))
+    const firstIdle = mocks.events.find(event => event.type === 'idle' && event.turn === 1)
+    expect(firstIdle).toMatchObject({ cost: 0.01, usedProvidedSkill: true, busy: true })
+
+    h.emit({
+      type: 'message_end',
+      message: { role: 'assistant', usage: { cost: { total: 0.02 } } },
+    })
+    h.finish()
+    await vi.waitFor(() => expect(h.session.busy).toBe(false))
+    const secondIdle = mocks.events.find(event => event.type === 'idle' && event.turn === 2)
+    expect(secondIdle).toMatchObject({ cost: 0.02, usedProvidedSkill: false, busy: false })
+  })
+
+  it('does not classify a failed provided-skill read', async () => {
+    const h = await start()
+    h.emit({
+      type: 'tool_execution_start',
+      toolCallId: 'skill-failed',
+      toolName: 'read',
+      args: { path: join(process.cwd(), '.pi/skills/launch-video/SKILL.md') },
+    })
+    h.emit({
+      type: 'tool_execution_end',
+      toolCallId: 'skill-failed',
+      toolName: 'read',
+      isError: true,
+    })
+    h.finish()
+    await vi.waitFor(() => expect(h.session.busy).toBe(false))
+    expect(mocks.events.find(event => event.type === 'idle' && event.turn === 1)).toMatchObject({
+      usedProvidedSkill: false,
+    })
   })
 })

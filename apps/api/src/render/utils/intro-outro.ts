@@ -39,6 +39,8 @@ export interface CardConfig {
   // Clean domain of the demoed product (e.g. "acme.com"), shown as the outro CTA.
   productUrl?: string
   titleCards?: TitleCardSettings
+  /** Free exports show Pitch attribution; paid exports must set this false. */
+  watermark?: boolean
 }
 
 export interface TitleCard {
@@ -461,10 +463,11 @@ export async function addIntroOutro(
       await generateOutroCard(outroPath, config, cardPlan.outro)
     }
 
-    // "Powered by trypitch.co" watermark, overlaid on the WHOLE video (full-frame
-    // transparent PNG) so it sits at a fixed bottom-center spot on every frame.
-    fs.writeFileSync(watermarkSvg, buildWatermarkSvg(config.width, config.height))
-    await svgToPng(watermarkSvg, watermarkPng, config.width, config.height)
+    if (config.watermark !== false) {
+      // Full-frame transparent PNG keeps the attribution fixed on every frame.
+      fs.writeFileSync(watermarkSvg, buildWatermarkSvg(config.width, config.height))
+      await svgToPng(watermarkSvg, watermarkPng, config.width, config.height)
+    }
 
     const contentDur = await getDuration(contentPath)
     const contentFadeOutStart = Math.max(0, contentDur - crossfadeSec)
@@ -479,8 +482,8 @@ export async function addIntroOutro(
     inputs += ` -i "${contentPath}"`
     const outroIdx = cardPlan.outro.enabled ? nextInputIdx++ : null
     if (outroIdx !== null) inputs += ` -i "${outroPath}"`
-    const watermarkIdx = nextInputIdx++
-    inputs += ` -loop 1 -i "${watermarkPng}"`
+    const watermarkIdx = config.watermark !== false ? nextInputIdx++ : null
+    if (watermarkIdx !== null) inputs += ` -loop 1 -i "${watermarkPng}"`
     const chromeStartIdx = chromeSegments.length ? nextInputIdx : null
     nextInputIdx += chromeSegments.length
     const bgIdx = background ? nextInputIdx++ : null
@@ -545,8 +548,11 @@ export async function addIntroOutro(
       }
       graph +=
         `[bg][${shadowIdx}:v]overlay=0:0[bgs];` +
-        `[bgs][fg]overlay=${frame.ix}:${frame.iy}:shortest=1[framed];` +
-        `[framed][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+        `[bgs][fg]overlay=${frame.ix}:${frame.iy}:shortest=1[framed];`
+      graph +=
+        watermarkIdx !== null
+          ? `[framed][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+          : '[framed]null[v]'
     } else {
       if (chromeStartIdx !== null) {
         let prev = 'cat'
@@ -557,9 +563,15 @@ export async function addIntroOutro(
           graph += `[${prev}][${idx}:v]overlay=0:0:shortest=1:enable='between(t\\,${seg.startSec.toFixed(3)}\\,${seg.endSec.toFixed(3)})'[${outLabel}];`
           prev = outLabel
         }
-        graph += `[catc][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+        graph +=
+          watermarkIdx !== null
+            ? `[catc][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+            : '[catc]null[v]'
       } else {
-        graph += `[cat][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+        graph +=
+          watermarkIdx !== null
+            ? `[cat][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
+            : '[cat]null[v]'
       }
     }
 
@@ -572,7 +584,7 @@ export async function addIntroOutro(
       cardPlan.outro.enabled ? 'outro' : null,
     ].filter(Boolean)
     console.log(
-      `Assembling ${segments.join(' + ')} (+ watermark${extras.length ? ` + ${extras.join(' + ')}` : ''}) in one pass...`,
+      `Assembling ${segments.join(' + ')}${watermarkIdx !== null ? ' + watermark' : ''}${extras.length ? ` + ${extras.join(' + ')}` : ''} in one pass...`,
     )
     const encodePlan = await videoEncodePlan({ quality: 19, cpuPreset: 'veryfast' })
     const encodedVideo = appendEncoderFilter(graph, '[v]', encodePlan)

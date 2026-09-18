@@ -46,6 +46,7 @@ export interface RenderRecordingEditInput {
    * They come back mapped onto the finished cut so the studio can address them.
    */
   narration?: Array<{ start: number; dur: number; text?: string }>
+  watermark?: boolean
 }
 
 export interface RenderRecordingEditResult {
@@ -161,6 +162,7 @@ export async function renderRecordingEdit(
       height: 1080,
       outputPath: finalVideo,
       productUrl: productDomain || undefined,
+      watermark: input.watermark,
     }
     contentStartSec = planTitleCards(cardConfig).contentStartSec
     await addIntroOutro(trimmedVideo, finalVideo, cardConfig)

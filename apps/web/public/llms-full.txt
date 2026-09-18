@@ -8,7 +8,7 @@ Use `Authorization: Bearer pk_...` or `X-API-Key: pk_...`. Keys are user-scoped 
 
 ## Billing
 
-Work is not priced up front. Model usage and timed host compute accrue while creation, follow-up prompts, and exports run. Reads are free. A minimum balance is required to begin work. A 402 response or MCP tool error includes the balance when available.
+Work is not priced up front. Model usage and timed host compute accrue while creation, follow-up prompts, and exports run. Host compute and provider charges are not multiplied. Reads are free. A minimum balance is required to begin work. A 402 response or MCP tool error includes the balance when available.
 
 ## REST
 

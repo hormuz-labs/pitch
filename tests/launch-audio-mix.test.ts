@@ -93,6 +93,15 @@ describe('launch audio regression', () => {
     expect(correctiveBedDb('SFX overpower music')).toBeNull()
   })
 
+  it('raises a quiet music-only bed enough to clear the loudness gate', () => {
+    expect(
+      correctiveBedDb(
+        'Music bed averages -30.8dB; raise --bed-db before mixing SFX (need at least -30dB).\n' +
+          'bed -13dB · music-led; no speech sidechain or vocal carve',
+      ),
+    ).toBe(-11.2)
+  })
+
   it('computes a safer SFX trim from a local balance failure', () => {
     expect(
       correctiveSfxDb(

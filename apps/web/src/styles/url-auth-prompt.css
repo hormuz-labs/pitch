@@ -1,6 +1,6 @@
 .lv-studio .url-auth-suggestion-slot { width: 100%; container-type: inline-size; }
 .lv-studio .url-auth-suggestion { position: relative; width: 100%; padding: 10px 34px 10px 10px; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid #deddd9; border-radius: 12px; background: #f8f8f7; color: #171615; box-shadow: 0 8px 24px rgb(0 0 0 / 5%); animation: url-auth-in 180ms cubic-bezier(.2,.8,.2,1) both; }
-.lv-studio .new-composer-wrap > .url-auth-suggestion-slot { margin-bottom: 10px; }
+.lv-studio .new-composer-wrap > .url-auth-suggestion-slot { margin-top: 8px; }
 .lv-studio .url-auth-suggestion__icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #deddd9; border-radius: 9px; background: #fff; color: #55514d; }
 .lv-studio .url-auth-suggestion__copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .lv-studio .url-auth-suggestion__copy strong { overflow: hidden; color: #272421; font-size: 11.5px; font-weight: 600; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }

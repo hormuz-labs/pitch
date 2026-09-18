@@ -9,15 +9,9 @@ import {
   Clock3,
   Film,
   Lightbulb,
-  MonitorPlay,
   Paperclip,
   Plus,
-  Presentation,
   RectangleHorizontal,
-  Rocket,
-  Scissors,
-  Sparkles,
-  X,
 } from 'lucide-solid'
 import 'lenis/dist/lenis.css'
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
@@ -34,11 +28,19 @@ import {
   uploads as uploadFiles,
   type VoicePreference,
 } from '../../lib/studio-api'
+import { ComposerShell } from '../common/ComposerShell'
 import { useAuth, useUser } from '../core/auth'
+import { openStudioProject } from '../core/projectNavigation'
+import { loadRouteModule } from '../core/routes'
 import { PitchWordmark } from '../public/brand'
 import { DISCORD_INVITE_URL } from '../public/socials'
+import { useBrowserProfile } from '../studio/useBrowserProfile'
 import { DiscordOfferModal } from './DiscordOfferModal'
 import { ModelCatalog } from './ModelCatalog'
+import { NewProjectAttachment } from './NewProjectAttachment'
+import { NewProjectPreferences } from './NewProjectPreferences'
+import { SelectedSkillMode, SKILLS, type Skill, SkillPicker } from './NewProjectSkillPicker'
+import { NewProjectUrlAuth } from './NewProjectUrlAuth'
 import type { SettingsSection } from './SettingsView'
 import { StudioMenu, StudioSubmenu } from './StudioMenu'
 import { startDiscordLink } from './settings/discord-connection'
@@ -49,33 +51,6 @@ import '../../styles/new-project.css'
 const ACCEPT =
   '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
 const RATIOS = ['16:9', '9:16', '1:1', '4:5'] as const
-const SKILLS = [
-  {
-    id: 'launch-video',
-    label: 'Launch video',
-    icon: Rocket,
-    prompt: 'Create a cinematic launch video for ',
-  },
-  {
-    id: 'demo-video',
-    label: 'Product demo',
-    icon: MonitorPlay,
-    prompt: 'Create a narrated product demo for ',
-  },
-  {
-    id: 'slide-deck',
-    label: 'Slide deck',
-    icon: Presentation,
-    prompt: 'Create a concise presentation about ',
-  },
-  {
-    id: 'recording-edit',
-    label: 'Edit recording',
-    icon: Scissors,
-    prompt: 'Polish this recording with clean cuts and captions.',
-  },
-] as const
-type Skill = (typeof SKILLS)[number]['id']
 const FLOW_TO_SKILL: Record<string, Skill> = {
   deck: 'slide-deck',
   'launch-video': 'launch-video',
@@ -124,6 +99,7 @@ export function NewProjectView(props: {
   const [voice, setVoice] = createSignal<VoicePreference | null>(null)
   const [voiceOpen, setVoiceOpen] = createSignal(false)
   const [exploring, setExploring] = createSignal(false)
+  const browserProfile = useBrowserProfile()
   let input!: HTMLInputElement
   let referenceInput!: HTMLInputElement
   let textarea!: HTMLTextAreaElement
@@ -204,6 +180,11 @@ export function NewProjectView(props: {
     }
   }
   onMount(async () => {
+    const savedDraft = sessionStorage.getItem('pitch:new-project-auth-draft')
+    if (savedDraft) {
+      setPrompt(savedDraft)
+      sessionStorage.removeItem('pitch:new-project-auth-draft')
+    }
     if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
     // Coming back from the Discord app after joining is what pays the reward.
     const refresh = () => void loadCredits()
@@ -289,6 +270,7 @@ export function NewProjectView(props: {
     })
   })
   const create = async (text: string, uploaded: UploadRef[], token: string) => {
+    const studioRouteReady = loadRouteModule('studio')
     const project = await createProject(token, {
       prompt: text,
       uploads: uploaded,
@@ -307,7 +289,7 @@ export function NewProjectView(props: {
       ...(model() ? { model: model() } : {}),
     })
     window.dispatchEvent(new Event('credits-changed'))
-    navigate(`/p/${project.id}`)
+    await openStudioProject(project.id, navigate, studioRouteReady)
   }
   const pick = async (list: FileList | null, openAfter = false, reference = false) => {
     if (!list?.length || uploading() || submitting()) return
@@ -420,60 +402,14 @@ export function NewProjectView(props: {
           <h1 class="sr-only">What do you want to make?</h1>
         </div>
         <div class="composer-wrap new-composer-wrap">
-          <div class={`composer-box ${error() ? 'invalid' : ''}`}>
-            <Show when={files().length}>
-              <div class="attach-row">
-                <For each={files()}>
-                  {(file, index) => (
-                    <span class="attach-chip">
-                      <span>{file.name}</span>
-                      <Show when={referenceVideoFiles().includes(file.name)}>
-                        <em>Reference</em>
-                      </Show>
-                      <button
-                        aria-label={`Remove ${file.name}`}
-                        onClick={() => {
-                          const remaining = files().filter((_, i) => i !== index())
-                          setFiles(remaining)
-                          if (!remaining.some(item => item.name === file.name))
-                            setReferenceVideoFiles(items =>
-                              items.filter(name => name !== file.name),
-                            )
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  )}
-                </For>
-              </div>
-            </Show>
-            <textarea
-              ref={textarea}
-              rows={2}
-              id="new-project-prompt"
-              aria-label="Describe your project"
-              aria-describedby={error() ? 'new-project-error' : 'new-project-hint'}
-              aria-invalid={Boolean(error())}
-              disabled={submitting()}
-              placeholder={
-                activeSkill()?.prompt ??
-                'Describe a video, presentation, or edit. Start with an idea or a link…'
-              }
-              value={prompt()}
-              onInput={event => {
-                setPrompt(event.currentTarget.value)
-                setError('')
-              }}
-              onKeyDown={event => {
-                if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-                  event.preventDefault()
-                  void submit()
-                }
-              }}
-            />
-            <div class="composer-footer">
-              <div class="tool-row composer-add">
+          <ComposerShell
+            class="composer-box"
+            footerClass="composer-footer"
+            leadingClass="tool-row composer-add"
+            trailingClass="tool-row"
+            invalid={Boolean(error())}
+            leading={
+              <>
                 <input
                   ref={input}
                   type="file"
@@ -563,6 +499,14 @@ export function NewProjectView(props: {
                     </For>
                   </StudioSubmenu>
                 </StudioMenu>
+                <SelectedSkillMode
+                  skill={skill()}
+                  onClear={() => {
+                    setSkill(null)
+                    setDeckTemplate(null)
+                    textarea.focus()
+                  }}
+                />
                 <Show when={voice()}>
                   <button
                     class={`new-voice-trigger ${voice() ? 'is-selected' : ''}`}
@@ -580,8 +524,10 @@ export function NewProjectView(props: {
                     <ChevronDown size={12} />
                   </button>
                 </Show>
-              </div>
-              <div class="tool-row">
+              </>
+            }
+            trailing={
+              <>
                 <Show when={models().length}>
                   <StudioMenu
                     label="Model"
@@ -606,106 +552,108 @@ export function NewProjectView(props: {
                   onClick={() => void submit()}
                   aria-label={submitting() ? 'Generating project' : 'Generate project'}
                 />
-              </div>
-            </div>
-            <Show
-              when={outOfCredits() && discordWelcome()}
-              fallback={
-                <Show when={insufficientCredits() > 0}>
-                  <p class="composer-credit-warning" role="alert">
-                    You need {insufficientCredits().toLocaleString()} more credits for this model
-                    and duration. <a href="/pricing">View plans</a>
-                  </p>
-                </Show>
-              }
-            >
-              {welcome => (
-                <p class="composer-credit-warning" role="alert">
-                  You’re out of credits.{' '}
-                  <button type="button" onClick={() => props.openSettings?.('credits')}>
-                    Buy credits
-                  </button>{' '}
-                  or{' '}
-                  <Show
-                    when={welcome().linked}
-                    fallback={
-                      <button type="button" disabled={linkingDiscord()} onClick={linkDiscord}>
-                        {linkingDiscord()
-                          ? 'opening Discord…'
-                          : `connect Discord for ${welcome().credits.toLocaleString()} welcome credits`}
-                      </button>
-                    }
-                  >
-                    <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
-                      join our Discord server for {welcome().credits.toLocaleString()} welcome
-                      credits
-                    </a>
-                  </Show>
-                  .
-                </p>
-              )}
-            </Show>
-            <Show when={activeSkill() || ratio() !== '16:9' || duration()}>
-              <div class="new-preferences">
-                <Show when={activeSkill()}>
-                  {selected => (
-                    <button
-                      class="new-skill-chip"
-                      aria-label={`Clear ${selected().label} preference`}
-                      onClick={() => {
-                        setSkill(null)
-                        setDeckTemplate(null)
+              </>
+            }
+          >
+            <Show when={files().length}>
+              <div class="attach-row">
+                <For each={files()}>
+                  {(file, index) => (
+                    <NewProjectAttachment
+                      file={file}
+                      reference={referenceVideoFiles().includes(file.name)}
+                      onRemove={() => {
+                        const remaining = files().filter((_, i) => i !== index())
+                        setFiles(remaining)
+                        if (!remaining.some(item => item.name === file.name))
+                          setReferenceVideoFiles(items => items.filter(name => name !== file.name))
                       }}
-                    >
-                      <Sparkles size={12} />
-                      {selected().label}
-                      <X size={12} />
-                    </button>
+                    />
                   )}
-                </Show>
-                <Show when={ratio() !== '16:9'}>
-                  <button aria-label="Reset aspect ratio" onClick={() => setRatio('16:9')}>
-                    {ratio()}
-                    <X size={12} />
-                  </button>
-                </Show>
-                <Show when={duration()}>
-                  <button aria-label="Reset duration" onClick={() => setDuration(null)}>
-                    {duration()}s<X size={12} />
-                  </button>
-                </Show>
+                </For>
               </div>
             </Show>
-          </div>
+            <NewProjectPreferences
+              ratio={ratio()}
+              duration={duration()}
+              onResetRatio={() => setRatio('16:9')}
+              onResetDuration={() => setDuration(null)}
+            />
+            <textarea
+              ref={textarea}
+              rows={2}
+              id="new-project-prompt"
+              aria-label="Describe your project"
+              aria-describedby={error() ? 'new-project-error' : 'new-project-hint'}
+              aria-invalid={Boolean(error())}
+              disabled={submitting()}
+              placeholder={
+                activeSkill()?.prompt ??
+                'Describe a video, presentation, or edit. Start with an idea or a link…'
+              }
+              value={prompt()}
+              onInput={event => {
+                setPrompt(event.currentTarget.value)
+                setError('')
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                  event.preventDefault()
+                  void submit()
+                }
+              }}
+            />
+          </ComposerShell>
+          <Show when={!browserProfile.loading()}>
+            <NewProjectUrlAuth prompt={prompt()} authenticatedOrigins={browserProfile.origins()} />
+          </Show>
+          <Show
+            when={outOfCredits() && discordWelcome()}
+            fallback={
+              <Show when={insufficientCredits() > 0}>
+                <div class="composer-credit-notice" role="alert">
+                  <span>{insufficientCredits().toLocaleString()} more credits needed</span>
+                  <a href="/pricing">View plans</a>
+                </div>
+              </Show>
+            }
+          >
+            {welcome => (
+              <div class="composer-credit-notice" role="alert">
+                <span>No credits left</span>
+                <button type="button" onClick={() => props.openSettings?.('credits')}>
+                  Buy credits
+                </button>
+                <Show
+                  when={welcome().linked}
+                  fallback={
+                    <button type="button" disabled={linkingDiscord()} onClick={linkDiscord}>
+                      {linkingDiscord()
+                        ? 'Opening Discord…'
+                        : `Claim ${welcome().credits.toLocaleString()} free`}
+                    </button>
+                  }
+                >
+                  <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                    Claim {welcome().credits.toLocaleString()} free
+                  </a>
+                </Show>
+              </div>
+            )}
+          </Show>
           <Show when={error()}>
             <div id="new-project-error" class="create-error" role="alert">
               {error()}
             </div>
           </Show>
-          <div class="new-skills">
-            <For each={SKILLS}>
-              {item => (
-                <button
-                  class={`new-skill-pill ${skill() === item.id ? 'is-active' : ''}`}
-                  aria-pressed={skill() === item.id}
-                  onClick={() => {
-                    setSkill(current => {
-                      if (current === item.id) {
-                        if (item.id === 'slide-deck') setDeckTemplate(null)
-                        return null
-                      }
-                      if (item.id !== 'slide-deck') setDeckTemplate(null)
-                      return item.id
-                    })
-                    textarea.focus()
-                  }}
-                >
-                  <item.icon size={16} />
-                  {item.label}
-                </button>
-              )}
-            </For>
-          </div>
+          <SkillPicker
+            skill={skill()}
+            onSelect={next => {
+              if (next !== 'slide-deck') setDeckTemplate(null)
+              setSkill(next)
+            }}
+            onFocusComposer={() => textarea.focus()}
+          />
           <Show when={skill() === 'slide-deck'}>
             <section class="new-template-strip new-skill-gallery">
               <div class="new-template-strip__head">

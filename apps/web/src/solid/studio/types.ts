@@ -48,6 +48,7 @@ export interface ProjectSummary {
   lastError: string | null
   isPublic: boolean
   shareSlug: string | null
+  pinnedAt: string | null
   lastActivityAt: string
   createdAt: string
   updatedAt: string
@@ -131,7 +132,7 @@ export type StudioEvent =
   | { type: 'assets'; files: string[] }
   | { type: 'error'; message: string }
   | { type: 'credit_exhausted'; message: string }
-  | { type: 'credit_balance'; balance: number }
+  | { type: 'credit_balance'; balance: number; pending?: boolean }
   | ({ type: 'preview'; ok: boolean; files: string[] } & Partial<Description>)
   | { type: 'project'; project: ProjectSummary }
   | { type: 'deleted' }

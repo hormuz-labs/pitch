@@ -18,7 +18,7 @@ REST:
 
 MCP tools: create_project, prompt_project, get_project, list_projects, export_project, export_status, get_credits, get_pricing.
 
-Creation, prompts, and exports are billed by actual model spend and host compute. Reads are free. Poll project status until ready or failed. Active prompts queue by default; delivery "steer" redirects active work. There are no idempotency keys.
+Creation, prompts, and exports are billed by model spend and host compute. Reads are free. Poll project status until ready or failed. Active prompts queue by default; delivery "steer" redirects active work. There are no idempotency keys.
 
 Uploads are base64 { fileBase64, fileName }. Accepted: PDF, PPTX, PNG, JPG, JPEG, WEBP, MP4, WEBM, MOV, MKV, AVI. Documents/images: 50 MB. Videos: 500 MB. Whole request: 750 MB.
 

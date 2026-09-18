@@ -34,6 +34,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   shareViews: 0,
   source: 'app',
   pinnedAt: null,
+  lastActivityAt: '2026-09-18T10:00:00.000Z',
   createdAt: '2026-09-18T10:00:00.000Z',
   updatedAt: '2026-09-18T10:00:00.000Z',
   status: 'ready',
@@ -41,7 +42,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   ...overrides,
 })
 
-function renderSidebar(projects: Project[] = [project()]) {
+function renderSidebar(projects: Project[] = [project()], unreadProjectIds = new Set<string>()) {
   const actions = {
     close: vi.fn(),
     toggle: vi.fn(),
@@ -57,6 +58,7 @@ function renderSidebar(projects: Project[] = [project()]) {
       isAdmin={false}
       projects={projects}
       projectsLoading={false}
+      unreadProjectIds={unreadProjectIds}
       selectedKey="new"
       close={actions.close}
       toggle={actions.toggle}
@@ -78,25 +80,57 @@ async function openProjectMenu(name = 'Launch film') {
 describe('Sidebar chat actions', () => {
   beforeEach(() => navigate.mockReset())
 
-  it('puts pinned chats first, then orders the rest by recent activity', () => {
+  it('labels the primary action New chat', () => {
+    renderSidebar()
+    const newChat = screen.getByText('New chat').closest('a')
+    expect(newChat?.querySelector('img')?.getAttribute('src')).toContain('new-message.png')
+    expect(screen.queryByText('New project')).toBeNull()
+  })
+
+  it('separates pinned chats from recent chats without duplicating them', () => {
     renderSidebar([
       project({ id: 'recent', title: 'Recent', updatedAt: '2026-09-18T12:00:00.000Z' }),
       project({ id: 'pinned', title: 'Pinned', pinnedAt: '2026-09-17T12:00:00.000Z' }),
       project({ id: 'older', title: 'Older', updatedAt: '2026-09-18T11:00:00.000Z' }),
     ])
 
-    const chatLinks = screen.getAllByRole('button', { name: /^(Pinned|Recent|Older)$/ })
-    expect(chatLinks.map(link => link.getAttribute('aria-label'))).toEqual([
-      'Pinned',
-      'Recent',
-      'Older',
-    ])
+    const pinned = screen.getByRole('region', { name: 'Pinned chats' })
+    expect(within(pinned).getByRole('button', { name: 'Pinned' })).not.toBeNull()
+    expect(within(pinned).queryByRole('button', { name: 'Recent' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Pinned' })).toHaveLength(1)
+
+    const chatLinks = screen.getAllByRole('button', { name: /^(Recent|Older)$/ })
+    expect(chatLinks.map(link => link.getAttribute('aria-label'))).toEqual(['Recent', 'Older'])
+  })
+
+  it('does not render the pinned section when no chats are pinned', () => {
+    renderSidebar([project()])
+    expect(screen.queryByRole('region', { name: 'Pinned chats' })).toBeNull()
   })
 
   it('opens a chat from its name', async () => {
     renderSidebar()
     await userEvent.click(screen.getByRole('button', { name: 'Launch film' }))
     expect(navigate).toHaveBeenCalledWith('/p/project-1')
+  })
+
+  it('shows a spinner while a chat is working', () => {
+    renderSidebar([project({ busy: true, status: 'working' })])
+    const state = screen.getByRole('status', { name: 'Work in progress' })
+    expect(state.classList.contains('is-working')).toBe(true)
+    expect(state.querySelector('svg')).toBeTruthy()
+  })
+
+  it('shows a blue-dot state when a chat is complete', () => {
+    renderSidebar([project()], new Set(['project-1']))
+    const state = screen.getByRole('status', { name: 'Completed' })
+    expect(state.classList.contains('is-ready')).toBe(true)
+    expect(state.querySelector('i')).toBeTruthy()
+  })
+
+  it('does not treat every ready chat as unread', () => {
+    renderSidebar()
+    expect(screen.queryByRole('status', { name: 'Completed' })).toBeNull()
   })
 
   it('renames a chat from the overflow menu', async () => {

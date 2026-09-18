@@ -147,13 +147,14 @@ describe('POST /uploads', () => {
     expect(res.body[0].name).toBe('photo.png')
   })
 
-  it('returns 500 when storage upload fails', async () => {
+  it('returns a safe retryable error when storage upload fails', async () => {
     uploadFile.mockRejectedValue(new Error('minio down'))
     const res = await request(buildApp())
       .post('/uploads')
       .attach('files', PNG_1x1, { filename: 'a.png', contentType: 'image/png' })
 
-    expect(res.status).toBe(500)
-    expect(res.body.error).toBe('minio down')
+    expect(res.status).toBe(502)
+    expect(res.body.error).toBe('Upload failed. Please try again.')
+    expect(res.body.error).not.toContain('minio')
   })
 })

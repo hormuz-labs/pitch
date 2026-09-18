@@ -41,7 +41,7 @@
       "get": { "summary": "Get export status", "parameters": [{ "$ref": "#/components/parameters/ProjectId" }], "responses": { "200": { "$ref": "#/components/responses/Export" }, "404": { "$ref": "#/components/responses/Error" } } }
     },
     "/v1/credits": { "get": { "summary": "Get credit summary", "responses": { "200": { "description": "Balance, plan, and recent transactions" } } } },
-    "/v1/pricing": { "get": { "summary": "Get usage-metering rates", "security": [], "responses": { "200": { "description": "Metering rates and indicative export tiers" } } } }
+    "/v1/pricing": { "get": { "summary": "Get usage-metering rates", "description": "Includes the 250x model-usage multiplier for turns that load a provided Pitch skill. Host compute and provider charges are not multiplied.", "security": [], "responses": { "200": { "description": "Metering rates and indicative export tiers" } } } }
   },
   "components": {
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "description": "Pitch pk_ API key; X-API-Key is also accepted." } },

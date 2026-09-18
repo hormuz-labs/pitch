@@ -70,27 +70,27 @@ const overview: DocPage = {
     { k: 'h2', text: 'What you can make' },
     {
       k: 'table',
-      head: ['Flow', 'What it is', 'Credits'],
+      head: ['Outcome', 'What it is', 'Billing'],
       rows: [
         [
           <C key="a">demo-video</C>,
           'The agent drives your live product and narrates the flow',
-          '~120',
+          'Metered',
         ],
         [
           <C key="b">launch-video</C>,
           'A scripted, scored, cinematic film built scene by scene',
-          '240 to 520',
+          'Metered',
         ],
-        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', '~40'],
+        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', 'Metered'],
         [
           <>
             <C>deck</C> + upload
           </>,
           'A redesign of a PDF or PPTX you upload',
-          '~80',
+          'Metered',
         ],
-        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', '~80'],
+        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', 'Metered'],
       ],
     },
     {
@@ -188,9 +188,9 @@ const gettingStarted: DocPage = {
       k: 'p',
       text: (
         <>
-          A demo video costs about 120 credits. If the balance is short, project creation fails with{' '}
-          <C>402 insufficient_credits</C> and nothing is charged. Buy more at{' '}
-          <A to="/pricing">trypitch.co/pricing</A>.
+          The final cost depends on model usage, skill loading, and render time. If the balance is
+          short, project creation fails with <C>402 insufficient_credits</C> and nothing is charged.
+          Buy more at <A to="/pricing">trypitch.co/pricing</A>.
         </>
       ),
     },
@@ -650,27 +650,26 @@ const credits: DocPage = {
       text: (
         <>
           One credit is $0.0025 of measured cost: the agent's model usage plus the machine time
-          spent recording and rendering. Nothing is charged when a project is created — the meter
-          runs as the work happens, so a quick edit costs far less than a 4K render. These are
-          typical totals, not fixed prices.
+          spent recording and rendering. Nothing is charged when a project is created — the meter runs as the work
+          happens. These are typical totals, not fixed prices.
         </>
       ),
     },
     {
       k: 'table',
-      head: ['Flow', 'What it makes', 'Credits (~)'],
+      head: ['Outcome', 'What it makes', 'Billing'],
       rows: [
-        [<C key="a">demo-video</C>, 'Narrated demo of your live product', '120'],
-        [<C key="b">launch-video</C>, 'Cinematic launch film', '240 to 520'],
-        [<C key="c">deck</C>, 'Slide deck from a topic', '40'],
+        [<C key="a">demo-video</C>, 'Narrated demo of your live product', 'Metered'],
+        [<C key="b">launch-video</C>, 'Cinematic launch film', 'Metered'],
+        [<C key="c">deck</C>, 'Slide deck from a topic', 'Metered'],
         [
           <>
             <C>deck</C> with an upload and <C>options.mode</C>
           </>,
           'Redesign of a PDF or PPTX',
-          '80',
+          'Metered',
         ],
-        [<C key="e">recording-edit</C>, 'Cut of a screen recording', '80'],
+        [<C key="e">recording-edit</C>, 'Cut of a screen recording', 'Metered'],
         [
           <>
             <C>GET /v1/*</C> / <C>get_*</C>, <C>list_*</C>
@@ -683,31 +682,21 @@ const credits: DocPage = {
     { k: 'h2', text: 'Launch video exports' },
     {
       k: 'p',
-      text: 'An export is the one place with a published tier price. The resolution sets the base, and narration adds 40 credits on top, because a narrated film needs a script and a voiceover clip per scene.',
-    },
-    {
-      k: 'table',
-      head: ['Resolution', 'Narrated (default)', 'Music only'],
-      rows: [
-        ['720p', '240', '200'],
-        ['1080p (default)', '360', '320'],
-        ['4K', '520', '480'],
-      ],
+      text: 'Launch exports are usage-metered. Higher resolutions usually consume more host compute, while model usage on a turn that loads a provided Pitch SKILL.',
     },
     {
       k: 'p',
       text: (
         <>
-          If you send no <C>options.resolution</C>, the default is 1080p. These totals are
-          estimates; the meter charges the model and render time actually used.
+          If you send no <C>options.resolution</C>, the default is 1080p. The meter charges the
+          model and render time actually used.
         </>
       ),
     },
     {
       k: 'code',
       lang: 'bash',
-      code: `# a 240-credit launch video instead of the 360-credit default
-curl -X POST ${BASE}/v1/projects \\
+      code: `curl -X POST ${BASE}/v1/projects \\
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -756,14 +745,8 @@ curl -X POST ${BASE}/v1/projects \\
   "model": "usage",
   "creditUsd": 0.0025,
   "computeUsdPerSecond": 0.002,
-  "explanation": "Projects are not priced up front...",
-  "launchVideo": {
-    "tiers": [
-      { "res": "720p",  "credits": 200, "narrated": 240 },
-      { "res": "1080p", "credits": 320, "narrated": 360 },
-      { "res": "4k",    "credits": 480, "narrated": 520 }
-    ]
-  }
+  "providedSkillModelMultiplier": 250,
+  "explanation": "Projects are not priced up front..."
 }`,
     },
     {
@@ -1479,11 +1462,11 @@ const restApi: DocPage = {
     { k: 'h3', text: 'Common outcome options' },
     {
       k: 'table',
-      head: ['Flow', 'Credits', 'Options'],
+      head: ['Outcome', 'Billing', 'Options'],
       rows: [
         [
           <C key="a">launch-video</C>,
-          '240 to 520',
+          'Metered',
           <>
             <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price; every
             export is 60 fps), <C>narration</C> (default true; false saves 40 credits), <C>music</C>{' '}
@@ -1492,7 +1475,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="b">demo-video</C>,
-          '~120',
+          'Metered',
           <>
             <C>url</C> (also read from the prompt), <C>instructions</C>, <C>script</C> (your own
             narration), <C>voice</C>, <C>background</C>, <C>shape</C>, <C>inset</C>,{' '}
@@ -1501,7 +1484,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="c">deck</C>,
-          '~40, or ~80 with an upload',
+          'Metered',
           <>
             <C>topic</C>, <C>slideCount</C>, <C>headings</C>, <C>template</C>, <C>mode</C> (
             <C>recreate</C> rebuilds an uploaded deck, <C>preserve</C> keeps its layout; setting it
@@ -1510,7 +1493,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="d">recording-edit</C>,
-          '~80',
+          'Metered',
           <>
             <C>productName</C> (intro card), <C>productUrl</C> (outro card), <C>instructions</C>,{' '}
             <C>fps</C> (<C>30</C> or <C>60</C>; default the recording's own)

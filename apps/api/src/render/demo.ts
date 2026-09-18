@@ -93,6 +93,7 @@ export interface RenderDemoInput {
   options: RenderDemoOptions
   /** <workspaceDir>/renders */
   outDir: string
+  watermark?: boolean
 }
 
 export interface RenderDemoResult {
@@ -401,6 +402,7 @@ export async function renderDemo(
             outro: { enabled: false, title: '', subtitle: '' },
           })
         : undefined,
+      watermark: input.watermark,
     }
     const cardPlan = planTitleCards(cardConfig)
     contentStartSec = cardPlan.contentStartSec

@@ -80,6 +80,30 @@ describe('optional title-card assembly', () => {
     expect(await mediaDuration(output)).toBeLessThan(1.3)
   }, 30_000)
 
+  it('exports a valid video when paid-plan watermarking is disabled', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'title-cards-'))
+    temporaryDirectories.push(directory)
+    const input = await createContent(directory)
+    const output = path.join(directory, 'paid-final.mp4')
+
+    await addIntroOutro(input, output, {
+      productName: 'Demo',
+      duration: 2.5,
+      fps: 10,
+      width: 320,
+      height: 180,
+      outputPath: output,
+      watermark: false,
+      titleCards: {
+        intro: { enabled: false, title: '', subtitle: '' },
+        outro: { enabled: false, title: '', subtitle: '' },
+      },
+    })
+
+    expect(await mediaDuration(output)).toBeGreaterThan(0.8)
+    expect(await mediaDuration(output)).toBeLessThan(1.3)
+  }, 30_000)
+
   it('adds only an enabled custom intro card', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'title-cards-'))
     temporaryDirectories.push(directory)

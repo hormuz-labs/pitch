@@ -1,4 +1,12 @@
-import { ChevronDown, ChevronUp, Files, Link, MessageSquare, MonitorPlay } from 'lucide-solid'
+import { useNavigate } from '@solidjs/router'
+import {
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  MonitorPlay,
+  MoreHorizontal,
+  Share2,
+} from 'lucide-solid'
 import {
   createEffect,
   createMemo,
@@ -15,25 +23,22 @@ import { PitchWordmark } from '../public/brand'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { type EditableFormat, type ExportResolution, exportFilename } from './editable-export'
+import { animateToLatest, FeedJumpLatest, isAwayFromLatest } from './FeedJumpLatest'
 import { BrowserPreview } from './previews/BrowserPreview'
 import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
 import { PdfPreview } from './previews/PdfPreview'
 import { VideoPreview } from './previews/VideoPreview'
 import { SceneStrip, SlideStrip } from './Strips'
+import { StudioProjectControls } from './StudioProjectControls'
+import { StudioTopbarFiles } from './StudioTopbarFiles'
 import { Thread } from './Thread'
+import { clampTimelineHeight, timelineHeightLimit, timelineRowsHeight } from './timelineResize'
 import { type ProjectStore, useProject } from './useProject'
 import '../../studio/studio.css'
 import './playback.css'
 import './preview-stage.css'
 
-const TITLES: Record<string, string> = {
-  html: 'Launch film',
-  deck: 'Slide deck',
-  video: 'Video',
-  pdf: 'PDF',
-  browser: 'Recording',
-}
 function Preview(props: { store: ProjectStore }) {
   const s = props.store
   const preview = () => s.project?.description.preview
@@ -108,7 +113,7 @@ const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[
   { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
   { format: 'blender', label: 'Blender', note: 'Native text, images + fallback' },
 ]
-function Actions(props: { store: ProjectStore }) {
+export function Actions(props: { store: ProjectStore }) {
   const s = props.store,
     [open, setOpen] = createSignal(false),
     [resolution, setResolution] = createSignal<ExportResolution>('1080p'),
@@ -173,6 +178,7 @@ function Actions(props: { store: ProjectStore }) {
     try {
       const url = await s.share()
       if (url) await navigator.clipboard.writeText(url)
+      setOpen(false)
     } finally {
       setSharing(false)
     }
@@ -182,23 +188,25 @@ function Actions(props: { store: ProjectStore }) {
     (!s.exportStatus?.running && Boolean(s.project?.description.outputs?.length))
   return (
     <span class="topbar-actions">
-      <Show when={s.busy}>
-        <button class="topbar-btn primary" onClick={() => void s.stop()}>
-          Stop
-        </button>
-      </Show>
       <button
-        class="topbar-btn"
+        type="button"
+        class="topbar-btn topbar-share"
         title={canShare() ? 'Publish and copy share link' : 'Render the project before sharing'}
         disabled={sharing() || !canShare()}
         onClick={() => void share()}
       >
-        <Link size={14} /> {s.project?.shareSlug ? 'Copy share link' : 'Share'}
+        <Share2 size={15} />
+        <span>{sharing() ? 'Sharing…' : s.project?.shareSlug ? 'Copy share link' : 'Share'}</span>
       </button>
       <div class="export-wrap" ref={wrap}>
         <button
-          class="topbar-btn export"
+          class="topbar-btn export topbar-more"
           ref={trigger}
+          aria-label={
+            s.exportPending || s.exportStatus?.running
+              ? `${exportProgress()}. Open project actions`
+              : 'Open export options'
+          }
           aria-expanded={open()}
           aria-controls={menuId}
           onClick={() => setOpen(v => !v)}
@@ -207,16 +215,46 @@ function Actions(props: { store: ProjectStore }) {
             class="export-fill"
             style={{ width: s.exportStatus?.running ? `${s.exportStatus.progress}%` : '0' }}
           />
+          <MoreHorizontal class="topbar-more-icon" size={17} />
           <span class="export-label">
-            {s.exportPending || s.exportStatus?.running
-              ? exportProgress()
-              : launch()
-                ? 'Export MP4'
-                : 'Download'}
+            {s.exportPending || s.exportStatus?.running ? (
+              exportProgress()
+            ) : (
+              <>
+                <span class="topbar-export-label">Export</span>
+                <span class="topbar-more-label">More</span>
+              </>
+            )}
           </span>
         </button>
         <Show when={open()}>
           <div class="export-menu" id={menuId}>
+            <button
+              class="export-row export-row-action mobile-share-action"
+              title={
+                canShare() ? 'Publish and copy share link' : 'Render the project before sharing'
+              }
+              disabled={sharing() || !canShare()}
+              onClick={() => void share()}
+            >
+              <span class="export-row-action-icon">
+                <Share2 size={15} />
+              </span>
+              <span class="export-row-main">
+                <span class="export-row-label">
+                  {sharing()
+                    ? 'Sharing…'
+                    : s.project?.shareSlug
+                      ? 'Copy share link'
+                      : 'Share project'}
+                </span>
+                <span class="export-row-note">Publish a link others can open</span>
+              </span>
+            </button>
+            <div class="export-section-heading export-section-heading--video">
+              <span class="export-section-title">Video</span>
+              <span class="export-section-note">MP4</span>
+            </div>
             <Show
               when={launch()}
               fallback={
@@ -272,8 +310,8 @@ function Actions(props: { store: ProjectStore }) {
             <Show when={editable()}>
               <div class="export-section">
                 <div class="export-section-heading">
-                  <span class="export-row-label">Editable project</span>
-                  <span class="export-row-status">ZIP · Beta</span>
+                  <span class="export-section-title">Editable project</span>
+                  <span class="export-section-note">ZIP · Beta</span>
                 </div>
                 <Show when={launch()} fallback={<p class="export-hint">Uses source resolution.</p>}>
                   <div class="export-resolution">
@@ -287,15 +325,15 @@ function Actions(props: { store: ProjectStore }) {
                       <For each={RES}>{r => <option value={r.res}>{r.res}</option>}</For>
                     </select>
                   </div>
-                  <p class="export-hint" role="status">
+                  <p class="export-hint export-hint--status" role="status">
                     {currentRender()
-                      ? `Uses your current ${resolution()} MP4 render.`
-                      : `Render a current ${resolution()} MP4 above first, then export a ZIP.`}
+                      ? `Uses the current ${resolution()} MP4.`
+                      : `Render ${resolution()} above first.`}
                   </p>
                 </Show>
                 <p class="export-hint">
-                  Supported layers stay editable: text and images in After Effects or Blender, and
-                  image motion in Premiere. Complex effects use a baked fallback.
+                  Text and images stay editable where supported. Complex effects use a rendered
+                  fallback.
                 </p>
               </div>
               <For each={EDITABLE_FORMATS}>
@@ -363,13 +401,15 @@ function Actions(props: { store: ProjectStore }) {
 }
 export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
+    navigate = useNavigate(),
     chatId = createUniqueId(),
     timelineId = createUniqueId(),
     [chatOpen, setChatOpen] = createSignal(false),
+    [showJumpToLatest, setShowJumpToLatest] = createSignal(false),
     [timelineOpen, setTimelineOpen] = createSignal(true),
     [view, setView] = createSignal<'preview' | 'files'>('preview'),
     [sidebar, setSidebar] = createSignal(
-      typeof window === 'undefined' ? 440 : Math.min(520, Math.max(340, innerWidth * 0.3)),
+      typeof window === 'undefined' ? 440 : Math.min(520, Math.max(400, innerWidth * 0.34)),
     ),
     [tray, setTray] = createSignal(
       typeof window === 'undefined' ? 220 : Math.min(240, Math.max(180, innerHeight * 0.23)),
@@ -382,6 +422,44 @@ export function StudioView(props: { projectId: string }) {
     followFeed = true,
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
+  const newChat = () => {
+    navigate('/new')
+    window.dispatchEvent(new Event('pitch:new-chat'))
+  }
+  const jumpToLatest = () => {
+    if (!feed) return
+    followFeed = true
+    setShowJumpToLatest(false)
+    animateToLatest(feed)
+  }
+  const renameProject = async () => {
+    const current = s.project?.title ?? ''
+    const title = window.prompt('Edit chat name', current)?.trim()
+    if (!title || title === current) return
+    try {
+      await s.updateProject({ title })
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not rename chat')
+    }
+  }
+  const togglePin = async () => {
+    try {
+      await s.updateProject({ pinnedAt: s.project?.pinnedAt ? null : new Date().toISOString() })
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not update pin')
+    }
+  }
+  const deleteProject = async () => {
+    const title = s.project?.title || 'Untitled project'
+    if (!window.confirm(`Delete “${title}”?`)) return
+    try {
+      await s.remove()
+      window.dispatchEvent(new Event('pitch:projects-changed'))
+      navigate('/new')
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not delete chat')
+    }
+  }
   createEffect(() => {
     chatOpen()
     s.busy
@@ -398,8 +476,17 @@ export function StudioView(props: { projectId: string }) {
         ? 'scenes'
         : null,
   )
-  const resizeTray = (height: number) =>
-    setTray(Math.max(120, Math.min(height, Math.max(120, (stage?.clientHeight ?? 600) - 200))))
+  const trayMaximum = () => {
+    const element = document.getElementById(timelineId)
+    const rows = element?.querySelectorAll<HTMLElement>('.pro-timeline-canvas > .modular-track-row')
+    const toolbar = element?.querySelector<HTMLElement>('.pro-timeline-toolbar')
+    return timelineHeightLimit(
+      stage?.clientHeight ?? 600,
+      timelineRowsHeight(rows ?? []),
+      toolbar?.offsetHeight ?? 0,
+    )
+  }
+  const resizeTray = (height: number) => setTray(clampTimelineHeight(height, trayMaximum()))
   const hasPreview = createMemo(() => {
     const preview = s.project?.description.preview
     return (
@@ -433,257 +520,252 @@ export function StudioView(props: { projectId: string }) {
         'is-chat-expanded': chatOpen(),
       }}
     >
-      <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
-        <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
-          <header class="job-topbar job-topbar-split">
-            <div class="topbar-split-left" style={{ width: `${sidebar()}px` }}>
-              <div class="nav-crumb">
-                <span class="editor-project" title={s.project?.title}>
-                  {s.project?.title ?? '…'}
-                </span>
-                <span class="project-kind">
-                  {TITLES[s.project?.description.preview?.kind ?? ''] ?? 'Project'}
-                </span>
-                <span
-                  class={`project-state ${s.busy ? 'working' : (s.project?.status ?? 'empty')}`}
-                >
-                  <i />{' '}
-                  {s.busy
-                    ? 'Working'
-                    : s.project?.status
-                      ? `${s.project.status[0].toUpperCase()}${s.project.status.slice(1)}`
-                      : 'Empty'}
-                </span>
+      <Show
+        when={!s.initialLoading}
+        fallback={
+          <div class="studio-opening" role="status" aria-live="polite">
+            <span class="spinner" aria-hidden="true" />
+            <span>Opening project…</span>
+          </div>
+        }
+      >
+        <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
+          <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
+            <header class="job-topbar job-topbar-split">
+              <div class="topbar-split-left" style={{ width: `${sidebar()}px` }}>
+                <div class="nav-crumb">
+                  <StudioProjectControls
+                    title={s.project?.title}
+                    pinned={Boolean(s.project?.pinnedAt)}
+                    onNew={newChat}
+                    onRename={() => void renameProject()}
+                    onTogglePin={() => void togglePin()}
+                    onDelete={() => void deleteProject()}
+                  />
+                </div>
               </div>
-            </div>
-            <div class="topbar-split-right">
-              <div class="topbar-split-tabs">
-                <Show when={hasPreview()}>
-                  <button
-                    aria-label="Preview"
-                    class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
-                    onClick={() => setView('preview')}
-                  >
-                    <MonitorPlay size={15} />
-                    <span>Preview</span>
-                  </button>
-                </Show>
-                <Show when={s.assets.length > 0}>
-                  <button
-                    aria-label={`Files (${s.assets.length})`}
-                    class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
-                    onClick={() => {
-                      s.player.current?.pause?.()
-                      setView(current => (current === 'files' ? 'preview' : 'files'))
-                    }}
-                  >
-                    <Files size={15} />
-                    <span>Files</span>
-                    <small>{s.assets.length}</small>
-                  </button>
-                </Show>
-              </div>
-              <Show
-                when={hasPreview()}
-                fallback={
-                  <Show when={s.busy}>
-                    <button class="topbar-btn primary" onClick={() => void s.stop()}>
-                      Stop
+              <div class="topbar-split-right">
+                <div class="topbar-split-tabs">
+                  <Show when={hasPreview()}>
+                    <button
+                      aria-label="Preview"
+                      class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
+                      onClick={() => setView('preview')}
+                    >
+                      <MonitorPlay size={15} />
+                      <span>Preview</span>
                     </button>
                   </Show>
-                }
-              >
-                <Actions store={s} />
-              </Show>
-            </div>
-          </header>
-          <div class="editor">
-            <aside
-              id={chatId}
-              class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
-              ref={side}
-              style={{ '--sidebar-w': `${sidebar()}px` }}
-              aria-busy={s.busy}
-            >
-              <Show when={emptyChat()}>
-                <div class="chat-welcome">
-                  <PitchWordmark class="chat-welcome__wordmark" />
-                  <h1>What do you want to create?</h1>
+                  <Show when={s.assets.length > 0}>
+                    <StudioTopbarFiles
+                      count={s.assets.length}
+                      active={view() === 'files'}
+                      onClick={() => {
+                        s.player.current?.pause?.()
+                        setView(current => (current === 'files' ? 'preview' : 'files'))
+                      }}
+                    />
+                  </Show>
                 </div>
+                <Show when={hasPreview()}>
+                  <Actions store={s} />
+                </Show>
+              </div>
+            </header>
+            <div class="editor">
+              <aside
+                id={chatId}
+                class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
+                ref={side}
+                style={{ '--sidebar-w': `${sidebar()}px` }}
+                aria-busy={s.busy}
+              >
+                <Show when={emptyChat()}>
+                  <div class="chat-welcome">
+                    <PitchWordmark class="chat-welcome__wordmark" />
+                    <h1>What do you want to create?</h1>
+                  </div>
+                </Show>
+                <div
+                  class="feed"
+                  hidden={emptyChat()}
+                  ref={feed}
+                  onScroll={event => {
+                    const el = event.currentTarget
+                    followFeed = !isAwayFromLatest(el)
+                    setShowJumpToLatest(!followFeed)
+                  }}
+                >
+                  <Show
+                    when={s.entries.length || s.busy}
+                    fallback={
+                      <div class="feed-empty">
+                        Describe what you want to create. Your preview will open when there’s
+                        something to show.
+                      </div>
+                    }
+                  >
+                    <Thread
+                      entries={s.entries}
+                      busy={s.busy}
+                      onAnswer={s.send}
+                      onEdit={entry => void s.rollback(entry)}
+                    />
+                  </Show>
+                </div>
+                <div class="studio-composer-dock">
+                  <Show when={showJumpToLatest()}>
+                    <FeedJumpLatest onClick={jumpToLatest} />
+                  </Show>
+                  <Composer store={s} />
+                </div>
+              </aside>
+              <Show when={showStage()}>
+                <button
+                  type="button"
+                  class="mobile-chat-toggle"
+                  aria-controls={chatId}
+                  aria-expanded={chatOpen()}
+                  onClick={() => {
+                    if (!chatOpen()) {
+                      setView('preview')
+                      setTimelineOpen(false)
+                    }
+                    setChatOpen(open => !open)
+                  }}
+                >
+                  <MessageSquare size={18} />
+                  <span class="mobile-chat-toggle__label">{chatOpen() ? 'Hide chat' : 'Chat'}</span>
+                  <span class="mobile-chat-toggle__status">
+                    {s.targets.length
+                      ? `${s.targets.length} selected`
+                      : s.busy
+                        ? s.status
+                        : s.draft.trim()
+                          ? 'Draft message'
+                          : 'Ask for a change…'}
+                  </span>
+                  <Show when={s.busy}>
+                    <span class="spinner" aria-hidden="true" />
+                  </Show>
+                  {chatOpen() ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                </button>
               </Show>
               <div
-                class="feed"
-                hidden={emptyChat()}
-                ref={feed}
-                onScroll={event => {
-                  const el = event.currentTarget
-                  followFeed = el.scrollHeight - el.scrollTop - el.clientHeight < 64
+                class="resize-handle"
+                hidden={!showStage()}
+                role="separator"
+                aria-label="Resize conversation"
+                aria-orientation="vertical"
+                tabIndex={0}
+                onPointerDown={e => {
+                  drag = { x: e.clientX, w: sidebar() }
+                  e.currentTarget.setPointerCapture(e.pointerId)
                 }}
-              >
-                <Show
-                  when={s.entries.length || s.busy}
-                  fallback={
-                    <div class="feed-empty">
-                      Describe what you want to create. Your preview will open when there’s
-                      something to show.
+                onPointerMove={e => {
+                  if (!drag) return
+                  const w = Math.min(
+                    640,
+                    (wrap?.clientWidth ?? innerWidth) * 0.48,
+                    Math.max(400, drag.w + e.clientX - drag.x),
+                  )
+                  side?.style.setProperty('--sidebar-w', `${w}px`)
+                  wrap?.style.setProperty('--sidebar-w', `${w}px`)
+                  setSidebar(w)
+                }}
+                onPointerUp={() => (drag = null)}
+                onPointerCancel={() => (drag = null)}
+                onLostPointerCapture={() => (drag = null)}
+              />
+              <div class="editor-stage" ref={stage} hidden={!showStage()}>
+                <div class="studio-preview-view" hidden={view() !== 'preview'}>
+                  <div class="player">
+                    <div class="player-stage">
+                      <Show when={hasPreview()}>
+                        <Preview store={s} />
+                      </Show>
                     </div>
-                  }
-                >
-                  <Thread
-                    entries={s.entries}
-                    busy={s.busy}
-                    onAnswer={s.send}
-                    onEdit={entry => void s.rollback(entry)}
-                  />
-                </Show>
-              </div>
-              <Composer store={s} />
-            </aside>
-            <Show when={showStage()}>
-              <button
-                type="button"
-                class="mobile-chat-toggle"
-                aria-controls={chatId}
-                aria-expanded={chatOpen()}
-                onClick={() => {
-                  if (!chatOpen()) {
-                    setView('preview')
-                    setTimelineOpen(false)
-                  }
-                  setChatOpen(open => !open)
-                }}
-              >
-                <MessageSquare size={18} />
-                <span class="mobile-chat-toggle__label">{chatOpen() ? 'Hide chat' : 'Chat'}</span>
-                <span class="mobile-chat-toggle__status">
-                  {s.targets.length
-                    ? `${s.targets.length} selected`
-                    : s.busy
-                      ? s.status
-                      : s.draft.trim()
-                        ? 'Draft message'
-                        : 'Ask for a change…'}
-                </span>
-                <Show when={s.busy}>
-                  <span class="spinner" aria-hidden="true" />
-                </Show>
-                {chatOpen() ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-              </button>
-            </Show>
-            <div
-              class="resize-handle"
-              hidden={!showStage()}
-              role="separator"
-              aria-label="Resize conversation"
-              aria-orientation="vertical"
-              tabIndex={0}
-              onPointerDown={e => {
-                drag = { x: e.clientX, w: sidebar() }
-                e.currentTarget.setPointerCapture(e.pointerId)
-              }}
-              onPointerMove={e => {
-                if (!drag) return
-                const w = Math.min(
-                  640,
-                  (wrap?.clientWidth ?? innerWidth) * 0.48,
-                  Math.max(320, drag.w + e.clientX - drag.x),
-                )
-                side?.style.setProperty('--sidebar-w', `${w}px`)
-                wrap?.style.setProperty('--sidebar-w', `${w}px`)
-                setSidebar(w)
-              }}
-              onPointerUp={() => (drag = null)}
-              onPointerCancel={() => (drag = null)}
-              onLostPointerCapture={() => (drag = null)}
-            />
-            <div class="editor-stage" ref={stage} hidden={!showStage()}>
-              <div class="studio-preview-view" hidden={view() !== 'preview'}>
-                <div class="player">
-                  <div class="player-stage">
-                    <Show when={hasPreview()}>
-                      <Preview store={s} />
-                    </Show>
                   </div>
-                </div>
-                <Show when={stripKind() && timelineOpen()}>
-                  <div
-                    class="resize-handle-h"
-                    role="separator"
-                    aria-label="Resize timeline"
-                    aria-orientation="horizontal"
-                    aria-valuemin={120}
-                    aria-valuemax={Math.max(120, (stage?.clientHeight ?? 600) - 200)}
-                    aria-valuenow={Math.round(tray())}
-                    tabIndex={0}
-                    onKeyDown={event => {
-                      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
-                      event.preventDefault()
-                      resizeTray(
-                        event.key === 'Home'
-                          ? 120
-                          : event.key === 'End'
-                            ? Infinity
-                            : tray() + (event.key === 'ArrowUp' ? 24 : -24),
-                      )
-                    }}
-                    onPointerDown={e => {
-                      e.preventDefault()
-                      e.currentTarget.focus()
-                      trayDrag = {
-                        y: e.clientY,
-                        h:
-                          document.getElementById(timelineId)?.getBoundingClientRect().height ??
-                          tray(),
+                  <Show when={stripKind() && timelineOpen()}>
+                    <div
+                      class="resize-handle-h"
+                      role="separator"
+                      aria-label="Resize timeline"
+                      aria-orientation="horizontal"
+                      aria-valuemin={180}
+                      aria-valuemax={trayMaximum()}
+                      aria-valuenow={Math.round(tray())}
+                      tabIndex={0}
+                      onKeyDown={event => {
+                        if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+                        event.preventDefault()
+                        resizeTray(
+                          event.key === 'Home'
+                            ? 180
+                            : event.key === 'End'
+                              ? Infinity
+                              : tray() + (event.key === 'ArrowUp' ? 24 : -24),
+                        )
+                      }}
+                      onPointerDown={e => {
+                        e.preventDefault()
+                        e.currentTarget.focus()
+                        trayDrag = {
+                          y: e.clientY,
+                          h:
+                            document.getElementById(timelineId)?.getBoundingClientRect().height ??
+                            tray(),
+                        }
+                        e.currentTarget.setPointerCapture(e.pointerId)
+                      }}
+                      onPointerMove={e =>
+                        trayDrag && resizeTray(trayDrag.h - (e.clientY - trayDrag.y))
                       }
-                      e.currentTarget.setPointerCapture(e.pointerId)
-                    }}
-                    onPointerMove={e =>
-                      trayDrag && resizeTray(trayDrag.h - (e.clientY - trayDrag.y))
-                    }
-                    onPointerUp={() => (trayDrag = null)}
-                    onPointerCancel={() => (trayDrag = null)}
-                    onLostPointerCapture={() => (trayDrag = null)}
-                  />
-                </Show>
-                <Show when={stripKind()}>
-                  <button
-                    type="button"
-                    class="editor-tracks-toggle"
-                    aria-controls={timelineId}
-                    aria-expanded={timelineOpen()}
-                    onClick={() => setTimelineOpen(open => !open)}
-                  >
-                    <span>{stripKind() === 'slides' ? 'Slides' : 'Video editor'}</span>
-                    <span class="editor-tracks-toggle__hint">
-                      {timelineOpen() ? 'Collapse' : 'Expand'}
-                    </span>
-                    {timelineOpen() ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                  </button>
-                  <div
-                    id={timelineId}
-                    class="tray"
-                    hidden={!timelineOpen()}
-                    style={{ height: `${tray()}px` }}
-                  >
-                    <Switch>
-                      <Match when={stripKind() === 'slides'}>
-                        <SlideStrip store={s} />
-                      </Match>
-                      <Match when={stripKind() === 'scenes'}>
-                        <SceneStrip store={s} />
-                      </Match>
-                    </Switch>
+                      onPointerUp={() => (trayDrag = null)}
+                      onPointerCancel={() => (trayDrag = null)}
+                      onLostPointerCapture={() => (trayDrag = null)}
+                    />
+                  </Show>
+                  <Show when={stripKind()}>
+                    <button
+                      type="button"
+                      class="editor-tracks-toggle"
+                      aria-controls={timelineId}
+                      aria-expanded={timelineOpen()}
+                      onClick={() => setTimelineOpen(open => !open)}
+                    >
+                      <span>{stripKind() === 'slides' ? 'Slides' : 'Video editor'}</span>
+                      <span class="editor-tracks-toggle__hint">
+                        {timelineOpen() ? 'Collapse' : 'Expand'}
+                      </span>
+                      {timelineOpen() ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </button>
+                    <div
+                      id={timelineId}
+                      class="tray"
+                      hidden={!timelineOpen()}
+                      style={{ height: `${tray()}px` }}
+                    >
+                      <Switch>
+                        <Match when={stripKind() === 'slides'}>
+                          <SlideStrip store={s} />
+                        </Match>
+                        <Match when={stripKind() === 'scenes'}>
+                          <SceneStrip store={s} />
+                        </Match>
+                      </Switch>
+                    </div>
+                  </Show>
+                </div>
+                <Show when={view() === 'files'}>
+                  <div class="studio-files-view">
+                    <AssetShelf store={s} />
                   </div>
                 </Show>
               </div>
-              <Show when={view() === 'files'}>
-                <div class="studio-files-view">
-                  <AssetShelf store={s} />
-                </div>
-              </Show>
             </div>
           </div>
-        </div>
+        </Show>
       </Show>
     </div>
   )

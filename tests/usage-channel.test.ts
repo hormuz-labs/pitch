@@ -31,6 +31,7 @@ vi.mock('../apps/api/src/studio/model-picker.js', () => ({
 
 import {
   chargeTurn,
+  effectiveModelMultiplier,
   generationReservationCredits,
   generationReservationFromEstimate,
   noLossCredits,
@@ -105,8 +106,19 @@ describe('chargeTurn channel attribution', () => {
 })
 
 describe('model credit pricing', () => {
-  it('applies a model multiplier to model and compute cost', () => {
+  it('applies a model multiplier only to model cost', () => {
     expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10 }, 2)).toBeCloseTo(0.275)
+  })
+
+  it('composes the provided-skill multiplier with the selected model multiplier', () => {
+    expect(effectiveModelMultiplier(2, false)).toBe(2)
+    expect(effectiveModelMultiplier(2, true)).toBe(500)
+  })
+
+  it('multiplies skill model usage by 250 without multiplying compute or provider cost', () => {
+    expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10, providerUsd: 0.5 }, 250, 1)).toBeCloseTo(
+      25 + 0.02 + 0.5,
+    )
   })
 
   it('projects the unpaid credits accrued during an active turn', () => {
@@ -137,6 +149,22 @@ describe('model credit pricing', () => {
     expect(mocks.deductCredit).toHaveBeenCalledWith(
       'user_1',
       100,
+      expect.any(String),
+      expect.any(Object),
+    )
+  })
+
+  it('charges a provided-skill turn at the composed model-only multiplier', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+
+    await chargeTurn(project(), 0.001, 'product', 'provider/astra', 0, 0, undefined, true)
+
+    expect(mocks.projectUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ usageUsd: 0.625 }) }),
+    )
+    expect(mocks.deductCredit).toHaveBeenCalledWith(
+      'user_1',
+      250,
       expect.any(String),
       expect.any(Object),
     )

@@ -35,7 +35,17 @@ export interface MixResult {
 export function correctiveBedDb(output: string): number | null {
   const contrast = /voice is only\s+(-?[\d.]+)dB above the bed \(need ≥(-?[\d.]+)dB\)/.exec(output)
   const current = /currently\s+(-?[\d.]+)\)/.exec(output)
-  if (!contrast || !current) return null
+  if (!contrast || !current) {
+    const quietMusic = /(?:Music bed|music-only mix) averages\s+(-?[\d.]+)dB/i.exec(output)
+    const musicBed = /bed\s+(-?[\d.]+)dB\s+·\s+music-led/i.exec(output)
+    const configured = current ?? musicBed
+    if (!quietMusic || !configured) return null
+    const actual = Number(quietMusic[1])
+    const bedDb = Number(configured[1])
+    const required = -30
+    if (![actual, bedDb].every(Number.isFinite) || actual >= required) return null
+    return Math.min(6, Math.round((bedDb + (required - actual) + 1) * 10) / 10)
+  }
   const actual = Number(contrast[1])
   const required = Number(contrast[2])
   const bedDb = Number(current[1])

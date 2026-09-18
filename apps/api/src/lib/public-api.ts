@@ -4,7 +4,7 @@
  */
 
 import { extname } from 'node:path'
-import { createLogger, LAUNCH_VIDEO_RESOLUTIONS, launchVideoCreditCost } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { z } from 'zod'
 import type { UploadRef } from '../flows/types.js'
@@ -17,7 +17,11 @@ import {
   type ProjectInfo,
   promptProject,
 } from '../projects/service.js'
-import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/usage.js'
+import {
+  COMPUTE_USD_PER_SEC,
+  CREDIT_USD,
+  PROVIDED_SKILL_MODEL_MULTIPLIER,
+} from '../projects/usage.js'
 import { currentOwner, withOwner } from '../worker/client.js'
 import {
   EDIT_EXTS,
@@ -148,19 +152,14 @@ export function pricing() {
     model: 'usage',
     creditUsd: CREDIT_USD,
     computeUsdPerSecond: COMPUTE_USD_PER_SEC,
+    providedSkillModelMultiplier: PROVIDED_SKILL_MODEL_MULTIPLIER,
     explanation:
       'Projects are not priced up front. The studio meters what the work costs — the ' +
-      "agent's model usage plus the machine time spent recording and rendering — and " +
-      `charges one credit per $${CREDIT_USD.toFixed(4)} of it. Asking a question is nearly ` +
-      'free; rendering 4K is not. A demo video runs about 120 credits.',
-    launchVideo: {
-      tiers: Object.entries(LAUNCH_VIDEO_RESOLUTIONS).map(([res, t]) => ({
-        res,
-        credits: t.credits,
-        narrated: launchVideoCreditCost(res, true),
-        note: 'Indicative: an export is billed on the render time it actually takes.',
-      })),
-    },
+      "agent's model usage plus the machine time spent recording and rendering. Model usage " +
+      `on turns that load a provided Pitch skill is priced at ${PROVIDED_SKILL_MODEL_MULTIPLIER}x; ` +
+      'host compute and provider charges are not multiplied. The studio ' +
+      `charges one credit per $${CREDIT_USD.toFixed(4)} of it. Reads are free; work-producing ` +
+      'turns vary with model usage, enabled skills, and render time.',
   }
 }
 

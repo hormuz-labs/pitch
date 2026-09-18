@@ -4,6 +4,34 @@ export const fmt = (t: number) => {
   const s = (t % 60).toFixed(1).padStart(4, '0')
   return m ? `${m}:${s}` : `${s}s`
 }
+
+export function timelineRulerTicks(duration: number, width: number): number[] {
+  if (!Number.isFinite(duration) || duration <= 0) return [0]
+  const intervals = Math.max(2, Math.floor(Math.max(240, width) / 110))
+  const roughStep = duration / intervals
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const normalized = roughStep / magnitude
+  const niceStep =
+    (normalized < Math.sqrt(2)
+      ? 1
+      : normalized < Math.sqrt(10)
+        ? 2
+        : normalized < Math.sqrt(50)
+          ? 5
+          : 10) * magnitude
+  const ticks = Array.from({ length: Math.floor(duration / niceStep) + 1 }, (_, index) =>
+    Number((index * niceStep).toFixed(10)),
+  )
+  if (duration - ticks.at(-1)! > niceStep * 0.2) ticks.push(duration)
+  else ticks[ticks.length - 1] = duration
+  return ticks
+}
+
+export function fmtRulerTick(t: number, duration: number): string {
+  if (duration < 10)
+    return `${t.toFixed(t < 1 || Math.abs(t * 10 - Math.round(t * 10)) > 0.001 ? 2 : 1)}s`
+  return fmt(t)
+}
 export function withTargetLegend(text: string, list: Target[]): string {
   if (!list.length) return text
   const lines = list.map(t => {

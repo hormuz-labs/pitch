@@ -115,7 +115,7 @@
   .lv-studio:not(.new-project-page) .topbar-split-left { padding-left: 0; }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
   .lv-studio:not(.new-project-page) .topbar-split-left { flex: 1 1 0; max-width: none; }
   .lv-studio:not(.new-project-page) .topbar-split-right { flex: 0 0 auto; }
   .lv-studio .job-topbar :is(.project-kind, .project-state) { display: none; }
@@ -164,15 +164,18 @@
   .lv-studio .mobile-chat-toggle__label { flex: none; font-size: 13px; font-weight: 600; }
   .lv-studio .mobile-chat-toggle__status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
   .lv-studio .job-composer { max-height: 60%; overflow-y: auto; }
-  .lv-studio .job-composer-box textarea { font-size: 16px; max-height: min(200px, 30dvh); }
-  .lv-studio .job-composer-footer { flex-wrap: wrap; gap: 8px; }
-  .lv-studio .job-composer-actions { min-width: 0; margin-left: auto; }
-  .lv-studio .model-btn { max-width: 150px; }
+  .lv-studio:not(.new-project-page) .job-composer-box { min-height: 100px; padding: 12px 12px 9px; border-radius: 22px; }
+  .lv-studio .job-composer-box textarea { min-height: 40px; font-size: 16px; max-height: min(180px, 30dvh); }
+  .lv-studio .job-composer-footer { flex-wrap: nowrap; gap: 5px; }
+  .lv-studio .job-composer-tools { flex: 1 1 auto; overflow: hidden; }
+  .lv-studio .job-composer-actions { flex: 0 1 auto; min-width: 0; margin-left: auto; }
+  .lv-studio .model-btn { max-width: 112px; padding-inline: 6px; }
   .lv-studio .model-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lv-studio :is(.job-send-round, .job-attach-plus) { width: 40px; height: 40px; flex-shrink: 0; }
-  .lv-studio.is-chat-only .edit-sidebar { --chat-inset: 12px; }
+  .lv-studio:not(.new-project-page) .job-send-round { width: 38px; height: 38px; min-width: 38px; min-height: 38px; max-width: 38px; max-height: 38px; flex: 0 0 38px; }
+  .lv-studio:not(.new-project-page) .job-attach-plus { width: 32px; height: 38px; min-width: 32px; min-height: 38px; max-width: 32px; max-height: 38px; flex: 0 0 32px; }
+  .lv-studio.is-chat-only .edit-sidebar { --chat-inset: 10px; }
   .lv-studio.is-chat-only .feed { padding: 16px; }
-  .lv-studio.is-chat-only .job-composer { padding: 10px var(--chat-inset) max(12px, env(safe-area-inset-bottom)); }
+  .lv-studio.is-chat-only .job-composer { margin: 0; padding: 8px var(--chat-inset) max(10px, env(safe-area-inset-bottom)); border-radius: 0; }
   .lv-studio.is-chat-only .topbar-split-right { gap: 4px; padding-right: 6px; }
   .lv-studio .build-process { padding: 12px; gap: 9px; }
   .lv-studio .build-process__shots img { width: 48px; }

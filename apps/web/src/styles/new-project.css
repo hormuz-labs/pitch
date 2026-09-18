@@ -48,7 +48,9 @@
 .account-topnav .new-project-topnav__actions > :is(a, button):hover,
 .account-topnav .new-project-topnav__actions > .relative > button:hover { background: var(--new-raised); color: var(--new-ink); }
 .account-topnav .new-project-topnav__credits > .relative > button { width: auto; min-width: 64px; height: 32px; padding: 0 10px; border: 1px solid var(--new-border); border-radius: 999px; background: transparent; color: var(--new-ink); }
-.new-project-topnav__credits button > span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
+.new-project-topnav__credits { flex: none; min-width: max-content; overflow: visible; }
+.new-project-topnav__credits > .relative { min-width: max-content; }
+.new-project-topnav__credits button > span { display: inline-flex; align-items: center; gap: 5px; min-width: max-content; font-size: 11px; white-space: nowrap; }
 .new-project-topnav__credits img { width: 16px; height: 16px; }
 .new-project-topnav__avatar { width: 30px; height: 30px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: #708a8f; color: white; }
 .new-project-topnav__avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -67,22 +69,61 @@
 
 /* Like the reference, the input owns the page; inspiration peeks in at the bottom. */
 .new-create-hero { position: relative; min-height: calc(100svh - 14px); padding: 64px 24px 116px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.new-create-hero__intro { margin: 0 0 32px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.new-project-wordmark { width: 164px; height: auto; color: var(--new-ink); }
+.new-create-hero__intro { margin: 0 0 24px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.new-project-wordmark { width: 220px; height: auto; color: var(--new-ink); }
 .new-create-hero__intro h1 { margin: 0; color: var(--new-muted); font-size: 16px; font-weight: 400; letter-spacing: -.02em; }
-.lv-studio.new-project-page .composer-wrap.new-composer-wrap { width: min(768px, 100%); max-width: 768px; }
-.lv-studio .new-composer-wrap .composer-box { min-height: 130px; gap: 0; padding: 14px 8px 8px; border: 1px solid var(--new-input-border); border-radius: 24px; background: var(--new-surface); box-shadow: none; }
+.lv-studio.new-project-page .composer-wrap.new-composer-wrap { width: min(680px, 100%); max-width: 680px; }
+.lv-studio.new-project-page .new-composer-wrap .composer-box { min-height: 108px; gap: 0; padding: 12px 8px 7px; overflow: hidden; border: 1px solid var(--new-input-border); border-radius: 24px; background: var(--new-surface); box-shadow: none; }
 [data-theme="light"] .lv-studio .new-composer-wrap .composer-box { box-shadow: 0 4px 12px rgb(0 0 0 / 5%); }
 .lv-studio .new-composer-wrap .composer-box:focus-within { border-color: var(--new-input-border); box-shadow: none; }
 .lv-studio .new-composer-wrap .composer-box.invalid { border-color: #d65d66; }
-.lv-studio .new-composer-wrap .composer-box textarea { min-height: 56px; max-height: 220px; width: 100%; padding: 0 10px; border: 0; border-radius: 0; background: transparent; color: var(--new-ink); font-family: inherit; font-size: 15px; font-weight: 400; font-style: normal; line-height: 1.6; letter-spacing: -.01em; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; resize: none; outline: none; box-shadow: none; }
+.lv-studio .new-composer-wrap .composer-box textarea { min-height: 44px; max-height: 180px; width: 100%; padding: 0 10px; border: 0; border-radius: 0; background: transparent; color: var(--new-ink); font-family: inherit; font-size: 14px; font-weight: 400; font-style: normal; line-height: 1.55; letter-spacing: -.01em; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; resize: none; outline: none; box-shadow: none; }
 .lv-studio .new-composer-wrap textarea::placeholder { color: var(--new-faint); }
-.lv-studio .new-composer-wrap .composer-footer { padding-top: 10px; border: 0; gap: 12px; flex-wrap: nowrap; }
+.lv-studio .new-composer-wrap .composer-footer { padding-top: 6px; border: 0; gap: 10px; flex-wrap: nowrap; }
 .lv-studio .new-composer-wrap .tool-row { display: flex; align-items: center; flex-wrap: nowrap; min-width: 0; gap: 8px; }
 .new-composer-wrap .composer-add { position: relative; }
 .lv-studio.new-project-page .composer-menu-trigger { padding: 0; border: 0; border-radius: 50%; }
 .composer-menu-trigger .attach-plus svg { transition: transform 160ms ease; }
 .composer-menu-trigger[aria-expanded="true"] .attach-plus svg { transform: rotate(45deg); }
+.lv-studio.new-project-page .new-composer-mode {
+  min-width: 0;
+  height: 34px;
+  padding: 0 5px 0 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--new-blue);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.lv-studio.new-project-page .new-composer-mode:hover:not(:disabled),
+.lv-studio.new-project-page .new-composer-mode:focus-visible { background: var(--new-selected); }
+.new-composer-mode__icon { position: relative; width: 16px; height: 16px; display: grid; place-items: center; flex: none; }
+.new-composer-mode__icon > svg { width: 16px; height: 16px; stroke-width: 1.8; transition: opacity 120ms ease, transform 120ms ease; }
+.lv-studio.new-project-page .new-composer-mode svg { color: currentColor; }
+.new-composer-mode__clear {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--new-blue);
+  color: var(--new-surface);
+  opacity: 0;
+  transform: scale(.75);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.new-composer-mode:hover .new-composer-mode__icon > svg,
+.new-composer-mode:focus-visible .new-composer-mode__icon > svg { opacity: 0; transform: scale(.75); }
+.new-composer-mode:hover .new-composer-mode__clear,
+.new-composer-mode:focus-visible .new-composer-mode__clear { opacity: 1; transform: scale(1); }
+.new-composer-mode > span { overflow: hidden; text-overflow: ellipsis; }
 .lv-studio.new-project-page .new-model-trigger { min-height: 36px; padding: 8px 11px; display: flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; background: transparent; color: var(--new-ink); font-size: 13px; font-weight: 400; }
 .new-model-trigger span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .new-model-trigger svg { color: var(--new-faint); }
@@ -96,20 +137,26 @@
 .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 190px; min-height: 34px; padding: 7px 25px 7px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--new-muted); font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
 .new-composer-wrap label:has(.model-btn) svg { right: 6px; color: var(--new-muted); width: 14px; }
 .lv-studio.new-project-page .model-btn option { background: var(--new-surface); color: var(--new-ink); }
-.lv-studio.new-project-page .new-preferences { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 3px 2px; padding-top: 10px; border-top: 1px solid var(--new-border); }
-.lv-studio.new-project-page .new-preferences button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 7px; border: 0; border-radius: 6px; background: var(--new-raised); color: var(--new-muted); font-size: 11px; }
-.lv-studio.new-project-page .new-preferences .new-skill-chip { background: var(--new-selected); color: var(--new-blue); }
+.lv-studio.new-project-page button.generate-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: #111; color: #fff; box-shadow: none; }
+.lv-studio.new-project-page button.generate-button:hover:not(:disabled) { background: #000; transform: none; }
+.lv-studio.new-project-page button.generate-button[data-ready="false"] { background: #d8d8d8; color: #fff; }
+.lv-studio.new-project-page button.generate-button[data-generating="true"] { background: #111; }
+.lv-studio.new-project-page button.generate-button svg { width: 18px; height: 18px; stroke-width: 2.35; }
+.new-prompt-tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 4px 9px; }
+.lv-studio.new-project-page .new-prompt-tokens button { min-height: 26px; padding: 4px 7px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--new-border); border-radius: 7px; background: var(--new-raised); color: var(--new-muted); font-size: 11px; line-height: 1; }
+.new-prompt-tokens button > svg:first-child { color: var(--new-blue); }
+.new-prompt-tokens button > svg:last-child { color: var(--new-faint); }
 .lv-studio .new-skills { margin: 32px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .lv-studio.new-project-page .new-skill-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--new-border); border-radius: 999px; color: var(--new-muted); font-size: 13px; font-weight: 400; transition: background 140ms ease, border-color 140ms ease; }
 .lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) { border-color: var(--new-input-border); color: var(--new-ink); }
-.lv-studio.new-project-page .new-skill-pill.is-active { background: var(--new-selected); border-color: color-mix(in srgb, var(--new-blue) 40%, var(--new-border)); color: var(--new-blue); }
+.lv-studio.new-project-page .new-skill-pill.is-active { background: transparent; border-color: var(--new-ink); color: var(--new-ink); }
 .new-project-hint { margin: 19px 0 0; color: var(--new-faint); text-align: center; font-size: 11px; line-height: 1.6; }
 .lv-studio .new-composer-wrap .create-error { margin-top: 12px; color: #d65d66; font-size: 12px; }
-.composer-credit-warning { width: auto; margin: 6px 10px 0; padding: 8px 10px; border-radius: 9px; background: color-mix(in srgb, #d94752 8%, transparent); color: #b8323d; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
-/* Inline links in running text; the studio's button chrome must not apply. */
-.lv-studio.new-project-page .composer-credit-warning :is(a, button) { display: inline; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; font-weight: 600; line-height: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.lv-studio.new-project-page .composer-credit-warning :is(a, button):hover:not(:disabled) { background: none; color: #8f1f29; }
-.lv-studio.new-project-page .composer-credit-warning button:disabled { opacity: .7; }
+.composer-credit-notice { width: fit-content; max-width: calc(100% - 24px); min-height: 30px; margin: 8px auto 0; padding: 5px 6px 5px 10px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid color-mix(in srgb, #d94752 20%, transparent); border-radius: 999px; background: color-mix(in srgb, #d94752 7%, var(--new-bg)); color: #a8323b; font-size: 11px; line-height: 1.35; text-align: center; }
+.composer-credit-notice > span { min-width: 0; overflow-wrap: anywhere; }
+.lv-studio.new-project-page .composer-credit-notice :is(a, button) { flex: none; min-height: 0; margin: 0; padding: 4px 7px; border: 0; border-radius: 999px; background: color-mix(in srgb, #d94752 10%, transparent); color: inherit; font: inherit; font-weight: 600; line-height: 1.2; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.lv-studio.new-project-page .composer-credit-notice :is(a, button):hover:not(:disabled) { background: color-mix(in srgb, #d94752 16%, transparent); color: #841f27; }
+.lv-studio.new-project-page .composer-credit-notice button:disabled { opacity: .65; }
 .lv-studio.new-project-page .new-featured-cue { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: min(768px, calc(100% - 48px)); height: 52px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-muted); font-size: 13px; font-weight: 400; text-decoration: none; }
 .lv-studio.new-project-page .new-featured-cue:hover { background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-ink); }
 .new-featured-cue > span { display: flex; align-items: center; gap: 9px; }
@@ -121,9 +168,16 @@
 .lv-studio.new-project-page .composer-add-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 8px; color: var(--new-ink); font-size: 12px; text-align: left; }
 .composer-add-menu label { min-height: 44px; padding: 6px 10px; display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 10px; color: var(--new-muted); font-size: 12px; }
 .lv-studio .composer-add-menu select { width: auto; max-width: 122px; padding: 5px 7px; border: 1px solid var(--new-border); border-radius: 6px; background: var(--new-raised); color: var(--new-ink); font-size: 11px; }
-.lv-studio .new-composer-wrap .attach-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.lv-studio .new-composer-wrap .attach-chip { max-width: 100%; border: 1px solid var(--new-border); background: var(--new-raised); color: var(--new-ink); }
-.new-composer-wrap .attach-chip em { color: var(--new-blue); font-size: 9px; font-style: normal; }
+.lv-studio .new-composer-wrap .attach-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 4px 10px; padding: 0; }
+.new-attachment { position: relative; width: 72px; height: 72px; flex: none; margin: 0; overflow: hidden; border: 1px solid var(--new-border); border-radius: 12px; background: var(--new-raised); color: var(--new-muted); }
+.new-attachment :is(img, video) { display: block; width: 100%; height: 100%; object-fit: cover; }
+.new-attachment__file { width: 100%; height: 100%; padding: 10px 7px 7px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+.new-attachment__file small { max-width: 100%; overflow: hidden; color: var(--new-faint); font-size: 8px; font-weight: 650; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; }
+.new-attachment__reference { position: absolute; right: 4px; bottom: 4px; max-width: calc(100% - 8px); padding: 2px 4px; overflow: hidden; border-radius: 4px; background: rgb(0 0 0 / 68%); color: #fff; font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.lv-studio.new-project-page .new-attachment > button { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgb(0 0 0 / 68%); color: #fff; cursor: pointer; opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }
+.lv-studio.new-project-page .new-attachment:is(:hover, :focus-within) > button { opacity: 1; }
+.lv-studio.new-project-page .new-attachment > button:hover:not(:disabled) { background: rgb(0 0 0 / 86%); }
+@media (pointer: coarse) { .lv-studio.new-project-page .new-attachment > button { opacity: 1; } }
 .new-template-strip { margin: 24px 0 0; }
 .new-template-strip__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: var(--new-muted); font-size: 11px; }
 .lv-studio.new-project-page .new-template-strip__head button { padding: 0; border: 0; color: var(--new-muted); font-size: 11px; }
@@ -201,22 +255,29 @@
   .new-project-topnav { height: 64px; padding: 0 14px 0 56px; justify-content: flex-end; }
   .new-project-topnav__links { display: none; }
   .new-project-topnav__actions { position: static; gap: 6px; }
-  .new-create-hero { min-height: 100svh; padding: 72px 18px 124px; }
-  .new-project-wordmark { width: 150px; }
+  .new-create-hero { min-height: 100svh; padding: 72px 12px 124px; }
+  .new-create-hero > :is(.new-create-hero__intro, .new-composer-wrap) { transform: translateY(20px); }
+  .new-project-wordmark { width: 192px; }
   .new-create-hero__intro { margin-bottom: 28px; }
   .new-create-hero__intro h1 { font-size: 15px; }
-  .lv-studio .new-composer-wrap .composer-box { padding: 14px 10px 10px; border-radius: 20px; }
-  .lv-studio .new-composer-wrap .composer-box textarea { padding: 0 5px; min-height: 58px; font-size: 16px; }
-  .lv-studio .new-composer-wrap .composer-footer { gap: 4px; flex-wrap: wrap; }
-  .lv-studio .new-composer-wrap .composer-footer > .tool-row:last-child { margin-left: auto; }
+  .lv-studio.new-project-page .composer-wrap.new-composer-wrap { width: 100%; max-width: none; padding: 0; }
+  .lv-studio.new-project-page .new-composer-wrap .composer-box { min-height: 118px; padding: 14px 10px 10px; border-radius: 26px; box-shadow: 0 10px 24px rgb(0 0 0 / 8%); }
+  .lv-studio .new-composer-wrap .composer-box textarea { padding: 0 5px; min-height: 42px; font-size: 16px; }
+  .lv-studio .new-composer-wrap .composer-footer { gap: 4px; flex-wrap: nowrap; }
+  .lv-studio .new-composer-wrap .composer-footer > .tool-row:first-child { flex: 1; overflow: hidden; }
+  .lv-studio .new-composer-wrap .composer-footer > .tool-row:last-child { flex: none; margin-left: auto; }
   .lv-studio .new-composer-wrap .tool-row { gap: 3px; }
-  .composer-credit-warning { margin: 7px 5px 0; padding: 8px; font-size: 10.5px; }
+  .lv-studio.new-project-page .new-composer-mode { width: 30px; max-width: 30px; padding: 0; justify-content: center; color: var(--new-blue); }
+  .new-composer-mode > span:last-child { display: none; }
+  .new-composer-mode__icon { width: 18px; height: 18px; }
+  .new-composer-mode__icon > svg { width: 17px; height: 17px; }
+  .composer-credit-notice { max-width: 100%; min-height: 0; padding: 6px; flex-wrap: wrap; gap: 5px; border-radius: 12px; font-size: 10.5px; }
   .lv-studio.new-project-page .new-voice-trigger { max-width: 112px; padding: 7px 4px; gap: 4px; }
   .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 130px; padding-left: 4px; font-size: 11px; }
-  .lv-studio.new-project-page .new-skills { gap: 8px; margin-top: 22px; }
-  .lv-studio.new-project-page .new-skill-pill { font-size: 12px; padding: 9px 12px; }
+  .lv-studio.new-project-page .new-skills { width: fit-content; max-width: 100%; margin-top: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 8px; }
+  .lv-studio.new-project-page .new-skill-pill { min-width: 0; justify-content: flex-start; font-size: 12px; padding: 9px 12px; }
   .new-project-hint { max-width: 285px; margin: 18px auto 0; font-size: 10px; }
-  .lv-studio.new-project-page .new-featured-cue { width: calc(100% - 36px); padding: 18px 16px; padding-left: calc(16px + 28px * var(--explore-progress, 0)); }
+  .lv-studio.new-project-page .new-featured-cue { width: calc(100% - 36px); height: 58px; padding: 18px 16px; padding-left: calc(16px + 28px * var(--explore-progress, 0)); border-radius: 24px 24px 0 0; }
   .new-featured-cue > span:last-child { font-size: 10px; }
   .new-composer-wrap .composer-add-menu { width: min(270px, calc(100vw - 56px)); }
   .new-template-strip__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -233,6 +294,10 @@
   .lv-studio.new-project-page .new-model-trigger { font-size: 12px; padding: 8px 6px; }
   .new-model-trigger span { max-width: 133px; }
   .new-featured__head { padding-left: 30px; }
+}
+@media (max-width: 380px) {
+  .new-project-topnav__secondary-action { display: none !important; }
+  .new-project-topnav__actions { min-width: max-content; }
 }
 @media (max-width: 380px) {
   .new-voice-trigger > span { max-width: 44px; }
