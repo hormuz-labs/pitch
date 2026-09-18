@@ -3,8 +3,7 @@
  * here and publishes the result; every other flow publishes whatever its
  * agent already produced. One export per project at a time.
  */
-import * as db from '@saas/db'
-import { isLaunchVideoResolution, LAUNCH_VIDEO_RESOLUTIONS } from '@saas/shared'
+import { isLaunchVideoResolution } from '@saas/shared'
 import { activeArtifact } from '../agent/describe.js'
 import type { Output } from '../flows/types.js'
 import { cancelEditableExport, editableStatus, startEditableExport } from './editable-export.js'
@@ -61,7 +60,7 @@ export function registerExporter(flow: string, e: Exporter): void {
   exporters.set(flow, e)
 }
 
-const IDLE: ExportStatus = {
+export const IDLE_EXPORT: ExportStatus = {
   running: false,
   res: null,
   url: null,
@@ -83,7 +82,7 @@ export function getExport(projectId: string): ExportStatus {
   }
   return found.reduce<ExportStatus>(
     (latest, status) => ((status.startedAt ?? 0) >= (latest.startedAt ?? 0) ? status : latest),
-    IDLE,
+    IDLE_EXPORT,
   )
 }
 
@@ -132,7 +131,7 @@ async function startProjectExport(
     const latest = p.outputs.find(o => o.kind === 'video' || o.kind === 'pdf')
     const now = Math.max(Date.now(), (getExport(p.id).startedAt ?? 0) + 1)
     const status: ExportStatus = {
-      ...IDLE,
+      ...IDLE_EXPORT,
       stage: latest ? 'done' : 'failed',
       url: latest?.url ?? null,
       progress: latest ? 100 : 0,
@@ -143,27 +142,11 @@ async function startProjectExport(
     directJobs.set(p.id, status)
     return status
   }
-  // Launch video: the paid tier is free; higher tiers charge the difference once.
+  // Resolution affects metered render time; there is no separate fixed upgrade charge.
   if (exporter === exporters.get('launch-video')) {
     const wanted = String(body.res ?? '1080p')
     if (!isLaunchVideoResolution(wanted))
       throw Object.assign(new Error('unknown resolution'), { status: 400 })
-    const paid = isLaunchVideoResolution(p.options.resolution) ? p.options.resolution : '1080p'
-    const upgrade =
-      LAUNCH_VIDEO_RESOLUTIONS[wanted].credits - LAUNCH_VIDEO_RESOLUTIONS[paid].credits
-    if (upgrade > 0) {
-      const balance = await db.getCreditBalance(userId)
-      if (balance < upgrade)
-        throw Object.assign(new Error('Insufficient credits'), { status: 402, balance })
-      await db.deductCredit(userId, upgrade, `Launch video export upgrade (${paid} → ${wanted})`, {
-        projectId: p.id,
-        channel: p.source === 'api' ? 'api' : 'product',
-      })
-      await db.prisma.project.update({
-        where: { id: p.id },
-        data: { options: JSON.stringify({ ...p.options, resolution: wanted }) },
-      })
-    }
     body = { ...body, res: wanted }
   }
   const detail = await getProject(userId, id)

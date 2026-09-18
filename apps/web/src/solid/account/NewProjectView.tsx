@@ -600,9 +600,8 @@ export function NewProjectView(props: {
                   </StudioMenu>
                 </Show>
                 <GenerateButton
-                  hue={210}
                   isGenerating={submitting()}
-                  isReady={Boolean(prompt().trim())}
+                  isReady={Boolean(prompt().trim() || files().length)}
                   disabled={submitting() || uploading() || (!prompt().trim() && !files().length)}
                   onClick={() => void submit()}
                   aria-label={submitting() ? 'Generating project' : 'Generate project'}

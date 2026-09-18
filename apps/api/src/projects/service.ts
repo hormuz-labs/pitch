@@ -1,6 +1,6 @@
 /**
- * Projects: the unit of the studio. Creating one charges credits, seeds the
- * workspace and starts the first agent turn; every later prompt is free.
+ * Projects: the unit of the studio. Creating one seeds the workspace and
+ * starts the first agent turn; work is metered as it runs.
  * Status is derived (session busy + what the flow finds in the workspace);
  * outputs published to object storage are recorded on the row.
  *
@@ -14,19 +14,15 @@ import { createLogger, sendDiscordMessage } from '@saas/shared'
 import type { Description, UploadRef } from '../flows/types.js'
 import { publishProjectEvent } from '../studio/events.js'
 import { selectStudioModel } from '../studio/model-picker.js'
-import { type FlowId, isValidProjectName, slugify } from '../studio/paths.js'
+import { isValidProjectName, slugify } from '../studio/paths.js'
 import { type Entry, listStudioModels } from '../studio/session.js'
-import { currentOwner, ownerFor, withOwner } from '../worker/client.js'
-import { IS_WORKER } from '../worker/config.js'
-import {
-  discardLocal,
-  followFirstTurn,
-  type PromptOptions,
-  type PromptProjectResult,
-} from '../worker/host.js'
+import { deleteCheckpoints } from '../worker/checkpoint.js'
+import { clientForWorker, currentOwner, forgetOwner, withOwner } from '../worker/client.js'
+import { followFirstTurn, type PromptOptions, type PromptProjectResult } from '../worker/host.js'
 import { isLive } from '../worker/lease.js'
 import { durationOptionFromText, normalizeCreationOptions } from './creation-options.js'
 import {
+  deleteRow,
   getRow,
   InsufficientCreditsError,
   type ProjectRow,
@@ -94,9 +90,9 @@ export async function busyProjects(rows: ProjectRow[]): Promise<Set<string>> {
   return new Set(candidates.filter(r => live.get(r.workerId!) === r.workerEpoch).map(r => r.id))
 }
 
-export async function listProjects(userId: string, flow?: FlowId): Promise<ProjectInfo[]> {
+export async function listProjects(userId: string): Promise<ProjectInfo[]> {
   const rows = await db.prisma.project.findMany({
-    where: { userId, ...(flow ? { flow } : {}) },
+    where: { userId },
     orderBy: { createdAt: 'desc' },
   })
   const parsed = await Promise.all(rows.map(parseAndUpgradeRow))
@@ -122,15 +118,16 @@ export async function describeProject(p: ProjectRow): Promise<Description> {
 
 export async function getProject(userId: string, id: string): Promise<ProjectDetail> {
   const p = await getRow(userId, id)
-  const owner = await ownerFor(p.id)
-  const [description, busy] = await Promise.all([
-    owner.describe(p.id).catch((err: any) => {
-      logger.warn({ err, projectId: p.id }, 'describe failed')
-      return { preview: null, outputs: [], error: err.message } as Description
-    }),
-    owner.busy(p.id).catch(() => false),
-  ])
-  return { ...p, busy, status: statusOf(p, busy, description), description }
+  try {
+    return await withOwner(p.id, async owner => {
+      const [description, busy] = await Promise.all([owner.describe(p.id), owner.busy(p.id)])
+      return { ...p, busy, status: statusOf(p, busy, description), description }
+    })
+  } catch (err: any) {
+    logger.warn({ err, projectId: p.id }, 'describe failed')
+    const description: Description = { preview: null, outputs: [], error: err.message }
+    return { ...p, busy: false, status: statusOf(p, false, description), description }
+  }
 }
 
 export async function getEntries(p: ProjectRow): Promise<{ entries: Entry[]; busy: boolean }> {
@@ -139,9 +136,9 @@ export async function getEntries(p: ProjectRow): Promise<{ entries: Entry[]; bus
 
 // ── Writes ────────────────────────────────────────────────────────────────────
 
-async function uniqueName(userId: string, flow: FlowId, base: string): Promise<string> {
+async function uniqueName(userId: string, base: string): Promise<string> {
   const taken = new Set(
-    (await db.prisma.project.findMany({ where: { userId, flow }, select: { name: true } })).map(
+    (await db.prisma.project.findMany({ where: { userId }, select: { name: true } })).map(
       r => r.name,
     ),
   )
@@ -217,7 +214,7 @@ export async function createProject(
     uploads.map(upload => upload.name),
   )
   const wanted = input.name && isValidProjectName(input.name) ? input.name : slugify(title)
-  const name = await uniqueName(userId, 'studio', wanted)
+  const name = await uniqueName(userId, wanted)
 
   const row = await db.prisma.project.create({
     data: {
@@ -233,8 +230,7 @@ export async function createProject(
   const p = parseRow(row)
 
   try {
-    const owner = await ownerFor(p.id)
-    await owner.prepare(p.id, options, uploads)
+    await withOwner(p.id, owner => owner.prepare(p.id, options, uploads))
     if (prompt)
       await promptProject(p, prompt, {
         first: true,
@@ -243,8 +239,12 @@ export async function createProject(
       })
   } catch (err: any) {
     logger.error({ err, projectId: p.id }, 'could not open the project')
-    const { failProject } = await import('./rows.js')
-    await failProject(p, `Could not start: ${err.message}`, false)
+    await deleteProject(userId, p.id).catch(cleanupError =>
+      logger.warn(
+        { err: cleanupError, projectId: p.id },
+        'could not clean failed project creation',
+      ),
+    )
     throw err
   }
 
@@ -288,19 +288,26 @@ export async function rollbackProject(userId: string, id: string, entryId: strin
 }
 
 export async function deleteProject(userId: string, id: string): Promise<void> {
-  const p = await getRow(userId, id)
-  const owner = await currentOwner(p.id)
-  if (owner) {
-    await owner.remove(p)
-  } else {
-    if (IS_WORKER) await discardLocal(p).catch(() => {})
-    const { deleteCheckpoints } = await import('../worker/checkpoint.js')
-    await deleteCheckpoints(p.id).catch(err =>
-      logger.warn({ err, projectId: p.id }, 'could not delete workspace checkpoints'),
-    )
+  const p = await deleteRow(userId, id)
+  forgetOwner(p.id)
+  const workerIds = [...new Set([p.workerId, p.lastWorkerId].filter(Boolean) as string[])]
+  const cleanup = await Promise.allSettled(
+    workerIds.map(async workerId => {
+      const worker = await clientForWorker(workerId)
+      if (worker) await worker.remove(p)
+    }),
+  )
+  for (const [index, result] of cleanup.entries()) {
+    if (result.status === 'rejected')
+      logger.warn(
+        { err: result.reason, projectId: p.id, workerId: workerIds[index] },
+        'could not remove worker workspace',
+      )
   }
+  await deleteCheckpoints(p.id).catch(err =>
+    logger.warn({ err, projectId: p.id }, 'could not delete workspace checkpoints'),
+  )
   publishProjectEvent(p.id, { type: 'deleted' })
-  await db.prisma.project.delete({ where: { id } })
 }
 
 // ── Sharing ───────────────────────────────────────────────────────────────────

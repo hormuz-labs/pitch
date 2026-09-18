@@ -118,6 +118,7 @@ export interface Project {
   shareSlug: string | null
   shareViews: number
   source: string
+  pinnedAt: string | null
   createdAt: string
   updatedAt: string
   /** Derived, never stored. */
@@ -297,7 +298,7 @@ export const getProject = (token: string, id: string) => api.get<ProjectDetail>(
 export const patchProject = (
   token: string,
   id: string,
-  data: { title?: string; options?: Record<string, any> },
+  data: { title?: string; options?: Record<string, any>; pinnedAt?: string | null },
 ) => api.patch<Project>(p(id), token, data)
 
 export const deleteProject = (token: string, id: string) => api.delete<null>(p(id), token)

@@ -96,9 +96,6 @@
 .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 190px; min-height: 34px; padding: 7px 25px 7px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--new-muted); font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
 .new-composer-wrap label:has(.model-btn) svg { right: 6px; color: var(--new-muted); width: 14px; }
 .lv-studio.new-project-page .model-btn option { background: var(--new-surface); color: var(--new-ink); }
-.lv-studio.new-project-page .generate-button { --generate-font-size: 13px; }
-.lv-studio.new-project-page .generate-button > .gen-btn { background-color: var(--button-color); color: #fff; }
-.lv-studio.new-project-page .generate-button > .gen-btn:hover:not(:disabled) { background-color: var(--button-color); }
 .lv-studio.new-project-page .new-preferences { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 3px 2px; padding-top: 10px; border-top: 1px solid var(--new-border); }
 .lv-studio.new-project-page .new-preferences button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 7px; border: 0; border-radius: 6px; background: var(--new-raised); color: var(--new-muted); font-size: 11px; }
 .lv-studio.new-project-page .new-preferences .new-skill-chip { background: var(--new-selected); color: var(--new-blue); }
@@ -234,7 +231,6 @@
   .new-featured__video > span { font-size: 12px; padding-inline: 2px; }
   .new-featured__image { border-radius: 12px; }
   .lv-studio.new-project-page .new-model-trigger { font-size: 12px; padding: 8px 6px; }
-  .lv-studio.new-project-page .generate-button { --generate-font-size: 12px; }
   .new-model-trigger span { max-width: 133px; }
   .new-featured__head { padding-left: 30px; }
 }

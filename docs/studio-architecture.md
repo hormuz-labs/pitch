@@ -34,7 +34,7 @@ Project {
   id            cuid
   userId        Clerk id (owner; the isolation boundary)
   flow          'studio' for everything new; the old values name workspaces already on disk
-  name          slug, unique per (userId, flow); the workspace dir name
+  name          slug, unique per user; the workspace dir name
   title         human title (host, topic, file name)
   prompt        the first message
   options       JSON  anything passed at creation (mostly empty — preferences are said in chat)
@@ -56,7 +56,7 @@ the registry; the directory is the truth.
 
 Status is derived, never stored: `working` while the session has a turn in
 flight, else `ready` when the workspace probe finds a preview or an output,
-else `empty`; `failed` when `lastError` is set and nothing newer exists.
+else `empty`; `failed` when `lastError` is set and no current artifact exists.
 
 Dropping a file with nothing typed is a normal way to start: the project
 opens with the upload as its preview and no turn is run, because you cannot
@@ -170,7 +170,7 @@ path-scoped `pitch_preview` cookie.
 
 ```
 GET    /projects                       list (derived status, outputs, thumbnail)
-POST   /projects                       { prompt, options?, uploads?[] } → creates it; runs the first turn only if `prompt` is non-empty → { project }
+POST   /projects                       { prompt, options?, uploads?[] } → creates it; runs the first turn only if `prompt` is non-empty → ProjectDetail
 GET    /projects/:id                   detail = Project + Description + busy
 DELETE /projects/:id                   abort, drop session, delete workspace
 POST   /projects/:id/prompt            { text, targets?, scene?, slide?, options?, delivery?: 'queue'|'steer' } → 202
@@ -192,7 +192,7 @@ GET    /music                          MusicTrack[]
 GET    /voices                         authenticated ElevenLabs catalog, search + pagination + preview URLs
 POST   /uploads                        multipart → S3 URLs (used by "new project" for PDFs/images/videos)
 GET    /d/:slug, /projects/public/:slug   share page + payload
-/mcp, /v1                              create_project / get_project / list_projects / prompt_project (+ credits)
+/mcp, /v1                              create / prompt / get / list / export / credits / pricing
 /checkout /credits /users /api-keys /affiliate /newsletter /browser /webhooks /admin   carried over
 ```
 

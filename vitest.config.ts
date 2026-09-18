@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import solid from 'vite-plugin-solid'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -43,6 +44,19 @@ export default defineConfig({
           include: ['tests/**/*.test.ts'],
           exclude: [...configDefaults.exclude, 'tests/integration/**'],
           // Run sequentially — many share mocked module state.
+          sequence: { concurrent: false },
+          testTimeout: 15000,
+        },
+      },
+      {
+        plugins: [solid()],
+        server: { deps: { inline: ['@solidjs/router'] } },
+        test: {
+          name: 'web',
+          globals: true,
+          environment: 'happy-dom',
+          include: ['apps/web/tests/**/*.test.tsx'],
+          setupFiles: ['apps/web/tests/setup.ts'],
           sequence: { concurrent: false },
           testTimeout: 15000,
         },

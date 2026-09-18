@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/prerender.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "cd ../.. && vitest run --project web",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@clerk/clerk-js": "^5.109.2",
@@ -33,9 +35,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@solidjs/testing-library": "^0.8.10",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24.12.2",
     "eslint": "^10.2.1",
     "globals": "^17.5.0",
+    "happy-dom": "^20.14.5",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",

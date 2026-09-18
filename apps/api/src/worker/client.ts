@@ -22,7 +22,7 @@ import { IS_WORKER, WORKER_ID, WORKER_TOKEN } from './config.js'
 import { serveWorkspaceFile } from './files.js'
 import type { PromptOptions, PromptProjectResult, RollbackProjectResult } from './host.js'
 import * as host from './host.js'
-import { acquire, ownerOf, type WorkerRow } from './lease.js'
+import { acquire, ownerOf, type WorkerRow, workerById } from './lease.js'
 
 const logger = createLogger('studio:worker-client')
 
@@ -100,7 +100,7 @@ const local: WorkerClient = {
     host.emit(id, ev)
   },
   release: host.release,
-  remove: row => host.remove(row.id, row),
+  remove: host.remove,
   async file(row, req, res, next) {
     const dir = await host.workspaceDir(row)
     serveWorkspaceFile(dir, req, res, next)
@@ -282,8 +282,19 @@ function remote(w: WorkerRow): WorkerClient {
         )
       })
       if (!res.ok || !res.body) {
-        const detail = await res.text().catch(() => '')
-        throw new WorkerError(detail || `worker answered ${res.status}`, res.status)
+        const type = res.headers.get('content-type') ?? ''
+        let detail: any = {}
+        try {
+          detail = type.includes('json') ? await res.json() : { error: await res.text() }
+        } catch {
+          /* empty body */
+        }
+        throw new WorkerError(
+          String(detail?.error ?? `worker answered ${res.status}`),
+          res.status,
+          detail?.code,
+          detail?.balance,
+        )
       }
       // Consumed in the background: the caller keeps its response open and
       // ends it when `signal` aborts (the browser went away).
@@ -323,7 +334,7 @@ function remote(w: WorkerRow): WorkerClient {
     },
     emit: (id, ev) => call(w, 'POST', pathOf(id, '/emit'), { event: ev }, 10_000),
     release: id => call(w, 'POST', pathOf(id, '/release')),
-    remove: row => call(w, 'DELETE', pathOf(row.id)),
+    remove: row => call(w, 'DELETE', pathOf(row.id), { row }),
     file: (row, req, res) =>
       proxy(
         w,
@@ -338,6 +349,12 @@ function remote(w: WorkerRow): WorkerClient {
 
 function clientFor(w: WorkerRow): WorkerClient {
   return IS_WORKER && w.id === WORKER_ID ? local : remote(w)
+}
+
+/** Reach a known worker directly without acquiring or changing a project lease. */
+export async function clientForWorker(workerId: string): Promise<WorkerClient | null> {
+  const worker = await workerById(workerId)
+  return worker ? clientFor(worker) : null
 }
 
 const OWNER_CACHE_MS = 2000

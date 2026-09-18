@@ -26,6 +26,7 @@
     "check": "biome check",
     "check:fix": "biome check --write",
     "test": "vitest run --project unit",
+    "test:web": "vitest run --project web",
     "test:watch": "vitest --project unit",
     "test:integration": "vitest run --project integration",
     "dev:api": "bun --filter api dev",

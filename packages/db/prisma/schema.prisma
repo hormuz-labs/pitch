@@ -375,6 +375,7 @@ model Project {
   workspaceCheckpointAt DateTime?
   artifactKind          String?
   busyAt                DateTime?
+  pinnedAt              DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt()
   creditTransactions    CreditTransaction[]

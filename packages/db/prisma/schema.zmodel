@@ -531,6 +531,7 @@ model Project {
   // the current turn started (null when idle).
   artifactKind   String?
   busyAt         DateTime?
+  pinnedAt       DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

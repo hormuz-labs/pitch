@@ -2,466 +2,76 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Pitch API",
-    "version": "2.0.0",
-    "description": "Turn a product URL into a finished video. Projects are the resource: create one with a first prompt (charged by flow), poll it until status is ready, then send free follow-up prompts to the same agent. Full docs at https://trypitch.co/docs. An MCP server with the same capabilities is at https://api.trypitch.co/mcp.",
-    "contact": { "email": "support@trypitch.co", "url": "https://trypitch.co/docs" }
+    "version": "2.1.0",
+    "description": "Create, prompt, inspect, and export projects in one usage-metered studio."
   },
   "servers": [{ "url": "https://api.trypitch.co" }],
   "security": [{ "bearerAuth": [] }],
-  "tags": [
-    { "name": "Projects", "description": "Create, prompt, read and list projects" },
-    { "name": "Billing", "description": "Credits and prices" }
-  ],
   "paths": {
     "/v1/projects": {
       "post": {
-        "tags": ["Projects"],
         "summary": "Create a project",
-        "description": "Start a project and send its first prompt. Charges the flow's price at once: demo-video 3; launch-video 5 (720p), 8 (1080p, default) or 12 (4K) plus 1 with narration (default on); deck 1, or 2 when enhancing an upload (options.mode set); recording-edit 2. Refunded if the first turn ends with nothing usable. Every prompt after the first is free.",
-        "operationId": "createProject",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateProject" },
-              "examples": {
-                "demoVideo": {
-                  "summary": "Demo video from a URL",
-                  "value": {
-                    "flow": "demo-video",
-                    "prompt": "https://trypitch.co — walk through sign-up and the first render. Keep it under 60 seconds."
-                  }
-                },
-                "launchVideo": {
-                  "summary": "720p launch film, narrated",
-                  "value": {
-                    "flow": "launch-video",
-                    "prompt": "https://acme.com — 60 second launch film for an AI notetaker. Confident, fast.",
-                    "options": { "resolution": "720p" }
-                  }
-                },
-                "deckEnhance": {
-                  "summary": "Redesign an uploaded deck",
-                  "value": {
-                    "flow": "deck",
-                    "prompt": "Modernise it, keep the story",
-                    "options": { "mode": "recreate" },
-                    "uploads": [{ "fileBase64": "JVBERi0xLjQK...", "fileName": "deck.pdf" }]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": { "$ref": "#/components/responses/Project" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "402": { "$ref": "#/components/responses/InsufficientCredits" },
-          "413": { "$ref": "#/components/responses/TooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedType" },
-          "428": { "$ref": "#/components/responses/OnboardingRequired" }
-        }
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProject" } } } },
+        "responses": { "202": { "$ref": "#/components/responses/Project" }, "400": { "$ref": "#/components/responses/Error" }, "402": { "$ref": "#/components/responses/Error" }, "413": { "$ref": "#/components/responses/Error" }, "415": { "$ref": "#/components/responses/Error" } }
       },
       "get": {
-        "tags": ["Projects"],
         "summary": "List projects",
-        "description": "Your projects, newest first. Free. The list carries every project field except scenes and slides.",
-        "operationId": "listProjects",
-        "parameters": [
-          {
-            "name": "flow",
-            "in": "query",
-            "schema": { "$ref": "#/components/schemas/Flow" }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": { "type": "integer", "default": 50, "maximum": 100, "minimum": 1 }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Projects owned by the key holder",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/Project" }
-                    },
-                    "total": { "type": "integer" }
-                  }
-                }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
-        }
+        "parameters": [{ "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } }],
+        "responses": { "200": { "description": "Projects and the total before limiting", "content": { "application/json": { "schema": { "type": "object", "required": ["data", "total"], "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } }, "total": { "type": "integer" } } } } } } }
       }
     },
     "/v1/projects/{id}": {
-      "get": {
-        "tags": ["Projects"],
-        "summary": "Get a project",
-        "description": "One project with its outputs and, from the live workspace, scenes (video flows) or slides (decks). Free. This is what you poll: every 10 seconds until status is no longer working.",
-        "operationId": "getProject",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" },
-            "example": "cm4x8k2p90001abcd"
-          }
-        ],
-        "responses": {
-          "200": { "$ref": "#/components/responses/Project" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
+      "get": { "summary": "Get a project", "parameters": [{ "$ref": "#/components/parameters/ProjectId" }], "responses": { "200": { "$ref": "#/components/responses/Project" }, "404": { "$ref": "#/components/responses/Error" } } }
     },
     "/v1/projects/{id}/prompt": {
       "post": {
-        "tags": ["Projects"],
-        "summary": "Send a follow-up prompt",
-        "description": "Send the project's agent another message: edits, changes, another take. Free. The agent works asynchronously; the response is the project with status working. Returns 409 while the previous turn is still running.",
-        "operationId": "promptProject",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" },
-            "example": "cm4x8k2p90001abcd"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["text"],
-                "properties": {
-                  "text": {
-                    "type": "string",
-                    "description": "What to change",
-                    "example": "Cut the intro shorter and slow the narration down a little."
-                  },
-                  "scene": {
-                    "type": "string",
-                    "description": "A scene id from the project's scenes, to scope the request"
-                  },
-                  "slide": { "type": "integer", "description": "A 1-based slide index, for decks" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": { "$ref": "#/components/responses/Project" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "409": { "$ref": "#/components/responses/Busy" }
-        }
+        "summary": "Send a usage-metered prompt",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string", "minLength": 1 }, "scene": { "type": "string" }, "slide": { "type": "integer" }, "delivery": { "enum": ["queue", "steer"] } } } } } },
+        "responses": { "202": { "$ref": "#/components/responses/Project" }, "400": { "$ref": "#/components/responses/Error" }, "402": { "$ref": "#/components/responses/Error" }, "404": { "$ref": "#/components/responses/Error" } }
       }
     },
-    "/v1/credits": {
-      "get": {
-        "tags": ["Billing"],
-        "summary": "Get credit balance",
-        "description": "Balance, plan, and the 20 most recent ledger entries. Free.",
-        "operationId": "getCredits",
-        "responses": {
-          "200": {
-            "description": "Balance and recent transactions",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "balance": { "type": "number", "example": 42 },
-                    "plan": { "type": ["string", "null"], "example": "pro" },
-                    "transactions": {
-                      "type": "array",
-                      "description": "20 most recent, newest first. Negative amounts are spend",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "amount": { "type": "number" },
-                          "reason": { "type": "string" },
-                          "projectId": { "type": ["string", "null"] },
-                          "createdAt": { "type": "string", "format": "date-time" }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
-        }
-      }
+    "/v1/projects/{id}/export": {
+      "post": {
+        "summary": "Start an export",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "res": { "enum": ["720p", "1080p", "4k"] } } } } } },
+        "responses": { "202": { "$ref": "#/components/responses/Export" }, "402": { "$ref": "#/components/responses/Error" }, "404": { "$ref": "#/components/responses/Error" } }
+      },
+      "get": { "summary": "Get export status", "parameters": [{ "$ref": "#/components/parameters/ProjectId" }], "responses": { "200": { "$ref": "#/components/responses/Export" }, "404": { "$ref": "#/components/responses/Error" } } }
     },
-    "/v1/pricing": {
-      "get": {
-        "tags": ["Billing"],
-        "summary": "Get credit prices",
-        "description": "Current price of each flow, the launch video tiers, and deck generate versus enhance. No key needed.",
-        "operationId": "getPricing",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Prices in credits",
-            "content": {
-              "application/json": {
-                "example": {
-                  "flows": [
-                    { "id": "launch-video", "title": "Launch video", "credits": 9 },
-                    { "id": "demo-video", "title": "Demo video", "credits": 3 },
-                    { "id": "deck", "title": "Slide deck", "credits": 1 },
-                    { "id": "recording-edit", "title": "Recording edit", "credits": 2 }
-                  ],
-                  "launchVideo": {
-                    "tiers": [
-                      { "res": "720p", "credits": 5, "narrated": 6 },
-                      { "res": "1080p", "credits": 8, "narrated": 9 },
-                      { "res": "4k", "credits": 12, "narrated": 13 }
-                    ]
-                  },
-                  "deck": { "generate": 1, "enhance": 2 },
-                  "edits": "Every prompt after the first is free."
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    "/v1/credits": { "get": { "summary": "Get credit summary", "responses": { "200": { "description": "Balance, plan, and recent transactions" } } } },
+    "/v1/pricing": { "get": { "summary": "Get usage-metering rates", "security": [], "responses": { "200": { "description": "Metering rates and indicative export tiers" } } } }
   },
   "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "Your Pitch API key, created at https://trypitch.co/api-keys. Send it as `Authorization: Bearer pk_...`. The header `X-API-Key: pk_...` also works for clients that cannot set a bearer token."
-      }
-    },
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "description": "Pitch pk_ API key; X-API-Key is also accepted." } },
+    "parameters": { "ProjectId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } },
     "schemas": {
-      "Flow": {
-        "type": "string",
-        "enum": ["launch-video", "demo-video", "deck", "recording-edit"]
-      },
-      "Upload": {
-        "type": "object",
-        "required": ["fileBase64", "fileName"],
-        "properties": {
-          "fileBase64": {
-            "type": "string",
-            "description": "Base64 of the file. Sizes are checked after decoding"
-          },
-          "fileName": {
-            "type": "string",
-            "description": "The extension decides the type",
-            "example": "deck.pdf"
-          }
-        }
-      },
       "CreateProject": {
         "type": "object",
-        "required": ["flow"],
         "properties": {
-          "flow": { "$ref": "#/components/schemas/Flow" },
-          "prompt": {
-            "type": "string",
-            "description": "What to make: the product URL and brief, the topic, the instructions. Required unless uploads is non-empty"
-          },
-          "options": {
-            "type": "object",
-            "description": "Flow options. launch-video: resolution (720p | 1080p default | 4k; sets the price), narration (boolean, default true; false saves 1 credit), music (track filename). demo-video: url, instructions, script, voice, background, shape, inset, browserHeader. deck: topic, slideCount, headings, template, mode (recreate | preserve; setting it makes the project an enhance of the uploaded deck). recording-edit: productName, productUrl, instructions.",
-            "additionalProperties": true,
-            "properties": {
-              "resolution": {
-                "type": "string",
-                "enum": ["720p", "1080p", "4k"],
-                "description": "launch-video"
-              },
-              "narration": { "type": "boolean", "description": "launch-video, default true" },
-              "music": { "type": "string", "description": "launch-video" },
-              "url": { "type": "string", "description": "demo-video; also read from the prompt" },
-              "instructions": { "type": "string", "description": "demo-video, recording-edit" },
-              "script": { "type": "string", "description": "demo-video" },
-              "voice": { "type": "string", "description": "demo-video" },
-              "topic": { "type": "string", "description": "deck" },
-              "slideCount": { "type": "integer", "description": "deck" },
-              "template": { "type": "string", "description": "deck" },
-              "mode": {
-                "type": "string",
-                "enum": ["recreate", "preserve"],
-                "description": "deck enhance"
-              },
-              "productName": { "type": "string", "description": "recording-edit, intro card" },
-              "productUrl": { "type": "string", "description": "recording-edit, outro card" }
-            }
-          },
-          "uploads": {
-            "type": "array",
-            "description": "deck: one .pdf or .pptx (50 MB). recording-edit: the recording, .mp4 .webm .mov .mkv .avi (500 MB). demo-video: optional .pdf .png .jpg .jpeg .webp assets (50 MB each)",
-            "items": { "$ref": "#/components/schemas/Upload" }
-          },
-          "name": {
-            "type": "string",
-            "description": "Workspace slug, unique per flow. Made from the title if omitted. No slashes, cannot start with a dot",
-            "example": "acme-launch"
-          }
+          "flow": { "enum": ["launch-video", "demo-video", "deck", "recording-edit"], "deprecated": true, "description": "Compatibility hint; accepted but ignored." },
+          "prompt": { "type": "string", "description": "Required unless uploads is non-empty." },
+          "options": { "type": "object", "additionalProperties": true },
+          "uploads": { "type": "array", "items": { "$ref": "#/components/schemas/Upload" } },
+          "name": { "type": "string" }
         }
       },
+      "Upload": { "type": "object", "required": ["fileBase64", "fileName"], "properties": { "fileBase64": { "type": "string" }, "fileName": { "type": "string" } } },
       "Project": {
         "type": "object",
+        "required": ["id", "title", "status", "busy", "outputs"],
         "properties": {
-          "id": { "type": "string", "example": "cm4x8k2p90001abcd" },
-          "flow": { "$ref": "#/components/schemas/Flow" },
-          "title": {
-            "type": "string",
-            "description": "Derived from the prompt, URL, topic, or file name"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["working", "ready", "failed", "empty"],
-            "description": "Derived, never stored. working while the agent has a turn in flight; ready when there is a preview or an output; failed when the last turn produced nothing (see error); empty otherwise"
-          },
-          "busy": { "type": "boolean", "description": "True while status is working" },
-          "prompt": { "type": "string", "description": "The first message" },
-          "options": { "type": "object", "additionalProperties": true },
-          "outputs": {
-            "type": "array",
-            "description": "Newest first. Every render is kept, so take the first entry of the kind you want",
-            "items": { "$ref": "#/components/schemas/Output" }
-          },
-          "thumbnailUrl": { "type": ["string", "null"], "description": "Poster frame for videos" },
-          "shareUrl": {
-            "type": ["string", "null"],
-            "description": "Only if sharing was turned on in the app"
-          },
-          "error": { "type": ["string", "null"], "description": "Set when status is failed" },
-          "scenes": {
-            "type": "array",
-            "description": "Video flows. From the live workspace; not on the list endpoint",
-            "items": { "$ref": "#/components/schemas/Scene" }
-          },
-          "slides": {
-            "type": "array",
-            "description": "Decks. From the live workspace; not on the list endpoint",
-            "items": { "$ref": "#/components/schemas/Slide" }
-          },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "id": { "type": "string" }, "title": { "type": "string" }, "status": { "enum": ["working", "ready", "failed", "empty"] }, "busy": { "type": "boolean" }, "prompt": { "type": "string" }, "options": { "type": "object" }, "outputs": { "type": "array", "items": { "type": "object" } }, "thumbnailUrl": { "type": ["string", "null"] }, "shareUrl": { "type": ["string", "null"] }, "error": { "type": ["string", "null"] }, "scenes": { "type": "array" }, "slides": { "type": "array" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" }
         }
       },
-      "Output": {
-        "type": "object",
-        "required": ["kind", "url", "createdAt"],
-        "properties": {
-          "kind": { "type": "string", "enum": ["video", "pdf", "html", "thumbnail"] },
-          "url": { "type": "string" },
-          "res": { "type": "string", "description": "Launch video renders: 720p | 1080p | 4k" },
-          "label": {
-            "type": "string",
-            "description": "e.g. raw for a demo video's uncut recording"
-          },
-          "createdAt": { "type": "string", "format": "date-time" }
-        }
-      },
-      "Scene": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "index": { "type": "integer" },
-          "start": { "type": "number" },
-          "end": { "type": "number" },
-          "dur": { "type": "number" },
-          "label": { "type": ["string", "null"] },
-          "type": { "type": ["string", "null"] }
-        }
-      },
-      "Slide": {
-        "type": "object",
-        "properties": {
-          "index": { "type": "integer", "description": "1-based" },
-          "title": { "type": ["string", "null"] }
-        }
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "object",
-            "required": ["code", "message"],
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "invalid_request",
-                  "unauthorized",
-                  "insufficient_credits",
-                  "not_found",
-                  "busy",
-                  "payload_too_large",
-                  "unsupported_media_type",
-                  "onboarding_required",
-                  "internal_error"
-                ]
-              },
-              "message": { "type": "string" },
-              "balance": { "type": "number", "description": "Present on insufficient_credits" }
-            }
-          }
-        }
-      }
+      "ExportStatus": { "type": "object", "properties": { "running": { "type": "boolean" }, "res": { "type": ["string", "null"] }, "url": { "type": ["string", "null"] }, "progress": { "type": "number" }, "stage": { "type": "string" }, "error": { "type": ["string", "null"] } } },
+      "Error": { "type": "object", "properties": { "error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "balance": { "type": "number" } } } } }
     },
     "responses": {
-      "Project": {
-        "description": "The project",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } }
-      },
-      "BadRequest": {
-        "description": "A field is missing, the wrong type, or out of range",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "Unauthorized": {
-        "description": "The API key is missing, unknown, or revoked",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "InsufficientCredits": {
-        "description": "The balance cannot cover the project. Nothing was created or charged",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "NotFound": {
-        "description": "No such project, or it belongs to someone else",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "Busy": {
-        "description": "The agent is still on the previous turn. Poll until status is no longer working, then retry",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "TooLarge": {
-        "description": "The decoded file is over the limit",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "UnsupportedType": {
-        "description": "The file extension is not accepted for that flow",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "OnboardingRequired": {
-        "description": "The account has never finished onboarding in the app. Sign in at trypitch.co once and complete it",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      }
+      "Project": { "description": "Project", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+      "Export": { "description": "Export status", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportStatus" } } } },
+      "Error": { "description": "Error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     }
   }
 }

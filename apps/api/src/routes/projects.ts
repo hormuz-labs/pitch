@@ -4,26 +4,14 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { IDLE_EXPORT } from '../projects/export.js'
 import * as projects from '../projects/service.js'
-import { isFlowId } from '../studio/paths.js'
 import { listStudioModels } from '../studio/session.js'
 import { readCover } from '../worker/checkpoint.js'
-import { currentOwner, ownerFor, withOwner } from '../worker/client.js'
+import { currentOwner, withOwner } from '../worker/client.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
-
-/** What an export looks like on a project no worker holds: nothing running. */
-const IDLE_EXPORT = {
-  running: false,
-  res: null,
-  url: null,
-  progress: 0,
-  stage: 'idle',
-  error: null,
-  startedAt: null,
-  finishedAt: null,
-}
 
 function fail(res: express.Response, err: any, what: string) {
   const status = err?.status ?? (err?.code === 'BUSY' ? 409 : 500)
@@ -37,9 +25,7 @@ router.get('/', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
-    const flow =
-      typeof req.query.flow === 'string' && isFlowId(req.query.flow) ? req.query.flow : undefined
-    res.json(await projects.listProjects(userId, flow))
+    res.json(await projects.listProjects(userId))
   } catch (err) {
     fail(res, err, 'list projects failed')
   }
@@ -278,8 +264,7 @@ router.get('/:id/events', async (req, res) => {
     gone.abort()
   })
   try {
-    const owner = await ownerFor(p.id)
-    await owner.events(p.id, send, gone.signal)
+    await withOwner(p.id, owner => owner.events(p.id, send, gone.signal))
   } catch (err: any) {
     if (gone.signal.aborted) return
     logger.warn({ err, projectId: p.id }, 'could not attach to the project stream')
