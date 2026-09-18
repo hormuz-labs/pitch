@@ -81,6 +81,18 @@ describe('Studio UI style contract', () => {
     )
   })
 
+  it('uses the full chat-only surface with centered readable content', () => {
+    expect(previewCss).toMatch(
+      /\.lv-studio\.is-chat-only \.edit-sidebar\s*\{[^}]*--chat-content-width:\s*900px;[^}]*width:\s*100%;[^}]*max-width:\s*none;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.lv-studio\.is-chat-only \.feed > \.thread\s*\{[^}]*max-width:\s*var\(--chat-content-width\);[^}]*margin-inline:\s*auto;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.lv-studio\.is-chat-only \.studio-composer-dock\s*\{[^}]*max-width:\s*calc\(var\(--chat-content-width\) \+ var\(--chat-inset\) \+ var\(--chat-inset\)\);[^}]*margin-inline:\s*auto;/s,
+    )
+  })
+
   it('uses a borderless add icon and a fixed circular send control', () => {
     expect(css).toMatch(
       /\.lv-studio:not\(\.new-project-page\) \.job-attach-plus\s*\{[^}]*width:\s*32px;[^}]*border:\s*0;[^}]*background:\s*transparent;/s,

@@ -20,8 +20,9 @@
 .lv-studio.is-chat-only .editor { padding: 0; gap: 0; justify-content: center; }
 .lv-studio.is-chat-only .edit-sidebar {
   --chat-inset: 24px;
+  --chat-content-width: 900px;
   width: 100%;
-  max-width: 800px;
+  max-width: none;
   min-width: 0;
   min-height: 0;
   flex: 1 1 0;
@@ -42,6 +43,16 @@
   border-radius: 0;
   background: transparent;
   clip-path: none;
+}
+.lv-studio.is-chat-only .feed > .thread {
+  width: 100%;
+  max-width: var(--chat-content-width);
+  margin-inline: auto;
+}
+.lv-studio.is-chat-only .studio-composer-dock {
+  width: 100%;
+  max-width: calc(var(--chat-content-width) + var(--chat-inset) + var(--chat-inset));
+  margin-inline: auto;
 }
 .lv-studio .feed[hidden] { display: none; }
 .lv-studio .composer-queue { display: grid; gap: 6px; max-height: 180px; overflow-y: auto; margin-bottom: 8px; }

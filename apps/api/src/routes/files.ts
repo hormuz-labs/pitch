@@ -23,12 +23,21 @@ export { inspectorTag } from '../worker/files.js'
 export const router = express.Router()
 
 function previewAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  let userId = verifyPreviewGrant(req.cookies?.[PREVIEW_COOKIE])
+  // Authentication and ownership failures happen before the worker's static
+  // handler, so protect those responses from becoming persistent cached 404s.
+  res.setHeader('Cache-Control', 'no-store')
+  // An explicit session token is authoritative. A signed preview cookie may
+  // belong to a previous account in the same browser; preferring it would
+  // mask every valid file request for the current account as a 404.
+  const explicitAuth = !!req.headers.authorization
+  const cookieUserId = explicitAuth ? null : verifyPreviewGrant(req.cookies?.[PREVIEW_COOKIE])
+  let userId = explicitAuth ? requireAuth(req, res) : cookieUserId
+  if (explicitAuth && !userId) return
   if (!userId) {
     userId = requireAuth(req, res)
     if (!userId) return
-    setPreviewCookie(req, res, userId)
   }
+  if (!cookieUserId) setPreviewCookie(req, res, userId)
   ;(req as any).previewUserId = userId
   next()
 }
