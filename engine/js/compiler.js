@@ -1388,8 +1388,14 @@
   window.ShotEngine = { compile };
 
   function boot() {
-    if (!window.SHOTS) throw new Error("window.SHOTS is not defined");
-    compile(window.SHOTS);
+    try {
+      if (!window.SHOTS) throw new Error("window.SHOTS is not defined");
+      compile(window.SHOTS);
+    } catch (error) {
+      window.__BOOT_ERROR = error && (error.stack || error.message) || String(error);
+      console.error("[compiler] boot failed", error);
+      throw error;
+    }
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

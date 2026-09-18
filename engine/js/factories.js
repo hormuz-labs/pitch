@@ -19,6 +19,9 @@
     if (!n) throw new Error("missing " + sel + " in #" + root.id);
     return n;
   }
+  function qsa(root, sel) {
+    return Array.from(root.querySelectorAll(sel));
+  }
   function splitChars(el, text) {
     el.textContent = "";
     const chars = [];
@@ -1329,7 +1332,7 @@
   }
 
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap };
+  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },

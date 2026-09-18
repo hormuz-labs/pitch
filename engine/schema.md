@@ -282,7 +282,7 @@ and never a rewrite of every type:
 ```js
 // js/shots/split-compare.js
 (function () {
-  const { h, qs, splitChars, mixedLine, rng, EASE } = window.ShotKit;
+  const { h, qs, qsa, splitChars, mixedLine, rng, EASE } = window.ShotKit;
   window.ProjectShotFactories = Object.assign(window.ProjectShotFactories || {}, {
     "split-compare": {
       mount(el, shot, spec) { el.dataset.bg = shot.bg || "bg"; el.appendChild(h(`…`)); },
@@ -291,6 +291,11 @@ and never a rewrite of every type:
   });
 })();
 ```
+
+`h(html)` returns the first root element, so its markup must have exactly one
+outer wrapper. `qs(root, selector)` returns one required element and throws a
+clear error when it is missing; `qsa(root, selector)` returns an array of all
+matches for GSAP targets.
 
 (A single `js/shots.custom.js` + `css/custom.css` from an older project still
 loads.)

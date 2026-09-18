@@ -54,11 +54,23 @@ page.on("pageerror", e => errors.push(e.message));
 page.on("console", m => { if (m.type() === "error") errors.push(`console: ${m.text()}`); });
 await page.goto(localPageUrl(page_), { waitUntil: "domcontentloaded" });
 try {
-  await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+  await page.waitForFunction("window.__READY === true || Boolean(window.__BOOT_ERROR)", null, { timeout: 30000 });
 } catch {
+  // Read the state below. A missing compiler still needs the generic timeout
+  // diagnosis, while an authored compile exception is now available directly.
+}
+const readiness = await page.evaluate(() => ({
+  ready: window.__READY === true,
+  bootError: window.__BOOT_ERROR || null,
+})).catch(() => ({ ready: false, bootError: null }));
+if (!readiness.ready) {
   await studio.close();
+  const failures = [...new Set([
+    ...(readiness.bootError ? [`compiler: ${readiness.bootError}`] : []),
+    ...errors,
+  ])];
   console.error(`❌ window.__READY never became true in ${page_}` +
-    (errors.length ? `\n   page errors:\n   - ${errors.join("\n   - ")}` : "\n   (no page error was thrown — is compiler.js loaded last, and does shots.js define window.SHOTS?)"));
+    (failures.length ? `\n   page errors:\n   - ${failures.join("\n   - ")}` : "\n   (no page error was thrown — is compiler.js loaded last, and does shots.js define window.SHOTS?)"));
   process.exit(1);
 }
 

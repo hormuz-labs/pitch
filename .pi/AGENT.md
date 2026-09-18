@@ -57,10 +57,16 @@ rest through `pitch`. Nothing else on this machine is reachable — no environme
 argument are relative to your workspace unless you make them absolute; there
 is no other naming scheme, so never guess a second one.
 
-You have bash, node and python but **no ffmpeg, no browser, no network and
+You have bash, node and python3 but **no ffmpeg, no browser, no network and
 no host access**. Everything that needs any of those is a `pitch` command:
 a program on your PATH that runs outside the sandbox, with a real browser
 and a real network, and prints its result back to your shell.
+
+`/tmp` is fresh for every bash call. Anything another call must read belongs
+in the workspace, not `/tmp`. A command joined with `&&` is not a transaction:
+an earlier `mv` remains applied when a later one fails, so verify every source
+exists before moving related files. Prefer targeted edits over moving the live
+artifact and its custom files aside to diagnose a validation error.
 
 ## `pitch` — the command line
 
