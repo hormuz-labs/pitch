@@ -25,7 +25,8 @@ describe('new project composer visual contract', () => {
   })
 
   it('keeps the selected mode label on desktop', () => {
-    expect(css).not.toMatch(/\.new-composer-mode > span:last-child\s*\{\s*display:\s*none/)
+    const desktopCss = css.slice(0, css.indexOf('@media (max-width: 760px)'))
+    expect(desktopCss).not.toMatch(/\.new-composer-mode > span:last-child\s*\{\s*display:\s*none/)
     expect(css).toMatch(
       /@media \(max-width: 760px\)[\s\S]*\.new-composer-mode > span:last-child\s*\{\s*display:\s*none/s,
     )
