@@ -433,14 +433,30 @@ export async function prompt(
   }
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
-  const context = () =>
-    agent.context(ws, {
+  const turnOptions = { ...p.options, ...(opts.options ?? {}), model }
+  let preparedTurnOptions = false
+  const context = async () => {
+    // PromptSession may defer queued work. Stage a UI-selected soundtrack only
+    // when this turn actually starts, never over a render already in flight.
+    if (!preparedTurnOptions && opts.options && Object.keys(opts.options).length) {
+      preparedTurnOptions = true
+      p.options = turnOptions
+      await Promise.all([
+        db.prisma.project.update({
+          where: { id: p.id },
+          data: { options: JSON.stringify(turnOptions) },
+        }),
+        agent.prepare(ws, turnOptions, []),
+      ])
+    }
+    return agent.context(ws, {
       first,
-      options: { ...p.options, ...(opts.options ?? {}) },
+      options: turnOptions,
       targets: opts.targets,
       scene: opts.scene ?? null,
       slide: opts.slide ?? null,
     })
+  }
   // This turn's pick wins; otherwise the project keeps running on the model
   // it was created (or last prompted) with.
   if (p.options?.model !== model) {

@@ -66,6 +66,12 @@ export interface StudioModel {
   harnessCredits: number
   videoCreditsPer30Seconds?: number
 }
+export interface MusicTrack {
+  name: string
+  file: string
+  url: string
+  duration: number | null
+}
 export interface AskQuestion {
   id: string
   bind?: 'videoType' | 'durationSeconds'

@@ -5,6 +5,7 @@ import type {
   Entry,
   ExportStatus,
   FlowId,
+  MusicTrack,
   ProjectDetail,
   ProjectSummary,
   StudioModel,
@@ -36,6 +37,7 @@ const p = (id: string) => `/projects/${encodeURIComponent(id)}`
 export const studio = {
   models: (token: string) =>
     api.get<{ default: string; models: StudioModel[] }>('/projects/models', token),
+  music: (token: string) => api.get<MusicTrack[]>('/music', token),
   get: (token: string, id: string) => api.get<ProjectDetail>(p(id), token),
   patch: (token: string, id: string, data: { title?: string; pinnedAt?: string | null }) =>
     api.patch<ProjectSummary>(p(id), token, data),
@@ -93,4 +95,13 @@ export const studio = {
   deleteAsset: (token: string, id: string, path: string) =>
     api.delete<{ removed: boolean }>(`${p(id)}/assets?path=${encodeURIComponent(path)}`, token),
 }
-export type { Asset, Entry, ExportStatus, FlowId, ProjectDetail, StudioModel, UploadRef }
+export type {
+  Asset,
+  Entry,
+  ExportStatus,
+  FlowId,
+  MusicTrack,
+  ProjectDetail,
+  StudioModel,
+  UploadRef,
+}

@@ -6,7 +6,7 @@
 
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readdir } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { ensureMix } from '../../lib/mix.js'
@@ -14,7 +14,7 @@ import { nodeBinary } from '../../lib/node.js'
 import { registerExporter } from '../../projects/export.js'
 import { emitProjectEvent, onProjectEvent } from '../../studio/events.js'
 import { registerHostAction } from '../../studio/host-actions.js'
-import { MOTION_SCRIPTS_DIR, MUSIC_DIR, SKILLS_DIR, type Workspace } from '../../studio/paths.js'
+import { MOTION_SCRIPTS_DIR, SKILLS_DIR, type Workspace } from '../../studio/paths.js'
 import type { UploadRef } from '../types.js'
 import { launchExporter } from './export.js'
 
@@ -32,15 +32,6 @@ const FIRST_TURN_BRIEF =
   'in small batches, saving after each — the user watches the film grow shot by shot. Do not ' +
   'render an MP4. Only stop early if a hard requirement is missing (e.g. you cannot access the ' +
   'product at all).'
-
-export async function stageMusic(ws: Workspace, music: string): Promise<string | null> {
-  const file = path.basename(music)
-  const src = path.join(MUSIC_DIR, file)
-  if (!existsSync(src)) return null
-  await mkdir(path.join(ws.dir, 'audio'), { recursive: true })
-  await copyFile(src, path.join(ws.dir, 'audio', file))
-  return file
-}
 
 function hostOf(prompt: string): string | null {
   const m =

@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router'
-import { ChevronDown, ChevronUp, MonitorPlay, MoreHorizontal, Share2 } from 'lucide-solid'
+import { ChevronDown, ChevronUp, MonitorPlay, MoreHorizontal, Music2, Share2 } from 'lucide-solid'
 import {
   createEffect,
   createMemo,
@@ -9,6 +9,7 @@ import {
   Match,
   onCleanup,
   onMount,
+  type ParentProps,
   Show,
   Switch,
 } from 'solid-js'
@@ -17,6 +18,7 @@ import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { type EditableFormat, type ExportResolution, exportFilename } from './editable-export'
 import { animateToLatest, FeedJumpLatest, isAwayFromLatest } from './FeedJumpLatest'
+import { MusicPicker } from './MusicPicker'
 import { BrowserPreview } from './previews/BrowserPreview'
 import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
@@ -106,7 +108,7 @@ const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[
   { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
   { format: 'blender', label: 'Blender', note: 'Native text, images + fallback' },
 ]
-export function Actions(props: { store: ProjectStore }) {
+export function Actions(props: ParentProps<{ store: ProjectStore }>) {
   const s = props.store,
     [open, setOpen] = createSignal(false),
     [resolution, setResolution] = createSignal<ExportResolution>('1080p'),
@@ -181,6 +183,7 @@ export function Actions(props: { store: ProjectStore }) {
     (!s.exportStatus?.running && Boolean(s.project?.description.outputs?.length))
   return (
     <span class="topbar-actions">
+      {props.children}
       <button
         type="button"
         class="topbar-btn topbar-share"
@@ -401,6 +404,7 @@ export function StudioView(props: { projectId: string }) {
     [previewCollapsed, setPreviewCollapsed] = createSignal(false),
     [showJumpToLatest, setShowJumpToLatest] = createSignal(false),
     [timelineOpen, setTimelineOpen] = createSignal(true),
+    [musicOpen, setMusicOpen] = createSignal(false),
     [view, setView] = createSignal<'preview' | 'files'>('preview'),
     [sidebar, setSidebar] = createSignal(
       typeof window === 'undefined' ? 440 : Math.min(520, Math.max(400, innerWidth * 0.34)),
@@ -491,6 +495,14 @@ export function StudioView(props: { projectId: string }) {
       s.assets.some(asset => asset.kind === 'image' && asset.origin !== 'upload')
     )
   })
+  const hasVideoSoundtrack = createMemo(() => {
+    if (s.project?.description.preview?.kind === 'html') return true
+    const published = (s.project?.outputs ?? []).some(output => output.kind === 'video')
+    const workspaceRender = (s.project?.description.outputs ?? []).some(
+      output => output.kind === 'video' && /\/renders\//.test(output.url),
+    )
+    return published || workspaceRender
+  })
   const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
   const previewHidden = () => mobileLayout() && previewCollapsed()
   const previewLabel = () =>
@@ -576,7 +588,20 @@ export function StudioView(props: { projectId: string }) {
                   </Show>
                 </div>
                 <Show when={hasPreview()}>
-                  <Actions store={s} />
+                  <Actions store={s}>
+                    <Show when={hasVideoSoundtrack()}>
+                      <button
+                        type="button"
+                        class="topbar-btn soundtrack-button"
+                        disabled={s.busy || s.exportPending || Boolean(s.exportStatus?.running)}
+                        title="Change the background music"
+                        onClick={() => setMusicOpen(true)}
+                      >
+                        <Music2 size={15} />
+                        <span>Soundtrack</span>
+                      </button>
+                    </Show>
+                  </Actions>
                 </Show>
               </div>
             </header>
@@ -770,6 +795,25 @@ export function StudioView(props: { projectId: string }) {
                 </Show>
               </div>
             </div>
+            <Show when={musicOpen()}>
+              <MusicPicker
+                current={
+                  typeof s.project?.options.music === 'string' ? s.project.options.music : undefined
+                }
+                getToken={s.getToken}
+                mediaUrl={s.mediaUrl}
+                onClose={() => setMusicOpen(false)}
+                onApply={track => {
+                  setMusicOpen(false)
+                  void s.send(
+                    `Change the background music to "${track.name}". Keep the visuals, edits, narration, and timing intact; update the current preview and any subsequent render to use this track.`,
+                    {
+                      options: { music: track.file },
+                    },
+                  )
+                }}
+              />
+            </Show>
           </div>
         </Show>
       </Show>

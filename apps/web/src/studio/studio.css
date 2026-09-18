@@ -583,6 +583,117 @@
   padding: 16px;
   text-align: center;
 }
+.lv-studio .music-picker-backdrop {
+  backdrop-filter: blur(8px);
+}
+.lv-studio .music-picker {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+}
+.lv-studio .music-picker-header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.lv-studio .music-picker-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.lv-studio .music-picker-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.lv-studio .music-picker-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--panel-2);
+}
+.lv-studio .music-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--panel);
+}
+.lv-studio .music-picker-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+}
+.lv-studio .music-picker-list {
+  max-height: 390px;
+}
+.lv-studio .music-picker-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+  padding: 4px 0;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+}
+.lv-studio .music-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+}
+.lv-studio .music-picker-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.lv-studio .music-picker-apply {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 999px;
+  color: var(--paper);
+  background: var(--ink);
+  font-weight: 600;
+}
+.lv-studio .soundtrack-button {
+  gap: 6px;
+}
+@media (max-width: 640px) {
+  .lv-studio .music-picker {
+    padding: 16px;
+  }
+  .lv-studio .music-picker-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .lv-studio .music-picker-apply {
+    width: 100%;
+  }
+  .lv-studio .soundtrack-button span {
+    display: none;
+  }
+}
 /* --- Projects view ---------------------------------------------------------- */
 
 .lv-studio .project-picker {

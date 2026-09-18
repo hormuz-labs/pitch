@@ -5,10 +5,10 @@
  */
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { MUSIC_DIR } from '../studio/paths.js'
+import { MUSIC_DIR, type Workspace } from '../studio/paths.js'
 
 const execFileP = promisify(execFile)
 const AUDIO_EXT = new Set(['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'])
@@ -46,6 +46,25 @@ async function probeDuration(file: string): Promise<number | null> {
 
 export function musicUrl(file: string): string {
   return `/files/music/${encodeURIComponent(file)}`
+}
+
+/** Replace the workspace's canonical bed without exposing a partially copied file. */
+export async function stageMusic(ws: Workspace, music: string): Promise<string | null> {
+  const file = path.basename(music)
+  const src = path.join(MUSIC_DIR, file)
+  if (!existsSync(src)) return null
+  const audioDir = path.join(ws.dir, 'audio')
+  const destination = `music${path.extname(file).toLowerCase()}`
+  const temporary = path.join(audioDir, `.${destination}.${process.pid}.tmp`)
+  await mkdir(audioDir, { recursive: true })
+  await copyFile(src, temporary)
+  await rename(temporary, path.join(audioDir, destination))
+  await Promise.all(
+    (await readdir(audioDir))
+      .filter(name => /^music\.[a-z0-9]+$/i.test(name) && name !== destination)
+      .map(name => rm(path.join(audioDir, name), { force: true })),
+  )
+  return destination
 }
 
 export async function listMusic(): Promise<MusicTrack[]> {
