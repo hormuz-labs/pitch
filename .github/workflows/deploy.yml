@@ -28,6 +28,9 @@ jobs:
           bun install --global @playwright/cli@0.1.17
           bunx playwright install chromium
 
+      - name: Build workspace packages
+        run: bun --filter @saas/shared --filter @saas/storage --filter @saas/email --filter @saas/db build
+
       - name: Run all tests
         run: make test
 
