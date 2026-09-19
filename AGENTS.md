@@ -43,6 +43,12 @@ Rules:
 - `describe()` **looks** at the workspace and previews the newest artifact, so
   the preview follows the work. Do not reintroduce a stored notion of what a
   project "is".
+- The deck preview is a live editor: `deck.html` served with `?studio=1&edit=1`
+  carries `engine/js/deck-editor.js` (pure helpers in `deck-editor-lib.js`),
+  the Solid chrome lives in `apps/web/src/solid/studio/deck/`, and saves are
+  whole-document writes through `POST /projects/:id/deck` (free, runs no turn;
+  the export action flushes pending edits and calls `POST /projects/:id/deck/render`
+  before download, so autosaves stay fast and the PDF never lags the editor).
 - Dropping a file opens the editor: `POST /projects` with an empty prompt
   creates and seeds the project without running a turn. A target is one of
   three things: a DOM node, a time range on a video (`time` / `endTime`), or a

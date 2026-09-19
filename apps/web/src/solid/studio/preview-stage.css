@@ -107,10 +107,6 @@
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
-.lv-studio:not(.new-project-page):not(.is-chat-only) .edit-sidebar {
-  border: 0;
-  box-shadow: none;
-}
 @media (min-width: 721px) {
   .lv-studio:not(.is-chat-only) .editor { align-items: stretch; }
   .lv-studio:not(.is-chat-only) :is(.edit-sidebar, .editor-stage) {
@@ -135,8 +131,22 @@
   .lv-studio .mobile-preview-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
   .lv-studio .job-topbar :is(.project-kind, .project-state) { display: none; }
   .app-shell-bg:has(.lv-studio) { height: 100dvh; }
-  .lv-studio:not(.is-chat-only) .editor { position: relative; gap: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
-  .lv-studio:not(.is-chat-only) .edit-sidebar { display: none; }
+  .lv-studio:not(.is-chat-only) .editor {
+    flex-direction: column;
+    position: relative;
+    gap: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .lv-studio:not(.is-chat-only) .editor-stage {
+    order: 1;
+  }
+  .lv-studio:not(.is-chat-only) .resize-handle {
+    order: 2;
+  }
+  .lv-studio:not(.is-chat-only) .edit-sidebar {
+    order: 3;
+    display: none;
+  }
   .lv-studio:not(.is-chat-only).is-chat-expanded .edit-sidebar {
     display: flex;
     flex: 1 1 240px;
@@ -154,15 +164,56 @@
   .lv-studio .studio-preview-view > .player { flex: none; }
   .lv-studio .player-stage { height: auto; aspect-ratio: 16 / 9; }
   .lv-studio .player-stage:has(.live-preview, .video-container) { aspect-ratio: auto; }
+  .lv-studio:not(.is-chat-expanded) .player-stage:has(.deck-editor) { aspect-ratio: auto; }
   .lv-studio .live-preview:not(.is-fullscreen) { height: auto; }
   .lv-studio .live-preview:not(.is-fullscreen) .live-preview-stage,
   .lv-studio .native-preview:not(.is-fullscreen) { flex: none; aspect-ratio: 16 / 9; }
   .lv-studio .video-container { height: auto; }
   .lv-studio .studio-preview-view { overflow-y: auto; }
   .lv-studio:not(.new-project-page) .studio-preview-view > .tray { max-height: none; }
+  .lv-studio.is-chat-expanded .mobile-chat-toggle { position: sticky; bottom: 0; z-index: 30; }
+  .lv-studio .mobile-chat-toggle {
+    display: flex;
+    align-items: center;
+    order: 4;
+    flex: 0 0 52px;
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-surface);
+    color: var(--ink);
+    text-align: left;
+  }
+  .lv-studio .mobile-chat-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
+  .lv-studio .mobile-chat-toggle > svg, .lv-studio .mobile-chat-toggle > .spinner { flex: none; }
+  .lv-studio .mobile-chat-toggle__label { flex: none; font-size: 13px; font-weight: 600; }
+  .lv-studio .mobile-chat-toggle__status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+  .lv-studio:not(.is-chat-only).is-chat-expanded .edit-sidebar {
+    margin-bottom: 0;
+    border: 1px solid var(--border);
+    border-bottom-color: transparent;
+    border-radius: 20px 20px 0 0;
+  }
+  .lv-studio.is-chat-expanded .mobile-chat-toggle {
+    flex-basis: 42px;
+    width: auto;
+    margin: -8px 8px 0;
+    padding-inline: 14px;
+    border-top: 0;
+    border-radius: 0 0 20px 20px;
+  }
+  .lv-studio.is-chat-expanded .mobile-chat-toggle__status,
+  .lv-studio.is-chat-expanded .mobile-chat-toggle > svg:first-child {
+    display: none;
+  }
+  .lv-studio.is-chat-expanded .mobile-chat-toggle > svg:last-child { margin-left: auto; }
   .lv-studio .job-composer { max-height: 60%; overflow-y: auto; }
-  .lv-studio:not(.new-project-page) .job-composer-box { min-height: 100px; padding: 12px 12px 9px; border-radius: 22px; }
-  .lv-studio .job-composer-box textarea { min-height: 40px; font-size: 16px; max-height: min(180px, 30dvh); }
+  .lv-studio:not(.new-project-page) .job-composer-box { min-height: 84px; padding: 8px 10px; gap: 4px; border-radius: 20px; }
+  .lv-studio .job-composer-box textarea { height: 32px; min-height: 32px; font-size: 16px; max-height: min(140px, 24dvh); overflow-y: auto; }
+  .lv-studio .composer-suggestions { padding-block: 1px 3px; }
   .lv-studio .job-composer-footer { flex-wrap: nowrap; gap: 5px; }
   .lv-studio .job-composer-tools { flex: 1 1 auto; overflow: hidden; }
   .lv-studio .job-composer-actions { flex: 0 1 auto; min-width: 0; margin-left: auto; }

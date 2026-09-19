@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Deck editor regression fixture</title>
+    <style>
+      :root {
+        --bg: #f7f6f1;
+        --ink: #151515;
+        --muted: #65645f;
+        --primary: #df5b35;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #d8d7d1;
+        color: var(--ink);
+        font-family: Arial, sans-serif;
+      }
+      .slide {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      .content {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+        justify-content: center;
+        padding: 88px;
+      }
+      h1 {
+        max-width: 980px;
+        margin: 0;
+        font-size: 72px;
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+      }
+      p {
+        max-width: 760px;
+        margin: 24px 0 0;
+        color: var(--muted);
+        font-size: 28px;
+        line-height: 1.35;
+      }
+      .eyebrow {
+        margin-bottom: 22px;
+        color: var(--primary);
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .rule {
+        position: absolute;
+        right: 88px;
+        bottom: 72px;
+        left: 88px;
+        height: 2px;
+        background: var(--ink);
+        opacity: 0.12;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide"><div class="content"><span class="eyebrow">01</span><h1>Opening argument</h1><p>A representative generated slide with inline deck styles.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">02</span><h1>Problem</h1><p>Each slide must become a complete thumbnail document.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">03</span><h1>Context</h1><p>The bridge captures the shared head and an isolated slide clone.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">04</span><h1>Evidence</h1><p>Editor-only state is removed before capture and save.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">05</span><h1>Approach</h1><p>The regression fixture remains tracked and deterministic.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">06</span><h1>Workflow</h1><p>Slide indices stay one-based across the bridge protocol.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">07</span><h1>Details</h1><p>Inline styles are preserved in the thumbnail srcdoc.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">08</span><h1>Controls</h1><p>Editable text is wired only in the live document.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">09</span><h1>Quality</h1><p>Saved HTML must not contain studio scripts or auth tokens.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">10</span><h1>Outcome</h1><p>The same fixture works on every developer machine and in CI.</p><span class="rule"></span></div></section>
+    <section class="slide"><div class="content"><span class="eyebrow">11</span><h1>Close</h1><p>The deck remains editable, serializable, and portable.</p><span class="rule"></span></div></section>
+    <script>window.STUDIO_INSPECTOR={container:'.slide'}</script>
+    <script src="../../engine/js/inspector.js?token=fixture-secret"></script>
+    <script src="../../engine/js/deck-editor.js?token=fixture-secret"></script>
+    <script src="../../engine/js/deck-editor-lib.js?token=fixture-secret"></script>
+  </body>
+</html>

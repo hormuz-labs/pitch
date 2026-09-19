@@ -1,4 +1,25 @@
 import type { Entry, Target } from './types'
+
+export function shouldReturnEmptyProjectToNew(state: {
+  initialLoading: boolean
+  loadFailed: boolean
+  projectStatus: 'empty' | 'working' | 'ready' | 'failed' | null
+  busy: boolean
+  entryCount: number
+  assetCount: number
+  hasPreview: boolean
+}): boolean {
+  return (
+    !state.initialLoading &&
+    !state.loadFailed &&
+    state.projectStatus === 'empty' &&
+    !state.busy &&
+    state.entryCount === 0 &&
+    state.assetCount === 0 &&
+    !state.hasPreview
+  )
+}
+
 export const fmt = (t: number) => {
   const m = Math.floor(t / 60)
   const s = (t % 60).toFixed(1).padStart(4, '0')

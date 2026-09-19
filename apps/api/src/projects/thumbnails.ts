@@ -25,13 +25,27 @@ export async function getBrowser(): Promise<Browser> {
   if (sharedBrowser?.isConnected()) return sharedBrowser
   if (browserPromise) return browserPromise
   browserPromise = (async () => {
-    // Local macOS development has Chrome but no container-reachable CDP
-    // browser. Linux production uses the shared CloakBrowser because the API
-    // image deliberately contains no Chromium.
-    const browser =
-      process.platform === 'darwin'
-        ? await (await import('playwright')).chromium.launch({ channel: 'chrome', headless: true })
-        : await connectStudioBrowser()
+    let browser: Browser
+    if (process.platform === 'darwin' || process.env.STUDIO_BROWSER === 'local') {
+      const { chromium } = await import('playwright')
+      try {
+        browser = await chromium.launch({ channel: 'chrome', headless: true })
+      } catch {
+        browser = await chromium.launch({ headless: true })
+      }
+    } else {
+      try {
+        browser = await connectStudioBrowser()
+      } catch (err) {
+        logger.warn({ err }, 'connectStudioBrowser failed; falling back to local chromium/chrome')
+        const { chromium } = await import('playwright')
+        try {
+          browser = await chromium.launch({ channel: 'chrome', headless: true })
+        } catch {
+          browser = await chromium.launch({ headless: true })
+        }
+      }
+    }
     browser.on('disconnected', () => {
       sharedBrowser = null
       browserPromise = null

@@ -819,8 +819,16 @@ export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
  * the runtime can actually run. A provider without a key is dropped so a
  * turn cannot pick something that would fail.
  */
-export async function listStudioModels(_userId: string): Promise<PickerModel[]> {
+export async function listStudioModels(userId?: string): Promise<PickerModel[]> {
   await initStudio()
+  const profile = userId
+    ? await prisma.userProfile
+        ?.findUnique?.({
+          where: { id: userId },
+          select: { gptEnabled: true },
+        })
+        ?.catch?.(() => null)
+    : null
   const available = new Map<string, any>()
   for (const m of await modelRuntime.getAvailable()) {
     const spec = `${m.provider}/${m.id}`
@@ -836,6 +844,7 @@ export async function listStudioModels(_userId: string): Promise<PickerModel[]> 
   return assembleStudioPicker(available.values(), {
     defaultSpec: MODEL_SPEC,
     specs: ALLOWED_SPECS,
+    gptEnabled: profile?.gptEnabled === true,
   })
 }
 

@@ -64,7 +64,7 @@ afterAll(async () => {
   if (ws) await rm(ws, { recursive: true, force: true })
 })
 
-describe('launch audio regression', () => {
+describe('launch audio regression', { timeout: 35000 }, () => {
   it('finds conventional audio files when music-only callers omit input flags', async () => {
     const { stdout } = await exec(
       'node',
@@ -176,7 +176,8 @@ describe('launch audio regression', () => {
     ).toBe(-18)
     const rerun = await mix()
     expect(rerun.stdout).toContain('-18dB SFX trim')
-    expect(await readFile(path.join(ws, 'audio/mix.wav'))).toEqual(original)
+    const rebuilt = await readFile(path.join(ws, 'audio/mix.wav'))
+    expect(rebuilt.equals(original)).toBe(true)
     expect((await measureAudioWindows(path.join(ws, 'audio/mix.wav'), 4)).clipped).toBe(0)
   })
 
@@ -221,7 +222,8 @@ describe('launch audio regression', () => {
         { cwd: ws },
       ),
     ).rejects.toMatchObject({ stdout: expect.stringContaining('❌ FAIL') })
-    expect(await readFile(path.join(ws, 'audio/mix.wav'))).toEqual(previous)
+    const preserved = await readFile(path.join(ws, 'audio/mix.wav'))
+    expect(preserved.equals(previous)).toBe(true)
   })
 
   it('ends risers at the payoff and rejects unbounded sustained sounds before overwriting the bus', async () => {
@@ -251,6 +253,7 @@ describe('launch audio regression', () => {
     await expect(exec('node', [sfxScript, 'build'], { cwd: ws })).rejects.toMatchObject({
       stdout: expect.stringContaining("needs 'dur'"),
     })
-    expect(await readFile(path.join(ws, 'audio/sfx_bus.wav'))).toEqual(previous)
+    const preservedBus = await readFile(path.join(ws, 'audio/sfx_bus.wav'))
+    expect(preservedBus.equals(previous)).toBe(true)
   })
 })

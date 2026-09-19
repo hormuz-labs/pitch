@@ -90,7 +90,10 @@ describe('Studio UI style contract', () => {
       /\.lv-studio:not\(\.new-project-page\) \.job-composer-box\s*\{[^}]*min-height:\s*104px;[^}]*border-radius:\s*22px;/s,
     )
     expect(previewCss).toMatch(
-      /\.lv-studio:not\(\.new-project-page\) \.job-composer-box\s*\{[^}]*min-height:\s*100px;[^}]*border-radius:\s*22px;/s,
+      /\.lv-studio:not\(\.new-project-page\) \.job-composer-box\s*\{[^}]*min-height:\s*84px;[^}]*gap:\s*4px;[^}]*border-radius:\s*20px;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.lv-studio \.job-composer-box textarea\s*\{[^}]*height:\s*32px;[^}]*min-height:\s*32px;[^}]*max-height:\s*min\(140px, 24dvh\);/s,
     )
   })
 
@@ -153,6 +156,8 @@ describe('Studio UI style contract', () => {
     expect(store).toContain('if (live) setInitialLoading(false)')
     expect(view).toContain('when={!s.initialLoading}')
     expect(view).toContain('Opening project…')
+    expect(view).not.toContain('class="chat-welcome"')
+    expect(view).not.toContain('What do you want to create?')
   })
 
   it('keeps the portaled model catalog inside the mobile viewport', () => {
@@ -191,6 +196,18 @@ describe('Studio UI style contract', () => {
     )
   })
 
+  it('attaches the expanded mobile chat toggle to the chat panel', () => {
+    expect(previewCss).toMatch(
+      /\.is-chat-expanded \.edit-sidebar\s*\{[^}]*margin-bottom:\s*0;[^}]*border-radius:\s*20px 20px 0 0;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.is-chat-expanded \.mobile-chat-toggle\s*\{[^}]*flex-basis:\s*42px;[^}]*margin:\s*-8px 8px 0;[^}]*border-top:\s*0;[^}]*border-radius:\s*0 0 20px 20px;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.is-chat-expanded \.mobile-chat-toggle__status,[\s\S]*\.is-chat-expanded \.mobile-chat-toggle > svg:first-child\s*\{\s*display:\s*none;/s,
+    )
+  })
+
   it('keeps project metadata out of the Studio title bar', () => {
     const view = readFileSync(
       resolve(process.cwd(), 'apps/web/src/solid/studio/StudioView.tsx'),
@@ -222,7 +239,7 @@ describe('Studio UI style contract', () => {
     expect(css).toMatch(/\.topbar-more-icon,[\s\S]*\.topbar-more-label\s*\{\s*display:\s*none;/)
     expect(css).toMatch(/\.mobile-share-action\s*\{\s*display:\s*none;/)
     expect(css).toMatch(
-      /@media \(max-width: 620px\)[\s\S]*\.topbar-share\s*\{\s*display:\s*none;[\s\S]*\.topbar-more-icon,[\s\S]*\.topbar-more-label\s*\{\s*display:\s*inline-flex;[\s\S]*\.mobile-share-action\s*\{\s*display:\s*flex;/s,
+      /@media \(max-width: 620px\)[\s\S]*\.topbar-share\s*\{\s*display:\s*none;[\s\S]*\.topbar-more-icon\s*\{\s*display:\s*inline-flex;[\s\S]*\.topbar-more-label\s*\{\s*display:\s*none;[\s\S]*\.mobile-share-action\s*\{\s*display:\s*flex;/s,
     )
   })
 
@@ -231,6 +248,19 @@ describe('Studio UI style contract', () => {
     expect(css).toMatch(/\.lv-studio \.export-row\s*\{[^}]*min-height:\s*52px;/s)
     expect(css).toMatch(/\.export-section-heading--video\s*\{[^}]*border-bottom:/s)
     expect(css).toMatch(/\.export-hint--status\s*\{[^}]*background:\s*var\(--panel-2\);/s)
+  })
+
+  it('keeps deck scrollers usable while hiding their scrollbar chrome', () => {
+    expect(css).toMatch(
+      /\.deck-editor-scrollable[\s\S]*scrollbar-width:\s*none;[\s\S]*-ms-overflow-style:\s*none;/,
+    )
+    expect(css).toMatch(/\.deck-editor-scrollable::-webkit-scrollbar\s*\{\s*display:\s*none;/)
+  })
+
+  it('keeps the active deck selector legible over adaptive slide chrome', () => {
+    expect(css).toMatch(
+      /\.deck-preview \.preview-inspect-btn\.active,[\s\S]*\.deck-preview \.preview-inspect-btn\.active:hover:not\(:disabled\),[\s\S]*\.deck-preview \.select-toggle\.on,[\s\S]*\.deck-preview \.select-toggle\.on:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--accent\);[^}]*color:\s*#fff;[^}]*border-color:\s*var\(--accent\);/s,
+    )
   })
 
   it('keeps the files count visible while collapsing its label on narrow screens', () => {
@@ -277,9 +307,102 @@ describe('Studio UI style contract', () => {
     )
   })
 
+  it('wires the deck editor chrome for deck previews', () => {
+    const view = readFileSync(
+      resolve(process.cwd(), 'apps/web/src/solid/studio/StudioView.tsx'),
+      'utf8',
+    )
+    const editor = readFileSync(
+      resolve(process.cwd(), 'apps/web/src/solid/studio/deck/DeckEditor.tsx'),
+      'utf8',
+    )
+    expect(view).toContain('import { DeckEditor }')
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: matching the JSX source verbatim
+    expect(view).toContain('${src()}&studio=1&edit=1')
+    expect(view).not.toContain('DeckPreview')
+    // Deck projects own their slides bar; the tray must not double-render slides.
+    expect(view).toContain("description?.preview?.kind === 'deck') return null")
+    // The editor keeps the inspect bridge for agent targeting while editing.
+    expect(editor).toContain("post({ type: 'deck_edit_mode', enabled: !s.inspectMode })")
+    expect(editor).toContain("post({ type: 'studio_toggle_inspect', enabled: s.inspectMode")
+    expect(css).toContain('.lv-studio .deck-editor-toolbar {')
+    expect(css).toContain('.lv-studio .deck-editor-selbox {')
+    expect(css).toContain('.lv-studio .deck-slides-bar {')
+    // Thumb iframes are 1280px documents scaled by transform; the flex
+    // thumbnail wrapper must not shrink them before the transform applies.
+    expect(css).toMatch(/\.lv-studio \.deck-slide-thumb-frame\s*\{[^}]*flex:\s*none;/s)
+    // …and the wrapper must not center them either: with transform-origin
+    // 0 0 a centered 1280px iframe paints outside the clip box (blank thumb).
+    expect(css).toMatch(/\.lv-studio \.deck-slide-thumb\s*\{[^}]*display:\s*block;/s)
+    // The stage fits one whole slide on both axes (width AND height).
+    expect(editor).toContain('setScale(fitScale(r.width, r.height))')
+  })
+
   it('uses a filled highlight instead of an outlined card for the selected chat', () => {
     expect(shellCss).toMatch(
       /\.sidebar-recent-project\.is-active\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--shell-hover\);/s,
     )
+  })
+
+  it('collapses deck preview chrome on mobile when chat is expanded so the conversation is visible', () => {
+    expect(css).toMatch(
+      /@media \(max-width: 840px\)[\s\S]*\.lv-studio:not\(\.is-chat-expanded\) \.deck-editor\s*\{[^}]*min-height:\s*min\(78dvh, 720px\);/s,
+    )
+    expect(css).toMatch(
+      /@media \(max-width: 840px\)[\s\S]*\.lv-studio\.is-chat-expanded \.deck-editor\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/s,
+    )
+    expect(css).toMatch(
+      /@media \(max-width: 840px\)[\s\S]*\.lv-studio\.is-chat-expanded \.deck-slides-bar\s*\{[^}]*display:\s*none;/s,
+    )
+    expect(previewCss).toMatch(
+      /\.lv-studio:not\(\.is-chat-expanded\) \.player-stage:has\(\.deck-editor\)\s*\{[^}]*aspect-ratio:\s*auto;/s,
+    )
+  })
+
+  it('keeps deck formatting toolbar single-row scrollable and banner responsive', () => {
+    expect(css).toMatch(
+      /\.lv-studio \.deck-editor-toolbar\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto;/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.deck-editor-toolbar-wrap\s*\{[^}]*max-width:\s*calc\(100% - 16px\);/s,
+    )
+    expect(css).toMatch(
+      /@media \(max-width: 840px\)[\s\S]*\.lv-studio \.deck-editor \.select-toggle\s*\{\s*display:\s*none;/s,
+    )
+    expect(css).toMatch(
+      /@media \(max-width: 840px\)[\s\S]*\.lv-studio \.preview-inspect-banner\s*\{[^}]*text-overflow:\s*ellipsis;/s,
+    )
+  })
+
+  it('adapts deck dialog contrast and styles the first-time showcase tour', () => {
+    expect(css).toContain(".lv-studio .deck-preview[data-slide-tone='dark']")
+    expect(css).toContain('--deck-chrome-bg: rgba(250, 249, 246, 0.97)')
+    expect(css).toMatch(
+      /\.lv-studio \.deck-preview :is\([\s\S]*\.deck-editor-toolbar,[\s\S]*\.deck-editor-insert,[\s\S]*\.deck-editor-chart,[\s\S]*\)\s*\{[^}]*background:\s*var\(--deck-chrome-bg\);/s,
+    )
+    expect(css).toMatch(/\.lv-studio \.deck-slides-add-menu\s*\{[^}]*background:\s*#18191c;/s)
+    expect(css).toMatch(
+      /\.deck-tour-shade\s*\{[^}]*position:\s*fixed;[^}]*pointer-events:\s*none;/s,
+    )
+    expect(css).toMatch(
+      /\.deck-tour-ring\s*\{[^}]*border:\s*2px solid rgba\(255, 255, 255, 0\.9\);/s,
+    )
+    expect(css).toMatch(/\.deck-tour-card\s*\{[^}]*border-radius:\s*16px;/s)
+    expect(css).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*\.deck-tour-card\s*\{[^}]*width:\s*calc\(100vw - 32px\);/s,
+    )
+  })
+
+  it('moves preview and files into the More menu on small screens and hides topbar tabs', () => {
+    const view = readFileSync(
+      resolve(process.cwd(), 'apps/web/src/solid/studio/StudioView.tsx'),
+      'utf8',
+    )
+    expect(css).toMatch(
+      /@media \(max-width: 620px\)[\s\S]*\.lv-studio:not\(\.new-project-page\) \.topbar-split-tabs\s*\{\s*display:\s*none;/s,
+    )
+    expect(view).toContain('span class="export-section-title">View</span>')
+    expect(view).toContain('<MonitorPlay size={15} />')
+    expect(view).toContain('Files ({s.assets.length})')
   })
 })

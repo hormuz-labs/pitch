@@ -45,7 +45,17 @@ function previewAuth(req: express.Request, res: express.Response, next: express.
 router.use('/projects/:internal', previewAuth, async (req, res, next) => {
   const userId = (req as any).previewUserId as string
   const { internal } = req.params
-  if (!ownsInternal(userId, internal)) return res.status(404).end()
+  let allowed = ownsInternal(userId, internal)
+  if (!allowed) {
+    const profile = await db.prisma.userProfile
+      ?.findUnique?.({
+        where: { id: userId },
+        select: { role: true },
+      })
+      ?.catch?.(() => null)
+    if (profile?.role === 'admin') allowed = true
+  }
+  if (!allowed) return res.status(404).end()
   const ws = parseInternal(internal)
   if (!ws) return res.status(404).end()
   try {

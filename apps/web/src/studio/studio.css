@@ -1872,52 +1872,38 @@
 .lv-studio .ask-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
   justify-content: space-between;
-  border-top: 1px solid var(--border);
-  padding: 14px 0 0;
+  padding: 2px 0 0;
 }
 .lv-studio .ask-nav {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 .lv-studio .ask-send,
 .lv-studio .ask-flat {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 9px;
-  min-height: 36px;
-  padding: 8px 12px;
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
   font: inherit;
   font-size: 12px;
-  font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--panel);
-}
-.lv-studio .ask-send:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 88%, var(--panel));
-  border-color: var(--ink);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--paper);
 }
 .lv-studio .ask-flat {
   background: transparent;
   border-color: transparent;
-  color: var(--muted);
+  color: var(--faint);
 }
-.lv-studio .ask-flat:hover:not(:disabled) {
-  color: var(--ink);
+.lv-studio .ask-flat:hover {
+  color: var(--muted);
   background: var(--panel-2);
 }
 .lv-studio .ask-send:disabled {
-  background: var(--panel-2);
-  border-color: var(--border);
-  color: var(--muted);
+  opacity: 0.4;
   cursor: default;
 }
 .lv-studio .ask-receipt {
@@ -5465,8 +5451,50 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lv-studio:not(.new-project-page) .export-row-action { grid-template-columns: 24px minmax(0, 1fr); }
-.lv-studio:not(.new-project-page) .export-row-action-icon { display: grid; place-items: center; color: var(--muted); }
+.lv-studio:not(.new-project-page) .export-row-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.lv-studio:not(.new-project-page) .export-row-action-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.lv-studio:not(.new-project-page) .export-row-action .export-row-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.lv-studio:not(.new-project-page) .export-row-action .export-row-status {
+  margin-left: auto;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  font-weight: 600;
+}
+.lv-studio:not(.new-project-page) .export-row-action.is-active .export-row-status {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+}
+.lv-studio:not(.new-project-page) .export-section-heading {
+  margin: 4px 4px 2px;
+  padding: 5px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .lv-studio:not(.new-project-page) .export-section-heading--video {
   margin: 0 4px 2px;
   padding: 5px 6px 7px;
@@ -5851,12 +5879,15 @@
   }
 
   .lv-studio:not(.new-project-page) .topbar-split-tabs {
-    gap: 0;
+    display: none;
   }
 
   .lv-studio:not(.new-project-page) .preview-pane-tab {
-    width: 32px;
-    padding: 0;
+    width: auto;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    gap: 5px;
     justify-content: center;
   }
 
@@ -5865,23 +5896,1017 @@
   }
 
   .lv-studio:not(.new-project-page) .topbar-more {
-    min-width: 34px;
-    max-width: 78px;
-    padding-inline: 8px;
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 8px;
   }
 
   .lv-studio:not(.new-project-page) .topbar-share { display: none; }
-  .lv-studio:not(.new-project-page) .topbar-more-icon,
-  .lv-studio:not(.new-project-page) .topbar-more-label { display: inline-flex; }
+  .lv-studio:not(.new-project-page) .topbar-more-icon { display: inline-flex; }
+  .lv-studio:not(.new-project-page) .topbar-more-label { display: none; }
   .lv-studio:not(.new-project-page) .topbar-export-label { display: none; }
   .lv-studio:not(.new-project-page) .mobile-share-action { display: flex; }
 
+  .lv-studio:not(.new-project-page) .export-menu {
+    width: 270px;
+    max-width: calc(100vw - 20px);
+    padding: 6px;
+    gap: 2px;
+  }
+
   .lv-studio:not(.new-project-page) .topbar-more:not(:has(.export-fill[style*='width: 0'])) .export-label {
-    max-width: 42px;
+    display: none;
   }
 
   .lv-studio:not(.new-project-page) .topbar-more .export-label {
-    font-size: 10px;
+    display: none;
   }
 
+}
+
+/* --- Deck editor (interactive slide editing) ------------------------------- */
+
+.lv-studio .deck-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.lv-studio .deck-editor-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.lv-studio .deck-editor-stage > .deck-preview { flex: none; }
+
+.lv-studio .deck-editor-edit-banner {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #d8d5cb;
+}
+
+.lv-studio .deck-editor-save-pill {
+  align-self: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(244, 242, 234, 0.6);
+  padding: 0 8px;
+  white-space: nowrap;
+  user-select: none;
+  cursor: default;
+}
+.lv-studio .deck-editor-save-pill.is-saving { color: #d8d5cb; }
+.lv-studio .deck-editor-save-pill.is-saved { color: #b7e4c7; }
+
+/* Selection overlay — drawn over the scaled iframe, driven by the bridge's
+   deck_select / deck_selbox rects. */
+
+.lv-studio .deck-editor-selbox {
+  position: absolute;
+  z-index: 15;
+  border: 1.5px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.lv-studio .deck-editor-move {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+}
+.lv-studio .deck-editor-move-n { top: -4px; left: 10px; right: 10px; height: 8px; }
+.lv-studio .deck-editor-move-s { bottom: -4px; left: 10px; right: 10px; height: 8px; }
+.lv-studio .deck-editor-move-e { right: -4px; top: 10px; bottom: 10px; width: 8px; }
+.lv-studio .deck-editor-move-w { left: -4px; top: 10px; bottom: 10px; width: 8px; }
+
+.lv-studio .deck-editor-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.lv-studio .deck-editor-handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.lv-studio .deck-editor-handle-n { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.lv-studio .deck-editor-handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.lv-studio .deck-editor-handle-e { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.lv-studio .deck-editor-handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.lv-studio .deck-editor-handle-s { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.lv-studio .deck-editor-handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.lv-studio .deck-editor-handle-w { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+
+.lv-studio .deck-editor-rotate {
+  position: absolute;
+  z-index: 16;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -28px);
+  cursor: grab;
+}
+.lv-studio .deck-editor-rotate::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1.5px;
+  height: 15px;
+  background: var(--accent);
+}
+
+/* Floating formatting toolbar (dark pill, matches preview chrome). */
+
+.lv-studio .deck-editor-toolbar-wrap {
+  position: absolute;
+  z-index: 30;
+  transform: translate(-50%, -100%);
+  max-width: calc(100% - 16px);
+  pointer-events: auto;
+}
+.lv-studio .deck-editor-toolbar-wrap.is-below {
+  transform: translate(-50%, 0);
+}
+
+.lv-studio .deck-editor-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  background: rgba(18, 19, 20, 0.94);
+  color: #f4f2ea;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.25);
+  padding: 4px 6px;
+  backdrop-filter: blur(16px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  max-width: 100%;
+}
+.lv-studio .deck-editor-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.lv-studio .deck-editor-toolbar-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(244, 242, 234, 0.55);
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.lv-studio .deck-editor-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.lv-studio .deck-editor-tool {
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #e5e5e5;
+  padding: 0 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.lv-studio .deck-editor-tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.lv-studio .deck-editor-tool.is-active { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.lv-studio .deck-editor-tool-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+.lv-studio .deck-editor-tool-text { font-weight: 600; padding: 0 8px; flex-shrink: 0; }
+
+.lv-studio .deck-editor :is(button, input, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Keep wheel, touch, trackpad and keyboard scrolling while removing the
+   platform scrollbar chrome from the compact deck-editor surfaces. */
+.lv-studio .deck-editor-scrollable {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.lv-studio .deck-editor-scrollable::-webkit-scrollbar { display: none; }
+
+.lv-studio .deck-editor-select {
+  height: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f2ea;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.lv-studio .deck-editor-font-size {
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 600;
+  min-width: 26px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.lv-studio .deck-editor-color {
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lv-studio .deck-editor-color input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  border: 0;
+}
+.lv-studio .deck-editor-color-glyph { font-size: 13px; font-weight: 700; line-height: 1; }
+.lv-studio .deck-editor-color-swatch {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.lv-studio .deck-editor-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.lv-studio .deck-editor-color-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 2px solid #fff;
+  pointer-events: none;
+}
+
+.lv-studio .deck-editor-layers {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px;
+  border-radius: 6px;
+}
+.lv-studio .deck-editor-layer {
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #e5e5e5;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  transition: background 0.12s;
+}
+.lv-studio .deck-editor-layer:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* Insert panel */
+
+.lv-studio .deck-editor-insert {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 28;
+  width: 300px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 70px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.lv-studio .deck-editor-insert-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.lv-studio .deck-editor-insert-head .deck-editor-tool { color: var(--muted); }
+.lv-studio .deck-editor-insert-search {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-size: 12.5px;
+  padding: 0 10px;
+}
+.lv-studio .deck-editor-insert-body { overflow-y: auto; padding: 8px; }
+.lv-studio .deck-editor-insert-group { margin-bottom: 12px; }
+.lv-studio .deck-editor-insert-heading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.lv-studio .deck-editor-insert-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.lv-studio .deck-editor-insert-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 8px 4px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.lv-studio .deck-editor-insert-block:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lv-studio .deck-editor-insert-block:disabled { opacity: 0.45; cursor: default; }
+.lv-studio .deck-editor-insert-row { display: flex; gap: 5px; }
+.lv-studio .deck-editor-insert-input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12px;
+  padding: 0 8px;
+}
+.lv-studio .deck-editor-table-grid {
+  display: inline-grid;
+  grid-template-columns: repeat(8, 18px);
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.lv-studio .deck-editor-table-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 0;
+}
+.lv-studio .deck-editor-table-cell.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Chart data popover */
+
+.lv-studio .deck-editor-chart {
+  position: absolute;
+  right: 12px;
+  bottom: 56px;
+  z-index: 28;
+  width: 280px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  padding: 12px;
+}
+.lv-studio .deck-editor-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.lv-studio .deck-editor-chart-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 7px;
+  padding: 3px 8px;
+}
+.lv-studio .deck-editor-chart-head .deck-editor-tool { color: var(--muted); }
+.lv-studio .deck-editor-chart-empty { margin: 0; font-size: 12px; color: var(--muted); }
+.lv-studio .deck-editor-chart-colors {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.lv-studio .deck-editor-chart-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lv-studio .deck-editor-chart-color input[type="color"] {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+.lv-studio .deck-editor-chart-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.lv-studio .deck-editor-chart-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.lv-studio .deck-editor-chart-row input {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11.5px;
+  padding: 0;
+}
+.lv-studio .deck-editor-chart-label { flex: 1; min-width: 0; font-weight: 600; }
+.lv-studio .deck-editor-chart-value { width: 56px; font-weight: 700; text-align: right; }
+
+/* Slides bar (bottom strip; matches the scene-card strip aesthetics) */
+
+.lv-studio .deck-slides-bar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  padding: 8px 14px 10px;
+}
+.lv-studio .deck-slides-bar__header { margin-bottom: 6px; align-items: center; }
+.lv-studio .deck-slides-add { position: relative; margin-left: auto; }
+.lv-studio .deck-slides-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.lv-studio .deck-slides-add-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+.lv-studio .deck-slides-add-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 30;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  padding: 4px;
+}
+.lv-studio .deck-slides-add-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
+.lv-studio .deck-slides-add-item:hover { background: var(--accent-soft); color: var(--accent-ink); }
+
+.lv-studio .deck-slide-card { width: 152px; }
+.lv-studio .deck-slide-card.deck-slide-drop { border-color: var(--accent); border-style: dashed; }
+.lv-studio .deck-slide-select {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lv-studio .deck-slide-thumb {
+  position: relative;
+  background: #fff;
+  /* .scene-thumb centers children with flex; a 1280px iframe scaled with
+     transform-origin:0 0 must sit at the top-left corner — centered, its
+     scaled visual lands entirely outside the clip box (blank thumb). */
+  display: block;
+}
+.lv-studio .deck-slide-thumb .scene-thumb-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lv-studio .deck-slide-thumb-frame {
+  /* .scene-thumb is a centered flex row; without flex:none the 1280px iframe
+     shrinks to its 300px intrinsic minimum BEFORE the scale transform applies,
+     leaving a ~32px sliver that reads as a blank thumb. */
+  flex: none;
+  display: block;
+  pointer-events: none;
+  background: #fff;
+}
+.lv-studio .deck-slide-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.lv-studio .deck-slide-card:hover .deck-slide-tools,
+.lv-studio .deck-slide-card.selected .deck-slide-tools,
+.lv-studio .deck-slide-tools:focus-within { opacity: 1; }
+.lv-studio .deck-slide-bg-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  padding: 0;
+}
+.lv-studio .deck-slide-bg-dot:hover { transform: scale(1.15); }
+.lv-studio .deck-slide-bg-custom {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px dashed var(--faint);
+  cursor: pointer;
+  overflow: hidden;
+}
+.lv-studio .deck-slide-bg-custom input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  border: 0;
+}
+.lv-studio .deck-slide-delete {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+}
+.lv-studio .deck-slide-delete:hover:not(:disabled) { background: var(--danger); color: #fff; }
+.lv-studio .deck-slide-delete:disabled { opacity: 0.35; cursor: default; }
+
+/* Scrollbars stay hidden while scrolling remains (matches composer-suggestions). */
+.lv-studio .deck-slides-strip {
+  scrollbar-width: none;
+}
+.lv-studio .deck-slides-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile: the 16/9 player-stage aspect is too short for preview + slides bar;
+   without a floor the stage collapses and the slides bar fills everything.
+   When chat is expanded, collapse preview to compact 16/9 and hide the slide
+   bar so the conversation and composer fit on screen. */
+@media (max-width: 840px) {
+  .lv-studio:not(.is-chat-expanded) .deck-editor {
+    min-height: min(78dvh, 720px);
+  }
+  .lv-studio.is-chat-expanded .deck-editor {
+    min-height: 0;
+    height: 100%;
+  }
+  .lv-studio.is-chat-expanded .deck-slides-bar {
+    display: none;
+  }
+  .lv-studio .deck-slides-bar {
+    padding: 6px 10px 8px;
+  }
+  .lv-studio .deck-editor .select-toggle {
+    display: none;
+  }
+  .lv-studio .preview-inspect-banner {
+    max-width: calc(100% - 24px);
+    font-size: 11px;
+    padding: 4px 10px;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lv-studio .preview-inspect-banner__hint,
+  .lv-studio .preview-inspect-banner kbd {
+    display: none;
+  }
+}
+
+/* --- High contrast dialog popovers across dark and light slide backgrounds --- */
+.lv-studio .deck-editor-insert {
+  background: #18191c;
+  color: #edebe8;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 20px 48px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+}
+
+.lv-studio .deck-editor-chart {
+  background: #18191c;
+  color: #edebe8;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 20px 48px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+}
+
+.lv-studio .deck-slides-add-menu {
+  background: #18191c;
+  color: #edebe8;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+}
+
+.lv-studio .deck-preview-toolbar {
+  background: #18191c;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+}
+
+/* --- Deck Editor First-Time Showcase Tour --------------------------------- */
+
+.lv-studio .deck-tour,
+.deck-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.deck-tour-shade {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1001;
+}
+
+.deck-tour-ring {
+  position: fixed;
+  z-index: 1002;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 32px rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+  transition: left 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              top 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              height 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deck-tour-card {
+  position: fixed;
+  z-index: 1003;
+  box-sizing: border-box;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: rgba(18, 20, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 24px 48px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px);
+  color: #edebe8;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  outline: none;
+  transition: left 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              top 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deck-tour-card__topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.deck-tour-step-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.deck-tour-eyebrow {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+}
+
+.deck-tour-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.deck-tour-card h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.deck-tour-card p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #a3a09b;
+}
+
+.deck-tour-progress {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0;
+}
+.deck-tour-progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 180ms ease;
+}
+.deck-tour-progress span.active {
+  background: #fff;
+}
+
+.deck-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.deck-tour-skip {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 120ms;
+}
+.deck-tour-skip:hover {
+  color: #fff;
+}
+
+.deck-tour-actions__primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deck-tour-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #e5e5e5;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.deck-tour-back:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.deck-tour-back:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.deck-tour-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms;
+}
+.deck-tour-next:hover {
+  opacity: 0.92;
+}
+
+@media (max-width: 640px) {
+  .deck-tour-card {
+    left: 16px !important;
+    top: auto !important;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: calc(100vw - 32px);
+    max-height: min(58dvh, 430px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .deck-tour-actions { align-items: stretch; }
+  .deck-tour-actions__primary { flex: 1; justify-content: flex-end; }
+  .deck-tour-skip,
+  .deck-tour-back,
+  .deck-tour-next { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-tour-ring,
+  .deck-tour-card { transition: none; }
+}
+
+/* Context-aware editor chrome. Light slides get dark controls; dark or
+   image-led slides get light controls, as reported by the iframe bridge. */
+.lv-studio .deck-preview {
+  --deck-chrome-bg: rgba(18, 19, 20, 0.96);
+  --deck-chrome-bg-2: rgba(39, 40, 42, 0.98);
+  --deck-chrome-ink: #f7f6f2;
+  --deck-chrome-muted: #b8b6b0;
+  --deck-chrome-border: rgba(255, 255, 255, 0.18);
+  --deck-chrome-hover: rgba(255, 255, 255, 0.12);
+  --deck-chrome-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 18px 46px rgba(0, 0, 0, 0.58);
+}
+
+.lv-studio .deck-preview[data-slide-tone='dark'] {
+  --deck-chrome-bg: rgba(250, 249, 246, 0.97);
+  --deck-chrome-bg-2: rgba(231, 229, 223, 0.98);
+  --deck-chrome-ink: #171716;
+  --deck-chrome-muted: #5e5c57;
+  --deck-chrome-border: rgba(17, 17, 16, 0.2);
+  --deck-chrome-hover: rgba(17, 17, 16, 0.09);
+  --deck-chrome-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45), 0 18px 46px rgba(0, 0, 0, 0.5);
+}
+
+.lv-studio .deck-preview :is(
+  .deck-editor-toolbar,
+  .deck-editor-insert,
+  .deck-editor-chart,
+  .deck-preview-toolbar,
+  .preview-inspect-banner,
+  .select-toggle
+) {
+  background: var(--deck-chrome-bg);
+  color: var(--deck-chrome-ink);
+  border-color: var(--deck-chrome-border);
+  box-shadow: var(--deck-chrome-shadow);
+}
+
+.lv-studio .deck-preview :is(
+  .deck-editor-toolbar-kind,
+  .deck-editor-insert-heading,
+  .deck-editor-chart-empty,
+  .deck-editor-chart-color,
+  .deck-editor-save-pill
+) { color: var(--deck-chrome-muted); }
+
+.lv-studio .deck-preview :is(.deck-editor-toolbar-sep, .deck-editor-insert-head) {
+  border-color: var(--deck-chrome-border);
+  background-color: var(--deck-chrome-border);
+}
+.lv-studio .deck-preview .deck-editor-insert-head { background: transparent; }
+
+.lv-studio .deck-preview :is(.deck-editor-tool, .deck-editor-layer, .preview-btn) {
+  color: var(--deck-chrome-ink);
+}
+.lv-studio .deck-preview :is(.deck-editor-tool, .deck-editor-layer, .preview-btn):hover:not(:disabled) {
+  background: var(--deck-chrome-hover);
+}
+.lv-studio .deck-preview .deck-editor-tool.is-active { background: var(--accent); color: #fff; }
+
+.lv-studio .deck-preview :is(
+  .deck-editor-select,
+  .deck-editor-insert-search,
+  .deck-editor-insert-input,
+  .deck-editor-insert-block,
+  .deck-editor-table-grid,
+  .deck-editor-table-cell,
+  .deck-editor-chart-row
+) {
+  background: var(--deck-chrome-bg-2);
+  color: var(--deck-chrome-ink);
+  border-color: var(--deck-chrome-border);
+}
+
+.lv-studio .deck-preview .deck-editor-chart-row input {
+  color: var(--deck-chrome-ink);
+}
+
+.lv-studio .deck-preview .preview-inspect-banner kbd {
+  color: var(--deck-chrome-muted);
+  border-color: var(--deck-chrome-border);
+}
+
+/* Active targeting must outrank adaptive slide chrome, including hover.
+   Otherwise a light toolbar turns the selected cursor into a grey/black wedge. */
+.lv-studio .deck-preview .preview-inspect-btn.active,
+.lv-studio .deck-preview .preview-inspect-btn.active:hover:not(:disabled),
+.lv-studio .deck-preview .select-toggle.on,
+.lv-studio .deck-preview .select-toggle.on:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.lv-studio .deck-preview .preview-inspect-btn.active {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 24%);
 }

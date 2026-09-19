@@ -15,6 +15,13 @@
 (() => {
   if (window.__STUDIO_INSPECTOR__) return;
   window.__STUDIO_INSPECTOR__ = true;
+
+  // Older editor builds could accidentally persist inspector UI into deck.html.
+  // It is never slide content, so discard it before creating this session's UI.
+  document
+    .querySelectorAll("#studio-inspect-overlay, #studio-inspect-label, [data-studio-box]")
+    .forEach(node => node.remove());
+
   const cfg = Object.assign({ container: ".slide", accent: "#D97757" }, window.STUDIO_INSPECTOR || {});
 
   let enabled = false;
@@ -86,7 +93,7 @@
     const k = scale > 0 ? 1 / scale : 1;
     marks.forEach(({ el, box, tag }) => {
       const r = el.getBoundingClientRect();
-      const visible = r.width > 0 && r.height > 0;
+      const visible = enabled && r.width > 0 && r.height > 0;
       box.style.display = visible ? "block" : "none";
       if (!visible) return;
       box.style.left = `${r.left}px`;
@@ -97,7 +104,7 @@
       tag.style.fontSize = `${Math.round(11 * k)}px`;
       tag.style.top = `${-Math.round(20 * k)}px`;
     });
-    markRaf = marks.size > 0 ? requestAnimationFrame(layoutMarks) : 0;
+    markRaf = enabled && marks.size > 0 ? requestAnimationFrame(layoutMarks) : 0;
   }
 
   function setMarks(ids) {
@@ -113,7 +120,7 @@
       const el = document.querySelector(`[data-studio-mark="${id}"]`);
       if (el) marks.set(id, { el, ...markBoxFor(id) });
     });
-    if (marks.size > 0 && !markRaf) markRaf = requestAnimationFrame(layoutMarks);
+    if (enabled && marks.size > 0 && !markRaf) markRaf = requestAnimationFrame(layoutMarks);
   }
 
   function describe(el) {
@@ -157,7 +164,15 @@
     label.style.fontSize = `${Math.round(11 * k)}px`;
     label.style.top = `${-Math.round(24 * k)}px`;
     document.body.style.cursor = enabled ? "crosshair" : "";
-    if (!enabled) overlay.style.display = "none";
+    if (!enabled) {
+      overlay.style.display = "none";
+      if (markRaf) cancelAnimationFrame(markRaf);
+      markRaf = 0;
+      marks.forEach(({ box }) => { box.style.display = "none"; });
+      document.querySelectorAll("[data-studio-box]").forEach(box => { box.style.display = "none"; });
+    } else if (marks.size > 0 && !markRaf) {
+      markRaf = requestAnimationFrame(layoutMarks);
+    }
   }
 
   document.addEventListener("pointermove", e => {

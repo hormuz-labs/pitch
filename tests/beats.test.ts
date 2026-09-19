@@ -109,12 +109,6 @@ describe('inspectorTag', () => {
     expect(inspectorTag('/deck.html', '.slide')).not.toContain('src="/files')
   })
 
-  it('carries the preview token through to the script request', () => {
-    expect(inspectorTag('/deck.html', '.slide', 'a b&c')).toContain(
-      'engine/js/inspector.js?token=a%20b%26c',
-    )
-  })
-
   it('passes the container selector to the injected inspector', () => {
     expect(inspectorTag('/deck.html', '.page')).toContain('{container:".page"}')
   })

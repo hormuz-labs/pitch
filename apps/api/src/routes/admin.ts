@@ -9,7 +9,13 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
 import { parseRow } from '../projects/rows.js'
-import { busyProjects, deleteProject, failProject, getRow } from '../projects/service.js'
+import {
+  busyProjects,
+  deleteProject,
+  failProject,
+  getEntries,
+  getRow,
+} from '../projects/service.js'
 
 const logger = createLogger('studio:admin')
 export const router: Router = Router()
@@ -142,11 +148,19 @@ async function decorate(rows: any[]) {
   return rows.map(r => {
     const user = profiles.find(p => p.id === r.userId)
     const outputs = normalizePublishedOutputs(parse(r.outputs, []))
+    const videoOutput = outputs.find(
+      (o: any) => o.kind === 'video' || o.url?.endsWith('.mp4') || o.url?.endsWith('.webm'),
+    )
+    const finalVideoUrl =
+      videoOutput?.url ||
+      (r.thumbnailUrl?.endsWith('.mp4') ? normalizePublishedUrl(r.thumbnailUrl) : null)
+
     return {
       ...r,
       options: parse(r.options, {}),
       outputs,
       thumbnailUrl: r.thumbnailUrl ? normalizePublishedUrl(r.thumbnailUrl) : null,
+      finalVideoUrl,
       status: busy.has(r.id)
         ? 'working'
         : r.lastError
@@ -168,6 +182,184 @@ router.get('/projects', async (_req, res) => {
     res.json(await decorate(rows))
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch projects')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 2b. Single project detailed view (prompts, entries, render jobs, transactions, final video)
+router.get('/projects/:id', async (req, res) => {
+  try {
+    const row = await db.prisma.project.findUnique({ where: { id: req.params.id } })
+    if (!row) return res.status(404).json({ error: 'Project not found' })
+
+    const [decorated] = await decorate([row])
+
+    let entries: any[] = []
+    let activeModel: string | null = null
+    try {
+      if (typeof getEntries === 'function') {
+        const p = parseRow(row)
+        const messages = await getEntries(p)
+        entries = messages?.entries || []
+        activeModel = messages?.activeModel || null
+      }
+    } catch (err) {
+      logger.debug({ err, projectId: row.id }, 'could not fetch project entries for admin')
+    }
+
+    const userPrompts: Array<{ text: string; at: number }> = []
+    if (row.prompt?.trim()) {
+      userPrompts.push({ text: row.prompt.trim(), at: row.createdAt.getTime() })
+    }
+    for (const e of entries) {
+      if (e.role === 'user' && e.text?.trim()) {
+        const text = e.text.trim()
+        if (!userPrompts.some(up => up.text === text)) {
+          userPrompts.push({ text, at: e.at || row.createdAt.getTime() })
+        }
+      }
+    }
+
+    const [renderJobs, creditTransactions, userProfile] = await Promise.all([
+      db.prisma.renderJob.findMany({
+        where: { projectId: row.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      db.prisma.creditTransaction.findMany({
+        where: { projectId: row.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.prisma.userProfile.findUnique({
+        where: { id: row.userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          imageUrl: true,
+          role: true,
+          createdAt: true,
+        },
+      }),
+    ])
+
+    res.json({
+      ...decorated,
+      user: userProfile,
+      userPrompts,
+      entries,
+      activeModel,
+      renderJobs: renderJobs.map(j => ({
+        ...j,
+        params: parse(j.params, {}),
+        result: parse(j.result, null),
+      })),
+      creditTransactions,
+    })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to fetch project details')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 3. User details (profile, financials, survey, affiliate, projects)
+router.get('/users/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    const [
+      user,
+      subscriptions,
+      topUps,
+      transactions,
+      balance,
+      projectsRaw,
+      affiliate,
+      creditAgg,
+      positiveTxAgg,
+    ] = await Promise.all([
+      db.prisma.userProfile.findUnique({
+        where: { id },
+        include: { onboardingSurvey: true },
+      }),
+      db.prisma.subscription.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' } }),
+      db.prisma.topUpPurchase.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' } }),
+      db.prisma.creditTransaction.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 150,
+      }),
+      db.getCreditBalance(id),
+      db.prisma.project.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      db.prisma.affiliate.findUnique({
+        where: { userId: id },
+        include: {
+          clicks: { orderBy: { clickedAt: 'desc' }, take: 50 },
+          conversions: { orderBy: { createdAt: 'desc' } },
+          _count: { select: { leads: true } },
+        },
+      }),
+      db.prisma.creditTransaction.aggregate({
+        where: { userId: id, type: 'referral' },
+        _sum: { delta: true },
+      }),
+      db.prisma.creditTransaction.aggregate({
+        where: { userId: id, delta: { gt: 0 } },
+        _sum: { delta: true },
+      }),
+    ])
+
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const projects = await decorate(projectsRaw)
+    const referralCredits = creditAgg._sum.delta ?? 0
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+        username: user.username,
+        discordUserId: user.discordUserId,
+        role: user.role,
+        gptEnabled: user.gptEnabled,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        onboardingSkippedAt: user.onboardingSkippedAt,
+        onboardingSurvey: user.onboardingSurvey,
+      },
+      credits: {
+        remaining: balance,
+        lifetimeBought: positiveTxAgg._sum.delta ?? 0,
+      },
+      subscription: subscriptions.find(s => s.status === 'active') || subscriptions[0] || null,
+      subscriptions,
+      topUps,
+      transactions,
+      projects,
+      affiliate: affiliate
+        ? {
+            id: affiliate.id,
+            code: affiliate.code,
+            status: affiliate.status,
+            createdAt: affiliate.createdAt,
+            totalClicks: affiliate.clicks.length,
+            totalSignups: affiliate._count.leads,
+            totalConversions: affiliate.conversions.length,
+            creditsEarned: referralCredits,
+            videosEarned: Math.floor(referralCredits / 3),
+            totalRevenue: affiliate.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
+          }
+        : null,
+    })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to fetch user details for admin')
     res.status(500).json({ error: error.message })
   }
 })

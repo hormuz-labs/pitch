@@ -214,9 +214,11 @@ export function studioModelSpecs(
 export const extraStudioModelSpecs = studioModelSpecs
 
 /** Entitlement is independent of provider credentials and the deployment allowlist. */
-export function canUseStudioModel(spec: string): boolean {
+export function canUseStudioModel(spec: string, gptEnabled = false): boolean {
   const { provider } = parseModelSpec(spec)
-  return ['google', 'openai', 'azure-apim'].includes(provider)
+  if (provider === 'google') return true
+  if (provider === 'openai' || provider === 'azure-apim') return gptEnabled
+  return false
 }
 
 /** Explicit picks must be allowed; obsolete saved picks can safely fall back. */
@@ -264,7 +266,7 @@ export function assembleStudioPicker(
   const push = (spec: string): boolean => {
     const row = bySpec.get(spec)
     if (!row || seen.has(spec) || !opts.specs.includes(spec)) return false
-    if (!canUseStudioModel(spec)) return false
+    if (!canUseStudioModel(spec, opts.gptEnabled)) return false
     seen.add(spec)
     out.push(row)
     return true

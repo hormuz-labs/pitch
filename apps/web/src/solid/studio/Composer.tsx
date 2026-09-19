@@ -155,7 +155,7 @@ export function Composer(props: { store: ProjectStore }) {
         : where()
           ? `What should change in ${where()}?`
           : s.busy
-            ? 'Add a follow-up… Enter to queue, ⌘/Ctrl+Enter to steer'
+            ? 'Add a follow-up…'
             : s.entries.length
               ? 'Ask for a change…'
               : 'Describe what you want…'

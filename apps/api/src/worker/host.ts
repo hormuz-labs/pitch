@@ -23,10 +23,11 @@
  *              cache and is preferred by the next placement
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, rm } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
+import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
 import type { Description, UploadRef } from '../flows/types.js'
 import {
@@ -774,6 +775,42 @@ export async function deleteAsset(projectId: string, rel: string): Promise<boole
 export async function assetThumbnail(projectId: string, req: ThumbRequest): Promise<Buffer | null> {
   const { h } = await ensureOpen(projectId)
   return assetThumbnailOf(h.ws, req)
+}
+
+// ── Deck ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The web deck editor saves the whole document at once: check it still parses
+ * as a deck and durably write deck.html. The explicit export action flushes
+ * this save before rendering the PDF, so "Saved" can stay responsive without
+ * allowing stale downloads.
+ */
+export async function saveDeck(
+  projectId: string,
+  html: string,
+): Promise<{ ok: true; slides: number }> {
+  const { h } = await ensureOpen(projectId)
+  const slides = parseSlides(html)
+  if (slides.length === 0) throw new Error('deck.html must contain at least one .slide')
+  await writeFile(path.join(h.ws.dir, 'deck.html'), html, 'utf8')
+  markDirty(h)
+  return { ok: true, slides: slides.length }
+}
+
+/**
+ * The export menu needs a PDF built from the deck on disk right now, not from
+ * a previous export: render synchronously and only then answer. Ordinary deck
+ * saves only persist HTML so editing remains responsive.
+ */
+export async function renderDeck(projectId: string): Promise<{ ok: true }> {
+  const { h } = await ensureOpen(projectId)
+  const file = path.join(h.ws.dir, 'deck.html')
+  if (!existsSync(file)) throw new Error('deck.html does not exist — save the deck first')
+  if (parseSlides(await readFile(file, 'utf8')).length === 0)
+    throw new Error('deck.html has no .slide pages — nothing to render')
+  await renderDeckPdf(h.ws.dir)
+  markDirty(h)
+  return { ok: true }
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────

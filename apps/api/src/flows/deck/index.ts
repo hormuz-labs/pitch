@@ -221,17 +221,29 @@ async function renderSlides(ws: Workspace, wanted?: number[]): Promise<string> {
   }
 }
 
-/** Render deck.html to build/output.pdf: one 1280×720 page per .slide. */
-async function renderPdf(ws: Workspace): Promise<string> {
-  const out = path.join(ws.dir, 'build', 'output.pdf')
+/**
+ * Render deck.html to build/output.pdf: one 1280×720 page per .slide. Just
+ * the render — no storage upload, no outputs. The export action calls this
+ * after flushing the live editor, so downloads always use current HTML without
+ * making ordinary autosaves wait for a browser and PDF generation.
+ */
+export async function renderDeckPdf(wsDir: string): Promise<void> {
+  const deck = path.join(wsDir, 'deck.html')
+  if (!existsSync(deck)) return
+  const out = path.join(wsDir, 'build', 'output.pdf')
   await mkdir(path.dirname(out), { recursive: true })
   const browser = await getBrowser()
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   try {
     await serveLocalFiles(page)
-    await page.goto(localPageUrl(path.join(ws.dir, 'deck.html')), {
+    await page.goto(localPageUrl(deck), {
       waitUntil: 'load',
       timeout: 30000,
+    })
+    // Old saves may contain runtime inspector nodes from before serialization
+    // stripped them. Never let editor-only target boxes reach a PDF export.
+    await page.addStyleTag({
+      content: '#studio-inspect-overlay,[data-studio-box]{display:none!important}',
     })
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
     await page.evaluate(() => (document as any).fonts?.ready).catch(() => {})
@@ -240,7 +252,12 @@ async function renderPdf(ws: Workspace): Promise<string> {
   } finally {
     await page.close().catch(() => {})
   }
-  return out
+}
+
+/** Render deck.html to build/output.pdf and return the path. */
+async function renderPdf(ws: Workspace): Promise<string> {
+  await renderDeckPdf(ws.dir)
+  return path.join(ws.dir, 'build', 'output.pdf')
 }
 
 async function publish(ws: Workspace, summary: string): Promise<string> {

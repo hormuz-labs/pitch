@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { artifactKind, hasArtifact } from '../apps/api/src/agent/describe'
+import { artifactKind, describeWorkspace, hasArtifact } from '../apps/api/src/agent/describe'
 
 const dirs: string[] = []
 
@@ -90,6 +90,15 @@ describe('an export never displaces the artifact it came from', () => {
     })
     later((ws as any).dir, 'build/output.pdf')
     expect(await artifactKind(ws)).toBe('deck')
+  })
+
+  it('offers the PDF as the deck download without exposing deck.html as an export', async () => {
+    const ws = workspace({
+      'deck.html': '<section class="slide">one</section>',
+      'build/output.pdf': '%PDF',
+    })
+    const description = await describeWorkspace(ws)
+    expect(description.outputs.map(output => output.kind)).toEqual(['pdf'])
   })
 
   it('still previews a plain render when there is no film to edit', async () => {

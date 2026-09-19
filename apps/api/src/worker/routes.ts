@@ -129,6 +129,14 @@ router.post(
     host.addAssets(req.params.id, Array.isArray(req.body?.uploads) ? req.body.uploads : []),
   ),
 )
+router.post(
+  '/projects/:id/deck',
+  route('save deck', async req => host.saveDeck(req.params.id, String(req.body?.html ?? ''))),
+)
+router.post(
+  '/projects/:id/deck/render',
+  route('render deck', async req => host.renderDeck(req.params.id)),
+)
 router.delete(
   '/projects/:id/assets',
   route('delete asset', async req => ({

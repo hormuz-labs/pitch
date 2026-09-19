@@ -75,19 +75,14 @@ async function videoDescription(ws: Workspace, rel: string): Promise<Description
 async function deckDescription(ws: Workspace): Promise<Description> {
   const html = await readFile(path.join(ws.dir, 'deck.html'), 'utf8').catch(() => '')
   const outputs: Output[] = []
-  for (const [rel, kind, label] of [
-    ['build/output.pdf', 'pdf', 'Deck (PDF)'],
-    ['deck.html', 'html', 'Deck (HTML)'],
-  ] as const) {
-    const mtime = await mtimeOf(ws.dir, rel)
-    if (mtime)
-      outputs.push({
-        kind,
-        url: fileUrl(ws.internal, rel),
-        label,
-        createdAt: new Date(mtime).toISOString(),
-      })
-  }
+  const pdfMtime = await mtimeOf(ws.dir, 'build/output.pdf')
+  if (pdfMtime)
+    outputs.push({
+      kind: 'pdf',
+      url: fileUrl(ws.internal, 'build/output.pdf'),
+      label: 'Deck (PDF)',
+      createdAt: new Date(pdfMtime).toISOString(),
+    })
   const slides = parseSlides(html)
   return {
     preview: { kind: 'deck', url: fileUrl(ws.internal, 'deck.html') },

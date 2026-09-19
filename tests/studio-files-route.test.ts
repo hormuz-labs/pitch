@@ -46,6 +46,11 @@ describe('workspace file authentication', () => {
       where: { userId: 'current-user', name: 'demo', flow: 'studio' },
     })
     expect(response.headers['set-cookie']?.[0]).toContain(`${PREVIEW_COOKIE}=`)
+    // The dev server exposes this route under /api/files. A /files-scoped
+    // cookie would not accompany the tokenless injected scripts there.
+    expect(response.headers['set-cookie']).toEqual(
+      expect.arrayContaining([expect.stringContaining('Path=/api/files;')]),
+    )
   })
 
   it('uses the signed preview cookie for tokenless subresources', async () => {

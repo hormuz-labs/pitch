@@ -301,11 +301,24 @@ export function useProject(id: string | undefined) {
         if (!t) return
         const [d, m, e, a] = await Promise.all([
           studio.get(t, id).catch(() => null),
-          studio.messages(t, id).catch(() => ({ entries: [], busy: false, activeModel: null })),
+          studio.messages(t, id).catch(() => null),
           studio.getExport(t, id).catch(() => null),
-          studio.assets(t, id).catch(() => []),
+          studio.assets(t, id).catch(() => null),
         ])
         if (!live) return
+        if (!d) {
+          setLoadError('Could not load this project. Refresh to try again.')
+          return
+        }
+        if (!m) {
+          setLoadError('Could not load this project’s conversation. Refresh to try again.')
+          return
+        }
+        if (!a) {
+          setLoadError('Could not load this project’s files. Refresh to try again.')
+          return
+        }
+        setLoadError(null)
         if (d && projectRevision === initialProjectRevision) setProject(d)
         if (initialEntryRevision === entryRevision) setEntries(m.entries)
         else

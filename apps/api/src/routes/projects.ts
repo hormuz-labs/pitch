@@ -123,6 +123,42 @@ router.post('/:id/assets', async (req, res) => {
   }
 })
 
+/**
+ * The web deck editor saves the whole deck.html document at once. Like adding
+ * assets, it runs no turn and costs nothing. PDF generation is intentionally
+ * deferred to /deck/render so ordinary autosaves stay fast.
+ */
+router.post('/:id/deck', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const html = req.body?.html
+    if (typeof html !== 'string' || !html)
+      return res.status(400).json({ error: 'html is required' })
+    if (html.length > 8 * 1024 * 1024)
+      return res.status(400).json({ error: 'html exceeds the 8 MB limit' })
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(await withOwner(p.id, w => w.saveDeck(p.id, html)))
+  } catch (err) {
+    fail(res, err, 'save deck failed')
+  }
+})
+
+/**
+ * The export menu awaits this before downloading: build/output.pdf is rebuilt
+ * from the deck.html on disk, synchronously, so the download is never stale.
+ */
+router.post('/:id/deck/render', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(await withOwner(p.id, w => w.renderDeck(p.id)))
+  } catch (err) {
+    fail(res, err, 'render deck failed')
+  }
+})
+
 /** Remove one file from the shelf. Only shelf material can be named. */
 router.delete('/:id/assets', async (req, res) => {
   const userId = requireAuth(req, res)

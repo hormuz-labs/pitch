@@ -94,6 +94,10 @@ export const studio = {
     api.post<Asset[]>(`${p(id)}/assets`, token, { uploads }),
   deleteAsset: (token: string, id: string, path: string) =>
     api.delete<{ removed: boolean }>(`${p(id)}/assets?path=${encodeURIComponent(path)}`, token),
+  saveDeck: (token: string, id: string, html: string) =>
+    api.post<{ ok: boolean; slides: number }>(`${p(id)}/deck`, token, { html }),
+  renderDeck: (token: string, id: string) =>
+    api.post<{ ok: boolean }>(`${p(id)}/deck/render`, token),
 }
 export type {
   Asset,

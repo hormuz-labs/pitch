@@ -26,6 +26,17 @@ vi.mock('../apps/api/src/worker/host.js', () => ({
     send({ type: 'hello', busy: false })
     return () => {}
   }),
+  saveDeck: vi.fn(async (id: string, html: string) => {
+    if (id === 'gone')
+      throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
+    if (!html.includes('slide')) throw new Error('deck.html must contain at least one .slide')
+    return { ok: true, slides: 1 }
+  }),
+  renderDeck: vi.fn(async (id: string) => {
+    if (id === 'gone')
+      throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
+    return { ok: true }
+  }),
 }))
 vi.mock('../apps/api/src/worker/registry.js', () => ({ currentEpoch: () => 7 }))
 
@@ -65,5 +76,33 @@ describe('worker contract auth', () => {
       .set('Authorization', 'Bearer secret-token')
     expect(res.status).toBe(409)
     expect(res.body).toEqual({ error: 'not held', code: 'NOT_OWNER' })
+  })
+
+  it('saves a deck for the holder and carries the lease error through', async () => {
+    const ok = await request(app)
+      .post('/internal/worker/projects/p1/deck')
+      .set('Authorization', 'Bearer secret-token')
+      .send({ html: '<section class="slide"></section>' })
+    expect(ok.status).toBe(200)
+    expect(ok.body).toEqual({ ok: true, slides: 1 })
+    const gone = await request(app)
+      .post('/internal/worker/projects/gone/deck')
+      .set('Authorization', 'Bearer secret-token')
+      .send({ html: '<section class="slide"></section>' })
+    expect(gone.status).toBe(409)
+    expect(gone.body).toEqual({ error: 'not held', code: 'NOT_OWNER' })
+  })
+
+  it('renders a deck for the holder and carries the lease error through', async () => {
+    const ok = await request(app)
+      .post('/internal/worker/projects/p1/deck/render')
+      .set('Authorization', 'Bearer secret-token')
+    expect(ok.status).toBe(200)
+    expect(ok.body).toEqual({ ok: true })
+    const gone = await request(app)
+      .post('/internal/worker/projects/gone/deck/render')
+      .set('Authorization', 'Bearer secret-token')
+    expect(gone.status).toBe(409)
+    expect(gone.body).toEqual({ error: 'not held', code: 'NOT_OWNER' })
   })
 })

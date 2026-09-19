@@ -13,6 +13,7 @@ import type express from 'express'
 
 export const PREVIEW_COOKIE = 'pitch_preview'
 export const PREVIEW_PATH = '/files'
+const DEV_PREVIEW_PATH = '/api/files'
 const GRANT_TTL_MS = 12 * 60 * 60 * 1000
 
 const configuredSecret = process.env.PREVIEW_COOKIE_SECRET || process.env.CLERK_SECRET_KEY
@@ -55,14 +56,19 @@ export function setPreviewCookie(
   userId: string,
 ): void {
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https'
-  res.cookie(PREVIEW_COOKIE, previewGrant(userId), {
+  const grant = previewGrant(userId)
+  const options = {
     httpOnly: true,
     // The preview iframe is cross-site in production (app on one origin, API
     // on another), so the cookie must be SameSite=None there; Lax is enough
     // for the same-origin dev proxy and plain-http browsers refuse None.
     sameSite: secure ? 'none' : 'lax',
     secure,
-    path: PREVIEW_PATH,
     maxAge: GRANT_TTL_MS,
-  })
+  } as const
+  // Production loads /files directly. Vite exposes the same route through
+  // /api/files and rewrites it only after the browser has chosen cookies, so
+  // localhost needs its own equally narrow cookie path.
+  res.cookie(PREVIEW_COOKIE, grant, { ...options, path: PREVIEW_PATH })
+  res.cookie(PREVIEW_COOKIE, grant, { ...options, path: DEV_PREVIEW_PATH })
 }

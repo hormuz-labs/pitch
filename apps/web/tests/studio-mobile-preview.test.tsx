@@ -44,7 +44,7 @@ describe('mobile preview collapse', () => {
 
   it('keeps chat open while collapsing and restoring the same player', () => {
     const { container } = render(() => <StudioView projectId="project" />)
-    expect(screen.queryByRole('button', { name: /Hide chat/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Hide chat/ })).toBeTruthy()
     expect(container.querySelector('.lv-studio')?.classList.contains('is-chat-expanded')).toBe(true)
     const toggle = screen.getByRole('button', { name: 'Collapse video' })
     const stage = document.getElementById(toggle.getAttribute('aria-controls')!)!

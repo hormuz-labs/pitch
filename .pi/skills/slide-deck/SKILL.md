@@ -105,6 +105,11 @@ you; never invent a filename or a remote URL.
 config is where changes go. After the deck exists, `deck.html` is the truth:
 rebuilding from the config throws away hand edits — say so if you must.
 
+The user can also edit `deck.html` by hand in the studio's deck editor (inline
+styles, slide ids `slide-node-N`, `data-pitch-block` blocks). Those edits are
+the user's — never strip unknown classes, ids or attributes, and edit
+surgically around them instead of regenerating slides.
+
 ## Writing the slides
 
 - **Title** 4–7 words, no padding words. **Body** 3–5 bullets at the chosen

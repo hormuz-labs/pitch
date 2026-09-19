@@ -292,5 +292,5 @@ export async function connectStudioBrowser(name = sharedProfileName()): Promise<
   const endpoint = await ensureSharedProfile(name)
   const { chromium } = await import('playwright')
   logger.info({ endpoint }, 'connecting to the shared CloakBrowser over CDP')
-  return chromium.connectOverCDP(endpoint)
+  return chromium.connectOverCDP(endpoint, { timeout: 4000 })
 }

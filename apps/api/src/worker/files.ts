@@ -10,7 +10,7 @@ import path from 'node:path'
 import express from 'express'
 
 /**
- * The `<script>` pair that turns a previewed page into a selectable one.
+ * A relative src for one engine script served from a previewed page.
  *
  * `pagePath` is the path BELOW `/files/projects/<internal>` (e.g. `/deck.html`
  * or `/build/output.html`). The src is deliberately relative: the web app may
@@ -19,14 +19,26 @@ import express from 'express'
  * return the app's index.html instead of the script, and leave the page
  * unselectable with nothing in the console to explain why.
  */
-export function inspectorTag(pagePath: string, container: string, token?: string): string {
+function engineScriptSrc(pagePath: string, file: string): string {
   const depth = 1 + pagePath.replace(/^\/+/, '').split('/').length
-  const query = token ? `?token=${encodeURIComponent(token)}` : ''
-  const src = `${'../'.repeat(depth)}engine/js/inspector.js${query}`
-  return (
-    `<script>window.STUDIO_INSPECTOR={container:${JSON.stringify(container)}}</script>` +
-    `<script src="${src}"></script>`
-  )
+  return `${'../'.repeat(depth)}engine/js/${file}`
+}
+
+/**
+ * The `<script>` pair that turns a previewed page into a selectable one, plus
+ * the deck editor when the page is opened for editing (`?studio=1&edit=1`).
+ */
+export function studioTags(pagePath: string, opts: { container: string; edit?: boolean }): string {
+  const tags =
+    `<script>window.STUDIO_INSPECTOR={container:${JSON.stringify(opts.container)}}</script>` +
+    `<script src="${engineScriptSrc(pagePath, 'inspector.js')}"></script>`
+  if (!opts.edit) return tags
+  return `${tags}<script src="${engineScriptSrc(pagePath, 'deck-editor.js')}"></script>`
+}
+
+/** The inspector-only tags; kept for callers that predate studioTags. */
+export function inspectorTag(pagePath: string, container: string): string {
+  return studioTags(pagePath, { container })
 }
 
 /** Serve `req.path` from `dir` (a workspace), with the studio's inspector and download rules. */
@@ -52,11 +64,10 @@ export function serveWorkspaceFile(
     void readFile(file, 'utf8').then(
       html => {
         const container = typeof req.query.container === 'string' ? req.query.container : '.slide'
-        const tag = inspectorTag(
-          req.path,
+        const tag = studioTags(req.path, {
           container,
-          typeof req.query.token === 'string' ? req.query.token : undefined,
-        )
+          edit: req.query.edit === '1',
+        })
         const out = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${tag}</body>`) : html + tag
         res.setHeader('Content-Type', 'text/html; charset=utf-8')
         res.send(out)

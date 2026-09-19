@@ -1,5 +1,14 @@
 import { useNavigate } from '@solidjs/router'
-import { ChevronDown, ChevronUp, MonitorPlay, MoreHorizontal, Music2, Share2 } from 'lucide-solid'
+import {
+  ChevronDown,
+  ChevronUp,
+  Files,
+  MessageSquare,
+  MonitorPlay,
+  MoreHorizontal,
+  Music2,
+  Share2,
+} from 'lucide-solid'
 import {
   createEffect,
   createMemo,
@@ -13,14 +22,17 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import { PitchWordmark } from '../public/brand'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
+import { studio } from './client'
+import { DeckEditor } from './deck/DeckEditor'
+import { deckEditorFor } from './deck/deckSession'
 import { type EditableFormat, type ExportResolution, exportFilename } from './editable-export'
+import { downloadableOutputs } from './export-outputs'
 import { animateToLatest, FeedJumpLatest, isAwayFromLatest } from './FeedJumpLatest'
+import { shouldReturnEmptyProjectToNew } from './helpers'
 import { MusicPicker } from './MusicPicker'
 import { BrowserPreview } from './previews/BrowserPreview'
-import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
 import { PdfPreview } from './previews/PdfPreview'
 import { VideoPreview } from './previews/VideoPreview'
@@ -48,7 +60,7 @@ function Preview(props: { store: ProjectStore }) {
         <HtmlPreview store={s} src={src()!} />
       </Match>
       <Match when={kind() === 'deck' && !!src()}>
-        <DeckPreview store={s} src={`${src()}&studio=1`} />
+        <DeckEditor store={s} src={`${src()}&studio=1&edit=1`} />
       </Match>
       <Match when={kind() === 'video' && !!src()}>
         <VideoPreview store={s} src={src()!} />
@@ -108,17 +120,25 @@ const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[
   { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
   { format: 'blender', label: 'Blender', note: 'Native text, images + fallback' },
 ]
-export function Actions(props: ParentProps<{ store: ProjectStore }>) {
+export function Actions(
+  props: ParentProps<{
+    store: ProjectStore
+    view?: () => 'preview' | 'files'
+    setView?: (v: 'preview' | 'files') => void
+  }>,
+) {
   const s = props.store,
     [open, setOpen] = createSignal(false),
     [resolution, setResolution] = createSignal<ExportResolution>('1080p'),
     menuId = createUniqueId(),
     resolutionId = createUniqueId(),
-    [sharing, setSharing] = createSignal(false)
+    [sharing, setSharing] = createSignal(false),
+    [deckRendering, setDeckRendering] = createSignal(false)
   let wrap: HTMLDivElement | undefined, trigger: HTMLButtonElement | undefined
   const launch = () => s.project?.description.preview?.kind === 'html',
+    deck = () => s.project?.description.preview?.kind === 'deck',
     editable = () => launch() || s.project?.description.preview?.kind === 'video',
-    exportBlocked = () => s.busy || s.exportPending || !!s.exportStatus?.running,
+    exportBlocked = () => s.busy || s.exportPending || !!s.exportStatus?.running || deckRendering(),
     currentRender = () => renders().find(r => r.res === resolution() && !r.stale),
     exportProgress = () =>
       s.exportPending
@@ -126,13 +146,7 @@ export function Actions(props: ParentProps<{ store: ProjectStore }>) {
         : (s.exportStatus?.progress ?? 0) <= 0
           ? 'Warming up...'
           : `${s.exportStatus?.stage === 'packaging' ? 'Packaging' : 'Rendering'} ${s.exportStatus?.progress ?? 0}%`,
-    outputs = () =>
-      [
-        ...(s.project?.outputs ?? []),
-        ...(s.project?.description.outputs ?? []).filter(
-          x => !(s.project?.outputs ?? []).some(y => y.url === x.url),
-        ),
-      ].filter(x => ['video', 'pdf', 'html'].includes(x.kind)),
+    outputs = () => downloadableOutputs(s.project),
     renders = () => {
       const extra = s.project?.description.extra as any
       const local = (extra?.renders ?? []) as {
@@ -181,6 +195,25 @@ export function Actions(props: ParentProps<{ store: ProjectStore }>) {
   const canShare = () =>
     Boolean(s.project?.shareSlug) ||
     (!s.exportStatus?.running && Boolean(s.project?.description.outputs?.length))
+  // Deck PDF export: flush any pending autosave, re-render the PDF from the
+  // deck.html on disk, and only then download — never a stale build.
+  const downloadDeckPdf = async (url: string) => {
+    if (deckRendering() || !s.id) return
+    setDeckRendering(true)
+    try {
+      await deckEditorFor(s.id)?.flushSave()
+      await studio.renderDeck(await s.getToken(), s.id)
+      s.download(
+        `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`,
+        `${s.project?.title ?? 'deck'}.pdf`,
+      )
+      setOpen(false)
+    } catch (err) {
+      console.error('Deck PDF export failed:', err)
+    } finally {
+      setDeckRendering(false)
+    }
+  }
   return (
     <span class="topbar-actions">
       {props.children}
@@ -225,6 +258,46 @@ export function Actions(props: ParentProps<{ store: ProjectStore }>) {
         </button>
         <Show when={open()}>
           <div class="export-menu" id={menuId}>
+            <Show when={props.setView}>
+              <div class="export-section-heading">
+                <span class="export-section-title">View</span>
+              </div>
+              <button
+                type="button"
+                class={`export-row export-row-action${props.view?.() === 'preview' ? ' is-active' : ''}`}
+                onClick={() => {
+                  props.setView?.('preview')
+                  setOpen(false)
+                }}
+              >
+                <span class="export-row-action-icon">
+                  <MonitorPlay size={15} />
+                </span>
+                <span class="export-row-label">Preview</span>
+                <Show when={props.view?.() === 'preview'}>
+                  <span class="export-row-status">active</span>
+                </Show>
+              </button>
+              <Show when={s.assets.length > 0}>
+                <button
+                  type="button"
+                  class={`export-row export-row-action${props.view?.() === 'files' ? ' is-active' : ''}`}
+                  onClick={() => {
+                    s.player.current?.pause?.()
+                    props.setView?.('files')
+                    setOpen(false)
+                  }}
+                >
+                  <span class="export-row-action-icon">
+                    <Files size={15} />
+                  </span>
+                  <span class="export-row-label">Files ({s.assets.length})</span>
+                  <Show when={props.view?.() === 'files'}>
+                    <span class="export-row-status">active</span>
+                  </Show>
+                </button>
+              </Show>
+            </Show>
             <button
               class="export-row export-row-action mobile-share-action"
               title={
@@ -236,45 +309,70 @@ export function Actions(props: ParentProps<{ store: ProjectStore }>) {
               <span class="export-row-action-icon">
                 <Share2 size={15} />
               </span>
-              <span class="export-row-main">
-                <span class="export-row-label">
-                  {sharing()
-                    ? 'Sharing…'
-                    : s.project?.shareSlug
-                      ? 'Copy share link'
-                      : 'Share project'}
-                </span>
-                <span class="export-row-note">Publish a link others can open</span>
+              <span class="export-row-label">
+                {sharing()
+                  ? 'Sharing…'
+                  : s.project?.shareSlug
+                    ? 'Copy share link'
+                    : 'Share project'}
               </span>
             </button>
             <div class="export-section-heading export-section-heading--video">
-              <span class="export-section-title">Video</span>
-              <span class="export-section-note">MP4</span>
+              <span class="export-section-title">{deck() ? 'Deck' : 'Video'}</span>
+              <span class="export-section-note">{deck() ? 'PDF' : 'MP4'}</span>
             </div>
             <Show
               when={launch()}
               fallback={
-                <For each={outputs()}>
-                  {o => (
-                    <button
-                      class="export-row"
-                      onClick={() =>
-                        s.download(
-                          o.url,
-                          `${s.project?.title ?? 'export'}.${o.kind === 'pdf' ? 'pdf' : o.kind === 'html' ? 'html' : 'mp4'}`,
-                        )
-                      }
-                    >
-                      <span class="export-row-main">
-                        <span class="export-row-label">{o.label ?? o.kind.toUpperCase()}</span>
-                        <span class="export-row-note">
-                          {new Date(o.createdAt).toLocaleString()}
-                        </span>
-                      </span>
-                      <span class="export-row-status">download</span>
-                    </button>
-                  )}
-                </For>
+                <>
+                  <For each={outputs()}>
+                    {o =>
+                      deck() && o.kind === 'pdf' ? (
+                        <button
+                          class="export-row"
+                          disabled={deckRendering()}
+                          onClick={() => void downloadDeckPdf(o.url)}
+                        >
+                          <span class="export-row-main">
+                            <span class="export-row-label">
+                              {deckRendering() ? 'Rendering…' : (o.label ?? 'Download PDF')}
+                            </span>
+                            <span class="export-row-note">
+                              {deckRendering()
+                                ? 'Saving and building the current slides'
+                                : new Date(o.createdAt).toLocaleString()}
+                            </span>
+                          </span>
+                          <span class="export-row-status">download</span>
+                        </button>
+                      ) : (
+                        <button
+                          class="export-row"
+                          onClick={() =>
+                            s.download(
+                              o.url,
+                              `${s.project?.title ?? 'export'}.${o.kind === 'pdf' ? 'pdf' : 'mp4'}`,
+                            )
+                          }
+                        >
+                          <span class="export-row-main">
+                            <span class="export-row-label">
+                              {o.label ??
+                                (o.kind === 'pdf' ? 'Download PDF' : o.kind.toUpperCase())}
+                            </span>
+                            <span class="export-row-note">
+                              {new Date(o.createdAt).toLocaleString()}
+                            </span>
+                          </span>
+                          <span class="export-row-status">download</span>
+                        </button>
+                      )
+                    }
+                  </For>
+                  <Show when={deck() && !outputs().some(o => o.kind === 'pdf')}>
+                    <p class="export-hint">Make an edit to create the downloadable PDF.</p>
+                  </Show>
+                </>
               }
             >
               <For each={RES}>
@@ -398,9 +496,11 @@ export function Actions(props: ParentProps<{ store: ProjectStore }>) {
 export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
     navigate = useNavigate(),
+    chatId = createUniqueId(),
     previewId = createUniqueId(),
     timelineId = createUniqueId(),
     [mobileLayout, setMobileLayout] = createSignal(window.innerWidth <= 840),
+    [chatOpen, setChatOpen] = createSignal(true),
     [previewCollapsed, setPreviewCollapsed] = createSignal(false),
     [showJumpToLatest, setShowJumpToLatest] = createSignal(false),
     [timelineOpen, setTimelineOpen] = createSignal(true),
@@ -459,6 +559,7 @@ export function StudioView(props: { projectId: string }) {
     }
   }
   createEffect(() => {
+    chatOpen()
     previewCollapsed()
     s.busy
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
@@ -466,14 +567,17 @@ export function StudioView(props: { projectId: string }) {
       if (feed && followFeed) feed.scrollTop = feed.scrollHeight
     })
   })
-  const stripKind = createMemo(() =>
-    s.project?.description.slides
+  const stripKind = createMemo(() => {
+    const description = s.project?.description
+    // Deck projects render their own SlidesBar inside DeckEditor; the tray
+    // would double-render slides.
+    if (description?.preview?.kind === 'deck') return null
+    return description?.slides
       ? 'slides'
-      : (s.project?.description.scenes?.length ?? 0) > 0 ||
-          s.project?.description.preview?.kind === 'html'
+      : (description?.scenes?.length ?? 0) > 0 || description?.preview?.kind === 'html'
         ? 'scenes'
-        : null,
-  )
+        : null
+  })
   const emptyTimeline = createMemo(
     () => stripKind() === 'scenes' && !s.project?.description.scenes?.length,
   )
@@ -508,11 +612,28 @@ export function StudioView(props: { projectId: string }) {
   const previewLabel = () =>
     ['html', 'video'].includes(s.project?.description.preview?.kind ?? '') ? 'video' : 'preview'
   const emptyChat = createMemo(() => !showStage() && !s.entries.length && !s.busy)
+  const returnToNew = createMemo(() =>
+    shouldReturnEmptyProjectToNew({
+      initialLoading: s.initialLoading,
+      loadFailed: Boolean(s.loadError),
+      projectStatus: s.project?.status ?? null,
+      busy: s.busy,
+      entryCount: s.entries.length,
+      assetCount: s.assets.length,
+      hasPreview: hasPreview(),
+    }),
+  )
+  createEffect(() => {
+    if (returnToNew()) navigate('/new', { replace: true })
+  })
   createEffect(() => {
     const available = hasPreview()
     if (available && !hadPreview) {
       setView('preview')
+      setChatOpen(true)
       setPreviewCollapsed(false)
+    } else if (!available && !s.initialLoading && s.assets.length > 0 && !s.entries.length) {
+      setView('files')
     }
     hadPreview = available
   })
@@ -532,7 +653,7 @@ export function StudioView(props: { projectId: string }) {
       classList={{
         'is-chat-only': !showStage(),
         'is-chat-empty': emptyChat(),
-        'is-chat-expanded': true,
+        'is-chat-expanded': chatOpen(),
         'is-preview-collapsed': previewHidden(),
       }}
     >
@@ -588,7 +709,7 @@ export function StudioView(props: { projectId: string }) {
                   </Show>
                 </div>
                 <Show when={hasPreview()}>
-                  <Actions store={s}>
+                  <Actions store={s} view={view} setView={setView}>
                     <Show when={hasVideoSoundtrack()}>
                       <button
                         type="button"
@@ -607,17 +728,12 @@ export function StudioView(props: { projectId: string }) {
             </header>
             <div class="editor">
               <aside
+                id={chatId}
                 class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
                 ref={side}
                 style={{ '--sidebar-w': `${sidebar()}px` }}
                 aria-busy={s.busy}
               >
-                <Show when={emptyChat()}>
-                  <div class="chat-welcome">
-                    <PitchWordmark class="chat-welcome__wordmark" />
-                    <h1>What do you want to create?</h1>
-                  </div>
-                </Show>
                 <div
                   class="feed"
                   hidden={emptyChat()}
@@ -652,6 +768,40 @@ export function StudioView(props: { projectId: string }) {
                   <Composer store={s} />
                 </div>
               </aside>
+              <Show when={showStage()}>
+                <button
+                  type="button"
+                  class="mobile-chat-toggle"
+                  aria-controls={chatId}
+                  aria-expanded={chatOpen()}
+                  onClick={() => {
+                    if (!chatOpen()) {
+                      setView('preview')
+                      setTimelineOpen(false)
+                      queueMicrotask(() => {
+                        side?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                      })
+                    }
+                    setChatOpen(open => !open)
+                  }}
+                >
+                  <MessageSquare size={18} />
+                  <span class="mobile-chat-toggle__label">{chatOpen() ? 'Hide chat' : 'Chat'}</span>
+                  <span class="mobile-chat-toggle__status">
+                    {s.targets.length
+                      ? `${s.targets.length} selected`
+                      : s.busy
+                        ? s.status
+                        : s.draft.trim()
+                          ? 'Draft message'
+                          : 'Ask for a change…'}
+                  </span>
+                  <Show when={s.busy}>
+                    <span class="spinner" aria-hidden="true" />
+                  </Show>
+                  {chatOpen() ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                </button>
+              </Show>
               <div
                 class="resize-handle"
                 hidden={!showStage()}

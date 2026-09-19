@@ -117,6 +117,7 @@ describe('assembleStudioPicker', () => {
     const out = assembleStudioPicker(catalog, {
       defaultSpec: GEMINI_38_FLASH_SPEC,
       specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: true,
     })
     expect(out).toEqual([
       {
@@ -172,14 +173,28 @@ describe('assembleStudioPicker', () => {
     expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMMA_4_31B_SPEC])
   })
 
-  it('shows direct GPT models when they are configured and runnable', () => {
+  it('shows direct GPT models when gptEnabled is true', () => {
     const out = assembleStudioPicker(catalog, {
       specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: true,
     })
     expect(out.slice(-2).map(m => m.spec)).toEqual([GPT_54_MINI_SPEC, GPT_54_SPEC])
   })
 
-  it('includes every configured Azure model', () => {
+  it('hides direct GPT models when gptEnabled is false', () => {
+    const out = assembleStudioPicker(catalog, {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: false,
+    })
+    expect(out.map(m => m.spec)).toEqual([
+      GEMINI_38_FLASH_SPEC,
+      GEMINI_31_PRO_SPEC,
+      GEMMA_4_31B_SPEC,
+      GEMMA_4_26B_SPEC,
+    ])
+  })
+
+  it('gates Azure models behind gptEnabled', () => {
     const azure = [
       model('azure-apim', 'gpt-5.5', 'GPT-5.5'),
       model('azure-apim', 'gpt-5.6-luna', 'Luna'),
@@ -190,6 +205,14 @@ describe('assembleStudioPicker', () => {
     expect(
       assembleStudioPicker(azure, {
         specs: [...DEFAULT_STUDIO_MODELS],
+        gptEnabled: false,
+      }),
+    ).toEqual([])
+
+    expect(
+      assembleStudioPicker(azure, {
+        specs: [...DEFAULT_STUDIO_MODELS],
+        gptEnabled: true,
       }).map(item => item.spec),
     ).toEqual([
       AZURE_GPT_55_SPEC,
@@ -200,7 +223,7 @@ describe('assembleStudioPicker', () => {
     ])
   })
 
-  it('shows Azure and direct OpenAI models together when both are runnable', () => {
+  it('shows Azure and direct OpenAI models together when gptEnabled is true', () => {
     const catalog = [
       model('azure-apim', 'gpt-5.6-sol', 'Sol'),
       model('openai', 'gpt-5.4', 'GPT-5.4'),
@@ -208,38 +231,62 @@ describe('assembleStudioPicker', () => {
     expect(
       assembleStudioPicker(catalog, {
         specs: [AZURE_SOL_SPEC, GPT_54_SPEC],
+        gptEnabled: true,
       }).map(item => item.spec),
     ).toEqual([AZURE_SOL_SPEC, GPT_54_SPEC])
   })
 
-  it('shows Azure and Gemini without account entitlement filtering', () => {
-    const out = assembleStudioPicker(
-      [
-        model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash'),
-        model('azure-apim', 'gpt-5.6-sol', 'Sol'),
-      ],
-      { specs: [GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC] },
-    )
-    expect(out.map(item => item.spec)).toEqual([GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC])
+  it('gates Azure and OpenAI behind account gptEnabled entitlement', () => {
+    const modelsList = [
+      model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash'),
+      model('azure-apim', 'gpt-5.6-sol', 'Sol'),
+      model('openai', 'gpt-5.4', 'GPT-5.4'),
+    ]
+    const denied = assembleStudioPicker(modelsList, {
+      specs: [GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC, GPT_54_SPEC],
+      gptEnabled: false,
+    })
+    expect(denied.map(item => item.spec)).toEqual([GEMINI_38_FLASH_SPEC])
+
+    const allowed = assembleStudioPicker(modelsList, {
+      specs: [GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC, GPT_54_SPEC],
+      gptEnabled: true,
+    })
+    expect(allowed.map(item => item.spec)).toEqual([
+      GEMINI_38_FLASH_SPEC,
+      AZURE_SOL_SPEC,
+      GPT_54_SPEC,
+    ])
   })
 
-  it('cannot bypass the deployment allowlist via STUDIO_MODEL', () => {
+  it('cannot bypass the deployment allowlist or entitlement via STUDIO_MODEL', () => {
     expect(
       assembleStudioPicker(catalog, {
         specs: [GEMINI_38_FLASH_SPEC],
         defaultSpec: GPT_54_SPEC,
+        gptEnabled: true,
       }).map(m => m.spec),
     ).toEqual([GEMINI_38_FLASH_SPEC])
     expect(
       assembleStudioPicker(catalog, {
         specs: [...DEFAULT_STUDIO_MODELS],
         defaultSpec: GPT_54_SPEC,
-      })[0]?.spec,
-    ).toBe(GPT_54_SPEC)
+        gptEnabled: false,
+      }).some(m => m.spec === GPT_54_SPEC),
+    ).toBe(false)
   })
 
   it('rejects explicit forbidden picks and replaces revoked or removed saved models', () => {
-    const allowed = assembleStudioPicker(catalog, { specs: [...DEFAULT_STUDIO_MODELS] })
+    const denied = assembleStudioPicker(catalog, {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: false,
+    })
+    expect(() => selectStudioModel(denied, GPT_54_SPEC)).toThrow('not available')
+
+    const allowed = assembleStudioPicker(catalog, {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: true,
+    })
     expect(selectStudioModel(allowed, GPT_54_SPEC)).toBe(GPT_54_SPEC)
     expect(selectStudioModel(allowed, undefined, GPT_54_SPEC)).toBe(GPT_54_SPEC)
     expect(selectStudioModel(allowed, undefined, 'openrouter/moonshotai/kimi-k3')).toBe(

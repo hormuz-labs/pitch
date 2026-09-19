@@ -11,10 +11,15 @@ import {
 import { type JSX, Show } from 'solid-js'
 import type { ProjectStore } from '../useProject'
 
-export function SelectToggle(props: { active: boolean; onClick: () => void }) {
+export function SelectToggle(props: {
+  active: boolean
+  onClick: () => void
+  'data-deck-tour'?: string
+}) {
   return (
     <button
       class={`select-toggle${props.active ? ' on' : ''}`}
+      data-deck-tour={props['data-deck-tour']}
       aria-pressed={props.active}
       onClick={props.onClick}
     >
@@ -23,10 +28,15 @@ export function SelectToggle(props: { active: boolean; onClick: () => void }) {
     </button>
   )
 }
-export function InspectButton(props: { active: boolean; onClick: () => void }) {
+export function InspectButton(props: {
+  active: boolean
+  onClick: () => void
+  'data-deck-tour'?: string
+}) {
   return (
     <button
       class={`preview-btn preview-inspect-btn ${props.active ? 'active' : ''}`}
+      data-deck-tour={props['data-deck-tour']}
       aria-label="Select an element"
       aria-pressed={props.active}
       title="Select an element (I)"

@@ -26,9 +26,11 @@ describe('stageMusic', () => {
     }
 
     await expect(stageMusic(ws, '01.mp3')).resolves.toBe('music.mp3')
-    await expect(readFile(path.join(dir, 'audio', 'music.mp3'))).resolves.toEqual(
-      await readFile(path.join(MUSIC_DIR, '01.mp3')),
-    )
+    const [copied, expected] = await Promise.all([
+      readFile(path.join(dir, 'audio', 'music.mp3')),
+      readFile(path.join(MUSIC_DIR, '01.mp3')),
+    ])
+    expect(copied.equals(expected)).toBe(true)
     await expect(readFile(path.join(dir, 'audio', 'music.wav'))).rejects.toThrow()
     await expect(readFile(path.join(dir, 'audio', '01.mp3'))).rejects.toThrow()
   })
