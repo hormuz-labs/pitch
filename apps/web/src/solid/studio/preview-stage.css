@@ -12,7 +12,8 @@
 .lv-studio :is(button, a, input) { -webkit-tap-highlight-color: transparent; }
 .lv-studio .editor-stage[hidden],
 .lv-studio .resize-handle[hidden] { display: none; }
-.lv-studio .mobile-preview-toggle { display: none; }
+.lv-studio .mobile-preview-toggle,
+.lv-studio .mobile-chat-toggle { display: none; }
 .lv-studio .job-topbar .nav-crumb { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; min-width: 0; width: 100%; }
 .lv-studio .job-topbar .editor-project { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lv-studio .job-topbar :is(.project-kind, .project-state) { flex-shrink: 0; white-space: nowrap; }
