@@ -26,7 +26,7 @@ jobs:
       - name: Install browser test tools
         run: |
           bun install --global @playwright/cli@0.1.17
-          bunx playwright install --with-deps chromium
+          bunx playwright install chromium
 
       - name: Run all tests
         run: make test
