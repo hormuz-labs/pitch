@@ -4,17 +4,49 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install browser test tools
+        run: |
+          bun install --global @playwright/cli@0.1.17
+          bunx playwright install --with-deps chromium
+
+      - name: Run all tests
+        run: make test
+
+      - name: Typecheck API and web
+        run: |
+          bunx tsc --noEmit -p apps/api/tsconfig.json
+          bunx tsc --noEmit -p apps/web/tsconfig.solid.json
+          bunx tsc --noEmit -p apps/web/tsconfig.node.json
+
   build-and-deploy:
-    if: vars.DEPLOY_TARGET != 'gke'
+    needs: test
+    if: github.event_name == 'push' && vars.DEPLOY_TARGET != 'gke'
     runs-on: self-hosted
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3

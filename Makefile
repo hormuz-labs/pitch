@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev start dev-docker discord prod down logs ps migrate test test-watch unittest integration sandbox-check whisper-model
+.PHONY: help dev start dev-docker discord prod down logs ps migrate test test-watch unittest webtest integration sandbox-check whisper-model
 
 help:
 	@echo ""
@@ -24,8 +24,9 @@ help:
 	@echo "  $(GREEN)make ps$(RESET)         — list container status"
 	@echo "  $(GREEN)make migrate$(RESET)    — generate from ZenStack, then apply pending database migrations"
 	@echo "  $(GREEN)make unittest$(RESET)   — run fast pure unit tests (no browser)"
+	@echo "  $(GREEN)make webtest$(RESET)    — run the Solid frontend test suite"
 	@echo "  $(GREEN)make integration$(RESET)— run browser-driven integration tests (playwright-cli)"
-	@echo "  $(GREEN)make test$(RESET)       — alias for unittest"
+	@echo "  $(GREEN)make test$(RESET)       — run unit/API, frontend, and integration tests"
 	@echo "  $(GREEN)make test-watch$(RESET) — run unit tests in watch mode (vitest)"
 	@echo "  $(GREEN)make sandbox-check$(RESET)— verify the agent's shell is confined on this host"
 	@echo "  $(GREEN)make whisper-model$(RESET)— fetch the model motion_align needs"
@@ -128,8 +129,15 @@ unittest:
 	bun run test
 	@echo ""
 
-# `make test` stays as an alias for the fast unit suite.
-test: unittest
+webtest:
+	@echo ""
+	@echo "  $(BOLD)$(CYAN)Running frontend tests...$(RESET)"
+	@echo ""
+	bun run test:web
+	@echo ""
+
+# The CI gate: every Vitest project in vitest.config.ts.
+test: unittest webtest integration
 
 integration:
 	@echo ""
