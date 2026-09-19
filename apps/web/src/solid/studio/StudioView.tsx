@@ -259,44 +259,46 @@ export function Actions(
         <Show when={open()}>
           <div class="export-menu" id={menuId}>
             <Show when={props.setView}>
-              <div class="export-section-heading">
-                <span class="export-section-title">View</span>
-              </div>
-              <button
-                type="button"
-                class={`export-row export-row-action${props.view?.() === 'preview' ? ' is-active' : ''}`}
-                onClick={() => {
-                  props.setView?.('preview')
-                  setOpen(false)
-                }}
-              >
-                <span class="export-row-action-icon">
-                  <MonitorPlay size={15} />
-                </span>
-                <span class="export-row-label">Preview</span>
-                <Show when={props.view?.() === 'preview'}>
-                  <span class="export-row-status">active</span>
-                </Show>
-              </button>
-              <Show when={s.assets.length > 0}>
+              <div class="export-view-section">
+                <div class="export-section-heading">
+                  <span class="export-section-title">View</span>
+                </div>
                 <button
                   type="button"
-                  class={`export-row export-row-action${props.view?.() === 'files' ? ' is-active' : ''}`}
+                  class={`export-row export-row-action${props.view?.() === 'preview' ? ' is-active' : ''}`}
                   onClick={() => {
-                    s.player.current?.pause?.()
-                    props.setView?.('files')
+                    props.setView?.('preview')
                     setOpen(false)
                   }}
                 >
                   <span class="export-row-action-icon">
-                    <Files size={15} />
+                    <MonitorPlay size={15} />
                   </span>
-                  <span class="export-row-label">Files ({s.assets.length})</span>
-                  <Show when={props.view?.() === 'files'}>
+                  <span class="export-row-label">Preview</span>
+                  <Show when={props.view?.() === 'preview'}>
                     <span class="export-row-status">active</span>
                   </Show>
                 </button>
-              </Show>
+                <Show when={s.assets.length > 0}>
+                  <button
+                    type="button"
+                    class={`export-row export-row-action${props.view?.() === 'files' ? ' is-active' : ''}`}
+                    onClick={() => {
+                      s.player.current?.pause?.()
+                      props.setView?.('files')
+                      setOpen(false)
+                    }}
+                  >
+                    <span class="export-row-action-icon">
+                      <Files size={15} />
+                    </span>
+                    <span class="export-row-label">Files ({s.assets.length})</span>
+                    <Show when={props.view?.() === 'files'}>
+                      <span class="export-row-status">active</span>
+                    </Show>
+                  </button>
+                </Show>
+              </div>
             </Show>
             <button
               class="export-row export-row-action mobile-share-action"

@@ -5422,27 +5422,31 @@
   box-shadow: 0 16px 42px rgb(0 0 0 / 18%);
 }
 .lv-studio:not(.new-project-page) .preview-pane-tab__count {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 5px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--panel);
-  font-size: 9px;
-  font-weight: 700;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .lv-studio:not(.new-project-page) .preview-pane-tab.is-active .preview-pane-tab__count {
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--panel);
 }
 .lv-studio:not(.new-project-page) .topbar-more { gap: 6px; min-width: 72px; max-width: 132px; }
 .lv-studio:not(.new-project-page) .topbar-more-icon,
 .lv-studio:not(.new-project-page) .topbar-more-label { display: none; }
 .lv-studio:not(.new-project-page) .topbar-share { gap: 7px; }
 .lv-studio:not(.new-project-page) .mobile-share-action { display: none; }
+.lv-studio:not(.new-project-page) .export-view-section { display: none; }
 .lv-studio:not(.new-project-page) .topbar-more .export-label {
   position: relative;
   z-index: 1;
@@ -5909,6 +5913,7 @@
   .lv-studio:not(.new-project-page) .topbar-more-label { display: none; }
   .lv-studio:not(.new-project-page) .topbar-export-label { display: none; }
   .lv-studio:not(.new-project-page) .mobile-share-action { display: flex; }
+  .lv-studio:not(.new-project-page) .export-view-section { display: block; }
 
   .lv-studio:not(.new-project-page) .export-menu {
     width: 270px;
