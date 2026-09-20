@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 ARG RUNTIME_IMAGE=ghcr.io/hormuz-labs/pitch-base:latest
-# ── Stage 1: install & build ──────────────────────────────────────────────────
+# ── Stage 1: dependencies & generated client ──────────────────────────────────
 FROM oven/bun:1.3.14-debian AS builder
 
 WORKDIR /app
@@ -19,7 +19,9 @@ COPY packages/storage/package.json packages/storage/
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile --ignore-scripts
 
-COPY . .
+# Ordinary source changes must not invalidate client generation or the large
+# dependency layer copied into the runtime image.
+COPY packages/db/prisma/schema.zmodel packages/db/prisma/schema.zmodel
 
 # zenstack spawns `prisma generate` via a shell. prisma is a packages/db devDep
 # and (with --ignore-scripts) isn't hoisted to the root node_modules/.bin, so the
@@ -32,10 +34,14 @@ RUN PATH="/app/packages/db/node_modules/.bin:$PATH" ./node_modules/.bin/zenstack
 FROM ${RUNTIME_IMAGE} AS runtime
 
 WORKDIR /app
-COPY --from=builder /app .
 
 # GPU devices (/dev/dri) for NVENC/VAAPI encodes when the host passes them.
 RUN groupadd -f render && usermod -aG render,video root
+
+COPY --from=builder /app .
+# .dockerignore excludes the generated Prisma schema so this preserves the
+# dependency stage's authoritative schema and generated client.
+COPY . .
 
 ENV NODE_ENV=production
 ARG GIT_HASH

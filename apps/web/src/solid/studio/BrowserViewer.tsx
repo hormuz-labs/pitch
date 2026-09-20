@@ -1,5 +1,5 @@
 import { Maximize, Minimize } from 'lucide-solid'
-import { createEffect, createSignal, onCleanup, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, onCleanup, Show } from 'solid-js'
 import { API_URL } from '../../config'
 import { useAuth } from '../core/auth'
 
@@ -33,8 +33,11 @@ export function BrowserViewer(props: {
   document.addEventListener('fullscreenchange', fsc)
   onCleanup(() => document.removeEventListener('fullscreenchange', fsc))
 
+  // Project refreshes re-evaluate the prop getter even for the same stream.
+  // Only a changed ID should tear down the live connection.
+  const streamId = createMemo(() => props.streamId)
   createEffect(() => {
-    const id = props.streamId
+    const id = streamId()
     let active = true
     let retry: ReturnType<typeof setTimeout> | undefined
     let attempts = 0

@@ -6,6 +6,9 @@ node_modules/
 dist/
 **/dist/
 *.tsbuildinfo
+# Generated in the API dependency stage. Source copies must not overwrite it
+# or force that stage to be materialized again after every source change.
+packages/db/prisma/schema.prisma
 
 # Test / coverage
 coverage/

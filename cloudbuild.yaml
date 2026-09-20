@@ -18,15 +18,11 @@ steps:
         trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
         docker cp "$container:/workspace/." /workspace
 
-  - id: pull-base-cache
-    name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - -ceu
-      - docker pull "${_IMAGE_PREFIX}/pitch-base:latest" || true
-
+  # BuildKit imports inline cache metadata and fetches layers on demand; a full
+  # docker pull first would download/unpack the image before the build can start.
   - id: build-base
     name: gcr.io/cloud-builders/docker
+    waitFor: [restore-source]
     env: [DOCKER_BUILDKIT=1]
     args:
       - build
@@ -49,9 +45,14 @@ steps:
 
   - id: build-api
     name: gcr.io/cloud-builders/docker
+    # All steps share the Docker daemon. Use the locally built base immediately
+    # while push-base publishes it, rather than waiting for that upload.
+    waitFor: [build-base]
     env: [DOCKER_BUILDKIT=1]
     args:
       - build
+      - --cache-from=${_IMAGE_PREFIX}/pitch-api:latest
+      - --build-arg=BUILDKIT_INLINE_CACHE=1
       - --build-arg=GIT_HASH=${_GIT_HASH}
       - --build-arg=RUNTIME_IMAGE=${_IMAGE_PREFIX}/pitch-base:${_GIT_HASH}
       - --tag=${_IMAGE_PREFIX}/pitch-api:${_GIT_HASH}
@@ -61,9 +62,12 @@ steps:
 
   - id: build-discord-bot
     name: gcr.io/cloud-builders/docker
+    waitFor: [restore-source]
     env: [DOCKER_BUILDKIT=1]
     args:
       - build
+      - --cache-from=${_IMAGE_PREFIX}/pitch-discord-bot:latest
+      - --build-arg=BUILDKIT_INLINE_CACHE=1
       - --tag=${_IMAGE_PREFIX}/pitch-discord-bot:${_GIT_HASH}
       - --tag=${_IMAGE_PREFIX}/pitch-discord-bot:latest
       - --file=apps/discord-bot/Dockerfile
