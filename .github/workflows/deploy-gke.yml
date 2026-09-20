@@ -72,6 +72,7 @@ jobs:
           gcloud builds submit . \
             --project="$GCP_PROJECT_ID" \
             --config=cloudbuild.yaml \
+            --gcs-source-staging-dir="gs://$WORKSPACE_BUCKET/cloud-build/source" \
             --substitutions="_IMAGE_PREFIX=$IMAGE_PREFIX,_GIT_HASH=$GITHUB_SHA,_BUILD_SERVICE_ACCOUNT=$BUILD_SERVICE_ACCOUNT" \
             --quiet
       - name: Resolve immutable image digests
