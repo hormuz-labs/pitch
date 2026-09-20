@@ -79,6 +79,11 @@ jobs:
           tags: ${{ env.IMAGE_PREFIX }}/pitch-base:${{ github.sha }}
           cache-from: type=gha,scope=gke-base
           cache-to: type=gha,mode=max,scope=gke-base
+      # The base image includes ffmpeg, Whisper, X11, and browser libraries.
+      # Its exported GHA cache is durable; free the local BuildKit copy before
+      # downloading the two browser binaries for the API image.
+      - name: Reclaim build disk
+        run: docker buildx prune --all --force
       - name: Build API
         id: api
         uses: docker/build-push-action@v6
