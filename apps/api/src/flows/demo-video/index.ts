@@ -312,7 +312,7 @@ registerHostAction('demo_record_start', async (ws, params) => {
       })
       opened = `\nOpened ${url} — snapshot it and start narrating as soon as it is visible.`
     } catch (err: any) {
-      opened = `\nCould not open ${url} (${err.message}); open it yourself with demo_bash \`playwright-cli goto ${url}\`.`
+      opened = `\nCould not open ${url} (${err.message}); open it yourself with pitch demo bash \`playwright-cli goto ${url}\`.`
     }
   }
   const lines = [

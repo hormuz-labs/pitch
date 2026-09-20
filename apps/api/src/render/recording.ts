@@ -26,7 +26,11 @@ import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-
 const moduleLogger = createLogger('studio:render:recording')
 
 /** playwright-cli session names: what .pi/cli/demo.ts accepts in PLAYWRIGHT_CLI_SESSION. */
-const SESSION_NAME_RE = /^[a-zA-Z0-9_-]+$/
+const SESSION_NAME_RE = /^[a-zA-Z0-9_.-]+$/
+
+export function sanitizeSessionName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
 
 export interface StartRecordingInput {
   userId: string
@@ -81,9 +85,10 @@ export async function startRecording(
   logger: Logger = moduleLogger,
 ): Promise<RecordingHandle> {
   const { userId, workspaceDir } = input
-  const session = input.session ?? path.basename(workspaceDir)
-  if (!SESSION_NAME_RE.test(session)) {
-    throw new Error(`Invalid playwright-cli session name: ${session}`)
+  const rawSession = input.session ?? path.basename(workspaceDir)
+  const session = sanitizeSessionName(rawSession)
+  if (!session || !SESSION_NAME_RE.test(session)) {
+    throw new Error(`Invalid playwright-cli session name: ${rawSession}`)
   }
   const cli = `playwright-cli -s=${session}`
 
@@ -109,6 +114,9 @@ export async function startRecording(
       }
     } catch {}
   }
+
+  // Close any pre-existing session under this name to ensure a fresh session
+  await execAsync(`${cli} close`, { cwd: workspaceDir }).catch(() => {})
 
   // 1. Start CloakBrowser via Manager and establish CDP Proxy
   const managerBrowser: ManagerBrowserHandle = await startManagerBrowser(userId)

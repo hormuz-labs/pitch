@@ -280,6 +280,110 @@ function shellDoubleQuoteEscape(value: string): string {
   return value.replace(/(["\\$`])/g, '\\$1')
 }
 
+export const PLAYWRIGHT_CLI_VERBS = new Set([
+  'open',
+  'attach',
+  'close',
+  'detach',
+  'goto',
+  'type',
+  'click',
+  'dblclick',
+  'fill',
+  'drag',
+  'drop',
+  'hover',
+  'select',
+  'upload',
+  'check',
+  'uncheck',
+  'snapshot',
+  'find',
+  'eval',
+  'dialog-accept',
+  'dialog-dismiss',
+  'resize',
+  'delete-data',
+  'go-back',
+  'go-forward',
+  'reload',
+  'press',
+  'keydown',
+  'keyup',
+  'mousemove',
+  'mousedown',
+  'mouseup',
+  'mousewheel',
+  'screenshot',
+  'pdf',
+  'tab-list',
+  'tab-new',
+  'tab-close',
+  'tab-select',
+  'state-load',
+  'state-save',
+  'cookie-list',
+  'cookie-get',
+  'cookie-set',
+  'cookie-delete',
+  'cookie-clear',
+  'localstorage-list',
+  'localstorage-get',
+  'localstorage-set',
+  'localstorage-delete',
+  'localstorage-clear',
+  'sessionstorage-list',
+  'sessionstorage-get',
+  'sessionstorage-set',
+  'sessionstorage-delete',
+  'sessionstorage-clear',
+  'requests',
+  'request',
+  'request-headers',
+  'request-body',
+  'response-headers',
+  'response-body',
+  'route',
+  'route-list',
+  'unroute',
+  'network-state-set',
+  'console',
+  'run-code',
+  'tracing-start',
+  'tracing-stop',
+  'video-start',
+  'video-stop',
+  'video-chapter',
+  'video-show-actions',
+  'video-hide-actions',
+  'show',
+  'pause-at',
+  'resume',
+  'step-over',
+  'generate-locator',
+  'highlight',
+])
+
+export function normalizePlaywrightCommand(command: string): string {
+  const trimmed = command.trim()
+  if (!trimmed) return trimmed
+  if (trimmed.startsWith('playwright-cli')) return trimmed
+  const firstWord = trimmed.split(/\s+/)[0]
+  if (firstWord && PLAYWRIGHT_CLI_VERBS.has(firstWord)) {
+    return `playwright-cli ${trimmed}`
+  }
+  return trimmed
+}
+
+export function scopePlaywrightCommand(sessionName: string, command: string): string {
+  const session = sessionName.replace(/[^a-zA-Z0-9_-]/g, '_')
+  const norm = normalizePlaywrightCommand(command)
+  if (norm.startsWith('playwright-cli ') && !norm.includes('-s=') && !norm.includes('--session=')) {
+    return norm.replace(/^playwright-cli\b/, `playwright-cli -s=${session}`)
+  }
+  return norm
+}
+
 // All playwright-cli commands must run from the workspace so that files like
 // demo.webm, snapshots, and traces are written where the render expects them,
 // not from the studio process cwd — and they must be scoped to THIS project's
@@ -287,10 +391,7 @@ function shellDoubleQuoteEscape(value: string): string {
 // pitch demo record-start attached with) so concurrent projects never share a browser.
 const run = (base: string, command: string) => {
   const session = path.basename(base)
-  const scopedCommand =
-    /^[a-zA-Z0-9_-]+$/.test(session) && command.startsWith('playwright-cli ')
-      ? command.replace(/^playwright-cli\b/, `playwright-cli -s=${session}`)
-      : command
+  const scopedCommand = scopePlaywrightCommand(session, command)
   return runAgentCommand(scopedCommand, { cwd: base })
 }
 
@@ -567,7 +668,7 @@ export default function demoCommands(): CommandSpec[] {
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
       return withStateLock(async () => {
-        const cmd = args.command
+        const cmd = normalizePlaywrightCommand(args.command)
         console.log(`[bash]: ${cmd}`)
 
         const state = readState(base)

@@ -33,7 +33,7 @@ async function waitForCdpReady(
   // Phase 1: wait for HTTP /json/version to respond
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(versionUrl)
+      const res = await fetch(versionUrl, { headers: getManagerHeaders() })
       if (res.ok) {
         logger.info({ versionUrl }, 'Manager CDP HTTP endpoint is ready')
         break
@@ -71,7 +71,9 @@ async function waitForCdpReady(
         reject(new Error(`CDP WebSocket ${wsUrl} did not become ready within timeout`))
         return
       }
-      const ws = new (globalThis as any).WebSocket(wsUrl)
+      const ws = new (globalThis as any).WebSocket(wsUrl, {
+        headers: getManagerHeaders(),
+      } as any)
       ws.onopen = () => {
         if (!resolved) {
           resolved = true
@@ -110,6 +112,16 @@ async function waitForCdpReady(
  * private Docker network, so no token is needed.
  */
 export async function startManagerBrowser(userId: string): Promise<ManagerBrowserHandle> {
+  const explicit = process.env.STUDIO_CDP_URL?.trim()
+  if (explicit) {
+    logger.info({ userId, explicit }, 'Using explicit STUDIO_CDP_URL for browser recording')
+    return {
+      profileId: userId,
+      cdpUrl: explicit,
+      close: async () => {},
+    }
+  }
+
   logger.info({ userId }, 'Ensuring CloakBrowser profile is running')
 
   let profile = await getManagerProfile(userId)

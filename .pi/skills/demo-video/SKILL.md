@@ -82,10 +82,10 @@ Reply briefly: what changed, and the new URL when you rendered.
 
 ## Driving the page
 
-`pitch demo bash` runs shell commands — mostly `playwright-cli`, already attached
-to the recording browser (never `playwright-cli open`). The commands you use:
-`goto <url>` · `snapshot` (the page as refs like `[ref=e53]`; pass `e53` to
-the tools) · `click e53` · `press ArrowRight` · `hover e4` · `select e9 "v"`
+You can run `playwright-cli` commands directly in bash (or via `pitch demo bash`),
+already attached to the recording browser over CDP (never `playwright-cli open`).
+The commands you use: `goto <url>` · `snapshot` (the page as refs like `[ref=e53]`;
+pass `e53` to the tools) · `click e53` · `press ArrowRight` · `hover e4` · `select e9 "v"`
 · `eval "el => el.currentSrc || el.src" e53` · `screenshot '<selector>'
 --filename recording/x.png` · `tab-new <url>` / `tab-select 0` · `resize`.
 There is no wait command: `sleep 3` after a navigation. Refs are per page
