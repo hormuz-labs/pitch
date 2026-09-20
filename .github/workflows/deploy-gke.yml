@@ -41,6 +41,7 @@ jobs:
         run: |
           cat >> "$GITHUB_ENV" <<EOF
           REGISTRY=${{ vars.GCP_REGION }}-docker.pkg.dev
+          GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
           IMAGE_PREFIX=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}
           API_HOST=${{ vars.GKE_API_HOST }}
           API_EXTRA_HOSTS=${{ vars.GKE_API_EXTRA_HOSTS }}
@@ -65,53 +66,32 @@ jobs:
           cluster_name: ${{ vars.GKE_CLUSTER }}
           location: ${{ vars.GKE_LOCATION }}
           project_id: ${{ vars.GCP_PROJECT_ID }}
-      - name: Configure registry
-        run: gcloud auth configure-docker "$REGISTRY" --quiet
-      - uses: docker/setup-buildx-action@v3
-      - name: Build runtime base
-        id: base
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.base
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/pitch-base:${{ github.sha }}
-          cache-from: type=gha,scope=gke-base
-          cache-to: type=gha,mode=max,scope=gke-base
-      # The base image includes ffmpeg, Whisper, X11, and browser libraries.
-      # Its exported GHA cache is durable; free the local BuildKit copy before
-      # downloading the two browser binaries for the API image.
-      - name: Reclaim build disk
-        run: docker buildx prune --all --force
-      - name: Build API
-        id: api
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/pitch-api:${{ github.sha }}
-          build-args: |
-            GIT_HASH=${{ github.sha }}
-            RUNTIME_IMAGE=${{ env.IMAGE_PREFIX }}/pitch-base@${{ steps.base.outputs.digest }}
-          # Do not restore the old browser-heavy API cache. Browser binaries
-          # are immutable layers in pitch-base; this image should remain thin.
-      - name: Build Discord bot
-        id: bot
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/discord-bot/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/pitch-discord-bot:${{ github.sha }}
-          cache-from: type=gha,scope=gke-bot
-          cache-to: type=gha,mode=max,scope=gke-bot
+      - name: Build images in Cloud Build
+        run: |
+          gcloud builds submit . \
+            --project="$GCP_PROJECT_ID" \
+            --config=cloudbuild.yaml \
+            --substitutions="_IMAGE_PREFIX=$IMAGE_PREFIX,_GIT_HASH=$GITHUB_SHA" \
+            --quiet
+      - name: Resolve immutable image digests
+        run: |
+          api_digest=$(gcloud artifacts docker images describe "$IMAGE_PREFIX/pitch-api:$GITHUB_SHA" --format='value(image_summary.digest)')
+          bot_digest=$(gcloud artifacts docker images describe "$IMAGE_PREFIX/pitch-discord-bot:$GITHUB_SHA" --format='value(image_summary.digest)')
+          test -n "$api_digest" && test -n "$bot_digest"
+          {
+            echo "API_IMAGE=$IMAGE_PREFIX/pitch-api@$api_digest"
+            echo "BOT_IMAGE=$IMAGE_PREFIX/pitch-discord-bot@$bot_digest"
+          } >> "$GITHUB_ENV"
+      - name: Keep three image versions per package
+        run: |
+          gcloud artifacts repositories set-cleanup-policies "${{ vars.GCP_ARTIFACT_REPOSITORY }}" \
+            --project="$GCP_PROJECT_ID" \
+            --location="${{ vars.GCP_REGION }}" \
+            --policy=infra/gke/artifact-cleanup-policy.json \
+            --no-dry-run \
+            --quiet
       - name: Migrate the database
         env:
-          API_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-api@${{ steps.api.outputs.digest }}
           RELEASE: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           kubectl get secret pitch-runtime -n pitch >/dev/null
@@ -128,8 +108,6 @@ jobs:
           exit 1
       - name: Render and deploy
         env:
-          API_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-api@${{ steps.api.outputs.digest }}
-          BOT_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-discord-bot@${{ steps.bot.outputs.digest }}
         run: |
           node scripts/render-gke.mjs > "$RUNNER_TEMP/pitch.yaml"
           kubectl delete deployment,statefulset,horizontalpodautoscaler,poddisruptionbudget,service pitch-browser -n pitch --ignore-not-found
