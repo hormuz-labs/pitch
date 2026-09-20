@@ -1,8 +1,19 @@
+import { execFileSync } from 'node:child_process'
 import { Socket } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { startVncDisplay } from '../../apps/api/src/services/browser-vnc.js'
 
-const describeLinux = process.platform === 'linux' ? describe : describe.skip
+const hasVncRuntime =
+  process.platform === 'linux' &&
+  ['Xvfb', 'openbox', 'x11vnc'].every(command => {
+    try {
+      execFileSync('sh', ['-c', `command -v ${command}`], { stdio: 'ignore' })
+      return true
+    } catch {
+      return false
+    }
+  })
+const describeLinux = hasVncRuntime ? describe : describe.skip
 
 function rfbGreeting(port: number): Promise<string> {
   return new Promise((resolve, reject) => {
