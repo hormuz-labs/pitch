@@ -26,8 +26,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y -qq --no-install-recommends nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && npm install -g playwright @playwright/cli@latest --quiet \
-    && playwright install ffmpeg
+    && npm install -g playwright@1.62.1 @playwright/cli@0.1.15 cloakbrowser@0.5.10 --quiet \
+    && env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD playwright install --only-shell chromium \
+    && playwright install ffmpeg \
+    && CLOAKBROWSER_AUTO_UPDATE=false cloakbrowser install
+
+# Browser binaries are immutable runtime dependencies. API builds inherit these
+# layers instead of creating another several-hundred-megabyte diff.
+ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 # whisper.cpp for narration alignment (motion_align). The model is NOT baked in:
 # mount ./docker-data/whisper at /root/.cache/whisper-cpp and drop a ggml model
