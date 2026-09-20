@@ -6,11 +6,16 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
+  compactPlaywrightCommand,
   normalizePlaywrightCommand,
   PLAYWRIGHT_CLI_VERBS,
   scopePlaywrightCommand,
 } from '../.pi/cli/demo.js'
-import { sanitizeSessionName, startRecording } from '../apps/api/src/render/recording.js'
+import {
+  assertRecordingCoversTimeline,
+  recoverRecordingArtifact,
+  sanitizeSessionName,
+} from '../apps/api/src/render/recording.js'
 import { startManagerBrowser } from '../apps/api/src/render/utils/manager-browser.js'
 import { getManagerHeaders } from '../packages/shared/src/manager-client.js'
 
@@ -66,6 +71,19 @@ describe('demo video session name sanitization & scoping', () => {
       'playwright-cli -s=existing click e1',
     )
     expect(scopePlaywrightCommand('demo.session', 'sleep 1')).toBe('sleep 1')
+  })
+
+  it('suppresses expensive automatic snapshots for direct interactions', () => {
+    expect(compactPlaywrightCommand('playwright-cli hover e1')).toBe(
+      'playwright-cli --raw hover e1',
+    )
+    expect(compactPlaywrightCommand('playwright-cli click e1')).toBe(
+      'playwright-cli --raw click e1',
+    )
+    expect(compactPlaywrightCommand('playwright-cli snapshot')).toBe('playwright-cli snapshot')
+    expect(compactPlaywrightCommand('playwright-cli --raw click e1')).toBe(
+      'playwright-cli --raw click e1',
+    )
   })
 })
 
@@ -279,148 +297,79 @@ describe('CDP manager browser & STUDIO_CDP_URL support', () => {
   })
 })
 
-describe('startRecording lifecycle & session naming', () => {
-  const prevCdpUrl = process.env.STUDIO_CDP_URL
-
-  afterEach(() => {
-    if (prevCdpUrl === undefined) delete process.env.STUDIO_CDP_URL
-    else process.env.STUDIO_CDP_URL = prevCdpUrl
-  })
-
-  it('accepts project directories containing dots and sanitizes session name', async () => {
+describe('recording session naming', () => {
+  it('sanitizes project directories containing dots', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio--user123--stripe.com-'))
 
-    let liveProfileId: string | null = null
-
     try {
-      if (isLive) {
-        const createRes = await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'sanitize_session_live_profile' }),
-        })
-        const profile = (await createRes.json()) as any
-        liveProfileId = profile.id
-        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/launch`, {
-          method: 'POST',
-        })
-
-        process.env.STUDIO_CDP_URL = `${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/cdp`
-        const handle = await startRecording({
-          userId: 'user_123',
-          workspaceDir: tmp,
-        })
-        expect(handle.session).toMatch(/^[a-zA-Z0-9_-]+$/)
-        expect(handle.session).toContain('stripe_com')
-        await handle.stop()
-      } else {
-        const rawSession = path.basename(tmp)
-        const sanitized = sanitizeSessionName(rawSession)
-        expect(sanitized).toMatch(/^[a-zA-Z0-9_-]+$/)
-        expect(sanitized).toContain('stripe_com')
-      }
+      const sanitized = sanitizeSessionName(path.basename(tmp))
+      expect(sanitized).toMatch(/^[a-zA-Z0-9_-]+$/)
+      expect(sanitized).toContain('stripe_com')
     } finally {
-      if (liveProfileId) {
-        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/stop`, {
-          method: 'POST',
-        }).catch(() => {})
-        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}`, {
-          method: 'DELETE',
-        }).catch(() => {})
-      }
       try {
         fs.rmSync(tmp, { recursive: true, force: true })
       } catch {}
     }
-  }, 60_000)
+  })
 })
 
-// Live CDP test against running CloakBrowser Manager if available
-const MANAGER = process.env.CLOAK_MANAGER_URL || 'http://localhost:8080'
-async function checkManagerLive(): Promise<boolean> {
-  try {
-    const res = await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles`, {
-      signal: AbortSignal.timeout(3000),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}
-
-const isLive = await checkManagerLive()
-const describeLive = isLive ? describe : describe.skip
-
-describeLive('end-to-end CloakBrowser CDP video recording', () => {
-  let profileId: string | null = null
-  let cdpUrl: string | null = null
-  let testWorkspace: string
-  const session = 'test-e2e-cdp-recording'
-
-  beforeAll(async () => {
-    testWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-cdp-ws-'))
-    const createRes = await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'test_cdp_suite_profile' }),
-    })
-    const profile = (await createRes.json()) as any
-    profileId = profile.id
-    await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${profileId}/launch`, {
-      method: 'POST',
-    })
-    cdpUrl = `${MANAGER.replace(/\/+$/, '')}/api/profiles/${profileId}/cdp`
-  }, 60_000)
-
-  afterAll(async () => {
-    if (profileId) {
-      await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${profileId}/stop`, {
-        method: 'POST',
-      }).catch(() => {})
-      await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${profileId}`, {
-        method: 'DELETE',
-      }).catch(() => {})
-    }
-    try {
-      fs.rmSync(testWorkspace, { recursive: true, force: true })
-    } catch {}
+describe('recording artifact finalization', () => {
+  it('rejects a recording that ends well before the tracked session', () => {
+    expect(() => assertRecordingCoversTimeline(39.5, 1_000, 58_000)).toThrow(
+      /captured 39.5s of 57.0s/,
+    )
   })
 
-  it('records a video session and captures actions over CDP', async () => {
-    const { execAsync } = await import('../apps/api/src/render/media.js')
-    const webmPath = path.join(testWorkspace, 'demo.webm')
+  it('allows normal recorder finalization tolerance', () => {
+    expect(() => assertRecordingCoversTimeline(56, 1_000, 58_000)).not.toThrow()
+  })
 
-    // Attach to CDP
-    await execAsync(`playwright-cli -s=${session} attach --cdp ${cdpUrl}`, { cwd: testWorkspace })
+  it('keeps a non-empty canonical recording', () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-recording-'))
+    const recording = path.join(workspace, 'recording')
+    fs.mkdirSync(recording)
+    const expected = path.join(recording, 'demo.webm')
+    fs.writeFileSync(expected, 'video')
+    expect(recoverRecordingArtifact(workspace, expected, Date.now() - 1000)).toBe(expected)
+    expect(fs.readFileSync(expected, 'utf8')).toBe('video')
+    fs.rmSync(workspace, { recursive: true, force: true })
+  })
 
-    // Resize viewport
-    await execAsync(`playwright-cli -s=${session} resize 1280 720`, { cwd: testWorkspace })
+  it('recovers the one current Playwright trace into the canonical path', () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-recording-'))
+    const traces = path.join(workspace, '.playwright-cli', 'traces')
+    const recording = path.join(workspace, 'recording')
+    fs.mkdirSync(traces, { recursive: true })
+    fs.mkdirSync(recording)
+    const startedAt = Date.now() - 1000
+    fs.writeFileSync(path.join(traces, 'take.webm'), 'captured video')
+    const expected = path.join(recording, 'demo.webm')
 
-    // Start video
-    await execAsync(`playwright-cli -s=${session} video-start "${webmPath}" --size=1280x720`, {
-      cwd: testWorkspace,
-    })
+    expect(recoverRecordingArtifact(workspace, expected, startedAt)).toBe(expected)
+    expect(fs.readFileSync(expected, 'utf8')).toBe('captured video')
+    fs.rmSync(workspace, { recursive: true, force: true })
+  })
 
-    // Navigate to a test data URL
-    await execAsync(`playwright-cli -s=${session} goto "data:text/html,<h1>Demo CDP Live</h1>"`, {
-      cwd: testWorkspace,
-    })
+  it('rejects missing, empty, stale, or ambiguous recordings', () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-recording-'))
+    const traces = path.join(workspace, '.playwright-cli', 'traces')
+    const recording = path.join(workspace, 'recording')
+    fs.mkdirSync(traces, { recursive: true })
+    fs.mkdirSync(recording)
+    const startedAt = Date.now()
+    const stale = path.join(traces, 'stale.webm')
+    fs.writeFileSync(stale, 'old')
+    fs.utimesSync(stale, new Date(startedAt - 5000), new Date(startedAt - 5000))
+    const expected = path.join(recording, 'demo.webm')
+    expect(() => recoverRecordingArtifact(workspace, expected, startedAt)).toThrow(
+      /0 current trace candidate/,
+    )
 
-    // Take snapshot over CDP
-    const { stdout: snapshotOut } = await execAsync(`playwright-cli -s=${session} snapshot`, {
-      cwd: testWorkspace,
-    })
-    expect(snapshotOut).toContain('Demo CDP Live')
-
-    // Stop video
-    await execAsync(`playwright-cli -s=${session} video-stop`, { cwd: testWorkspace })
-
-    // Close session
-    await execAsync(`playwright-cli -s=${session} close`, { cwd: testWorkspace }).catch(() => {})
-
-    // Check recorded video exists and has size
-    expect(fs.existsSync(webmPath)).toBe(true)
-    const stats = fs.statSync(webmPath)
-    expect(stats.size).toBeGreaterThan(0)
-  }, 60_000)
+    fs.writeFileSync(path.join(traces, 'one.webm'), 'one')
+    fs.writeFileSync(path.join(traces, 'two.webm'), 'two')
+    expect(() => recoverRecordingArtifact(workspace, expected, startedAt)).toThrow(
+      /2 current trace candidate/,
+    )
+    fs.rmSync(workspace, { recursive: true, force: true })
+  })
 })

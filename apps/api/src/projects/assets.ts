@@ -130,6 +130,7 @@ export async function listAssets(ws: Workspace, projectId: string): Promise<Asse
       if (!kind) continue
       try {
         const info = await stat(path.join(ws.dir, rel))
+        if (info.size <= 0) continue
         found.push({
           path: rel,
           name: path.basename(rel),
@@ -257,31 +258,44 @@ async function pdfThumbnail(file: string, page: number): Promise<Buffer | null> 
   }
 }
 
-async function frameThumbnail(file: string, atSec: number): Promise<Buffer | null> {
-  const { stdout } = await execFileP(
-    'ffmpeg',
-    // -ss before -i seeks by keyframe: fast, and a thumbnail does not need
-    // frame accuracy. `thumbnail` picks the most representative frame of the
-    // window rather than whatever black frame a cut happens to land on.
-    [
-      '-ss',
-      String(atSec),
-      '-i',
-      file,
-      '-frames:v',
-      '1',
-      '-vf',
-      `thumbnail,scale=${THUMB_WIDTH}:-2`,
-      '-f',
-      'image2pipe',
-      '-vcodec',
-      'mjpeg',
-      '-q:v',
-      '6',
-      'pipe:1',
-    ],
-    { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 } as any,
-  )
+async function frameThumbnail(file: string, atSec: number, isVideo = true): Promise<Buffer | null> {
+  const args = isVideo
+    ? [
+        '-ss',
+        String(atSec),
+        '-i',
+        file,
+        '-frames:v',
+        '1',
+        '-vf',
+        `thumbnail,scale=${THUMB_WIDTH}:-2`,
+        '-f',
+        'image2pipe',
+        '-vcodec',
+        'mjpeg',
+        '-q:v',
+        '6',
+        'pipe:1',
+      ]
+    : [
+        '-i',
+        file,
+        '-frames:v',
+        '1',
+        '-vf',
+        `scale=${THUMB_WIDTH}:-2`,
+        '-f',
+        'image2pipe',
+        '-vcodec',
+        'mjpeg',
+        '-q:v',
+        '6',
+        'pipe:1',
+      ]
+  const { stdout } = await execFileP('ffmpeg', args, {
+    encoding: 'buffer',
+    maxBuffer: 16 * 1024 * 1024,
+  } as any)
   const buf = Buffer.from(stdout as any)
   return buf.length ? buf : null
 }
@@ -309,6 +323,8 @@ export async function assetThumbnail(ws: Workspace, req: ThumbRequest): Promise<
   const root = path.resolve(ws.dir)
   if (!path.resolve(file).startsWith(`${root}${path.sep}`)) return null
   if (!existsSync(file)) return null
+  const st = await stat(file).catch(() => null)
+  if (!st || st.size <= 0) return null
 
   const kind = kindOf(rel)
   if (kind === 'audio' || kind === 'other' || kind === null) return null
@@ -329,7 +345,7 @@ export async function assetThumbnail(ws: Workspace, req: ThumbRequest): Promise<
     if (kind === 'pdf') buf = await pdfThumbnail(file, Math.max(1, Math.round(at ?? 1)))
     // A poster frame at 0s is often black; a moment in is more use. ffmpeg
     // reads stills too, so images take the same path and come back scaled.
-    else buf = await frameThumbnail(file, kind === 'video' ? (at ?? 1) : 0)
+    else buf = await frameThumbnail(file, kind === 'video' ? (at ?? 1) : 0, kind === 'video')
   } catch (err) {
     logger.warn({ err, ws: ws.internal, rel }, 'could not make an asset thumbnail')
     return null

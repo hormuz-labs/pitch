@@ -10,9 +10,16 @@ export function downloadableOutputs(project: ProjectDetail | null | undefined): 
   if (project.description.preview?.kind === 'deck') {
     return project.description.outputs.filter(output => output.kind === 'pdf')
   }
-  return [...project.outputs, ...project.description.outputs].filter(
+  const eligible = [...project.outputs, ...project.description.outputs].filter(
     (output, index, all) =>
       (output.kind === 'video' || output.kind === 'pdf') &&
       all.findIndex(candidate => candidate.url === output.url) === index,
   )
+  const newestVideo = eligible
+    .filter(output => output.kind === 'video')
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0]
+  return [
+    ...(newestVideo ? [newestVideo] : []),
+    ...eligible.filter(output => output.kind === 'pdf'),
+  ]
 }

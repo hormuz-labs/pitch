@@ -28,7 +28,7 @@ describe('QuestionCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Bold/ }))
     expect(screen.getByText('Which style?')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm & next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByText('When should it start?')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to question 1' }))
@@ -42,9 +42,9 @@ describe('QuestionCard', () => {
     fireEvent.input(screen.getByPlaceholderText('Describe what you have in mind…'), {
       target: { value: 'Use hand-drawn animation' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm & next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.click(screen.getByRole('button', { name: /Now/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Review answers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     expect(onSend).toHaveBeenCalledWith(expect.stringContaining('Use hand-drawn animation'), {

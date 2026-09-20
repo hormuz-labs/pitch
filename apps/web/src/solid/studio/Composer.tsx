@@ -255,13 +255,14 @@ export function Composer(props: { store: ProjectStore }) {
               </div>
             </Show>
             <Show
-              when={s.busy}
+              when={s.busy && !s.draft.trim()}
               fallback={
                 <button
                   class="job-send-round"
                   disabled={uploading() || !s.draft.trim()}
-                  onClick={() => void send()}
-                  aria-label="Send message"
+                  onClick={() => void send(s.busy ? 'queue' : undefined)}
+                  aria-label={s.busy ? 'Queue message' : 'Send message'}
+                  title={s.busy ? 'Queue after current work' : undefined}
                 >
                   <ArrowUp size={17} />
                 </button>
@@ -275,17 +276,6 @@ export function Composer(props: { store: ProjectStore }) {
               >
                 <Square size={11} fill="currentColor" aria-hidden="true" />
               </button>
-              <Show when={s.draft.trim()}>
-                <button
-                  class="job-send-round"
-                  disabled={uploading()}
-                  onClick={() => void send('queue')}
-                  aria-label="Queue message"
-                  title="Queue after current work"
-                >
-                  <ArrowUp size={17} />
-                </button>
-              </Show>
             </Show>
           </>
         }

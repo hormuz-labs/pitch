@@ -14,6 +14,58 @@ describe('demo_bash slide advance', () => {
     process.env.PATH = originalPath
   })
 
+  it('runs a non-navigating browser command once without URL probes', async () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-command-'))
+    const recordings = path.join(base, 'recording')
+    const bin = path.join(base, 'bin')
+    const calls = path.join(base, 'calls')
+    fs.mkdirSync(recordings, { recursive: true })
+    fs.mkdirSync(bin, { recursive: true })
+    fs.writeFileSync(
+      path.join(recordings, 'demo-config.json'),
+      JSON.stringify({ startTime: Date.now() }),
+    )
+    fs.writeFileSync(
+      path.join(bin, 'playwright-cli'),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\n`,
+    )
+    fs.chmodSync(path.join(bin, 'playwright-cli'), 0o755)
+    process.env.PATH = `${bin}:${originalPath ?? ''}`
+
+    await demo_bash.run({ command: 'playwright-cli snapshot' }, base)
+
+    expect(fs.readFileSync(calls, 'utf8').trim().split('\n')).toHaveLength(1)
+    fs.rmSync(base, { recursive: true, force: true })
+  })
+
+  it('uses raw URL probes only for commands that can navigate', async () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-navigation-'))
+    const recordings = path.join(base, 'recording')
+    const bin = path.join(base, 'bin')
+    const calls = path.join(base, 'calls')
+    fs.mkdirSync(recordings, { recursive: true })
+    fs.mkdirSync(bin, { recursive: true })
+    fs.writeFileSync(
+      path.join(recordings, 'demo-config.json'),
+      JSON.stringify({ startTime: Date.now() }),
+    )
+    fs.writeFileSync(
+      path.join(bin, 'playwright-cli'),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$*" in *location.href*) echo '"https://example.test/"';; esac\n`,
+    )
+    fs.chmodSync(path.join(bin, 'playwright-cli'), 0o755)
+    process.env.PATH = `${bin}:${originalPath ?? ''}`
+
+    await demo_bash.run({ command: 'playwright-cli goto https://example.test' }, base)
+
+    const commands = fs.readFileSync(calls, 'utf8').trim().split('\n')
+    expect(commands).toHaveLength(3)
+    expect(commands[0]).toContain('--raw eval')
+    expect(commands[1]).toContain('goto https://example.test')
+    expect(commands[2]).toContain('--raw eval')
+    fs.rmSync(base, { recursive: true, force: true })
+  })
+
   it('injects a zoom-out event when advancing a slideshow while zoomed in', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-advance-'))
     const recordings = path.join(base, 'recording')

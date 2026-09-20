@@ -26,6 +26,23 @@ function run(command: string) {
   return { out: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim(), code: r.status }
 }
 
+function runWithPitch(command: string) {
+  const guest = path.join(root, 'guest')
+  const socketDir = path.join(root, 'socket')
+  mkdirSync(guest, { recursive: true })
+  mkdirSync(socketDir, { recursive: true })
+  writeFileSync(path.join(guest, 'pitch'), '#!/usr/bin/env node\nconsole.log(process.version)\n', {
+    mode: 0o755,
+  })
+  const argv = bwrapCommand(command, {
+    workspace,
+    shared,
+    pitch: { bin: guest, socket: path.join(socketDir, 'sock') },
+  })
+  const r = spawnSync(BWRAP, argv, { encoding: 'utf8' })
+  return { out: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim(), code: r.status }
+}
+
 function bwrapWorks(): boolean {
   const dir = mkdtempSync(path.join(tmpdir(), 'bwrap-probe-'))
   try {
@@ -62,6 +79,12 @@ describeLive('the agent’s shell is confined to its project', () => {
 
   it('runs commands and sees its own workspace', () => {
     expect(run('pwd && cat shots.js').out).toContain('window.SHOTS')
+  })
+
+  it('runs Node-backed guest tools without nesting a mount under the read-only guest bin', () => {
+    const result = runWithPitch('pitch')
+    expect(result.code).toBe(0)
+    expect(result.out).toMatch(/^v\d+/)
   })
 
   it('can write to its workspace', () => {

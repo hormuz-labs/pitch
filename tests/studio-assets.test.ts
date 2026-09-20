@@ -202,6 +202,28 @@ describe('asset thumbnails', () => {
     for (const path of ['../../../etc/passwd', '/etc/passwd', 'build/pdf-builder.js'])
       expect(await assetThumbnail(ws, { path }), path).toBeNull()
   })
+
+  it('generates a thumbnail for an image asset without dropping still frames', async () => {
+    const ws = workspace()
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    const file = path.join(ws.dir, 'uploads/hero.png')
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, tinyPng)
+
+    const buf = await assetThumbnail(ws, { path: 'uploads/hero.png' })
+    expect(buf).not.toBeNull()
+    expect(buf!.length).toBeGreaterThan(0)
+  })
+
+  it('refuses 0-byte image files and does not list them as assets', async () => {
+    const ws = workspace()
+    write(ws, 'uploads/empty.png', '')
+    expect(await listAssets(ws, 'proj1')).toEqual([])
+    expect(await assetThumbnail(ws, { path: 'uploads/empty.png' })).toBeNull()
+  })
 })
 
 describe('deleteAsset', () => {

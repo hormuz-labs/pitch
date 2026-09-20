@@ -5,6 +5,7 @@ import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { promisify } from 'util'
 import { prepareBackgroundFrame } from './background.js'
+import type { BrowserHeaderMode } from './browser-chrome.js'
 import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
 
 const execAsync = promisify(exec)
@@ -57,6 +58,21 @@ export interface TitleCardSettings {
 export interface TitleCardPlan extends TitleCardSettings {
   contentStartSec: number
   totalCardDurationSec: number
+}
+
+const PRODUCT_LOGO_EXTENSIONS = ['png', 'svg', 'webp', 'jpg', 'jpeg', 'gif'] as const
+
+export function findProductLogo(recordingDir: string): string | undefined {
+  return PRODUCT_LOGO_EXTENSIONS.map(ext => path.join(recordingDir, `product_logo.${ext}`)).find(
+    file => fs.existsSync(file) && fs.statSync(file).size > 0,
+  )
+}
+
+export function normalizeBrowserHeaderMode(value: unknown): BrowserHeaderMode | 'none' {
+  if (value === 'light' || value === 'dark' || value === 'none') return value
+  // Older projects stored "default" for visible browser chrome.
+  if (value === 'default') return 'light'
+  return 'none'
 }
 
 export function planTitleCards(
@@ -335,8 +351,7 @@ async function generateIntroCard(
     if (logoPng) {
       const dims = await getImageDimensions(logoPng)
       const lum = await detectLogoLuminance(logoPng, dir)
-      const usable =
-        dims && dims.width >= 80 && dims.height >= 80 && lum !== null && lum > 0.05 && lum < 0.95
+      const usable = dims && dims.width >= 80 && dims.height >= 80 && lum !== null
       if (usable) {
         logoUri = pngToDataUri(logoPng)
       } else {

@@ -435,6 +435,9 @@ export async function processVideo(
      * analytically instead of decoding the whole track with silencedetect.
      */
     speechSegments?: Segment[]
+    clickEvents?: ClickEvent[]
+    zoomEvents?: ZoomEvent[]
+    annotationEvents?: AnnotationEvent[]
   },
 ): Promise<Segment[]> {
   const analyzeInput = detectionInput || input
@@ -447,17 +450,17 @@ export async function processVideo(
     return [{ start: 0, end: (await getDuration(input)) || 0 }]
   }
 
-  const clickEvents = loadClickEvents(analyzeInput)
+  const clickEvents = opts?.clickEvents ?? loadClickEvents(analyzeInput)
   if (clickEvents.length > 0) {
     console.log(`Found ${clickEvents.length} click event(s) to protect during trimming.`)
   }
 
-  const zoomEvents = loadZoomEvents(analyzeInput)
+  const zoomEvents = opts?.zoomEvents ?? loadZoomEvents(analyzeInput)
   if (zoomEvents.length > 0) {
     console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
-  const annotationEvents = loadAnnotationEvents(analyzeInput)
+  const annotationEvents = opts?.annotationEvents ?? loadAnnotationEvents(analyzeInput)
   if (annotationEvents.length > 0) {
     console.log(`Found ${annotationEvents.length} annotation event(s) to protect during trimming.`)
   }
@@ -479,16 +482,18 @@ export async function processVideo(
   console.log(
     `Found ${silences.length} silence segment(s) and ${freezes.length} freeze segment(s).`,
   )
-  if (audioDuration > 0 && audioDuration < duration - 0.5) {
-    console.log(
-      `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
-    )
-    silences.push({ start: audioDuration, end: duration })
-  } else if (audioDuration === 0) {
-    console.log(
-      'No audio track detected — treating entire video as silent for freeze-based trimming.',
-    )
-    silences.push({ start: 0, end: duration })
+  if (!opts?.speechSegments?.length) {
+    if (audioDuration > 0 && audioDuration < duration - 0.5) {
+      console.log(
+        `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
+      )
+      silences.push({ start: audioDuration, end: duration })
+    } else if (audioDuration === 0) {
+      console.log(
+        'No audio track detected — treating entire video as silent for freeze-based trimming.',
+      )
+      silences.push({ start: 0, end: duration })
+    }
   }
 
   silences.forEach(s => {
@@ -784,4 +789,13 @@ export function mapThroughKeptSegments(t: number, kept: Segment[]): number {
     elapsed += seg.end - seg.start
   }
   return elapsed
+}
+
+/** Map a raw recording timestamp through source alignment and smart-trim cuts. */
+export function mapEventTimeThroughTrim(
+  rawTimeSec: number,
+  sourceTrimSec: number,
+  kept: Segment[],
+): number {
+  return mapThroughKeptSegments(Math.max(0, rawTimeSec - sourceTrimSec), kept)
 }

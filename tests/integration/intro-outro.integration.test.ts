@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -125,5 +125,32 @@ describe('optional title-card assembly', () => {
 
     expect(await mediaDuration(output)).toBeGreaterThan(3.3)
     expect(await mediaDuration(output)).toBeLessThan(3.8)
+  }, 30_000)
+
+  it('adds automatic branded intro and outro cards from an SVG logo', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'title-cards-'))
+    temporaryDirectories.push(directory)
+    const input = await createContent(directory)
+    const output = path.join(directory, 'branded-final.mp4')
+    const logo = path.join(directory, 'product_logo.svg')
+    await writeFile(
+      logo,
+      '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#111"/></svg>',
+    )
+
+    await addIntroOutro(input, output, {
+      productName: 'Acme',
+      productUrl: 'acme.test',
+      productLogoPath: logo,
+      duration: 1,
+      fps: 10,
+      width: 320,
+      height: 180,
+      outputPath: output,
+      watermark: false,
+    })
+
+    expect(await mediaDuration(output)).toBeGreaterThan(2.8)
+    expect(await mediaDuration(output)).toBeLessThan(3.3)
   }, 30_000)
 })

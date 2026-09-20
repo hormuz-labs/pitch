@@ -114,8 +114,14 @@ describe('the line to `pitch`', () => {
     const env = Object.fromEntries(
       args.flatMap((a, i) => (a === '--setenv' ? [[args[i + 1], args[i + 2]]] : [])),
     )
-    expect(env.PATH.startsWith('/opt/pitch:')).toBe(true)
+    expect(env.PATH.startsWith('/opt/pitch:/opt:')).toBe(true)
     expect(env.PITCH_SOCKET).toBe('/run/pitch/sock')
+  })
+
+  it('binds the running Node executable beside the guest clients', () => {
+    const args = bwrapArgs({ workspace: WS, shared: SHARED, pitch })
+    expect(args).toContain(process.execPath)
+    expect(args).toContain('/opt/node')
   })
 
   it('is absent from the shell when no bridge is given', () => {
@@ -135,7 +141,7 @@ describe('the line to `pitch`', () => {
       { workspace: WS, shared: SHARED, pitch },
       { PATH: '/usr/bin' },
     )
-    expect(cmd.env.PATH).toBe('/app/.pi/guest:/usr/bin')
+    expect(cmd.env.PATH).toBe('/app/.pi/guest:/opt:/usr/bin')
     expect(cmd.env.PITCH_SOCKET).toBe('/tmp/pitch-abc/sock')
   })
 })
