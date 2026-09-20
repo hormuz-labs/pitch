@@ -290,10 +290,22 @@ describe('startRecording lifecycle & session naming', () => {
   it('accepts project directories containing dots and sanitizes session name', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio--user123--stripe.com-'))
 
+    let liveProfileId: string | null = null
+
     try {
       if (isLive) {
-        process.env.STUDIO_CDP_URL =
-          'http://localhost:8080/api/profiles/216eed80-72a6-457f-8ce5-8d74236c6ca2/cdp'
+        const createRes = await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'sanitize_session_live_profile' }),
+        })
+        const profile = (await createRes.json()) as any
+        liveProfileId = profile.id
+        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/launch`, {
+          method: 'POST',
+        })
+
+        process.env.STUDIO_CDP_URL = `${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/cdp`
         const handle = await startRecording({
           userId: 'user_123',
           workspaceDir: tmp,
@@ -308,11 +320,19 @@ describe('startRecording lifecycle & session naming', () => {
         expect(sanitized).toContain('stripe_com')
       }
     } finally {
+      if (liveProfileId) {
+        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}/stop`, {
+          method: 'POST',
+        }).catch(() => {})
+        await fetch(`${MANAGER.replace(/\/+$/, '')}/api/profiles/${liveProfileId}`, {
+          method: 'DELETE',
+        }).catch(() => {})
+      }
       try {
         fs.rmSync(tmp, { recursive: true, force: true })
       } catch {}
     }
-  })
+  }, 60_000)
 })
 
 // Live CDP test against running CloakBrowser Manager if available
