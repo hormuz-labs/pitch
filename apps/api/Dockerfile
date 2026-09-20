@@ -34,12 +34,6 @@ FROM ${RUNTIME_IMAGE} AS runtime
 WORKDIR /app
 COPY --from=builder /app .
 
-# Freeze both browser binaries into the image. Chromium handles ordinary
-# rendering; CloakBrowser is reserved for interactive auth/demo sessions.
-ENV CLOAKBROWSER_AUTO_UPDATE=false
-RUN env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD ./node_modules/.bin/playwright install --only-shell chromium \
-    && ./node_modules/.bin/cloakbrowser install
-
 # GPU devices (/dev/dri) for NVENC/VAAPI encodes when the host passes them.
 RUN groupadd -f render && usermod -aG render,video root
 

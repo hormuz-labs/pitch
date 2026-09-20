@@ -96,8 +96,8 @@ jobs:
           build-args: |
             GIT_HASH=${{ github.sha }}
             RUNTIME_IMAGE=${{ env.IMAGE_PREFIX }}/pitch-base@${{ steps.base.outputs.digest }}
-          cache-from: type=gha,scope=gke-api
-          cache-to: type=gha,mode=max,scope=gke-api
+          # Do not restore the old browser-heavy API cache. Browser binaries
+          # are immutable layers in pitch-base; this image should remain thin.
       - name: Build Discord bot
         id: bot
         uses: docker/build-push-action@v6
