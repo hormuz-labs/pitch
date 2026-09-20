@@ -1,15 +1,9 @@
 /**
- * The studio's browser — one CloakBrowser profile, reached over CDP.
+ * The studio's render browser. This is ordinary local Playwright Chromium;
+ * CloakBrowser is reserved for interactive authentication and demo sessions.
  *
- * There is no Chromium in the studio image (Dockerfile.base sets
- * PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 and installs only Playwright's ffmpeg),
- * so `chromium.launch()` fails there and the agent's next move used to be
- * `npx playwright install chromium` — a 150MB download inside a job. Every
- * browser the motion scripts need comes from the CloakBrowser Manager
- * instead: it is the anti-detect browser that gets recon past bot walls, and
- * it is already running next to the studio.
- *
- * Two things follow from the browser being somewhere else:
+ * Local pages are still served through request interception so this works in
+ * the same constrained runtime as network pages:
  *
  *   • It cannot see the workspace. `file://` is meaningless to it, so the
  *     local page is served INTO it by request interception: `localPageUrl()`
@@ -23,107 +17,14 @@
  *     Page.captureScreenshot (see capture.mjs), not
  *     --force-device-scale-factor.
  *
- * Env:
- *   CLOAK_MANAGER_URL         manager base URL (default http://127.0.0.1:8080)
- *   CLOAK_MANAGER_AUTH_TOKEN  bearer token, when the manager has auth on
- *   STUDIO_CDP_URL            a CDP endpoint to use verbatim, skipping the manager
- *   STUDIO_CDP_PROFILE        manager profile name to reuse (default studio-motion)
+ * Env: BROWSER_START_TIMEOUT_MS bounds process startup.
  */
-import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { chromium } from "playwright";
 
 /** Synthetic origin the workspace is served under. Never resolved by DNS. */
 export const LOCAL_ORIGIN = "http://studio.local";
-
-const DEFAULT_PROFILE = "studio-motion";
-
-export function managerBaseUrl() {
-  return (process.env.CLOAK_MANAGER_URL || "http://127.0.0.1:8080").replace(/\/+$/, "");
-}
-
-export function managerHeaders(extra = {}) {
-  const h = { ...extra };
-  const token = process.env.CLOAK_MANAGER_AUTH_TOKEN;
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
-
-export function studioProfileName() {
-  return process.env.STUDIO_CDP_PROFILE || DEFAULT_PROFILE;
-}
-
-/** HTTP CDP endpoint for a manager profile — what connectOverCDP takes. */
-export function cdpHttpUrl(profileId, base = managerBaseUrl()) {
-  return `${base}/api/profiles/${profileId}/cdp`;
-}
-
-async function managerFetch(path, init) {
-  const res = await fetch(managerBaseUrl() + path, {
-    ...init,
-    headers: managerHeaders(init?.headers ?? {}),
-  });
-  const body = await res.text();
-  if (!res.ok) throw new Error(`Manager ${init?.method ?? "GET"} ${path} → ${res.status} ${body}`);
-  return body ? JSON.parse(body) : null;
-}
-
-/**
- * Ensure the studio's shared CloakBrowser profile exists and is running, and
- * return its CDP URL. The profile is deliberately left running afterwards:
- * motion_check runs after every batch of shots and a warm browser turns a
- * 4-second launch into a reconnect.
- */
-export async function ensureStudioProfile({ name = studioProfileName(), timeoutMs = 60_000, log = () => {} } = {}) {
-  const profiles = await managerFetch("/api/profiles");
-  let profile = profiles.find((p) => p.name === name);
-  if (!profile) {
-    log(`creating CloakBrowser profile ${name}`);
-    profile = await managerFetch("/api/profiles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // Name only: the manager rejects fields it does not know, and newer
-      // images have no `platform`; its 1920x1080 default is the render size.
-      body: JSON.stringify({ name }),
-    });
-  }
-  if (profile.status !== "running") {
-    log(`launching CloakBrowser profile ${name}`);
-    await managerFetch(`/api/profiles/${profile.id}/launch`, { method: "POST" });
-  }
-
-  const url = cdpHttpUrl(profile.id);
-  const deadline = Date.now() + timeoutMs;
-  let lastError = "no response";
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${url}/json/version`, { headers: managerHeaders() });
-      if (res.ok) return url;
-      lastError = `HTTP ${res.status}`;
-    } catch (err) {
-      lastError = err?.message ?? String(err);
-    }
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  throw new Error(`CloakBrowser profile ${name} never exposed CDP within ${timeoutMs}ms (${lastError})`);
-}
-
-/** An explicit endpoint (--cdp, then STUDIO_CDP_URL) or null to go through the manager. */
-export function explicitCdpUrl(flag) {
-  const v = flag ?? process.env.STUDIO_CDP_URL;
-  return v && v !== true ? String(v) : null;
-}
-
-/** True when a Chromium is actually installed locally — we never install one. */
-export function localChromiumAvailable() {
-  try {
-    const p = chromium.executablePath();
-    return Boolean(p) && existsSync(p);
-  } catch {
-    return false;
-  }
-}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -208,54 +109,24 @@ export async function serveLocalFiles(target) {
 /**
  * Open a browser for a motion script.
  *
- * Resolution order: `cdp` (the --cdp flag) → STUDIO_CDP_URL → the CloakBrowser
- * Manager. A local Chromium is used only when the manager cannot be reached
- * AND one is already installed; we never install one, and never tell the agent
- * to. `serveLocal` (default true) wires the studio.local file route.
+ * Each caller owns its browser process. `serveLocal` (default true) wires the
+ * studio.local file route, and close always terminates the process.
  */
 export async function openStudioBrowser({
-  cdp = null,
   viewport = { width: 1920, height: 1080 },
   deviceScaleFactor = 1,
   serveLocal = true,
   log = console.log,
 } = {}) {
-  let endpoint = explicitCdpUrl(cdp);
-  let managerError = null;
-  if (!endpoint) {
-    try {
-      endpoint = await ensureStudioProfile({ log: (m) => log(`   ${m}`) });
-    } catch (err) {
-      managerError = err;
-    }
-  }
-
-  let browser;
-  let context;
-  let mode;
-  if (endpoint) {
-    browser = await chromium.connectOverCDP(endpoint);
-    context = await browser.newContext({ viewport, deviceScaleFactor });
-    mode = "cdp";
-  } else if (localChromiumAvailable()) {
-    log(`   CloakBrowser unavailable (${managerError?.message ?? "no endpoint"}); using the local Chromium`);
-    browser = await chromium.launch();
-    context = await browser.newContext({ viewport, deviceScaleFactor });
-    mode = "local";
-  } else {
-    throw new Error(
-      `No browser available.\n` +
-        `   The CloakBrowser Manager at ${managerBaseUrl()} could not be reached: ${managerError?.message ?? "unknown error"}\n` +
-        `   This image ships no Chromium on purpose — do NOT run "playwright install".\n` +
-        `   Point CLOAK_MANAGER_URL at a running manager, or pass --cdp=<endpoint>.`,
-    );
-  }
+  const timeout = Number(process.env.BROWSER_START_TIMEOUT_MS || 60_000);
+  const browser = await chromium.launch({ headless: true, timeout });
+  const context = await browser.newContext({ viewport, deviceScaleFactor });
 
   if (serveLocal) await serveLocalFiles(context);
 
   return {
-    mode,
-    endpoint,
+    mode: "local",
+    endpoint: null,
     browser,
     context,
     async newPage() {
@@ -263,8 +134,6 @@ export async function openStudioBrowser({
     },
     async close() {
       await context.close().catch(() => {});
-      // For a CDP connection this only disconnects — the CloakBrowser stays
-      // warm for the next motion_* call.
       await browser.close().catch(() => {});
     },
   };

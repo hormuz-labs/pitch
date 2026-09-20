@@ -16,8 +16,8 @@
 # Role that lets it is rbac.yaml, applied once by a cluster admin — the
 # deploy service account may not create RBAC. No KEDA, no HPA.
 #
-# No sandbox privileges: nothing here runs an agent shell. The browser for a
-# capture is a shared manager (browser.yaml) reached over the network.
+# No sandbox privileges: nothing here runs an agent shell. Captures launch
+# the image's local Playwright Chromium and terminate it with the render action.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -136,8 +136,11 @@ spec:
             - { name: state, mountPath: /root/.pi/agent, subPath: pi }
             - { name: state, mountPath: /root/.cache/whisper-cpp, subPath: whisper }
             - { name: scratch, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
       volumes:
         - name: state
           emptyDir: { sizeLimit: 60Gi }
         - name: scratch
           emptyDir: { sizeLimit: 20Gi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }

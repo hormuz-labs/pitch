@@ -2,8 +2,8 @@
 # own, the agent's sandboxed shell. A held project is mostly a model wait and
 # file writes, so a worker is light and holds many (STUDIO_WORKER_SLOTS).
 # Anything that burns CPU — a capture, an encode, whisper — is queued as a
-# RenderJob for the render tier (render.yaml); previews and thumbnails use
-# the shared browser managers (browser.yaml) over the cluster network.
+# RenderJob for the render tier (render.yaml); interactive project browsers
+# launch locally and are streamed through the worker contract.
 #
 # A StatefulSet, not a Deployment, on purpose:
 #   - pod names are stable, so STUDIO_WORKER_ID survives a restart and the
@@ -131,8 +131,6 @@ spec:
             # headless DNS name: registered afresh on every boot, and never
             # dependent on readiness or a resolver.
             - { name: STUDIO_WORKER_URL, value: 'http://$(POD_IP):3000' }
-            # The shared browser managers load previews and thumbnails from
-            # this worker over the pod network, with the preview cookie.
             - { name: STUDIO_INTERNAL_ORIGIN, value: 'http://$(POD_IP):3000' }
             - { name: SLIDESHOW_BROWSER_HOST, value: '$(POD_IP)' }
             - { name: STUDIO_DRAIN_MS, value: '1800000' }
@@ -166,9 +164,12 @@ spec:
             - { name: state, mountPath: /app/projects, subPath: projects }
             - { name: state, mountPath: /root/.pi/agent, subPath: pi }
             - { name: scratch, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
       volumes:
         - name: scratch
           emptyDir: { sizeLimit: 20Gi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
   volumeClaimTemplates:
     - metadata:
         name: state

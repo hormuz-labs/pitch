@@ -19,8 +19,7 @@
  *      counter. The agent answers the note or says in direction.md why not.
  *   3. Scene overlap at every scene midpoint; seek determinism (❌).
  *
- * Screenshots are what costs time on the CloakBrowser (~1.5s each over CDP,
- * 150 of them for a 37s film), so the samples are taken by several tabs at
+ * Screenshots dominate capture time, so samples are taken by several tabs at
  * once, each seeking its own slice of the timeline — capture.mjs's pattern —
  * and at half scale: 960×540 keeps a 0.6% event at ~3,100px, far above the
  * browser's raster noise, and a frame on disk still readable.
@@ -76,13 +75,12 @@ mkdirSync(outDir, { recursive: true });
 
 console.log(`\n🔍 Motion Audit — ${pageArg}`);
 
-// The CloakBrowser is not on this machine; the page is served into it from
-// disk over the studio.local origin (see lib/browser.mjs).
+// The page is served from disk over the studio.local origin (see lib/browser.mjs).
 // Where the seconds go, printed at the end: the studio measured this at 55s
 // where the same call from a shell takes 20s, and nothing outside it says why.
 const T = { start: Date.now(), marks: {} };
 const mark = (k) => { T.marks[k] = Date.now(); };
-const studio = await openStudioBrowser({ cdp: args.cdp === true ? null : args.cdp, deviceScaleFactor: SCALE });
+const studio = await openStudioBrowser({ deviceScaleFactor: SCALE });
 mark("connect");
 const page = await studio.newPage();
 const cdp = await page.context().newCDPSession(page);
@@ -327,7 +325,7 @@ mark("checks");
 await studio.close();
 {
   const s = (a, b) => ((T.marks[b] - (a ? T.marks[a] : T.start)) / 1000).toFixed(1);
-  console.log(`⏱ ${studio.mode === "cdp" ? "CloakBrowser" : "local Chromium"} · connect ${s(null, "connect")}s · load ${s("connect", "load")}s · ${times.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · checks ${s("capture", "checks")}s`);
+  console.log(`⏱ Chromium · launch ${s(null, "connect")}s · load ${s("connect", "load")}s · ${times.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · checks ${s("capture", "checks")}s`);
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +367,7 @@ if (fails.length) {
  *
  * This decodes both PNGs rather than sampling their bytes. Comparing
  * compressed bytes was fine while every frame came from a plain headless
- * Chromium here; the CloakBrowser perturbs its own rasterization, so two
+ * Chromium here; browser rasterization can vary slightly, so two
  * pixel-identical frames can encode to different bytes and one changed pixel
  * near the top of the image shifts nearly every byte after it. Byte sampling
  * then reported ~0.87 for an identical frame and ~0.92 for a completely

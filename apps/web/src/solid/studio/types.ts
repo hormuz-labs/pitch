@@ -22,7 +22,7 @@ export interface Slide {
 export type Preview =
   | { kind: 'html' | 'deck' | 'video'; url: string }
   | { kind: 'pdf'; url: string; path: string; pages: number }
-  | { kind: 'browser'; profileId: string }
+  | { kind: 'browser'; streamId: string }
   | null
 export interface Description {
   preview: Preview

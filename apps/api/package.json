@@ -22,6 +22,7 @@
     "@sinclair/typebox": "^0.34.52",
     "@types/cors": "^2.8.19",
     "adm-zip": "^0.5.10",
+    "cloakbrowser": "0.5.10",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dodopayments": "^1.1.0",

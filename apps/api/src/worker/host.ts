@@ -682,8 +682,11 @@ export function followFirstTurn(p: ProjectRow, turn: number): void {
 }
 
 export async function stop(projectId: string): Promise<boolean> {
-  await ensureOpen(projectId)
-  return stopSession(projectId)
+  const { h } = await ensureOpen(projectId)
+  const stopped = await stopSession(projectId)
+  const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+  await releaseDemoRecording(h.ws).catch(() => {})
+  return stopped
 }
 
 export async function steer(projectId: string, entryId: string): Promise<boolean> {
@@ -968,6 +971,8 @@ async function unload(projectId: string, reason: string): Promise<void> {
   held.delete(projectId)
   h.off()
   logger.warn({ projectId, reason }, 'unloading project')
+  const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+  await releaseDemoRecording(h.ws).catch(() => {})
   await stopSession(projectId).catch(() => {})
   await closeSession(projectId, null, h.ws.dir).catch(() => {})
 }
@@ -984,6 +989,8 @@ export async function release(projectId: string): Promise<void> {
     return
   }
   if (isBusy(projectId)) await stopSession(projectId).catch(() => {})
+  const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+  await releaseDemoRecording(h.ws).catch(() => {})
   try {
     if (h.dirtyAt) await checkpointNow(h)
   } catch (err) {
@@ -1009,6 +1016,8 @@ export async function remove(row: ProjectRow): Promise<void> {
     })
   const h = held.get(projectId)
   const ws = h?.ws ?? workspaceOf(row)
+  const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+  await releaseDemoRecording(ws).catch(() => {})
   if (h) {
     held.delete(projectId)
     h.off()

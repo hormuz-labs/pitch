@@ -120,7 +120,6 @@ model ApiKey {
 model BrowserProfile {
   id              String           @id() @default(cuid())
   userId          String           @unique()
-  profileDir      String
   storageStateKey String?
   loggedInOrigins String           @default("[]")
   lastSyncedAt    DateTime?
@@ -137,10 +136,8 @@ model BrowserSession {
   profileId      String
   status         String         @default("STARTING")
   startUrl       String?
-  cdpPort        Int?
-  noVncUrl       String?
-  managerUrl     String?
-  pid            Int?
+  streamId       String?        @unique()
+  hostUrl        String?
   error          String?
   startedAt      DateTime       @default(now())
   readyAt        DateTime?

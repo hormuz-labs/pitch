@@ -44,8 +44,11 @@ import {
   buildStoryboardDraft,
   type StoryboardPage,
 } from '../../render/utils/storyboard-planner.js'
+import { demoStreamId } from '../../services/browser-routing.js'
 import { callHostAction, registerHostAction } from '../../studio/host-actions.js'
 import { ASSETS_DIR, fileUrl, type Workspace } from '../../studio/paths.js'
+import { WORKER_ID } from '../../worker/config.js'
+import { currentEpoch } from '../../worker/registry.js'
 import type { UploadRef } from '../types.js'
 
 const logger = createLogger('studio:demo-video')
@@ -59,7 +62,7 @@ interface ProjectFile {
 }
 
 interface LiveFile {
-  profileId: string
+  streamId: string
   session: string
   startedAt: number
 }
@@ -190,9 +193,12 @@ async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: s
   const handle = active.get(ws.dir)
   const live = await readJson<LiveFile>(liveFile(ws))
   if (!handle && !live) return { stopped: false, note: 'No recording is running.' }
+  let stopError: unknown
   if (handle) {
     try {
       await handle.stop()
+    } catch (error) {
+      stopError = error
     } finally {
       active.delete(ws.dir)
     }
@@ -205,11 +211,17 @@ async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: s
   await rm(liveFile(ws), { force: true })
   const state = await readJson<DemoState>(stateFile(ws))
   if (state) await writeJson(stateFile(ws), { ...state, endTime: Date.now() })
+  if (stopError) throw stopError
   const clips = state?.audioClips?.length ?? 0
   return {
     stopped: true,
     note: `Recording stopped; browser closed. ${clips} narration/SFX clip(s), ${state?.zoomEvents?.length ?? 0} zoom event(s), ${state?.clickEvents?.length ?? 0} click(s).`,
   }
+}
+
+/** Worker lifecycle hook: finalize and remove a live recording before release. */
+export async function releaseDemoRecording(ws: Workspace): Promise<void> {
+  await stopRecording(ws)
 }
 
 async function notifyPublished(
@@ -253,7 +265,7 @@ registerHostAction('demo_prepare_assets', async ws => {
   return `Prepared ${manifest.assets.length} asset(s) (${preparedSlideCount(manifest)} page(s)) into recording/assets/. demo_list_assets and demo_build_slideshow become available once demo_record_start has run.\n${formatAssetManifestForPrompt(manifest)}`
 })
 
-registerHostAction('demo_record_start', async (ws, params) => {
+registerHostAction('demo_record_start', async (ws, params, ctx) => {
   if (active.has(ws.dir))
     throw new Error('A recording is already running in this project — call demo_record_stop first.')
   const stale = await readJson<LiveFile>(liveFile(ws))
@@ -285,19 +297,22 @@ registerHostAction('demo_record_start', async (ws, params) => {
   await rm(path.join(recordingDir(ws), 'slideshow-progress.json'), { force: true })
   await rm(path.join(recordingDir(ws), 'pending-grounding.json'), { force: true })
 
+  const row = await projectRow(ws)
   const handle = await startRecording(
     {
       userId: ws.userId,
       workspaceDir: ws.dir,
+      streamId: demoStreamId(row.id, WORKER_ID, currentEpoch()),
       voice: typeof project.options.voice === 'string' ? project.options.voice : undefined,
       assetsManifestPath: manifest ? manifestFile(ws) : undefined,
       storyboard,
+      signal: ctx.signal,
     },
     logger,
   )
   active.set(ws.dir, handle)
   await writeJson(liveFile(ws), {
-    profileId: handle.profileId,
+    streamId: handle.streamId,
     session: handle.session,
     startedAt: handle.startTime,
   } satisfies LiveFile)

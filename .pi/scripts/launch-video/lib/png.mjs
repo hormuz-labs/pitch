@@ -2,14 +2,8 @@
  * A minimal PNG reader, so the audit can compare frames by PIXEL rather than
  * by compressed byte.
  *
- * The audit used to call two frames identical only when their PNG buffers were
- * byte-equal. That held while every frame came from a plain headless Chromium
- * on this machine. It does not hold in the CloakBrowser: an anti-detect browser
- * perturbs its own rasterization, so re-rendering the same seek gives the same
- * picture and a different file — and because PNG is compressed, one changed
- * pixel near the top shifts almost every byte after it. The old
- * sampled-byte ratio then reads ~0.87 for a frame that is visually identical
- * and ~0.92 for a completely different one, which discriminates nothing.
+ * Compressed-byte equality is not a visual comparison: a tiny rasterization
+ * difference near the top shifts nearly every compressed byte after it.
  *
  * Decoding is deliberately narrow: 8-bit non-interlaced RGB/RGBA/grey, which
  * is everything Playwright's screenshots are.

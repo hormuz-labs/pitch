@@ -168,20 +168,14 @@ model ApiKey {
 
 // ── BrowserProfile ────────────────────────────────────────────────────────────
 //
-// One stealth-browser profile per user. The profile dir is a real Chromium
-// user-data-dir managed by CloakBrowser — cookies, localStorage, IndexedDB and
-// site permissions persist across sessions and across jobs.
-//
-// `profileDir` is the absolute path on the host that runs the browser-host
-// service (Phase 1: dev machine; Phase 2: shared volume; Phase 3: rehydrated
-// from `storageStateKey` in S3 on each worker).
+// One portable stealth-browser profile per user. Storage state is restored to
+// an ephemeral local user-data-dir on whichever process launches CloakBrowser.
 //
 // `loggedInOrigins` is a JSON string array of origins where the user has
 // completed a login flow — used to render badges on the /sessions UI.
 model BrowserProfile {
   id              String   @id @default(cuid())
   userId          String   @unique
-  profileDir      String                     // absolute path on the browser-host
   storageStateKey String?                    // S3 key for the serialised storage_state.json (phase 3)
   loggedInOrigins String   @default("[]")    // JSON: string[]
   lastSyncedAt    DateTime?
@@ -204,20 +198,16 @@ model BrowserProfile {
 //                  ↘ ERROR      (spawn or capture failure)
 //                  ↘ EXPIRED    (idle GC)
 //
-// `cdpPort` is the local CDP debugging port; agent-browser connects here.
-// `noVncUrl` is filled in Phase 2 when we start streaming the headed window.
+// `streamId` addresses the noVNC RFB stream. `hostUrl` identifies the
+// API or worker process that owns the directly launched browser.
 model BrowserSession {
   id          String    @id @default(cuid())
   userId      String
   profileId   String
   status      String    @default("STARTING") // STARTING | READY | CLOSED | ERROR | EXPIRED
   startUrl    String?
-  cdpPort     Int?
-  noVncUrl    String?
-  // The CloakBrowser manager this session runs on. Every studio node has its
-  // own manager, so the VNC proxy must bridge to the one that holds the profile.
-  managerUrl  String?
-  pid         Int?
+  streamId    String?   @unique
+  hostUrl     String?
   error       String?
   startedAt   DateTime  @default(now())
   readyAt     DateTime?

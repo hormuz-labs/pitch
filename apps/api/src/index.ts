@@ -12,7 +12,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clerkMiddleware } from '@clerk/express'
-import { createLogger, pickManager, setManagerBaseUrl } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -39,19 +39,6 @@ const {
   SHUTDOWN_GRACE_MS,
   WORKER_TOKEN,
 } = await import('./worker/config.js')
-
-// Which browser manager this process uses. One configured means no choice;
-// a pool (a headless Service) means the one with the most room, re-picked
-// now and then so a process outlives any single manager pod.
-const pinManager = async () => {
-  try {
-    setManagerBaseUrl(await pickManager())
-  } catch (err) {
-    logger.warn({ err }, 'could not pick a browser manager; using the configured URL')
-  }
-}
-await pinManager()
-setInterval(() => void pinManager(), 5 * 60_000).unref()
 
 // The pipelines register their host actions (and the launch exporter) on
 // import. There is one agent and it can reach all of them; a pipeline that
@@ -107,6 +94,10 @@ const stateDirs =
       ]
     : []
 await Promise.all(stateDirs.map(dir => mkdir(dir, { recursive: true })))
+if (IS_WORKER) {
+  const { internalBrowserRouter } = await import('./routes/internal-browser.js')
+  app.use('/internal/browser', express.json(), internalBrowserRouter)
+}
 let draining = false
 // Probe traffic must not depend on Clerk or trigger authentication/network calls.
 app.use(
@@ -127,9 +118,8 @@ if (IS_WORKER) {
 
 if (ROLE === 'worker') {
   // A worker node serves only its contract and workspace files. The files
-  // are public-ish on purpose: the CloakBrowser beside this worker loads
-  // previews from here with the preview cookie, exactly as it did from the
-  // single api container (PREVIEW_COOKIE_SECRET must match across nodes).
+  // are public-ish on purpose: preview URLs carry a signed preview cookie
+  // (PREVIEW_COOKIE_SECRET must match across nodes).
   app.use(cors({ origin: true, credentials: true }))
   app.use(cookieParser())
   app.use((req, _res, next) => {
@@ -236,8 +226,8 @@ if (IS_WORKER && RENDER_MODE === 'remote') {
   setRemoteDispatcher(dispatchRemote)
   logger.info('heavy host actions go to the render tier')
 }
+attachVncProxy(server)
 if (IS_API) {
-  attachVncProxy(server)
   void resumePendingWebhooks()
   const { installEventForwarder } = await import('./worker/client.js')
   installEventForwarder()
@@ -268,7 +258,8 @@ const drainWorker = async () => {
   try {
     // The loops stay up through the drain: busyAt and checkpoints keep
     // flowing for the projects still being served.
-    await workerHost.drain(DRAIN_MS)
+    const { drainBrowserSessions } = await import('./services/browser-host.js')
+    await Promise.all([workerHost.drain(DRAIN_MS), drainBrowserSessions(DRAIN_MS)])
     workerHost.stopHostLoops()
     const { stopWorkerHeartbeat } = await import('./worker/registry.js')
     stopWorkerHeartbeat()
@@ -292,7 +283,7 @@ const gracefulShutdown = async (signal: string) => {
   if (renderer) await renderer.stopRenderer()
   // Stop new requests before aborting sessions; SSE/WS must not hold shutdown forever.
   server.close()
-  if (IS_API) {
+  if (IS_WORKER) {
     try {
       const { shutdownAllSessions } = await import('./services/browser-host.js')
       await shutdownAllSessions()

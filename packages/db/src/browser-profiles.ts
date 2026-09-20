@@ -22,11 +22,8 @@ export interface BrowserSessionPayload {
   profileId: string
   status: BrowserSessionStatus
   startUrl: string | null
-  cdpPort: number | null
-  noVncUrl: string | null
-  /** The CloakBrowser manager the session runs on; null for rows from before nodes had their own. */
-  managerUrl: string | null
-  pid: number | null
+  streamId: string | null
+  hostUrl: string | null
   error: string | null
   startedAt: Date
   readyAt: Date | null
@@ -45,7 +42,7 @@ function shapeProfile(row: any): BrowserProfilePayload {
   return {
     id: row.id,
     userId: row.userId,
-    profileDir: row.profileDir,
+    profileDir: defaultProfileDirForUser(row.userId),
     storageStateKey: row.storageStateKey ?? null,
     loggedInOrigins: (() => {
       try {
@@ -68,10 +65,8 @@ function shapeSession(row: any): BrowserSessionPayload {
     profileId: row.profileId,
     status: row.status as BrowserSessionStatus,
     startUrl: row.startUrl ?? null,
-    cdpPort: row.cdpPort ?? null,
-    noVncUrl: row.noVncUrl ?? null,
-    managerUrl: row.managerUrl ?? null,
-    pid: row.pid ?? null,
+    streamId: row.streamId ?? null,
+    hostUrl: row.hostUrl ?? null,
     error: row.error ?? null,
     startedAt: row.startedAt,
     readyAt: row.readyAt ?? null,
@@ -90,7 +85,6 @@ export async function getOrCreateBrowserProfile(
   const created = await client.browserProfile.create({
     data: {
       userId,
-      profileDir: defaultProfileDirForUser(userId),
     },
   })
   return shapeProfile(created)
@@ -151,8 +145,8 @@ export async function createBrowserSession(
     userId: string
     profileId: string
     startUrl?: string | null
-    cdpPort?: number | null
-    managerUrl?: string | null
+    streamId?: string | null
+    hostUrl?: string | null
     expiresAt: Date
   },
   user?: AuthUser,
@@ -163,8 +157,8 @@ export async function createBrowserSession(
       userId: data.userId,
       profileId: data.profileId,
       startUrl: data.startUrl ?? null,
-      cdpPort: data.cdpPort ?? null,
-      managerUrl: data.managerUrl ?? null,
+      streamId: data.streamId ?? null,
+      hostUrl: data.hostUrl ?? null,
       expiresAt: data.expiresAt,
     },
   })
@@ -175,9 +169,7 @@ export async function updateBrowserSession(
   id: string,
   data: {
     status?: BrowserSessionStatus
-    cdpPort?: number | null
-    noVncUrl?: string | null
-    pid?: number | null
+    streamId?: string | null
     error?: string | null
     readyAt?: Date | null
     closedAt?: Date | null

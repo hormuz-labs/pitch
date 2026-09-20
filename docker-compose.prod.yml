@@ -21,10 +21,6 @@ services:
       - /mnt/hdd/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - /mnt/hdd/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
 
-  cloakbrowser-manager:
-    ports:
-      - "8080:8080"
-
   api:
     environment:
       # Never persist the host-only MinIO address in production project rows.

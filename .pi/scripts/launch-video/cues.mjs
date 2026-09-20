@@ -35,7 +35,6 @@ const page_ = args.find(a => !a.startsWith("--")) || "index.html";
 const outArg = args.find(a => a.startsWith("--out="));
 const out = outArg ? outArg.slice(6) : "audio/cues.json";
 const CHECK = args.includes("--check");
-const cdpArg = args.find(a => a.startsWith("--cdp="));
 const inspectedEffects = (() => {
   try {
     const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
@@ -45,9 +44,8 @@ const inspectedEffects = (() => {
   }
 })();
 
-// The browser is the CloakBrowser, so it cannot see this folder: the page and
-// every file it pulls are served into it from disk (see lib/browser.mjs).
-const studio = await openStudioBrowser({ cdp: cdpArg?.slice(6) });
+// Every file the page pulls is served from disk (see lib/browser.mjs).
+const studio = await openStudioBrowser();
 const page = await studio.newPage();
 const errors = [];
 page.on("pageerror", e => errors.push(e.message));

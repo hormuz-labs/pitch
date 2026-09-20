@@ -102,7 +102,7 @@ Rules:
   only the workspace and the database, and write only into the workspace.
   Sessions are never queued; only these are.
 - Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, bubblewrap, Node 22,
-  whisper-cli — no browser, that is CloakBrowser over CDP); compose mounts
+  whisper-cli, and the directly launched CloakBrowser binary); compose mounts
   `./projects` and `docker-data/pi`, and `whisper` on the render service. The agent's shell is sandboxed
   with bubblewrap, which needs the `security_opt`/`cap_add` on the api service
   — `make sandbox-check` reports what a given host requires. Linux only: on

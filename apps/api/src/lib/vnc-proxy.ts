@@ -1,42 +1,24 @@
-/**
- * VNC WebSocket proxy.
- *
- * The browser cannot reach the CloakBrowser Manager directly: the manager
- * enforces a CSWSH origin check (and sends no CORS headers), and browsers can't
- * attach an Authorization header to a WebSocket. So the SPA opens a WS to this
- * API instead — `/browser/profiles/:id/vnc?token=<clerk session jwt>` — and we
- * bridge it to the manager server-side, where we *can* set the manager Bearer
- * token and omit Origin (a node ws client sends none), which clears both checks.
- *
- * Auth: the Clerk session token is passed as a query param (browsers can't set
- * WS headers), mirroring the existing /jobs/stream SSE pattern. We verify it,
- * then confirm the user actually owns an active session for that manager
- * profile before bridging — otherwise any signed-in user could view another
- * user's browser by guessing the profile id.
- */
 import type { Server } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { verifyToken } from '@clerk/backend'
 import * as db from '@saas/db'
-import { createLogger, getManagerBaseUrl, getManagerHeaders } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import { WebSocket, WebSocketServer } from 'ws'
+import { browserHostUrl, parseDemoStreamId } from '../services/browser-routing.js'
+import { hasVncEndpoint, serveVnc } from '../services/browser-vnc.js'
 
 const logger = createLogger('api:vnc-proxy')
+const PUBLIC_PATH = /^\/browser\/streams\/([^/]+)$/
+const INTERNAL_PATH = /^\/internal\/browser\/streams\/([^/]+)$/
+const MAX_PENDING_BYTES = 1024 * 1024
+const MAX_BUFFERED_BYTES = 4 * 1024 * 1024
 
-const VNC_PATH_RE = /^\/browser\/profiles\/([^/]+)\/vnc$/
-
-function safeUrl(url = '/'): URL {
-  try {
-    return new URL(url, 'http://localhost')
-  } catch {
-    return new URL('/', 'http://localhost')
-  }
+function rawSize(data: WebSocket.RawData): number {
+  if (Array.isArray(data)) return data.reduce((size, part) => size + part.byteLength, 0)
+  return data.byteLength
 }
 
 function abort(socket: Duplex, code: number, message: string): void {
-  // socket.end() flushes the status line on Node; under Bun the reject body
-  // isn't delivered but the connection still closes, so access is denied either
-  // way. Either is acceptable — an unauthorized client must not be upgraded.
   try {
     socket.end(`HTTP/1.1 ${code} ${message}\r\nConnection: close\r\n\r\n`)
   } catch {
@@ -44,119 +26,156 @@ function abort(socket: Duplex, code: number, message: string): void {
   }
 }
 
-/**
- * Verify the Clerk token and confirm the user owns an active session for this
- * profile. Returns the manager that runs it (every studio node has its own),
- * or null when the request is not allowed.
- */
-async function authorize(token: string | null, profileId: string): Promise<string | null> {
-  if (!token) return null
-
-  const secretKey = process.env.CLERK_SECRET_KEY
-  if (!secretKey) {
-    logger.error('CLERK_SECRET_KEY missing — cannot verify VNC token')
-    return null
-  }
-
-  let userId: string | undefined
+async function userIdFor(token: string | null): Promise<string | null> {
+  if (!token || !process.env.CLERK_SECRET_KEY) return null
   try {
-    const claims = await verifyToken(token, { secretKey })
-    userId = claims.sub
-  } catch (err) {
-    logger.warn({ err }, 'VNC token verification failed')
+    return (await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })).sub ?? null
+  } catch {
     return null
   }
-  if (!userId) return null
-
-  const sessions = await db.listActiveBrowserSessions(userId)
-  // browser-host stores the manager profile id in `noVncUrl`.
-  const session = sessions.find((s: { noVncUrl: string | null }) => s.noVncUrl === profileId)
-  if (!session) return null
-  return session.managerUrl || getManagerBaseUrl()
 }
 
-/** Pipe an accepted browser WS to the manager's VNC WS, both directions. */
-function bridge(client: WebSocket, profileId: string, managerUrl: string): void {
-  const target = `${managerUrl.replace(/^http/, 'ws')}/api/profiles/${profileId}/vnc`
-  // node ws client sends no Origin header → passes the manager CSWSH check.
-  const upstream = new WebSocket(target, ['binary'], { headers: getManagerHeaders() })
+/** Resolve the host recorded when this stream started. Never acquires or re-places a project. */
+export async function streamHost(streamId: string, userId: string): Promise<string | null> {
+  const session = await db.prisma.browserSession.findFirst({
+    where: { streamId, userId, status: 'READY' },
+    select: { hostUrl: true },
+  })
+  if (session?.hostUrl) return session.hostUrl
 
-  client.binaryType = 'nodebuffer'
-  upstream.binaryType = 'nodebuffer'
+  const demo = parseDemoStreamId(streamId)
+  if (!demo) return null
+  const project = await db.prisma.project.findFirst({
+    where: {
+      id: demo.projectId,
+      userId,
+      workerId: demo.workerId,
+      workerEpoch: demo.workerEpoch,
+    },
+    select: { workerId: true },
+  })
+  if (!project?.workerId) return null
+  const worker = await db.prisma.studioWorker.findFirst({
+    where: { id: demo.workerId, epoch: demo.workerEpoch },
+    select: { url: true },
+  })
+  return worker?.url ?? null
+}
 
-  // Buffer frames the client sends before the upstream handshake completes
-  // (noVNC starts its RFB handshake as soon as our side opens).
-  const pending: Array<{ data: WebSocket.RawData; isBinary: boolean }> = []
-  let upstreamOpen = false
-
-  const closeBoth = (): void => {
-    if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING)
-      client.close()
-    if (upstream.readyState === WebSocket.OPEN || upstream.readyState === WebSocket.CONNECTING)
-      upstream.close()
+function bridge(client: WebSocket, target: string, onUnavailable: () => void): void {
+  const upstream = new WebSocket(target, ['binary'], {
+    headers: { authorization: `Bearer ${process.env.STUDIO_WORKER_TOKEN || ''}` },
+    handshakeTimeout: 10_000,
+    maxPayload: 1024 * 1024,
+  })
+  const pending: Array<{ data: WebSocket.RawData; binary: boolean }> = []
+  let pendingBytes = 0
+  let closed = false
+  let opened = false
+  const close = () => {
+    if (closed) return
+    closed = true
+    if (client.readyState < WebSocket.CLOSING) client.close()
+    if (upstream.readyState < WebSocket.CLOSING) upstream.close()
+  }
+  const forward = (
+    destination: WebSocket,
+    source: WebSocket,
+    data: WebSocket.RawData,
+    binary: boolean,
+  ) => {
+    if (destination.readyState !== WebSocket.OPEN) return close()
+    destination.send(data, { binary }, error => error && close())
+    if (destination.bufferedAmount > MAX_BUFFERED_BYTES) {
+      source.pause()
+      const resume = setInterval(() => {
+        if (closed) return clearInterval(resume)
+        if (destination.bufferedAmount <= MAX_BUFFERED_BYTES / 2) {
+          clearInterval(resume)
+          source.resume()
+        }
+      }, 25)
+      resume.unref()
+    }
   }
 
-  client.on('message', (data, isBinary) => {
-    if (upstreamOpen && upstream.readyState === WebSocket.OPEN)
-      upstream.send(data, { binary: isBinary })
-    else pending.push({ data, isBinary })
+  client.on('message', (data, binary) => {
+    if (upstream.readyState === WebSocket.OPEN) return forward(upstream, client, data, binary)
+    const size = rawSize(data)
+    if (pendingBytes + size > MAX_PENDING_BYTES) return close()
+    pending.push({ data, binary })
+    pendingBytes += size
   })
-
   upstream.on('open', () => {
-    upstreamOpen = true
-    for (const m of pending) upstream.send(m.data, { binary: m.isBinary })
+    opened = true
+    for (const item of pending) forward(upstream, client, item.data, item.binary)
     pending.length = 0
+    pendingBytes = 0
   })
-
-  upstream.on('message', (data, isBinary) => {
-    if (client.readyState === WebSocket.OPEN) client.send(data, { binary: isBinary })
+  upstream.on('message', (data, binary) => forward(client, upstream, data, binary))
+  client.on('close', close)
+  client.on('error', close)
+  upstream.on('close', () => {
+    if (!opened) onUnavailable()
+    close()
   })
-
-  upstream.on('error', err => {
-    logger.warn({ err, profileId }, 'manager VNC upstream error')
-    closeBoth()
+  upstream.on('error', error => {
+    logger.warn({ error, target }, 'VNC worker bridge failed')
+    close()
   })
-  client.on('error', () => closeBoth())
-  upstream.on('close', closeBoth)
-  client.on('close', closeBoth)
 }
 
-/** Attach the VNC upgrade handler to the API's HTTP server. */
 export function attachVncProxy(server: Server): void {
   const wss = new WebSocketServer({
     noServer: true,
-    // noVNC negotiates the 'binary' subprotocol; echo it back.
+    maxPayload: 1024 * 1024,
     handleProtocols: protocols => (protocols.has('binary') ? 'binary' : false),
   })
-
   server.on('upgrade', (req, socket, head) => {
-    const url = safeUrl(req.url)
-    const match = url.pathname.match(VNC_PATH_RE)
-    // This is the only WS endpoint on the API; reject any other upgrade so the
-    // socket isn't left hanging.
-    if (!match) {
-      abort(socket, 404, 'Not Found')
-      return
+    const url = new URL(req.url || '/', 'http://localhost')
+    const internal = url.pathname.match(INTERNAL_PATH)
+    if (internal) {
+      if (
+        !process.env.STUDIO_WORKER_TOKEN ||
+        req.headers.authorization !== `Bearer ${process.env.STUDIO_WORKER_TOKEN}`
+      )
+        return abort(socket, 403, 'Forbidden')
+      const id = decodeURIComponent(internal[1]!)
+      if (!hasVncEndpoint(id)) return abort(socket, 404, 'Not Found')
+      return wss.handleUpgrade(req, socket, head, ws => serveVnc(ws, id))
     }
 
-    const profileId = decodeURIComponent(match[1])
-    const token = url.searchParams.get('token')
-
-    authorize(token, profileId)
-      .then(managerUrl => {
-        if (!managerUrl) {
-          abort(socket, 403, 'Forbidden')
-          return
-        }
-        wss.handleUpgrade(req, socket, head, client =>
-          bridge(client as WebSocket, profileId, managerUrl),
-        )
+    const match = url.pathname.match(PUBLIC_PATH)
+    if (!match) return abort(socket, 404, 'Not Found')
+    const id = decodeURIComponent(match[1]!)
+    void userIdFor(url.searchParams.get('token'))
+      .then(async userId => {
+        if (!userId) return abort(socket, 403, 'Forbidden')
+        const host = await streamHost(id, userId)
+        if (!host) return abort(socket, 404, 'Not Found')
+        wss.handleUpgrade(req, socket, head, ws => {
+          if (host === browserHostUrl() && hasVncEndpoint(id)) return serveVnc(ws, id)
+          bridge(
+            ws,
+            `${host.replace(/^http/, 'ws')}/internal/browser/streams/${encodeURIComponent(id)}`,
+            () => {
+              void db.prisma.browserSession
+                .updateMany({
+                  where: { streamId: id, status: 'READY' },
+                  data: {
+                    status: 'ERROR',
+                    error: 'The worker hosting this browser is unavailable',
+                    closedAt: new Date(),
+                  },
+                })
+                .catch(() => {})
+            },
+          )
+        })
       })
-      .catch(err => {
-        logger.error({ err, profileId }, 'VNC upgrade failed')
+      .catch(error => {
+        logger.error({ error, id }, 'VNC upgrade failed')
         abort(socket, 500, 'Internal Server Error')
       })
   })
-
-  logger.info('VNC proxy attached at /browser/profiles/:id/vnc')
 }

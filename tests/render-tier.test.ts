@@ -7,7 +7,6 @@
  *   - the worker's wait relays progress, honours a cancel, and returns the
  *     job's final row;
  *   - the output walk ships only what the action wrote;
- *   - the browser-manager pick packs onto the lowest ordinal with room.
  */
 import { mkdir, mkdtemp, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -54,7 +53,6 @@ const {
 } = await import('../apps/api/src/studio/host-actions.js')
 const { awaitJob } = await import('../apps/api/src/worker/remote.js')
 const { changedSince } = await import('../apps/api/src/renderer/transfer.js')
-const { chooseManager } = await import('../packages/shared/src/manager-client.js')
 const { decide } = await import('../apps/api/src/renderer/autoscale.js')
 
 const ws = { flow: 'studio', userId: 'u', name: 'n', internal: 'studio--u--n', dir: '/x' } as any
@@ -179,26 +177,6 @@ describe('output walk', () => {
       'renders/launch-1080p.mp4',
       'renders/launch-1080p.mp4.timeline.json',
     ])
-  })
-})
-
-describe('browser manager pick', () => {
-  const c = (ordinal: number, running: number | null) => ({
-    url: `http://m-${ordinal}`,
-    ordinal,
-    running,
-  })
-  it('packs onto the lowest ordinal with room', () => {
-    expect(chooseManager([c(1, 0), c(0, 2)], 4)?.ordinal).toBe(0)
-    expect(chooseManager([c(0, 4), c(1, 1), c(2, 0)], 4)?.ordinal).toBe(1)
-  })
-  it('falls back to the least loaded when every manager is full', () => {
-    expect(chooseManager([c(0, 6), c(1, 5), c(2, 7)], 4)?.ordinal).toBe(1)
-  })
-  it('ignores managers that did not answer unless nobody did', () => {
-    expect(chooseManager([c(0, null), c(1, 3)], 4)?.ordinal).toBe(1)
-    expect(chooseManager([c(0, null), c(1, null)], 4)?.ordinal).toBe(0)
-    expect(chooseManager([], 4)).toBeNull()
   })
 })
 

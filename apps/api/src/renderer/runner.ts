@@ -13,7 +13,7 @@
  */
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { createLogger, pickManager, setManagerBaseUrl } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import { rowById, workspaceOf } from '../projects/rows.js'
 import { callHostAction, hostActionNames, isRemoteAction } from '../studio/host-actions.js'
 import { PROJECTS_DIR } from '../studio/paths.js'
@@ -69,9 +69,6 @@ export async function runJob(job: queue.RenderJobRow): Promise<void> {
       )
     await queue.progress(job.id, 'restoring')
     const ws = await materialise(job.projectId, job.workspaceVersion)
-    // Each job picks the browser manager with the most room; a capture is
-    // the one thing that makes a manager busy.
-    setManagerBaseUrl(await pickManager())
     const since = Date.now()
     await queue.progress(job.id, 'running')
     const params = JSON.parse(job.params || '{}') as Record<string, unknown>

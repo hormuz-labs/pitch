@@ -1,8 +1,8 @@
 # The API: stateless (STUDIO_ROLE=api), any number of replicas behind the
 # Ingress. It holds no session and no workspace; every project operation is
 # proxied to the worker that owns it (see worker.yaml), so it needs no disk,
-# no sandbox privileges and no browser of its own — user browser sessions
-# (/browser) go to the shared manager in browser.yaml.
+# no workspace, sandbox privileges, or browser. Interactive browsers are
+# delegated through the authenticated worker contract.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

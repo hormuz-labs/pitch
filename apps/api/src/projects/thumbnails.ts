@@ -12,7 +12,7 @@ import { createLogger } from '@saas/shared'
 import type { Browser } from 'playwright'
 import { getAgent } from '../flows/index.js'
 import { PREVIEW_COOKIE, previewGrant } from '../lib/preview-auth.js'
-import { connectStudioBrowser } from '../render/utils/manager-browser.js'
+import { launchStudioBrowser } from '../render/utils/studio-browser.js'
 import { type ProjectRow, workspaceOf } from './rows.js'
 
 const execFileP = promisify(execFile)
@@ -25,27 +25,7 @@ export async function getBrowser(): Promise<Browser> {
   if (sharedBrowser?.isConnected()) return sharedBrowser
   if (browserPromise) return browserPromise
   browserPromise = (async () => {
-    let browser: Browser
-    if (process.platform === 'darwin' || process.env.STUDIO_BROWSER === 'local') {
-      const { chromium } = await import('playwright')
-      try {
-        browser = await chromium.launch({ channel: 'chrome', headless: true })
-      } catch {
-        browser = await chromium.launch({ headless: true })
-      }
-    } else {
-      try {
-        browser = await connectStudioBrowser()
-      } catch (err) {
-        logger.warn({ err }, 'connectStudioBrowser failed; falling back to local chromium/chrome')
-        const { chromium } = await import('playwright')
-        try {
-          browser = await chromium.launch({ channel: 'chrome', headless: true })
-        } catch {
-          browser = await chromium.launch({ headless: true })
-        }
-      }
-    }
+    const browser = await launchStudioBrowser()
     browser.on('disconnected', () => {
       sharedBrowser = null
       browserPromise = null
@@ -63,10 +43,7 @@ export async function closeBrowser(): Promise<void> {
 }
 
 /**
- * The origin the CloakBrowser loads previews from. It is a different container,
- * so 127.0.0.1 is its own loopback, not ours — docker-compose sets
- * STUDIO_INTERNAL_ORIGIN to the api service name. The loopback default is only
- * right when the manager and the API share a network namespace.
+ * The origin used to load previews through the normal authenticated file route.
  */
 export function apiOrigin(): string {
   const port = process.env.PORT || 3000

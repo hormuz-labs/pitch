@@ -15,7 +15,6 @@ const image = /^[a-z0-9][a-z0-9./_:-]*@sha256:[a-f0-9]{64}$/
 const bucketName = /^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$/
 const values = {
   API_IMAGE: image,
-  CLOAK_IMAGE: image,
   BOT_IMAGE: image,
   API_HOST: /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/,
   // Further hosts the same load balancer answers for (comma-separated, may be

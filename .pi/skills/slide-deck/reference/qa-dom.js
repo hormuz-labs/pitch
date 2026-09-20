@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 /**
- * The browser is the CloakBrowser over CDP — the studio image has no Chromium.
+ * The browser is local Playwright Chromium launched by the studio.
  * The tool that runs this script points STUDIO_BROWSER_LIB at the library that
  * connects to it and serves local files into it.
  */

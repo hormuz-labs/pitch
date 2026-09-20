@@ -1,10 +1,6 @@
 /**
- * The studio's browser plumbing: there is no Chromium in the image, so every
- * motion_* script reaches the CloakBrowser over CDP and is served the
- * workspace through request interception. These are the pure parts of that —
- * the URL mapping, the manager endpoint resolution and the frame comparison
- * the audit's gates rest on. The live CDP round trip is in
- * tests/integration/motion-cdp.integration.test.ts.
+ * Ordinary rendering uses local Playwright Chromium and serves workspace
+ * files through request interception.
  */
 import { execFileSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
@@ -56,47 +52,6 @@ describe('local files served into a remote browser', () => {
     expect(browser.contentTypeFor('/x/Brand.woff2')).toBe('font/woff2')
     expect(browser.contentTypeFor('/x/vo.wav')).toBe('audio/wav')
     expect(browser.contentTypeFor('/x/mystery')).toBe('application/octet-stream')
-  })
-})
-
-describe('CDP endpoint resolution', () => {
-  it('prefers the flag, then the env var, then the manager', () => {
-    const prev = process.env.STUDIO_CDP_URL
-    try {
-      process.env.STUDIO_CDP_URL = 'http://env-endpoint/cdp'
-      expect(browser.explicitCdpUrl('http://flag/cdp')).toBe('http://flag/cdp')
-      expect(browser.explicitCdpUrl(null)).toBe('http://env-endpoint/cdp')
-      delete process.env.STUDIO_CDP_URL
-      // Nothing explicit → null, which sends openStudioBrowser to the manager.
-      expect(browser.explicitCdpUrl(null)).toBeNull()
-      // A bare `--cdp` with no value must not become the string "true".
-      expect(browser.explicitCdpUrl(true)).toBeNull()
-    } finally {
-      if (prev === undefined) delete process.env.STUDIO_CDP_URL
-      else process.env.STUDIO_CDP_URL = prev
-    }
-  })
-
-  it('builds the manager profile CDP url and trims a trailing slash', () => {
-    expect(browser.cdpHttpUrl('abc', 'http://m:8080')).toBe('http://m:8080/api/profiles/abc/cdp')
-    const prev = process.env.CLOAK_MANAGER_URL
-    process.env.CLOAK_MANAGER_URL = 'https://manager.example.com/'
-    expect(browser.managerBaseUrl()).toBe('https://manager.example.com')
-    if (prev === undefined) delete process.env.CLOAK_MANAGER_URL
-    else process.env.CLOAK_MANAGER_URL = prev
-  })
-
-  it('only sends an Authorization header when a token is configured', () => {
-    const prev = process.env.CLOAK_MANAGER_AUTH_TOKEN
-    delete process.env.CLOAK_MANAGER_AUTH_TOKEN
-    expect(browser.managerHeaders()).toEqual({})
-    process.env.CLOAK_MANAGER_AUTH_TOKEN = 'sekrit'
-    expect(browser.managerHeaders({ 'Content-Type': 'application/json' })).toEqual({
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer sekrit',
-    })
-    if (prev === undefined) delete process.env.CLOAK_MANAGER_AUTH_TOKEN
-    else process.env.CLOAK_MANAGER_AUTH_TOKEN = prev
   })
 })
 
@@ -178,7 +133,7 @@ describe('frame comparison (the audit gates rest on this)', () => {
   })
 })
 
-describe('nothing in the studio reaches for a local Chromium', () => {
+describe('browser responsibilities stay separated', () => {
   const REPO = new URL('..', import.meta.url).pathname
 
   // Executable files only — the skills' prose says "playwright install is never
@@ -196,38 +151,28 @@ describe('nothing in the studio reaches for a local Chromium', () => {
     }
   }
 
-  // The places allowed to name these: browser.mjs and manager-browser.ts
-  // connect over CDP, thumbnails.ts has a macOS-only local development
-  // fallback, and sandbox.ts names the install command only to say the
-  // sandbox is what stops it.
-  const ALLOWED = [
-    '/scripts/launch-video/lib/browser.mjs:',
-    '/render/utils/manager-browser.ts:',
-    '/projects/thumbnails.ts:',
-    '/.pi/lib/sandbox.ts:',
-  ]
-  const offenders = (lines: string[]) => lines.filter(l => !ALLOWED.some(a => l.includes(a)))
-
-  it('has no chromium.launch left in the skills or the api', () => {
-    expect(offenders(grep('chromium\\.launch\\(', `${REPO}.pi`, `${REPO}apps/api/src`))).toEqual([])
+  it('uses Chromium for launch-video rendering', () => {
+    expect(grep('chromium\\.launch\\(', `${REPO}.pi/scripts/launch-video`)).toHaveLength(1)
   })
 
   it('never tells the agent to install a browser', () => {
     expect(
-      offenders(grep('playwright install|install chromium', `${REPO}.pi`, `${REPO}apps/api/src`)),
+      grep('playwright install|install chromium', `${REPO}.pi`, `${REPO}apps/api/src`).filter(
+        line => !line.includes('/.pi/lib/sandbox.ts:'),
+      ),
     ).toEqual([])
   })
 
   it('never calls setContent, which does not complete over a CDP connection', () => {
     // Every renderer writes its HTML and navigates to it through the
     // studio.local route instead.
-    expect(offenders(grep('\\.setContent\\(', `${REPO}.pi`, `${REPO}apps/api/src`))).toEqual([])
+    expect(grep('\\.setContent\\(', `${REPO}.pi`, `${REPO}apps/api/src`)).toEqual([])
   })
 })
 
-describe('the api serves local files into the remote browser the same way', () => {
+describe('the api serves local files into Chromium the same way', () => {
   it('agrees with the skill library on the URL mapping', async () => {
-    const api = await import('../apps/api/src/render/utils/manager-browser')
+    const api = await import('../apps/api/src/render/utils/studio-browser')
     const p = '/app/projects/acme/deck.html'
     expect(api.localPageUrl(p)).toBe(browser.localPageUrl(p))
     expect(api.localPathFromUrl(api.localPageUrl(p))).toBe(p)

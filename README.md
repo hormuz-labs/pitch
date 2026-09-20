@@ -151,7 +151,7 @@ Fill in the keys in [`.env.example`](.env.example). The core services use:
 | `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` | Agent and Google-backed media capabilities. |
 | `AZURE_APIM_API_KEY` | Azure APIM agent models configured in `.pi/models.json`. |
 | `ELEVENLABS_API_KEY` | Generated music, sound effects, and narration when selected in `.pi/audio.json`. |
-| `DATABASE_URL`, `MINIO_*`, `CLOAK_MANAGER_URL` | Database, storage, and browser service. The template includes local defaults. |
+| `DATABASE_URL`, `MINIO_*`, `CLOAKBROWSER_LICENSE_KEY` | Database, storage, and the optional production browser license. |
 | `STUDIO_MODEL` | The model used by the studio agent. |
 
 ### Start the studio
@@ -161,7 +161,7 @@ bun install
 make dev
 ```
 
-`make dev` starts PostgreSQL, MinIO, and CloakBrowser in Docker, applies database migrations, and launches the API and web app. It frees ports **3000, 5173, and 5174** before starting.
+`make dev` starts PostgreSQL and MinIO in Docker, applies database migrations, and launches the API and web app. Workers launch CloakBrowser directly only for interactive authentication and demo recording; normal rendering uses local Playwright Chromium. It frees ports **3000, 5173, and 5174** before starting.
 
 **Web:** [`localhost:5173`](http://localhost:5173) &nbsp; · &nbsp; **API:** [`localhost:3000`](http://localhost:3000)
 
