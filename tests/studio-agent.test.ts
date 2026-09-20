@@ -51,8 +51,8 @@ describe('describeWorkspace', () => {
   it('shows the live browser while a recording is running, whatever else exists', async () => {
     const ws = workspace()
     write(ws, 'renders/edit.mp4', 'x', 3_000_000)
-    write(ws, 'recording/live.json', JSON.stringify({ profileId: 'p1' }), 1_000_000)
-    expect((await describeWorkspace(ws)).preview).toEqual({ kind: 'browser', profileId: 'p1' })
+    write(ws, 'recording/live.json', JSON.stringify({ streamId: 'p1' }), 1_000_000)
+    expect((await describeWorkspace(ws)).preview).toEqual({ kind: 'browser', streamId: 'p1' })
   })
 
   it('ignores render intermediates', async () => {
@@ -87,7 +87,9 @@ describe('RELEVANT', () => {
 describe('usage billing', () => {
   it('adds model spend to metered compute time, then applies the platform margin', () => {
     expect(usageUsd({ modelUsd: 0.5, computeSeconds: 0 }, 1, 1)).toBeCloseTo(0.5)
-    expect(usageUsd({ modelUsd: 0, computeSeconds: 100 }, 1, 1)).toBeCloseTo(100 * COMPUTE_USD_PER_SEC)
+    expect(usageUsd({ modelUsd: 0, computeSeconds: 100 }, 1, 1)).toBeCloseTo(
+      100 * COMPUTE_USD_PER_SEC,
+    )
     expect(usageUsd({ modelUsd: 0.5, computeSeconds: 0 }, 1, 1.25)).toBeCloseTo(0.625)
   })
 

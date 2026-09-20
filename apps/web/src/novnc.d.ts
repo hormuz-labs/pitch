@@ -1,8 +1,8 @@
 declare module '@novnc/novnc' {
   export default class RFB {
-    constructor(container: HTMLElement, url: string, options?: any)
-    addEventListener(type: string, handler: (e: any) => void): void
-    removeEventListener(type: string, handler: (e: any) => void): void
+    constructor(container: HTMLElement, url: string, options?: { wsProtocols?: string[] })
+    addEventListener(type: string, handler: (event: any) => void): void
+    removeEventListener(type: string, handler: (event: any) => void): void
     disconnect(): void
     scaleViewport: boolean
     resizeSession: boolean

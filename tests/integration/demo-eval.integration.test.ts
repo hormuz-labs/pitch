@@ -11,6 +11,7 @@
  */
 import { exec, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
+import { type BrowserServer, chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.pi/lib/demo-core'
 
@@ -41,18 +42,21 @@ const FIXTURE = `<body style="margin:0">
 </body>`
 
 const suite = hasCli ? describe : describe.skip
+let server: BrowserServer | undefined
 if (!hasCli) console.warn('playwright-cli not found on PATH — skipping demo-eval integration test')
 
 suite('ELEMENT_BOX_JS against a real browser', () => {
   beforeAll(async () => {
     await pw('close').catch(() => {}) // ensure no stale session
-    await pw('open')
+    server = await chromium.launchServer({ headless: true })
+    await pw(`attach --endpoint ${server.wsEndpoint()}`)
     await pw(`goto "data:text/html,${encodeURIComponent(FIXTURE)}"`)
     await new Promise(r => setTimeout(r, 800)) // let layout settle
   }, 60_000)
 
   afterAll(async () => {
     await pw('close').catch(() => {})
+    await server?.close()
   })
 
   it('reads real geometry for a normal button', async () => {

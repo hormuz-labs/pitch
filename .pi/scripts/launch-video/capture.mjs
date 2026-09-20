@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
  * Deterministic multi-worker parallel seek-and-capture renderer: HTML+GSAP page -> high-fps MP4.
- * Requires: ffmpeg, and a CloakBrowser reachable over CDP (lib/browser.mjs).
- * There is NO local Chromium in the studio image and none is ever installed —
- * every worker is a tab in the CloakBrowser, and the page is served into it
- * from disk over the studio.local origin.
+ * Requires ffmpeg and the image's local Playwright Chromium (lib/browser.mjs).
+ * Every capture worker is a tab, and the page is served into it from disk over
+ * the studio.local origin.
  *
  * The page MUST expose:  window.__SEEK(seconds), window.__DURATION(), window.__READY
  *
@@ -132,7 +131,7 @@ const downscale = outRes?.height ? `scale=-2:${outRes.height}` : null;
 const scale    = outRes ? outRes.scale : Number(args.scale ?? 2);   // 2 = 3840x2160 4K UHD
 const width    = Number(args.width ?? 1920);
 const height   = Number(args.height ?? 1080);
-// Workers are tabs in the one CloakBrowser, not browser processes: the
+// Workers are tabs in one Chromium process, not browser processes: the
 // screenshots are what costs time, and Page.captureScreenshot on a background
 // tab returns that tab's own frame, so they overlap cleanly.
 const defaultWorkers = Math.max(1, Math.min(6, os.cpus().length - 2));
@@ -164,8 +163,7 @@ console.log(`   FPS:       ${fps} FPS`);
 console.log(`   Workers:   ${workers} parallel capture tabs`);
 
 /**
- * We do not launch the browser, so --force-device-scale-factor is not ours to
- * pass. `deviceScaleFactor` on the context makes the page rasterize at `scale`,
+ * `deviceScaleFactor` on the context makes the page rasterize at `scale`,
  * and `clip.scale` below makes Page.captureScreenshot return those physical
  * pixels (raw CDP otherwise hands back CSS pixels).
  */
@@ -174,13 +172,11 @@ const shotOpts = framesFmt === "png"
   ? { format: "png", captureBeyondViewport: false, clip }
   : { format: "jpeg", quality: 92, optimizeForSpeed: true, captureBeyondViewport: false, clip };
 
-const cdpArg = process.argv.slice(2).find(a => a.startsWith("--cdp="));
 const studio = await openStudioBrowser({
-  cdp: cdpArg?.slice("--cdp=".length),
   viewport: { width, height },
   deviceScaleFactor: scale,
 });
-console.log(`   Browser:   ${studio.mode === "cdp" ? `CloakBrowser over CDP (${studio.endpoint})` : "local Chromium"}`);
+console.log("   Browser:   Chromium");
 
 const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const initPage = await studio.newPage();

@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   compactPlaywrightCommand,
   normalizePlaywrightCommand,
@@ -16,8 +16,7 @@ import {
   recoverRecordingArtifact,
   sanitizeSessionName,
 } from '../apps/api/src/render/recording.js'
-import { startManagerBrowser } from '../apps/api/src/render/utils/manager-browser.js'
-import { getManagerHeaders } from '../packages/shared/src/manager-client.js'
+import { withTimeout } from '../apps/api/src/render/utils/cloak-browser.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -267,33 +266,15 @@ describe('guest playwright-cli binary routing over PITCH_SOCKET', () => {
   })
 })
 
-describe('CDP manager browser & STUDIO_CDP_URL support', () => {
-  const prevCdpUrl = process.env.STUDIO_CDP_URL
-  const prevAuthToken = process.env.CLOAK_MANAGER_AUTH_TOKEN
-
-  afterEach(() => {
-    if (prevCdpUrl === undefined) delete process.env.STUDIO_CDP_URL
-    else process.env.STUDIO_CDP_URL = prevCdpUrl
-
-    if (prevAuthToken === undefined) delete process.env.CLOAK_MANAGER_AUTH_TOKEN
-    else process.env.CLOAK_MANAGER_AUTH_TOKEN = prevAuthToken
+describe('direct CloakBrowser operation bounds', () => {
+  it('returns completed operations', async () => {
+    await expect(withTimeout('quick operation', Promise.resolve('ok'), 50)).resolves.toBe('ok')
   })
 
-  it('supports explicit STUDIO_CDP_URL in startManagerBrowser without manager calls', async () => {
-    process.env.STUDIO_CDP_URL = 'http://127.0.0.1:9222'
-    const handle = await startManagerBrowser('any-user')
-    expect(handle.cdpUrl).toBe('http://127.0.0.1:9222')
-    expect(handle.profileId).toBe('any-user')
-    await expect(handle.close()).resolves.toBeUndefined()
-  })
-
-  it('sends manager auth headers when token is set', () => {
-    process.env.CLOAK_MANAGER_AUTH_TOKEN = 'secret-token'
-    const headers = getManagerHeaders()
-    expect(headers.Authorization).toBe('Bearer secret-token')
-
-    delete process.env.CLOAK_MANAGER_AUTH_TOKEN
-    expect(getManagerHeaders().Authorization).toBeUndefined()
+  it('rejects stalled operations', async () => {
+    await expect(withTimeout('stalled operation', new Promise(() => {}), 5)).rejects.toThrow(
+      'stalled operation timed out after 5ms',
+    )
   })
 })
 

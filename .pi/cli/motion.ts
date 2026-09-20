@@ -635,9 +635,6 @@ export default function motionCommands(): CommandSpec[] {
       fonts_dir: Type.Optional(
         Type.String({ description: 'Where font files go (default assets/fonts)' }),
       ),
-      cdp: Type.Optional(
-        Type.String({ description: 'CDP URL of an existing browser, for bot-walled sites' }),
-      ),
       width: Type.Optional(Type.Integer({ description: 'Viewport width (default 1440)' })),
       wait: Type.Optional(
         Type.Integer({
@@ -652,7 +649,6 @@ export default function motionCommands(): CommandSpec[] {
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.fonts === false) a.push('--no-fonts')
       else if (p.fonts_dir) a.push('--fonts=' + relativeIn(ws, p.fonts_dir, 'write'))
-      if (p.cdp) a.push('--cdp=' + p.cdp)
       if (p.width) a.push('--width=' + p.width)
       if (p.wait) a.push('--wait=' + p.wait)
       try {

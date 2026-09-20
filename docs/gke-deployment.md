@@ -3,9 +3,10 @@
 The cluster runs the studio as a fleet (`docs/studio-architecture.md` →
 Scaling): stateless **API** pods behind the Ingress, light **worker** pods
 that own projects (tens each), **render** pods that run the heavy host
-actions workers queue, and a pool of **browser managers** every tier shares.
+actions workers queue. Interactive authentication/demo CloakBrowser instances
+launch directly on workers; render pods use ordinary local Playwright Chromium.
 Workers are a fixed count and drain gently on a rollout; render pods run on
-spot nodes and scale with the queue, from zero; browsers scale on CPU. Cloud SQL is the database;
+spot nodes and scale with the queue, from zero. Cloud SQL is the database;
 Cloud Storage holds media, browser profiles and workspace checkpoints, spoken
 to through its S3-compatible endpoint so the storage code (and a later move
 to another cloud) stays the same as with MinIO. The frontend stays on Vercel.
@@ -40,18 +41,15 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
                                           ▼
                  Deployment pitch-render   STUDIO_ROLE=render, the API sets replicas 0–8
                                            spot nodes; render + cloud-sql-proxy, scratch, whisper
-                 StatefulSet pitch-browser CloakBrowser managers, HPA on CPU, 1–4
-                   pitch-browser-0 …       headless Service; every process pins to one
-                 Job pitch-migrate-<release>  prisma migrate deploy, before each rollout
+                  Job pitch-migrate-<release>  prisma migrate deploy, before each rollout
 ```
 
 | Resource | File | Notes |
 | --- | --- | --- |
 | Deployment `pitch` + HPA + PDB | `api.yaml` | no disk, no sandbox privileges |
-| StatefulSet `pitch-worker` + headless Service + PDB | `worker.yaml` | `replicas: 2`, one PVC per ordinal, `terminationGracePeriodSeconds: 1900`, no browser |
+| StatefulSet `pitch-worker` + headless Service + PDB | `worker.yaml` | `replicas: 2`, one PVC per ordinal, directly owns interactive project browsers |
 | Deployment `pitch-render` | `render.yaml` | spot pool, scratch disk, whisper model, no sandbox privileges |
 | Role + RoleBinding `pitch-render-scaler` | `rbac.yaml` | applied once by hand; lets the API patch the render Deployment's scale |
-| StatefulSet `pitch-browser` + headless Service + HPA + PDB | `browser.yaml` | one PVC per ordinal; `_manager._tcp` SRV records are how clients find the pods |
 | Job `pitch-migrate-<RELEASE>` | `migrate.yaml` | rendered separately, applied first |
 | Connector, egress Service | `tailscale/` | optional; see Tailscale below |
 
@@ -63,10 +61,8 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
 - Three node pools, all amd64 Linux, all with the **cluster autoscaler** on,
   labelled `pool=` as the manifests select them:
   - `system` — the API and the Discord bot (e2-standard-4, min 2);
-  - `workers` — worker pods (1 CPU / 4 GiB, tens of sessions each) and
-    browser managers (2 CPU / 5 GiB requested, the burst as the limit);
-    two workers and a manager fit one e2-standard-8, so the idle fleet is
-    one node (min 1, max 8);
+  - `workers` — worker pods (1 CPU / 4 GiB, tens of sessions each, with local
+    CloakBrowser bursts); use e2-standard-8 nodes (min 1, max 8);
   - `render-spot` — **spot** e2-standard-8, min 0, max 8, image streaming
     on (`gcloud container node-pools create render-spot --spot
     --num-nodes 0 --enable-autoscaling --min-nodes 0 --max-nodes 8
@@ -78,7 +74,7 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
   after a quiet spell (a few minutes; accepted, there is no warm pod).
 - Restrict the bubblewrap exception (`SYS_ADMIN`, unconfined seccomp/AppArmor)
   to the worker pool and the `pitch` namespace, and run the shipped sandbox
-  check on the chosen node image. Render pods and browsers need none of it.
+  check on the chosen node image. Render pods need none of it.
 - Enable Artifact Registry and create a Docker repository in the cluster's
   region. Give the **node** service account Artifact Registry Reader; image
   pulls do not use the workload's identity.
@@ -150,7 +146,7 @@ variables below.
 Build `Dockerfile.base`, `apps/api/Dockerfile` and `apps/discord-bot/Dockerfile`
 for **linux/amd64**, publish to Artifact Registry, and supply the base digest as
 the API's `RUNTIME_IMAGE` build argument. Every image is required to use a
-digest. Choose a tested amd64 CloakBrowser manager release and record its digest.
+digest. The API image build downloads and freezes the CloakBrowser binary.
 
 The Discord bot (`infra/gke/discord-bot.yaml`) is one replica of a stateless
 adapter: it reaches the API at `http://pitch` inside the cluster and gets only
@@ -163,7 +159,6 @@ Set these non-secret environment variables before rendering:
 ```text
 API_IMAGE=REGION-docker.pkg.dev/PROJECT/REPOSITORY/pitch-api@sha256:DIGEST
 BOT_IMAGE=REGION-docker.pkg.dev/PROJECT/REPOSITORY/pitch-discord-bot@sha256:DIGEST
-CLOAK_IMAGE=cloakhq/cloakbrowser-manager@sha256:DIGEST
 API_HOST=api.example.com
 APP_URL=https://app.example.com
 MEDIA_PUBLIC_URL=https://storage.googleapis.com
@@ -245,7 +240,6 @@ GitHub configuration:
   GKE_MEDIA_BUCKET=silverfish-media
   GKE_PROFILES_BUCKET=silverfish-profiles
   GKE_WORKSPACE_BUCKET=silverfish-workspaces
-  CLOAK_IMAGE=cloakhq/cloakbrowser-manager@sha256:eaa08b54f7d30f3512e1f8faa1e457fe340e868af9f76b5f6bad282b3bd7ae2d
   EOF
   ```
 
@@ -275,13 +269,11 @@ when the pod goes. A preempted node stops the pod's heartbeat and the queue
 hands the job to the next pod after 90 s, up to three attempts. The pool
 costs nothing idle and about a third of on-demand when busy.
 
-**Browsers scale on CPU** (70%, 1–4 managers): a capture is six tabs taking
-screenshots as fast as Chromium will, and that is the one thing that makes a
-manager busy. Every process pins to the lowest-ordinal manager with room
-(`CLOAK_MANAGER_CAPACITY` running profiles), so the highest ordinal empties
-first and is the one the HPA removes; scale-down waits fifteen minutes so
-the next capture finds it warm. A user's recording session records its
-manager and is never moved.
+**Browsers follow their owner.** Render browsers consume the render pod already
+allocated to their job. Interactive demo browsers consume the owning worker.
+Login browsers are delegated to a live fixed worker; its internal URL is
+recorded so any API replica can proxy the authenticated frame/input
+stream. Browser processes are closed on completion, expiry, abort, or shutdown.
 
 **Workers do not autoscale.** `worker.yaml` says `replicas: 2`; a worker is
 sessions and file writes, holds `STUDIO_WORKER_SLOTS` (24) of them, and the
@@ -301,7 +293,7 @@ onto the lowest-numbered worker with a free slot (`worker/lease.ts`), so
 
 **The API scales on CPU** (60%, 2–6 pods): it is request-bound and holds
 nothing. Its PodDisruptionBudget keeps one pod up through node maintenance;
-the workers' and the browsers' allow one eviction at a time.
+the workers' allows one eviction at a time.
 
 Watch it: `kubectl get hpa,deploy/pitch-render -n pitch` shows the counts;
 `curl -H "Authorization: Bearer $STUDIO_WORKER_TOKEN" http://pitch.pitch.svc/internal/scale`
@@ -371,8 +363,7 @@ then needs the whisper model (`make whisper-model`). Stop it with
 
 - `/health/live` returns 200 without dependency checks. `/health/ready` verifies
   SQL (and, on workers, real writes on the project volume); it returns 503
-  while draining or when checks fail. The browser and SQL proxy have
-  independent pod probes.
+  while draining or when checks fail. The SQL proxy has independent pod probes.
 - Run `kubectl exec -n pitch pitch-worker-0 -c worker -- node scripts/sandbox-check.mjs`.
   Verify its isolation results; never fall back to `STUDIO_SANDBOX=none`.
 - Create a project, send a prompt, reconnect its SSE stream, then
@@ -388,7 +379,7 @@ then needs the whisper model (`make whisper-model`). Stop it with
   goes queued → running → done, the MP4 lands in the worker's `renders/`,
   and the studio's export status follows the job's stage.
 - Exercise uploads (including a large recording), public output URLs, thumbnail
-  rendering, and browser/VNC interaction through HTTPS. The backend timeout is
+  rendering, and browser noVNC interaction through HTTPS. The backend timeout is
   one hour for SSE/WebSockets/uploads; clients must still reconnect normally.
 - Check logs in Cloud Logging, alerts for pod restarts/disk usage/SQL errors,
   production payment webhooks and credit metering.
@@ -419,7 +410,7 @@ one with no local copy would start it empty. So:
 
 1. Stop incoming work and wait for active sessions/exports to finish on the
    old host. Back up PostgreSQL, `projects/`, `docker-data/pi/`, the
-   CloakBrowser `/data` volume. Restore SQL to Cloud SQL.
+   browser profile bucket. Restore SQL to Cloud SQL.
 2. Media is not copied: the old MinIO stays reachable at its public URL,
    so existing output links keep working while new renders land in Cloud
    Storage. (If MinIO is ever retired, `mc mirror` the bucket across and

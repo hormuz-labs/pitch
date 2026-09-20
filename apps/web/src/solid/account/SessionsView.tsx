@@ -1,9 +1,9 @@
 import { useNavigate, useSearchParams } from '@solidjs/router'
-import { ArrowUpRight, Check, Globe, Lock, Maximize, Plus, RefreshCw, Trash2 } from 'lucide-solid'
+import { ArrowUpRight, Check, Globe, Lock, Plus, RefreshCw, Trash2 } from 'lucide-solid'
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
-import { API_URL } from '../../config'
 import { api } from '../../lib/api'
 import { useAuth } from '../core/auth'
+import { BrowserViewer } from '../studio/BrowserViewer'
 import { CreditChip } from './credits'
 import { Dialog, Loading } from './primitives'
 import '../../styles/sessions.css'
@@ -17,64 +17,12 @@ interface Session {
   sessionId?: string
   status: string
   startUrl?: string | null
-  noVncUrl?: string | null
+  streamId?: string | null
   expiresAt: string
 }
 interface ProfileResponse {
   profile: Profile
   activeSessions: Session[]
-}
-
-function BrowserViewer(props: { profileId: string }) {
-  const { getToken } = useAuth()
-  const [status, setStatus] = createSignal('Authenticating...')
-  let container!: HTMLDivElement
-  let wrapper!: HTMLDivElement
-  let rfb: any
-  onMount(() => {
-    let active = true
-    void (async () => {
-      try {
-        const token = await getToken()
-        if (!token) throw new Error('Not authenticated')
-        setStatus('Connecting...')
-        const module = await import('@novnc/novnc')
-        if (!active) return
-        const path = `/browser/profiles/${props.profileId}/vnc?token=${encodeURIComponent(token)}`
-        const ws = API_URL.startsWith('http')
-          ? API_URL.replace(/^http/, 'ws') + path
-          : `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${API_URL}${path}`
-        rfb = new module.default(container, ws, { wsProtocols: ['binary'] })
-        rfb.scaleViewport = true
-        rfb.showDotCursor = true
-        rfb.addEventListener('connect', () => setStatus(''))
-        rfb.addEventListener('disconnect', () => setStatus('Disconnected'))
-      } catch {
-        setStatus('Connection failed')
-      }
-    })()
-    onCleanup(() => {
-      active = false
-      rfb?.disconnect()
-    })
-  })
-  return (
-    <div ref={wrapper} class="group relative h-full w-full bg-black">
-      <div ref={container} class="h-full w-full" />
-      <Show when={status()}>
-        <div class="absolute inset-0 flex items-center justify-center bg-gray-900/80 text-xs text-white">
-          {status()}
-        </div>
-      </Show>
-      <button
-        aria-label="Fullscreen browser"
-        class="absolute bottom-4 right-4 rounded-lg bg-black/50 p-2 text-white opacity-0 group-hover:opacity-100"
-        onClick={() => void wrapper.requestFullscreen?.()}
-      >
-        <Maximize size={15} />
-      </button>
-    </div>
-  )
 }
 
 export function SessionsView() {
@@ -239,10 +187,10 @@ export function SessionsView() {
                 </div>
                 <div class="sessions-browser">
                   <Show
-                    when={active().noVncUrl}
+                    when={active().streamId}
                     fallback={<Loading label="Initializing remote display..." />}
                   >
-                    {id => <BrowserViewer profileId={id()} />}
+                    {id => <BrowserViewer streamId={id()} />}
                   </Show>
                 </div>
               </section>

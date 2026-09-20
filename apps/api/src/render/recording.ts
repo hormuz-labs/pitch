@@ -2,8 +2,8 @@
  * recording — the browser recording lifecycle for demo-video projects.
  *
  * Lifted from steps 1–3 (and the stop half of step 8) of the old worker
- * (apps/worker/src/job-processor.ts): start the user's CloakBrowser profile
- * through the manager, attach playwright-cli to its CDP endpoint, resize the
+ * (apps/worker/src/job-processor.ts): start the user's CloakBrowser profile,
+ * attach playwright-cli to its local CDP endpoint, resize the
  * viewport, start the WebM screencast and write demo-config.json — the handoff
  * contract the demo tools read (`{ startTime, voiceName, assetsManifestPath?,
  * storyboard? }`).
@@ -17,11 +17,13 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import * as db from '@saas/db'
 import type { Logger, VideoStoryboard } from '@saas/shared'
 import { createLogger } from '@saas/shared'
+import { downloadStorageState, uploadStorageState } from '@saas/storage'
 import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
-import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
 
 const moduleLogger = createLogger('studio:render:recording')
 
@@ -43,6 +45,9 @@ export interface StartRecordingInput {
   assetsManifestPath?: string
   /** Approved storyboard supplying persistent slide overlays. */
   storyboard?: VideoStoryboard
+  /** Stable public stream id, normally the owning project id. */
+  streamId: string
+  signal?: AbortSignal
 }
 
 export interface RecordingHandle {
@@ -56,9 +61,9 @@ export interface RecordingHandle {
   videoDir: string
   /** The playwright-cli session name used for every command. */
   session: string
-  profileId: string
+  streamId: string
   cdpUrl: string
-  /** Stops the screencast, closes the playwright session and the manager browser. */
+  /** Stops the screencast, closes the playwright session and its browser. */
   stop: () => Promise<void>
 }
 
@@ -164,14 +169,54 @@ export async function startRecording(
   // Close any pre-existing session under this name to ensure a fresh session
   await execAsync(`${cli} close`, { cwd: workspaceDir }).catch(() => {})
 
-  // 1. Start CloakBrowser via Manager and establish CDP Proxy
-  const managerBrowser: ManagerBrowserHandle = await startManagerBrowser(userId)
-
+  // Start a headed CloakBrowser on an isolated Xvfb display. Its CDP and VNC
+  // ports stay on loopback; the API exposes only the authenticated RFB bridge.
+  const profile = await db.getOrCreateBrowserProfile(userId)
+  await fs.promises.mkdir(profile.profileDir, { recursive: true })
+  const storageStatePath = path.join(profile.profileDir, 'storage_state.json')
+  await downloadStorageState(userId, storageStatePath).catch(() => false)
+  const cloakBrowser: CloakBrowserHandle = await startCloakBrowser({
+    streamId: input.streamId,
+    profileDir: path.join(profile.profileDir, input.streamId),
+    storageStatePath: fs.existsSync(storageStatePath) ? storageStatePath : undefined,
+    fingerprintIdentity: userId,
+    signal: input.signal,
+  })
+  let statePersisted = false
+  const persistBrowserState = async () => {
+    if (statePersisted) return
+    const state = await withTimeout(
+      'browser state capture',
+      cloakBrowser.context.storageState({ path: storageStatePath, indexedDB: true }),
+      10_000,
+    )
+    const origins = Array.from(
+      new Set([
+        ...state.origins.map(origin => origin.origin),
+        ...state.cookies.map(
+          cookie => `${cookie.secure ? 'https' : 'http'}://${cookie.domain.replace(/^\./, '')}`,
+        ),
+      ]),
+    )
+    const key = await uploadStorageState(storageStatePath, userId)
+    await db.recordLoggedInOrigins(userId, origins, { storageStateKey: key })
+    statePersisted = true
+  }
+  const closeBrowser = async () => {
+    await persistBrowserState().catch(err =>
+      logger.warn({ err, userId }, 'Failed to persist browser authentication state'),
+    )
+    await cloakBrowser.close()
+    await fs.promises.rm(path.join(profile.profileDir, input.streamId), {
+      recursive: true,
+      force: true,
+    })
+  }
   try {
     // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
     logger.info(
-      { cdpUrl: managerBrowser.cdpUrl, session },
-      'Attaching playwright-cli to manager CDP',
+      { cdpUrl: cloakBrowser.cdpUrl, session },
+      'Attaching playwright-cli to local CloakBrowser CDP',
     )
     // Retry playwright-cli attach with backoff — the WS endpoint may need a moment
     // to become fully ready even after the HTTP /json/version check passes.
@@ -181,13 +226,13 @@ export async function startRecording(
       let lastAttachError: Error | undefined
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          await execAsync(`${cli} attach --cdp ${managerBrowser.cdpUrl}`, { cwd: workspaceDir })
+          await execAsync(`${cli} attach --cdp ${cloakBrowser.cdpUrl}`, { cwd: workspaceDir })
           lastAttachError = undefined
           break
         } catch (err) {
           lastAttachError = err instanceof Error ? err : new Error(String(err))
           logger.warn(
-            { attempt, maxAttempts, cdpUrl: managerBrowser.cdpUrl, err: lastAttachError.message },
+            { attempt, maxAttempts, cdpUrl: cloakBrowser.cdpUrl, err: lastAttachError.message },
             'playwright-cli attach failed, retrying...',
           )
           if (attempt < maxAttempts) {
@@ -272,7 +317,7 @@ export async function startRecording(
           })
         } catch (_e) {}
         try {
-          await managerBrowser.close()
+          await closeBrowser()
         } catch (_e) {}
       }
     }
@@ -291,18 +336,18 @@ export async function startRecording(
       webmPath,
       videoDir,
       session,
-      profileId: managerBrowser.profileId,
-      cdpUrl: managerBrowser.cdpUrl,
+      streamId: cloakBrowser.streamId,
+      cdpUrl: cloakBrowser.cdpUrl,
       stop,
     }
   } catch (err) {
     // Attach/resize/video-start failed: shut down the CDP proxy and stop the
-    // manager profile so the user's browser isn't left running.
+    // browser process so the user's session isn't left running.
     try {
       await execAsync(`${cli} close`, { cwd: workspaceDir })
     } catch (_e) {}
     try {
-      await managerBrowser.close()
+      await closeBrowser()
     } catch (_e) {}
     throw err
   }

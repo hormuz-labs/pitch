@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 /**
- * The browser is the CloakBrowser over CDP — the studio image has no Chromium.
+ * The browser is local Playwright Chromium launched by the studio.
  * The tool that runs this script points STUDIO_BROWSER_LIB at the library that
  * connects to it and serves local files into it.
  */
@@ -253,9 +253,7 @@ async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null
     // --engine-order can override this (e.g. "gemini,pinterest" for comic-pop).
     const order = engineOrder || ["pinterest", "gemini"];
     const results = {};
-    // Pinterest and Unsplash are exactly the kind of wall a plain headless
-    // Chromium loses to, so scrape through the CloakBrowser and leave its
-    // fingerprint alone — no user-agent override, that is what gets caught.
+    // Use the bundled Chromium without overriding its user agent.
     const { openStudioBrowser } = await studioBrowserLib();
     const browser = await openStudioBrowser({ viewport: { width: 1440, height: 900 } });
     const context = browser.context;

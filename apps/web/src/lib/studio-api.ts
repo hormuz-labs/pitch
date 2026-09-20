@@ -84,7 +84,7 @@ export type Preview =
   | { kind: 'html'; url: string }
   | { kind: 'deck'; url: string }
   | { kind: 'video'; url: string }
-  | { kind: 'browser'; profileId: string }
+  | { kind: 'browser'; streamId: string }
   | null
 
 export interface Description {

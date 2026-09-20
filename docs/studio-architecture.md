@@ -392,8 +392,7 @@ RenderJob    { projectId, action, params, workspaceVersion,     a heavy host act
 process — the single box, and what `make dev` runs — with every render
 in-process; `api` replicas hold no project and proxy every project
 operation; `worker` nodes own projects and answer only the worker contract
-(`/internal/worker`, behind `STUDIO_WORKER_TOKEN`) and `/files` (for the
-browser managers loading previews); `render` pods hold nothing and run the
+(`/internal/worker`, behind `STUDIO_WORKER_TOKEN`) and `/files`; `render` pods hold nothing and run the
 heavy host actions workers queue.
 
 **Registration.** A worker upserts its row on boot with a new `epoch`,
@@ -475,16 +474,18 @@ that dies stops heartbeating and the job is claimed again, up to
 signal. A light action may call a heavy one (`demo_render` stops the live
 browser on the worker, then `demo_encode` runs where renders run).
 
-**Browsers.** No process runs a browser of its own. The CloakBrowser
-managers are a pool (`CLOAK_MANAGER_URL` naming a headless Service, or one
-manager); a process resolves the pool and pins to the lowest-ordinal
-manager with fewer than `CLOAK_MANAGER_CAPACITY` profiles running
-(`@saas/shared` → `pickManager`), re-picking every few minutes, and a
-render pod re-picks per job. A user's browser session records the manager
-it started on, so scaling the pool never moves it. Previews and thumbnails
-load from the worker over the pod network (`STUDIO_INTERNAL_ORIGIN`) with
-the preview cookie; a capture serves the workspace into the page by request
-interception and needs no route back at all.
+**Browsers.** Ordinary deck, thumbnail, launch render and recon work uses local,
+headless Playwright Chromium. CloakBrowser is reserved for authentication and
+live demo recording. Each interactive session starts a dedicated Xvfb display,
+openbox and loopback-only x11vnc, then launches headed CloakBrowser on that
+display. The web client uses noVNC; an authenticated API WebSocket bridges raw
+RFB bytes to the exact worker URL recorded for the session. Demo stream IDs are
+bound to the worker epoch, so worker death ends the stream rather than silently
+rerouting it. CDP also remains loopback-only. Every child process is owned and
+terminated by the session on close, error, abort, project release or worker
+drain. Portable Playwright storage state, including IndexedDB, is restored before
+launch and uploaded on close, so authentication survives placement changes
+without sharing a profile filesystem.
 
 **Scaling the fleet.** One number moves: render pods, one per job queued
 or running. The API sets it itself (`renderer/autoscale.ts` patches the
@@ -495,8 +496,7 @@ tens of sessions and its CPU is not the point. `GET /internal/scale`
 (behind the worker token) reports both — `wanted`, how many workers it
 would take to hold every leased project with `STUDIO_SCALE_HEADROOM` free
 (the demand, not the utilisation: a worker mid-turn is waiting on a
-model), and `render.wanted` — as a reading, and the browser managers scale
-on CPU with a plain HPA. Any live worker whose id is outside
+model), and `render.wanted` — as a reading. Any live worker whose id is outside
 `STUDIO_SCALE_GROUP` (a machine on the tailnet) is fixed capacity whose
 slots are used first.
 
@@ -505,9 +505,7 @@ slots are used first.
 egress Service. Nothing here needs a public port. Every node needs the same
 `DATABASE_URL`, object storage (`STORAGE_DRIVER` and its buckets — GCS in
 production, MinIO locally, one contract in `@saas/storage`),
-`STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`,
-a reachable browser manager or pool (`CLOAK_MANAGER_URL`; the one a
-session started on is recorded so the VNC proxy bridges to the right one),
+`STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`, the CloakBrowser binary,
 and its own `projects/` and pi volumes. A render pod needs the same minus a
 private URL and plus the whisper model on its disk.
 

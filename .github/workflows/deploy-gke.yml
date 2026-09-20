@@ -52,7 +52,6 @@ jobs:
           MEDIA_BUCKET=${{ vars.GKE_MEDIA_BUCKET }}
           PROFILES_BUCKET=${{ vars.GKE_PROFILES_BUCKET }}
           WORKSPACE_BUCKET=${{ vars.GKE_WORKSPACE_BUCKET }}
-          CLOAK_IMAGE=${{ vars.CLOAK_IMAGE }}
           EOF
       - uses: google-github-actions/auth@v2
         with:
@@ -128,19 +127,11 @@ jobs:
           BOT_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-discord-bot@${{ steps.bot.outputs.digest }}
         run: |
           node scripts/render-gke.mjs > "$RUNNER_TEMP/pitch.yaml"
-          # The browser manager became a StatefulSet behind a headless Service
-          # (browser.yaml). Neither can be changed in place from what was
-          # there before, so the old Deployment and ClusterIP Service go first;
-          # its old PVC (pitch-browser-data) is left for a hand cleanup.
-          if kubectl get deployment/pitch-browser -n pitch >/dev/null 2>&1; then
-            kubectl delete deployment/pitch-browser -n pitch --wait=true
-            kubectl delete service/pitch-browser -n pitch --ignore-not-found
-          fi
+          kubectl delete deployment,statefulset,horizontalpodautoscaler,poddisruptionbudget,service pitch-browser -n pitch --ignore-not-found
           kubectl apply --dry-run=server -f "$RUNNER_TEMP/pitch.yaml"
           kubectl apply -f "$RUNNER_TEMP/pitch.yaml"
           kubectl rollout status deployment/pitch -n pitch --timeout=900s
           kubectl rollout status deployment/pitch-discord-bot -n pitch --timeout=300s
-          kubectl rollout status statefulset/pitch-browser -n pitch --timeout=900s
           # Render pods are usually 0; when there are some, each finishes its job first.
           kubectl rollout status deployment/pitch-render -n pitch --timeout=1h
           # Each worker drains gently (up to STUDIO_DRAIN_MS) before its replacement starts.

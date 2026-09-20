@@ -1,5 +1,6 @@
 import { exec, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
+import { type BrowserServer, chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildAnnotateEvalJs } from '../../.pi/lib/annotations'
 import {
@@ -23,6 +24,7 @@ const hasCli = (() => {
 const pw = (args: string) =>
   execAsync(`playwright-cli -s=${PLAYWRIGHT_SESSION} ${args}`, { maxBuffer: 16 * 1024 * 1024 })
 const suite = hasCli ? describe : describe.skip
+let server: BrowserServer | undefined
 
 describe('approved storyboard slideshow contract', () => {
   it('omits a deleted PDF page from the rendered slideshow HTML', () => {
@@ -105,7 +107,8 @@ suite('asset slideshow in a real browser', () => {
   beforeAll(async () => {
     process.env.PLAYWRIGHT_CLI_SESSION = PLAYWRIGHT_SESSION
     await pw('close').catch(() => {})
-    await pw('open')
+    server = await chromium.launchServer({ headless: true })
+    await pw(`attach --endpoint ${server.wsEndpoint()}`)
     await pw('resize 1280 720')
     await pw(`goto "data:text/html,${encodeURIComponent(html)}"`)
     await new Promise(resolve => setTimeout(resolve, 600))
@@ -114,6 +117,7 @@ suite('asset slideshow in a real browser', () => {
   afterAll(async () => {
     delete process.env.PLAYWRIGHT_CLI_SESSION
     await pw('close').catch(() => {})
+    await server?.close()
   })
 
   it('maps OCR percentages onto the rendered page box', async () => {
@@ -144,7 +148,10 @@ suite('asset slideshow in a real browser', () => {
 
   it('fits each page to the live viewport without decorative stage chrome', async () => {
     const page = await boxOf('.slide.active .page')
-    expect(page).toMatchObject({ x: 100, y: 0, w: 1080, h: 720 })
+    expect(page.x).toBeCloseTo(100, 2)
+    expect(page.y).toBeCloseTo(0, 2)
+    expect(page.w).toBeCloseTo(1080, 2)
+    expect(page.h).toBeCloseTo(720, 2)
 
     const { stdout } = await pw(
       `--raw eval '() => ({ counter: getComputedStyle(document.querySelector("#counter")).display, nav: getComputedStyle(document.querySelector("#nav")).display })'`,

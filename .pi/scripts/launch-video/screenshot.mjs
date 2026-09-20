@@ -41,10 +41,8 @@ if (!url && !html) {
 
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
-// The CloakBrowser: it is the one that gets past bot walls, and a --html
-// template is served into it from disk (see lib/browser.mjs).
+// A --html template is served into local Chromium from disk (see lib/browser.mjs).
 const studio = await openStudioBrowser({
-  cdp: args.cdp === true ? null : args.cdp,
   viewport: { width, height },
   deviceScaleFactor: scale,
 });
@@ -94,10 +92,9 @@ if (hit && url) {
     `   Page title: ${JSON.stringify(pageTitle)}\n` +
     `   Matched:    ${hit}\n` +
     `   Saved anyway for inspection: ${out}\n\n` +
-    `   This capture already ran through ${studio.mode === "cdp" ? "the CloakBrowser" : "a local Chromium"}, and the site still\n` +
-    `   blocked it. Do NOT proceed to Phase 1 on a block page and do NOT install\n` +
-    `   a browser — try a different page on the same site, raise --wait, or pass\n` +
-    `   --cdp=<endpoint> for a profile that is signed in.\n`
+    `   This capture ran through the bundled Chromium and the site blocked it.\n` +
+    `   Do NOT proceed to Phase 1 on a block page and do NOT install\n` +
+    `   a browser — try a different authorized page on the same site or raise --wait.\n`
   );
   process.exit(2);
 }

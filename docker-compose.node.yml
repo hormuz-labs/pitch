@@ -13,21 +13,11 @@
 #   MINIO_ENDPOINT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD   Cloud Storage's S3 endpoint and the HMAC key
 #   STUDIO_WORKER_TOKEN, PREVIEW_COOKIE_SECRET   the same as in the cluster
 services:
-  cloakbrowser-manager:
-    image: ${CLOAK_IMAGE:-cloakhq/cloakbrowser-manager}
-    container_name: pitch_node_browser
-    restart: always
-    volumes:
-      - ./docker-data/node/browser:/data
-    shm_size: 2g
-    group_add:
-      - "${VIDEO_GID:-44}"
-      - "${RENDER_GID:-992}"
-
   worker:
     image: ${API_IMAGE:?set API_IMAGE to the pitch-api image the cluster runs}
     container_name: pitch_node_worker
     restart: always
+    shm_size: 2gb
     # Migrations are the cluster's job (the migrate Job runs them per release).
     command: ["bun", "apps/api/src/index.ts"]
     ports:
@@ -45,7 +35,6 @@ services:
       # pods; this machine only holds sessions. STUDIO_RENDER=local keeps
       # them here instead (a GPU box, say).
       STUDIO_RENDER: ${STUDIO_RENDER:-remote}
-      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       STUDIO_INTERNAL_ORIGIN: http://worker:3000
       STUDIO_SANDBOX: bwrap
       PROJECTS_DIR: /app/projects
@@ -63,6 +52,3 @@ services:
       - "${RENDER_GID:-992}"
     # STUDIO_DRAIN_MS plus the checkpoint grace, so a `down` loses no turn.
     stop_grace_period: 1900s
-    depends_on:
-      cloakbrowser-manager:
-        condition: service_started

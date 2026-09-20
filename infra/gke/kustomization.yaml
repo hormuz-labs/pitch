@@ -5,7 +5,6 @@ resources:
   - namespace.yaml
   - service-account.yaml
   - storage.yaml
-  - browser.yaml
   - api.yaml
   - worker.yaml
   - render.yaml
@@ -35,12 +34,7 @@ configMapGenerator:
       - STORAGE_PROFILES_BUCKET=${PROFILES_BUCKET}
       - STORAGE_PUBLIC_URL=${MEDIA_PUBLIC_URL}
       - FFMPEG_ENCODER=libx264
-      # The browser manager pool (browser.yaml): a headless Service, so every
-      # process resolves the managers behind it and pins to one. The FQDN,
-      # because the SRV lookup does not go through the search list.
-      - CLOAK_MANAGER_URL=http://pitch-browser.pitch.svc.cluster.local:8080
-      - CLOAK_MANAGER_CAPACITY=4
-      # Where a manager loads previews from; workers override it with their pod IP.
+      - CLOAKBROWSER_AUTO_UPDATE=false
       - STUDIO_INTERNAL_ORIGIN=http://pitch.pitch.svc.cluster.local
       # Fetched onto each render pod's scratch disk on boot (render.yaml → prepare-state).
       - WHISPER_MODEL_FILE=ggml-large-v3-turbo.bin
@@ -50,7 +44,5 @@ configMapGenerator:
 images:
   - name: pitch-api
     newName: ${API_IMAGE}
-  - name: cloakbrowser-manager
-    newName: ${CLOAK_IMAGE}
   - name: pitch-discord-bot
     newName: ${BOT_IMAGE}

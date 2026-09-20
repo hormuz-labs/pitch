@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -18,7 +18,7 @@ async function fixture() {
   await mkdir(workspace, { recursive: true })
   await mkdir(path.dirname(skill), { recursive: true })
   await writeFile(skill, '# Launch video')
-  return { workspace, skill, files: new Set([skill]) }
+  return { workspace, skill, files: new Set([await realpath(skill)]) }
 }
 
 describe('provided skill billing attribution', () => {

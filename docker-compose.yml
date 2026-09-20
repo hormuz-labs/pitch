@@ -86,18 +86,6 @@ services:
       loki:
         condition: service_healthy
 
-  cloakbrowser-manager:
-    image: cloakhq/cloakbrowser-manager
-    container_name: cloakbrowser_manager
-    restart: always
-    ports:
-      - "8080:8080"
-    volumes:
-      - cloakprofiles:/data
-    group_add:
-      - "44"
-      - "992"
-
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
     build:
@@ -105,6 +93,7 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: pitch_api
     restart: always
+    shm_size: 2gb
     ports:
       - "127.0.0.1:3000:3000"
     env_file:
@@ -115,10 +104,6 @@ services:
       # Local browser-facing URL. docker-compose.prod.yml replaces this with
       # the public S3 hostname while uploads still use the internal endpoint.
       MINIO_PUBLIC_URL: http://localhost:9002
-      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
-      # The CloakBrowser renders deck previews and project thumbnails, and it
-      # runs in its own container — it must reach this one by a name the compose
-      # network resolves, not by loopback.
       STUDIO_INTERNAL_ORIGIN: http://api:3000
       # This container is the API and a worker in one (STUDIO_ROLE=all). It
       # registers itself under this id at this URL so worker nodes added later
@@ -160,8 +145,6 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
-      cloakbrowser-manager:
-        condition: service_started
 
   # A second studio worker on the same machine, plus a render pod. Real
   # capacity comes from running this image with STUDIO_ROLE=worker and
@@ -174,6 +157,7 @@ services:
     image: pitch-api:${IMAGE_TAG:-latest}
     container_name: pitch_worker
     restart: always
+    shm_size: 2gb
     profiles: ["worker"]
     env_file:
       - .env
@@ -181,7 +165,6 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9002
-      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       STUDIO_INTERNAL_ORIGIN: http://worker:3000
       STUDIO_ROLE: worker
       STUDIO_WORKER_ID: worker-1
@@ -208,6 +191,7 @@ services:
     image: pitch-api:${IMAGE_TAG:-latest}
     container_name: pitch_render
     restart: always
+    shm_size: 2gb
     profiles: ["worker"]
     env_file:
       - .env
@@ -215,7 +199,6 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9002
-      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       STUDIO_ROLE: render
       STUDIO_RENDER_ID: render-1
     volumes:
@@ -231,8 +214,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      cloakbrowser-manager:
-        condition: service_started
 
   discord-bot:
     image: pitch-discord-bot:${IMAGE_TAG:-latest}
@@ -252,6 +233,3 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - api
-
-volumes:
-  cloakprofiles:

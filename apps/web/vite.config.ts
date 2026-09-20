@@ -49,10 +49,8 @@ export default defineConfig({
       interval: 300,
     },
     proxy: {
-      // All API traffic — including the VNC WebSocket proxy at
-      // /browser/profiles/:id/vnc — goes to the local API. ws:true upgrades the
-      // VNC connection; the API handles manager auth and Origin stripping, so
-      // there's nothing manager-specific to configure here.
+      // All API traffic, including the live browser RFB WebSocket,
+      // goes to the local API. `ws: true` enables that upgrade.
       // Anchored with a trailing slash on purpose. A bare '/api' key is a prefix
       // match, so it also swallowed the SPA route /api-keys and rewrote it to
       // /-keys on the API. Every real call is API_URL + '/path', so requiring

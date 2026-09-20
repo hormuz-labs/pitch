@@ -59,7 +59,7 @@ router.delete('/origins', async (req, res) => {
 router.post('/sessions', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
-  const { startUrl, headless } = (req.body ?? {}) as { startUrl?: string; headless?: boolean }
+  const { startUrl } = (req.body ?? {}) as { startUrl?: string }
 
   if (startUrl) {
     try {
@@ -80,10 +80,12 @@ router.post('/sessions', async (req, res) => {
   }
 
   try {
+    const controller = new AbortController()
+    req.once('aborted', () => controller.abort())
     const result = await startSession({
       userId,
       startUrl: startUrl ?? null,
-      headless: !!headless,
+      signal: controller.signal,
     })
 
     // Charge once for the session. Balance was checked above; if the deduction

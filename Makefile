@@ -39,7 +39,7 @@ help:
 # ─── Development ──────────────────────────────────────────────────────────────
 # Starts everything at once:
 # 1. Frees ports 3000, 5173, 5174 from any stale processes
-# 2. Ensures Postgres, MinIO, and CloakBrowser are running in Docker
+# 2. Ensures Postgres and MinIO are running in Docker
 # 3. Ensures dependencies are installed and runs database migrations
 # 4. Boots both backend (API/agent on :3000) and frontend (Vite on :5173) with Bun
 dev:
@@ -51,9 +51,8 @@ dev:
 		pid=$$(lsof -ti :$$p 2>/dev/null) && kill -9 $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
 	done
 	@echo ""
-	@echo "  $(GREEN)Starting Docker dependencies (postgres, minio, cloakbrowser)...$(RESET)"
+	@echo "  $(GREEN)Starting Docker dependencies (postgres, minio)...$(RESET)"
 	@docker compose -p pitch up -d --wait postgres minio
-	@docker compose -p pitch up -d cloakbrowser-manager
 	@echo ""
 	@if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
 		echo "  $(GREEN)Installing dependencies...$(RESET)"; \

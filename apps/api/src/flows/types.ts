@@ -35,7 +35,7 @@ export type Preview =
   | { kind: 'deck'; url: string }
   | { kind: 'video'; url: string }
   | { kind: 'pdf'; url: string; path: string; pages: number }
-  | { kind: 'browser'; profileId: string }
+  | { kind: 'browser'; streamId: string }
   | null
 
 export interface Description {

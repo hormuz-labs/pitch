@@ -24,8 +24,8 @@
  *     mismatch or declare a deliberate treatment colour in brand.palette.
  *     Composition belongs to the treatment; the review does not count objects.
  *
- * Screenshots over CDP to the CloakBrowser cost ~1.3s each, so like the audit
- * the frames are captured by several tabs at once, each with its own label.
+ * Like the audit, frames are captured by several Chromium tabs at once, each
+ * with its own label.
  */
 import { execFileSync } from "node:child_process";
 import os from "node:os";
@@ -335,7 +335,7 @@ try {
   const sheets = readdirSync(outDir).filter(f => /^sheet-\d+\.jpg$/.test(f)).sort();
   {
     const s = (a, b) => ((T.marks[b] - (a ? T.marks[a] : T.start)) / 1000).toFixed(1);
-    console.log(`⏱ ${studio.mode === "cdp" ? "CloakBrowser" : "local Chromium"} · connect ${s(null, "connect")}s · load ${s("connect", "load")}s · ${plan.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · sheets ${s("capture", "sheets")}s`);
+    console.log(`⏱ Chromium · launch ${s(null, "connect")}s · load ${s("connect", "load")}s · ${plan.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · sheets ${s("capture", "sheets")}s`);
   }
   console.log(`🎞  Review — ${plan.length} frames from ${only.length || shots.length} shots (${duration.toFixed(2)}s) → ${sheets.length} sheet${sheets.length === 1 ? "" : "s"} in ${String(args.out ?? "review")}/, ${cols}×${rows} tiles, read left→right, top→bottom.${grade ? ` Graded (${Object.keys(grade).join(", ")}).` : ""}`);
   sheets.forEach((f, si) => {

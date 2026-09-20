@@ -48,7 +48,7 @@ async function mtimeOf(dir: string, rel: string): Promise<number | null> {
 async function liveBrowser(ws: Workspace): Promise<string | null> {
   try {
     const live = JSON.parse(await readFile(path.join(ws.dir, 'recording', 'live.json'), 'utf8'))
-    return typeof live?.profileId === 'string' ? live.profileId : null
+    return typeof live?.streamId === 'string' ? live.streamId : null
   } catch {
     return null
   }
@@ -177,8 +177,8 @@ export async function activeArtifact(
   ws: Workspace,
 ): Promise<{ kind: string; rel: string; at: number } | null> {
   if (!existsSync(ws.dir)) return null
-  const profileId = await liveBrowser(ws)
-  if (profileId) return { kind: 'browser', rel: 'recording/live.json', at: Date.now() }
+  const streamId = await liveBrowser(ws)
+  if (streamId) return { kind: 'browser', rel: 'recording/live.json', at: Date.now() }
   return (await candidates(ws))[0] ?? null
 }
 
@@ -199,8 +199,8 @@ export async function hasArtifact(ws: Workspace): Promise<boolean> {
 export async function describeWorkspace(ws: Workspace): Promise<Description> {
   if (!existsSync(ws.dir)) return { preview: null, outputs: [] }
 
-  const profileId = await liveBrowser(ws)
-  if (profileId) return { preview: { kind: 'browser', profileId }, outputs: [] }
+  const streamId = await liveBrowser(ws)
+  if (streamId) return { preview: { kind: 'browser', streamId }, outputs: [] }
 
   const [best] = await candidates(ws)
   if (!best) return { preview: null, outputs: [] }

@@ -22,7 +22,7 @@
  *   node $SKILL/scripts/recon.mjs --url=https://example.com
  *   node $SKILL/scripts/recon.mjs --url=... --out=recon/brand-tokens.md --fonts=assets/fonts
  *   node $SKILL/scripts/recon.mjs --url=... --no-fonts
- *   node $SKILL/scripts/recon.mjs --url=... --cdp=http://localhost:8080/api/profiles/<id>/cdp
+ *   node $SKILL/scripts/recon.mjs --url=https://example.com
  */
 import { openStudioBrowser } from "./lib/browser.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -35,7 +35,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => {
 
 const url = args.url;
 if (!url || !/^https?:\/\//i.test(String(url))) {
-  console.error("Usage: recon.mjs --url=https://... [--out=recon/brand-tokens.md] [--fonts=assets/fonts|--no-fonts] [--logo=assets/logo|--no-logo] [--cdp=...]");
+  console.error("Usage: recon.mjs --url=https://... [--out=recon/brand-tokens.md] [--fonts=assets/fonts|--no-fonts] [--logo=assets/logo|--no-logo]");
   process.exit(1);
 }
 const out = String(args.out ?? "recon/brand-tokens.md");
@@ -74,11 +74,9 @@ function lum({ r, g, b }) {
 const toHex = (s) => { const c = parseRgb(s); return c && c.a > 0.05 ? hex(c) : null; };
 
 // ---- browser ----------------------------------------------------------------
-// The CloakBrowser by default: measuring a brand means getting the real page,
-// and plain headless Chromium is what marketing sites block. Its own
-// fingerprint is the point, so we do not override the user agent.
+// Recon deliberately uses the same ordinary local Chromium as other render
+// work. Interactive authenticated browsing is a separate worker-owned path.
 const studio = await openStudioBrowser({
-  cdp: args.cdp === true ? null : args.cdp,
   viewport: { width, height },
   deviceScaleFactor: 1,
 });
@@ -99,7 +97,7 @@ page.on("response", async (res) => {
   } catch (_) {}
 });
 
-console.log(`🔎 Measuring ${url} (${studio.mode === "cdp" ? "CloakBrowser over CDP" : "local Chromium"})`);
+console.log(`🔎 Measuring ${url} (Chromium)`);
 await page.goto(String(url), { waitUntil: "domcontentloaded", timeout: 45000 });
 await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(waitMs);
@@ -111,7 +109,7 @@ if (/sorry, you have been blocked|attention required|checking your browser|acces
   .test(`${title0}\n${bodyText.slice(0, 600)}`)) {
   console.error(
     `❌ Bot wall detected at ${url} ("${title0}"). Nothing measured.\n` +
-    `   Re-run with --cdp=<cloakbrowser CDP url> (see screenshot.mjs for the recipe).`,
+    `   Chromium could not pass this challenge; use another authorized source.`,
   );
   await studio.close();
   process.exit(2);

@@ -1,9 +1,6 @@
 /**
- * The browser is the CloakBrowser, reached over CDP — there is no Chromium in
- * the studio image to launch. pdf_build points STUDIO_BROWSER_LIB at the
- * library that connects to it; it also serves this folder into that browser,
- * which is why the deck is rendered from output.html on disk rather than
- * page.setContent (setContent never completes over a CDP connection).
+ * pdf_build uses local Playwright Chromium through STUDIO_BROWSER_LIB and
+ * serves this folder into it, so the deck renders from output.html on disk.
  */
 async function studioBrowserLib() {
     const lib = process.env.STUDIO_BROWSER_LIB;
@@ -562,7 +559,7 @@ async function build() {
     const browser = await openStudioBrowser({ viewport: { width: 1280, height: 720 } });
     const page = await browser.newPage();
     await page.goto(localPageUrl(path.resolve('output.html')), { waitUntil: 'domcontentloaded', timeout: 60000 });
-    // The CloakBrowser is headed, so its scrollbars take layout space and creep
+    // Hide scrollbars so they cannot take layout space and creep
     // into the slide screenshots (headless draws overlay scrollbars). Hide them
     // on the live page only — output.html is published as deck.html untouched.
     await page.addStyleTag({ content: 'html{scrollbar-width:none}::-webkit-scrollbar{width:0;height:0;display:none}' }).catch(() => {});
