@@ -42,6 +42,7 @@ jobs:
           cat >> "$GITHUB_ENV" <<EOF
           REGISTRY=${{ vars.GCP_REGION }}-docker.pkg.dev
           GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+          BUILD_SERVICE_ACCOUNT=${{ vars.GKE_BUILD_SERVICE_ACCOUNT }}
           IMAGE_PREFIX=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}
           API_HOST=${{ vars.GKE_API_HOST }}
           API_EXTRA_HOSTS=${{ vars.GKE_API_EXTRA_HOSTS }}
@@ -71,7 +72,7 @@ jobs:
           gcloud builds submit . \
             --project="$GCP_PROJECT_ID" \
             --config=cloudbuild.yaml \
-            --substitutions="_IMAGE_PREFIX=$IMAGE_PREFIX,_GIT_HASH=$GITHUB_SHA" \
+            --substitutions="_IMAGE_PREFIX=$IMAGE_PREFIX,_GIT_HASH=$GITHUB_SHA,_BUILD_SERVICE_ACCOUNT=$BUILD_SERVICE_ACCOUNT" \
             --quiet
       - name: Resolve immutable image digests
         run: |
