@@ -1,4 +1,5 @@
 timeout: 3600s
+serviceAccount: projects/${PROJECT_ID}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}
 
 options:
   machineType: E2_HIGHCPU_8
