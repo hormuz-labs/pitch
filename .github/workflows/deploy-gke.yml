@@ -107,7 +107,6 @@ jobs:
           echo "migration did not succeed" >&2
           exit 1
       - name: Render and deploy
-        env:
         run: |
           node scripts/render-gke.mjs > "$RUNNER_TEMP/pitch.yaml"
           kubectl delete deployment,statefulset,horizontalpodautoscaler,poddisruptionbudget,service pitch-browser -n pitch --ignore-not-found
