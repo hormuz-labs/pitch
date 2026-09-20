@@ -4,14 +4,14 @@
     "action": { "type": "Delete" },
     "condition": {
       "tagState": "any",
-      "packageNamePrefixes": ["pitch-api", "pitch-base", "pitch-discord-bot"]
+      "packageNamePrefixes": ["pitch-api", "pitch-base", "pitch-discord-bot", "pitch-source"]
     }
   },
   {
     "name": "keep-current-and-two-rollbacks",
     "action": { "type": "Keep" },
     "mostRecentVersions": {
-      "packageNamePrefixes": ["pitch-api", "pitch-base", "pitch-discord-bot"],
+      "packageNamePrefixes": ["pitch-api", "pitch-base", "pitch-discord-bot", "pitch-source"],
       "keepCount": 3
     }
   }

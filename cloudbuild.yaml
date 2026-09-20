@@ -7,6 +7,17 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
+  - id: restore-source
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker pull "${_IMAGE_PREFIX}/pitch-source:${_GIT_HASH}"
+        container=$(docker create "${_IMAGE_PREFIX}/pitch-source:${_GIT_HASH}" noop)
+        trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+        docker cp "$container:/workspace/." /workspace
+
   - id: pull-base-cache
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
