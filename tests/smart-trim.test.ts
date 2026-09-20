@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { parseMediaStreamDurations } from '../apps/api/src/render/media'
 import {
   findInitialBlankSegmentFromSignalStats,
+  mapEventTimeThroughTrim,
   resolveAudioDuration,
 } from '../apps/api/src/render/utils/smart_trim'
 
@@ -18,6 +20,50 @@ describe('resolveAudioDuration', () => {
   it('falls back to the container duration when the stream duration is N/A (webm/mov)', () => {
     expect(resolveAudioDuration([{ duration: 'N/A' }], 25.5)).toBe(25.5)
     expect(resolveAudioDuration([{}], 25.5)).toBe(25.5)
+  })
+})
+
+describe('mapEventTimeThroughTrim', () => {
+  it('maps raw recording events through alignment and interior dead-air cuts', () => {
+    const kept = [
+      { start: 10, end: 20 },
+      { start: 40, end: 50 },
+    ]
+    expect(mapEventTimeThroughTrim(45, 5, kept)).toBe(10)
+    expect(mapEventTimeThroughTrim(50, 5, kept)).toBe(15)
+  })
+
+  it('preserves spacing between kept speech spans without collapsing', () => {
+    const kept = [
+      { start: 5, end: 15 },
+      { start: 25, end: 35 },
+      { start: 45, end: 55 },
+    ]
+    expect(mapEventTimeThroughTrim(5, 0, kept)).toBe(0)
+    expect(mapEventTimeThroughTrim(10, 0, kept)).toBe(5)
+    expect(mapEventTimeThroughTrim(25, 0, kept)).toBe(10)
+    expect(mapEventTimeThroughTrim(30, 0, kept)).toBe(15)
+    expect(mapEventTimeThroughTrim(45, 0, kept)).toBe(20)
+    expect(mapEventTimeThroughTrim(50, 0, kept)).toBe(25)
+  })
+})
+
+describe('parseMediaStreamDurations', () => {
+  it('reports video and audio stream extents independently', () => {
+    expect(
+      parseMediaStreamDurations({
+        streams: [
+          { codec_type: 'video', duration: '39.5' },
+          { codec_type: 'audio', duration: '57.045' },
+        ],
+      }),
+    ).toEqual({ video: 39.5, audio: 57.045 })
+  })
+
+  it('treats absent and N/A stream durations as unavailable', () => {
+    expect(
+      parseMediaStreamDurations({ streams: [{ codec_type: 'video', duration: 'N/A' }] }),
+    ).toEqual({ video: 0, audio: 0 })
   })
 })
 

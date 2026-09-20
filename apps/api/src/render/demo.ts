@@ -18,6 +18,7 @@ import {
   execAsync,
   findWebmCandidates,
   getMediaDurationSec,
+  getMediaStreamDurations,
   getSourceFps,
   getVideoBirthTimeMs,
   outputFps,
@@ -32,6 +33,8 @@ import {
   addIntroOutro,
   type BrowserChromeSegment,
   type CardConfig,
+  findProductLogo,
+  normalizeBrowserHeaderMode,
   planTitleCards,
 } from './utils/intro-outro.js'
 import { mapThroughKeptSegments, processVideo, type Segment } from './utils/smart_trim.js'
@@ -154,8 +157,8 @@ export async function renderDemo(
   const cursorPath = path.join(assetsDir, 'icons', 'cursor.png')
   const handCursorPath = path.join(assetsDir, 'icons', 'hand-pointer.png')
   const stamp = Date.now()
+  const compactedSource = path.join(outDir, `__source_cut_${stamp}.mp4`)
   const rawVideo = path.join(outDir, 'raw.mp4')
-  const trimmedVideo = path.join(outDir, `__trimmed_${stamp}.mp4`)
   const finalVideo = path.join(outDir, `demo-${stamp}.mp4`)
 
   // Align video timebase with wall-clock startTime
@@ -178,34 +181,7 @@ export async function renderDemo(
     )
   }
 
-  let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}" -i "${handCursorPath}"`
-  let filterComplex = ''
-  let currentVLabel = '[0:v]'
-
-  // Animated cursor: one pointer that glides between click targets and dips
-  // on each click, swapping the arrow for a hand while it rests on a target
-  // (like a real cursor over a link/button), instead of a static cursor
-  // popping in at every point.
-  const cursorChain = buildGlidingCursorChain(
-    state.clickEvents,
-    trimSec,
-    1, // [1:v] is the arrow cursor
-    2, // [2:v] is the hand pointer
-    currentVLabel,
-    '[v_cursor]',
-  )
-  if (cursorChain) {
-    filterComplex += cursorChain
-    currentVLabel = '[v_cursor]'
-  }
-
-  // Build zoom pan filter
-  filterComplex += buildContinuousZoomFilter(state.zoomEvents, trimSec, currentVLabel, fps)
-
-  // Audio narration clips
-  let validClips = 0
-  let audioInputIndex = 3 // 0 is webm, 1 is arrow cursor, 2 is hand pointer
-  const audioLabels: string[] = []
+  // Resolve narration and SFX positions on the aligned recording timeline.
   const trimMs = trimSec * 1000
   let firstNarrationDelayMs = Number.POSITIVE_INFINITY
   // Where each clip lands on the output timeline — we mixed the audio ourselves,
@@ -214,10 +190,10 @@ export async function renderDemo(
   const clipSpans: Array<{ startSec: number; filePath: string; durationSec?: number }> = []
   // Narration only (no click/keyboard SFX): these become the studio's beats.
   const narrationSpans: Array<{ startSec: number; filePath: string; text?: string }> = []
-  state.audioClips.forEach((clip: DemoAudioClip) => {
+  for (const clip of state.audioClips) {
     if (!fs.existsSync(clip.filePath)) {
       logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
-      return
+      continue
     }
     // The click/zoom overlays add trimSec because they are applied BEFORE
     // the trim=start=trimSec cut, i.e. on the raw WebM timeline. The mixed
@@ -240,13 +216,6 @@ export async function renderDemo(
     // Optional per-clip trim: SFX like the keyboard sound are clipped to the
     // exact duration of the action (e.g. how long typing took) so they start
     // and end in sync with the visible typing, not before or after.
-    const atrim =
-      typeof clip.durationSec === 'number' && clip.durationSec > 0
-        ? `atrim=0:${clip.durationSec.toFixed(2)},`
-        : ''
-    videoInputs += ` -i "${clip.filePath}"`
-    filterComplex += `[${audioInputIndex}:a]${atrim}adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
-    audioLabels.push(`[a${validClips}]`)
     clipSpans.push({
       startSec: delayMs / 1000,
       filePath: clip.filePath,
@@ -259,44 +228,7 @@ export async function renderDemo(
         filePath: clip.filePath,
         text: typeof clip.text === 'string' ? clip.text : undefined,
       })
-    audioInputIndex++
-    validClips++
-  })
-
-  if (validClips > 0) {
-    // normalize=0 keeps narration at full level (amix's normalization would pump
-    // the volume as adelayed clips come and go); the limiter guards the rare
-    // narration+SFX overlap from clipping instead.
-    filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0,alimiter=limit=0.95[outa]`
   }
-
-  logger.info(
-    { totalClips: state.audioClips.length, validClips },
-    'Audio clips prepared for mixing',
-  )
-
-  // Quality 18: this is the source every later stage re-encodes from, so it gets
-  // the highest quality of the chain — generational loss lands on text sharpness
-  // first. Audio matches the profile used everywhere downstream (24kHz mono AAC).
-  const encodePlan = await videoEncodePlan({ quality: 18, cpuPreset: 'veryfast' })
-  const encodedVideo = appendEncoderFilter(filterComplex, '[zoomedv]', encodePlan)
-  filterComplex = encodedVideo.graph
-  const ffmpegCmd =
-    `ffmpeg -y ${encodePlan.inputArgs} ${videoInputs} ` +
-    `-filter_complex "${filterComplex}" ` +
-    `-map "${encodedVideo.outputLabel}" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
-    `${encodePlan.outputArgs} ${validClips > 0 ? '-c:a aac -ar 24000 -ac 1' : ''} "${rawVideo}"`
-
-  logger.info(
-    { encoder: encodePlan.label },
-    'Assembling and rendering raw video with zoom pans + overlays',
-  )
-  const renderT0 = Date.now()
-  await execAsync(ffmpegCmd)
-  logger.info(
-    { sec: ((Date.now() - renderT0) / 1000).toFixed(1) },
-    'TIMING: main render (zoom+overlays+audio) done',
-  )
 
   // The agent spends the first several seconds setting up (navigation, first
   // snapshot, LLM reasoning) before its first narration, so the recording opens
@@ -325,7 +257,7 @@ export async function renderDemo(
   // If any clip's duration can't be read, fall back to detection to be safe —
   // a zero-length span would mark real narration as silence.
   let speechSegments: Array<{ start: number; end: number }> | undefined
-  if (validClips > 0) {
+  if (clipSpans.length > 0) {
     const spans = await Promise.all(
       clipSpans.map(async c => {
         const dur = c.durationSec ?? (await getMediaDurationSec(c.filePath))
@@ -339,21 +271,111 @@ export async function renderDemo(
     }
   }
 
-  logger.info('Applying smart trim to remove dead air segments')
+  const sourceDurationSec = await getMediaDurationSec(foundWebmPath)
+  const requiredSourceEndSec = Math.max(
+    0,
+    ...(speechSegments ?? []).map(segment => segment.end + trimSec),
+    ...state.clickEvents.map(event => event.videoTimeSec + trimSec),
+    ...state.zoomEvents.map(event => event.videoTimeSec + trimSec),
+  )
+  if (sourceDurationSec + 0.75 < requiredSourceEndSec) {
+    throw new Error(
+      `Recording is incomplete: video ends at ${sourceDurationSec.toFixed(2)}s but tracked content reaches ${requiredSourceEndSec.toFixed(2)}s. Please record a fresh take.`,
+    )
+  }
+
+  logger.info('Compacting the source before applying expensive camera and cursor effects')
   const trimT0 = Date.now()
   // The spans the trim kept, so narration beats can be placed on the final cut.
   let keptSpans: Segment[] = []
   try {
-    keptSpans = await processVideo(rawVideo, trimmedVideo, undefined, {
-      forceLeadingTrimSec: leadingTrimSec,
-      speechSegments,
+    keptSpans = await processVideo(foundWebmPath, compactedSource, foundWebmPath, {
+      forceLeadingTrimSec: leadingTrimSec + trimSec,
+      speechSegments: speechSegments?.map(segment => ({
+        start: segment.start + trimSec,
+        end: segment.end + trimSec,
+      })),
+      clickEvents: state.clickEvents.map(event => ({
+        ...event,
+        videoTimeSec: event.videoTimeSec + trimSec,
+      })),
+      zoomEvents: state.zoomEvents.map(event => ({
+        ...event,
+        videoTimeSec: event.videoTimeSec + trimSec,
+      })),
+      annotationEvents: state.annotationEvents
+        .filter((event): event is { videoTimeSec: number } =>
+          Number.isFinite((event as { videoTimeSec?: number })?.videoTimeSec),
+        )
+        .map(event => ({
+          ...event,
+          videoTimeSec: event.videoTimeSec + trimSec,
+        })),
     })
     logger.info({ sec: ((Date.now() - trimT0) / 1000).toFixed(1) }, 'TIMING: smart trim done')
   } catch (trimErr: any) {
-    logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
-    fs.copyFileSync(rawVideo, trimmedVideo)
-    keptSpans = [{ start: 0, end: await getMediaDurationSec(rawVideo) }]
+    logger.warn({ err: trimErr }, 'Smart trim failed — falling back to the aligned source')
+    keptSpans = [{ start: trimSec, end: sourceDurationSec }]
+    await execAsync(
+      `ffmpeg -y -ss ${trimSec.toFixed(3)} -i "${foundWebmPath}" -c:v libx264 -preset veryfast -crf 19 -an "${compactedSource}"`,
+    )
   }
+
+  const compactTime = (alignedTimeSec: number) =>
+    mapThroughKeptSegments(alignedTimeSec + trimSec, keptSpans)
+  const mappedClicks = state.clickEvents.map(event => ({
+    ...event,
+    videoTimeSec: compactTime(event.videoTimeSec),
+  }))
+  const mappedZooms = state.zoomEvents.map(event => ({
+    ...event,
+    videoTimeSec: compactTime(event.videoTimeSec),
+  }))
+
+  let videoInputs = `-i "${compactedSource}" -i "${cursorPath}" -i "${handCursorPath}"`
+  let filterComplex = ''
+  let currentVLabel = '[0:v]'
+  const cursorChain = buildGlidingCursorChain(mappedClicks, 0, 1, 2, currentVLabel, '[v_cursor]')
+  if (cursorChain) {
+    filterComplex += cursorChain
+    currentVLabel = '[v_cursor]'
+  }
+  filterComplex += buildContinuousZoomFilter(mappedZooms, 0, currentVLabel, fps)
+
+  const audioLabels: string[] = []
+  let validClips = 0
+  let audioInputIndex = 3
+  for (const clip of clipSpans) {
+    const delayMs = Math.round(compactTime(clip.startSec) * 1000)
+    const atrim = clip.durationSec ? `atrim=0:${clip.durationSec.toFixed(2)},` : ''
+    videoInputs += ` -i "${clip.filePath}"`
+    filterComplex += `[${audioInputIndex}:a]${atrim}adelay=${delayMs}|${delayMs}[a${validClips}];`
+    audioLabels.push(`[a${validClips}]`)
+    audioInputIndex++
+    validClips++
+  }
+  if (validClips > 0) {
+    filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0,alimiter=limit=0.95[outa]`
+  }
+
+  const encodePlan = await videoEncodePlan({ quality: 18, cpuPreset: 'veryfast' })
+  const encodedVideo = appendEncoderFilter(filterComplex, '[zoomedv]', encodePlan)
+  filterComplex = encodedVideo.graph
+  const ffmpegCmd =
+    `ffmpeg -y ${encodePlan.inputArgs} ${videoInputs} ` +
+    `-filter_complex "${filterComplex}" ` +
+    `-map "${encodedVideo.outputLabel}" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
+    `${encodePlan.outputArgs} ${validClips > 0 ? '-c:a aac -ar 24000 -ac 1' : ''} "${rawVideo}"`
+  logger.info(
+    { encoder: encodePlan.label },
+    'Rendering compacted demo with camera and cursor effects',
+  )
+  const renderT0 = Date.now()
+  await execAsync(ffmpegCmd)
+  logger.info(
+    { sec: ((Date.now() - renderT0) / 1000).toFixed(1) },
+    'TIMING: compact render (zoom+overlays+audio) done',
+  )
 
   // 9. Final assembly: intro/outro cards, watermark and the optional decorative
   // background are all composited in ONE encode pass — the full assembled video
@@ -384,12 +406,12 @@ export async function renderDemo(
         .replace(/[^a-zA-Z0-9]/g, ' ')
         .replace(/\b\w/g, (c: string) => c.toUpperCase()) ||
       'Demo'
-    const productLogoPath = path.join(recordingDir, 'product_logo.png')
+    const productLogoPath = findProductLogo(recordingDir)
     const inset = Number.parseFloat((options.inset ?? '0.87').toString())
     const reviewedStoryboard = options.storyboard
     const cardConfig: CardConfig = {
       productName,
-      productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
+      productLogoPath,
       duration: 2.5,
       fps,
       width: 1920,
@@ -411,54 +433,57 @@ export async function renderDemo(
     // page URL the agent navigated to, then overlay each segment only during
     // the time the demo was on that URL. Falls back to a single static header
     // when no navigation events were recorded.
-    const headerMode: BrowserHeaderMode | 'none' = options.browserHeader || 'none'
+    const headerMode: BrowserHeaderMode | 'none' = normalizeBrowserHeaderMode(options.browserHeader)
     const headerUrl = state.pageUrl || options.url
     if (headerMode !== 'none' && headerUrl) {
-      const contentDur = await getMediaDurationSec(trimmedVideo)
-      const contentStart = cardPlan.contentStartSec
-      const events = state.pageUrlEvents
-      const sorted = (events || []).slice().sort((a, b) => a.videoTimeSec - b.videoTimeSec)
-      const segs: BrowserChromeSegment[] = []
+      try {
+        const contentDur = await getMediaDurationSec(rawVideo)
+        const contentStart = cardPlan.contentStartSec
+        const events = state.pageUrlEvents
+        const sorted = (events || []).slice().sort((a, b) => a.videoTimeSec - b.videoTimeSec)
+        const segs: BrowserChromeSegment[] = []
 
-      if (sorted.length > 0) {
-        // Initial URL (the first recorded value) from the start of the content
-        // until the first navigation event.
-        const firstStart = Math.max(0, sorted[0]!.videoTimeSec - leadingTrimSec)
-        if (firstStart > 0) {
-          const png = path.join(outDir, `__browser_chrome_${stamp}_0.png`)
-          renderBrowserChromePng(sorted[0]!.url, png, 1920, 56, headerMode)
-          segs.push({ png, startSec: contentStart, endSec: contentStart + firstStart })
+        if (sorted.length > 0) {
+          // Initial URL (the first recorded value) from the start of the content
+          // until the first navigation event.
+          const firstStart = compactTime(sorted[0]!.videoTimeSec)
+          if (firstStart > 0) {
+            const png = path.join(outDir, `__browser_chrome_${stamp}_0.png`)
+            renderBrowserChromePng(sorted[0]!.url, png, 1920, 56, headerMode)
+            segs.push({ png, startSec: contentStart, endSec: contentStart + firstStart })
+          }
+          for (let i = 0; i < sorted.length; i++) {
+            const start = compactTime(sorted[i]!.videoTimeSec)
+            const end =
+              i + 1 < sorted.length ? compactTime(sorted[i + 1]!.videoTimeSec) : contentDur
+            const png = path.join(outDir, `__browser_chrome_${stamp}_${i + 1}.png`)
+            renderBrowserChromePng(sorted[i]!.url, png, 1920, 56, headerMode)
+            segs.push({
+              png,
+              startSec: contentStart + Math.min(start, contentDur),
+              endSec: contentStart + Math.min(end, contentDur),
+            })
+          }
+        } else {
+          const png = path.join(outDir, `__browser_chrome_${stamp}.png`)
+          renderBrowserChromePng(headerUrl, png, 1920, 56, headerMode)
+          segs.push({ png, startSec: contentStart, endSec: contentStart + contentDur })
         }
-        for (let i = 0; i < sorted.length; i++) {
-          const start = Math.max(0, sorted[i]!.videoTimeSec - leadingTrimSec)
-          const end =
-            i + 1 < sorted.length
-              ? Math.max(0, sorted[i + 1]!.videoTimeSec - leadingTrimSec)
-              : contentDur
-          const png = path.join(outDir, `__browser_chrome_${stamp}_${i + 1}.png`)
-          renderBrowserChromePng(sorted[i]!.url, png, 1920, 56, headerMode)
-          segs.push({
-            png,
-            startSec: contentStart + Math.min(start, contentDur),
-            endSec: contentStart + Math.min(end, contentDur),
-          })
-        }
-      } else {
-        const png = path.join(outDir, `__browser_chrome_${stamp}.png`)
-        renderBrowserChromePng(headerUrl, png, 1920, 56, headerMode)
-        segs.push({ png, startSec: contentStart, endSec: contentStart + contentDur })
+
+        browserChromeSegments = segs
+        logger.info(
+          { mode: headerMode, segments: segs.length },
+          'Generated dynamic browser header chrome',
+        )
+      } catch (chromeErr) {
+        browserChromeSegments = undefined
+        logger.warn({ err: chromeErr }, 'Browser chrome failed — continuing with title cards')
       }
-
-      browserChromeSegments = segs
-      logger.info(
-        { mode: headerMode, segments: segs.length },
-        'Generated dynamic browser header chrome',
-      )
     }
 
     const cardsT0 = Date.now()
     await addIntroOutro(
-      trimmedVideo,
+      rawVideo,
       finalVideo,
       cardConfig,
       bgAsset
@@ -474,9 +499,6 @@ export async function renderDemo(
       { sec: ((Date.now() - cardsT0) / 1000).toFixed(1) },
       'TIMING: final assembly (cards + watermark + background + browser header) done',
     )
-  } catch (cardErr: any) {
-    logger.warn({ err: cardErr }, 'Final assembly failed — using trimmed video as final')
-    fs.copyFileSync(trimmedVideo, finalVideo)
   } finally {
     if (browserChromeSegments) {
       for (const seg of browserChromeSegments) {
@@ -487,14 +509,22 @@ export async function renderDemo(
     }
   }
 
-  // The intermediates are large enough to matter — drop the trimmed cut now.
-  // raw.mp4 stays for the caller (it is uploaded alongside the final and deleted
-  // after the upload landed).
+  // The source-only compacted cut is no longer needed. raw.mp4 stays for the
+  // caller and is deleted after the final upload lands.
   try {
-    fs.unlinkSync(trimmedVideo)
+    fs.unlinkSync(compactedSource)
   } catch {}
 
   const durationSec = await getMediaDurationSec(finalVideo)
+  const streamDurations = await getMediaStreamDurations(finalVideo)
+  if (
+    streamDurations.video <= 0 ||
+    (streamDurations.audio > 0 && streamDurations.audio - streamDurations.video > 0.75)
+  ) {
+    throw new Error(
+      `Rendered demo is incomplete: video ${streamDurations.video.toFixed(2)}s, audio ${streamDurations.audio.toFixed(2)}s.`,
+    )
+  }
 
   // Place every narration line on the finished timeline: mix position → the
   // trim's kept spans → plus the intro card. Clips whose audio was dropped by
@@ -503,7 +533,7 @@ export async function renderDemo(
   for (const span of narrationSpans) {
     const clipDur = await getMediaDurationSec(span.filePath).catch(() => 0)
     beats.push({
-      start: contentStartSec + mapThroughKeptSegments(span.startSec, keptSpans),
+      start: contentStartSec + compactTime(span.startSec),
       dur: clipDur,
       text: span.text,
       type: 'narration',

@@ -316,7 +316,7 @@ registerHostAction('demo_record_start', async (ws, params) => {
     }
   }
   const lines = [
-    `Recording started. Session "${handle.session}", startTime ${handle.startTime} (${new Date(handle.startTime).toISOString()}), voice ${project.options.voice || 'Puck'}. The browser is 1920x1080, open and recording — do not call playwright-cli open.${opened}`,
+    `Recording started. Session "${handle.session}", startTime ${handle.startTime} (${new Date(handle.startTime).toISOString()}), voice ${project.options.voice || 'Charon'}. The browser is 1920x1080, open and recording — do not call playwright-cli open.${opened}`,
   ]
   if (assetCount > 0)
     lines.push(
@@ -466,6 +466,7 @@ registerHostAction(
     return [
       `Rendered ${result.durationSec.toFixed(1)}s (leading trim ${result.leadingTrimSec.toFixed(1)}s) → ${rel} (${look}).`,
       `Video URL: ${published}`,
+      'The demo video has been assembled, rendered, and published. Your production run is complete. Do not re-edit or re-encode with ffmpeg or python scripts; reply to the user with the Video URL and actual runtime now.',
       ...notes,
     ].join('\n')
   },
@@ -543,7 +544,7 @@ function optionSummary(options: Record<string, any>, uploads: number): string {
   if (options.url) rows.push(`URL: ${options.url}`)
   if (options.instructions) rows.push(`Instructions: ${options.instructions}`)
   if (options.script) rows.push('Voiceover script: provided (below)')
-  rows.push(`Voice: ${options.voice || 'Puck'}`)
+  rows.push(`Voice: ${options.voice || 'Charon'}`)
   rows.push(`Uploads: ${uploads}`)
   rows.push(
     `Look: background ${options.background || 'none'}, shape ${options.shape || 'rounded'}, inset ${options.inset ?? 0.87}, browser header ${options.browserHeader || 'none'}`,

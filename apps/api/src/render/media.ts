@@ -30,6 +30,31 @@ export async function getMediaDurationSec(file: string): Promise<number> {
   }
 }
 
+export interface MediaStreamDurations {
+  video: number
+  audio: number
+}
+
+export function parseMediaStreamDurations(value: unknown): MediaStreamDurations {
+  const streams = Array.isArray((value as { streams?: unknown[] })?.streams)
+    ? ((value as { streams: Array<{ codec_type?: string; duration?: string | number }> }).streams ??
+      [])
+    : []
+  const duration = (kind: string) => {
+    const raw = streams.find(stream => stream.codec_type === kind)?.duration
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  }
+  return { video: duration('video'), audio: duration('audio') }
+}
+
+export async function getMediaStreamDurations(file: string): Promise<MediaStreamDurations> {
+  const { stdout } = await execAsync(
+    `ffprobe -v error -show_entries stream=codec_type,duration -of json "${file}"`,
+  )
+  return parseMediaStreamDurations(JSON.parse(stdout))
+}
+
 /** Frame rates a render can be asked for. */
 export const RENDER_FPS = [30, 60] as const
 

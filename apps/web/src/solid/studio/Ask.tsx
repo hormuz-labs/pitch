@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from 'lucide-solid'
+import { Check } from 'lucide-solid'
 import { createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import type { Ask } from './types'
 
@@ -211,8 +211,7 @@ export function QuestionCard(props: {
                         disabled={!hasAnswer(cur)}
                         onClick={() => goToStep(step() + 1)}
                       >
-                        {step() === questions().length - 1 ? 'Review answers' : 'Confirm & next'}
-                        <ArrowRight size={13} aria-hidden="true" />
+                        {step() === questions().length - 1 ? 'Review' : 'Next'}
                       </button>
                     </div>
                     <button
@@ -266,7 +265,6 @@ export function QuestionCard(props: {
           <div class="ask-actions">
             <button type="button" class="ask-send" onClick={() => send(summary())}>
               Send
-              <ArrowRight size={13} aria-hidden="true" />
             </button>
             <button type="button" class="ask-flat" onClick={() => goToStep(questions().length - 1)}>
               Back

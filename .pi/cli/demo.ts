@@ -98,19 +98,24 @@ import type { CommandSpec } from './registry.ts'
 const SMOOTH_SCROLL_JS =
   'el => new Promise(resolve => { function sa(n){let p=n.parentElement;while(p){const s=getComputedStyle(p);if(/(auto|scroll|overlay)/.test(s.overflowY)&&p.scrollHeight>p.clientHeight)return p;p=p.parentElement;}return null;} const c=sa(el); const r=el.getBoundingClientRect(); let start,target,viewH,set,topRef; if(c){const cr=c.getBoundingClientRect(); viewH=c.clientHeight; start=c.scrollTop; const center=(r.top-cr.top)+c.scrollTop+r.height/2; target=center-viewH/2; const max=c.scrollHeight-c.clientHeight; target=Math.max(0,Math.min(max,target)); set=v=>{c.scrollTop=v;}; topRef=cr.top;} else {viewH=window.innerHeight; start=window.scrollY; const center=r.top+window.scrollY+r.height/2; target=center-viewH/2; const max=document.documentElement.scrollHeight-window.innerHeight; target=Math.max(0,Math.min(max,target)); set=v=>window.scrollTo(0,v); topRef=0;} const delta=target-start; if(Math.abs(delta)<viewH*0.08){resolve(false);return;} const dur=Math.min(900,Math.max(450,Math.abs(delta)*0.9)); const t0=performance.now(); const ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; function frame(now){const p=Math.min(1,(now-t0)/dur); set(start+delta*ease(p)); if(p<1)requestAnimationFrame(frame); else resolve(true);} requestAnimationFrame(frame); })'
 
-// Simple mutex to serialize state reads/writes across concurrent tool calls.
-let stateLock = Promise.resolve()
+// Serialize state updates within a recording, without one slow browser blocking
+// every other project hosted by this worker.
+const stateLocks = new Map<string, Promise<void>>()
 let activeSlideshowServer: RunningSlideshowServer | null = null
-async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
-  const release = await new Promise<() => void>(resolve => {
-    const prev = stateLock
-    stateLock = prev.then(() => new Promise<void>(done => resolve(done)))
-    prev.then(() => {})
+async function withStateLock<T>(base: string, fn: () => Promise<T>): Promise<T> {
+  const previous = stateLocks.get(base) ?? Promise.resolve()
+  let release!: () => void
+  const current = new Promise<void>(resolve => {
+    release = resolve
   })
+  const tail = previous.then(() => current)
+  stateLocks.set(base, tail)
+  await previous
   try {
     return await fn()
   } finally {
     release()
+    if (stateLocks.get(base) === tail) stateLocks.delete(base)
   }
 }
 
@@ -244,7 +249,7 @@ function readState(base: string): DemoState {
     const cfg = readConfig(base)
     return {
       startTime: cfg.startTime,
-      voiceName: cfg.voiceName || 'Puck',
+      voiceName: cfg.voiceName || 'Charon',
       audioClips: [],
       zoomEvents: [],
       clickEvents: [],
@@ -384,6 +389,28 @@ export function scopePlaywrightCommand(sessionName: string, command: string): st
   return norm
 }
 
+const QUIET_PLAYWRIGHT_VERBS = new Set([
+  'click',
+  'dblclick',
+  'hover',
+  'mousemove',
+  'mousedown',
+  'mouseup',
+  'mousewheel',
+  'press',
+  'keydown',
+  'keyup',
+])
+
+export function compactPlaywrightCommand(command: string): string {
+  if (!command.startsWith('playwright-cli ') || command.includes(' --raw ')) return command
+  const words = command.trim().split(/\s+/)
+  const verb = words.find(word => PLAYWRIGHT_CLI_VERBS.has(word))
+  return verb && QUIET_PLAYWRIGHT_VERBS.has(verb)
+    ? command.replace(/^playwright-cli\b/, 'playwright-cli --raw')
+    : command
+}
+
 // All playwright-cli commands must run from the workspace so that files like
 // demo.webm, snapshots, and traces are written where the render expects them,
 // not from the studio process cwd — and they must be scoped to THIS project's
@@ -391,7 +418,7 @@ export function scopePlaywrightCommand(sessionName: string, command: string): st
 // pitch demo record-start attached with) so concurrent projects never share a browser.
 const run = (base: string, command: string) => {
   const session = path.basename(base)
-  const scopedCommand = scopePlaywrightCommand(session, command)
+  const scopedCommand = scopePlaywrightCommand(session, compactPlaywrightCommand(command))
   return runAgentCommand(scopedCommand, { cwd: base })
 }
 
@@ -601,7 +628,7 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
     const apiKey = process.env.GEMINI_TTS_API_KEY_2
     if (!apiKey) throw new Error('No Gemini API key found')
     const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`
-    const currentVoice = state.voiceName || 'Puck'
+    const currentVoice = state.voiceName || 'Charon'
     const styleInstruction = VOICE_STYLES[currentVoice] || ''
     // Prepend the voice style directive so the TTS model adjusts its delivery
     // to match the character the user heard in the preview. The style is baked
@@ -667,7 +694,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const cmd = normalizePlaywrightCommand(args.command)
         console.log(`[bash]: ${cmd}`)
 
@@ -798,7 +825,7 @@ export default function demoCommands(): CommandSpec[] {
           "() => { let m=0; for (const e of document.querySelectorAll('div,aside,section,dialog,[role=dialog]')) { const s=getComputedStyle(e); if((s.position!=='fixed'&&s.position!=='absolute')||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)<0.1) continue; const r=e.getBoundingClientRect(); const a=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0))*Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)); if(a>m)m=a; } return location.href+'|'+(m/(innerWidth*innerHeight)>0.25?'1':'0'); }"
         const getViewSig = async (): Promise<string | null> => {
           try {
-            const { stdout } = await run(base, `playwright-cli eval "${VIEW_SIG_JS}"`)
+            const { stdout } = await run(base, `playwright-cli --raw eval "${VIEW_SIG_JS}"`)
             return stdout.trim()
           } catch {
             return null
@@ -809,6 +836,10 @@ export default function demoCommands(): CommandSpec[] {
         // Playwright waits for the full navigation/load to finish — otherwise the
         // browser header lags far behind the on-screen content.
         const isPlaywrightCmd = cmd.startsWith('playwright-cli')
+        const mayNavigate =
+          isClickCmd ||
+          /\b(goto|go-back|go-forward|reload|tab-new)\b/.test(cmd) ||
+          /\b(fill|press)\b.*(?:--submit|Enter)\b/.test(cmd)
         const shouldProbeView = isClickCmd && wasZoomed
         const extractUrlFromSig = (sig: string | null): string | null => {
           if (!sig) return null
@@ -818,7 +849,7 @@ export default function demoCommands(): CommandSpec[] {
         const probeUrl = async (): Promise<string | null> => {
           if (!isPlaywrightCmd) return null
           try {
-            const { stdout } = await run(base, `playwright-cli eval "() => location.href"`)
+            const { stdout } = await run(base, `playwright-cli --raw eval "() => location.href"`)
             // playwright-cli output can be wrapped in tool/logging noise, so extract
             // the first real URL from the stdout instead of trusting the whole string.
             const urlMatch = stdout.match(/https?:\/\/[^\s"'<>]+/)
@@ -833,7 +864,7 @@ export default function demoCommands(): CommandSpec[] {
         if (shouldProbeView) {
           sigBefore = await getViewSig()
           urlBefore = extractUrlFromSig(sigBefore)
-        } else if (isPlaywrightCmd) {
+        } else if (mayNavigate) {
           urlBefore = await probeUrl()
         }
 
@@ -847,7 +878,7 @@ export default function demoCommands(): CommandSpec[] {
         if (shouldProbeView) {
           sigAfter = await getViewSig()
           urlAfter = extractUrlFromSig(sigAfter)
-        } else if (isPlaywrightCmd) {
+        } else if (mayNavigate) {
           urlAfter = await probeUrl()
         }
 
@@ -927,7 +958,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const state = readState(base)
         const slideshowProgress = readSlideshowProgress(base)
         if (slideshowProgress) {
@@ -1011,7 +1042,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const state = readState(base)
         const target = args.target
         const text = args.text ?? ''
@@ -1079,7 +1110,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const target = args.target
         const state = readState(base)
         let cx = 960,
@@ -1160,7 +1191,7 @@ export default function demoCommands(): CommandSpec[] {
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const state = readState(base)
         const videoTimeSec = (Date.now() - state.startTime) / 1000
         state.zoomEvents.push({ type: 'out', videoTimeSec })
@@ -1256,7 +1287,7 @@ export default function demoCommands(): CommandSpec[] {
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         try {
           await run(
             base,
@@ -1295,7 +1326,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const progress = readSlideshowProgress(base)
         if (!progress) {
           return toolResult(
@@ -1392,7 +1423,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(async () => {
+      return withStateLock(base, async () => {
         const apiKey = process.env.GEMINI_API_KEY
         if (!apiKey) return toolResult(JSON.stringify({ error: 'GEMINI_API_KEY is not set' }))
         const groundingDir = path.join(base, 'recording', 'grounding')

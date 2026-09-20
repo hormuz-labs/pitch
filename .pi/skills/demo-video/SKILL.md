@@ -57,8 +57,9 @@ Preserve explicitly required coverage and approved storyboard content.
    cards (below).
 6. `pitch demo record-stop` — never end a turn with the recording running.
 7. `pitch demo render` applies the look, publishes and returns the URL. This
-   encode is needed to assemble a recorded demo; launch films use live preview
-   and user-triggered Export instead. Reply with the URL and actual runtime.
+   encode is the final assembly of the recorded demo. Do not attempt to re-edit,
+   re-slice or re-encode the video with ffmpeg or python scripts. Immediately reply
+   to the user with the Video URL and actual runtime to complete the turn.
    `pitch media review` on this existing file is optional for a concrete concern,
    not a routine paid gate or a reason to keep re-recording.
 

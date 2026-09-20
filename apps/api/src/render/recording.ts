@@ -19,7 +19,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Logger, VideoStoryboard } from '@saas/shared'
 import { createLogger } from '@saas/shared'
-import { execAsync } from './media.js'
+import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 
@@ -37,7 +37,7 @@ export interface StartRecordingInput {
   workspaceDir: string
   /** playwright-cli session name; defaults to the workspace basename. */
   session?: string
-  /** TTS voice for the demo tools (demo-config.json voiceName); default "Puck". */
+  /** TTS voice for the demo tools (demo-config.json voiceName); default "Charon". */
   voice?: string
   /** Manifest written by prepareDemoAssets, when the project has PDFs/images. */
   assetsManifestPath?: string
@@ -60,6 +60,52 @@ export interface RecordingHandle {
   cdpUrl: string
   /** Stops the screencast, closes the playwright session and the manager browser. */
   stop: () => Promise<void>
+}
+
+const RECORDING_STOP_TIMEOUT_MS = 60_000
+
+export function recoverRecordingArtifact(
+  workspaceDir: string,
+  expectedPath: string,
+  startedAtMs: number,
+): string {
+  if (fs.existsSync(expectedPath) && fs.statSync(expectedPath).size > 0) return expectedPath
+
+  const tracesDir = path.join(workspaceDir, '.playwright-cli', 'traces')
+  const candidates = fs.existsSync(tracesDir)
+    ? fs
+        .readdirSync(tracesDir)
+        .filter(name => name.endsWith('.webm'))
+        .map(name => path.join(tracesDir, name))
+        .filter(file => {
+          const stat = fs.statSync(file)
+          return stat.size > 0 && stat.mtimeMs >= startedAtMs
+        })
+        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
+    : []
+
+  if (candidates.length !== 1) {
+    throw new Error(
+      `Recording did not produce ${expectedPath}; found ${candidates.length} current trace candidate(s).`,
+    )
+  }
+  fs.copyFileSync(candidates[0]!, expectedPath)
+  if (fs.statSync(expectedPath).size <= 0) throw new Error('Recovered recording is empty.')
+  return expectedPath
+}
+
+export function assertRecordingCoversTimeline(
+  durationSec: number,
+  startTimeMs: number,
+  endTimeMs: number,
+): void {
+  const expectedSec = Math.max(0, (endTimeMs - startTimeMs) / 1000)
+  const toleranceSec = Math.max(5, expectedSec * 0.05)
+  if (!(durationSec > 0) || durationSec + toleranceSec < expectedSec) {
+    throw new Error(
+      `Recording is incomplete: captured ${durationSec.toFixed(1)}s of ${expectedSec.toFixed(1)}s. Please record a fresh take.`,
+    )
+  }
 }
 
 export function recordingDir(workspaceDir: string): string {
@@ -181,7 +227,7 @@ export async function startRecording(
     // anchor) and which TTS voice to use. Skills are NOT bound here anymore —
     // the agent reads them itself (they are listed in its system prompt).
     const configPath = path.join(recDir, 'demo-config.json')
-    const voiceName = (input.voice || 'Puck').toString().replace(/\.mp3$/i, '')
+    const voiceName = (input.voice || 'Charon').toString().replace(/\.mp3$/i, '')
     fs.writeFileSync(
       configPath,
       JSON.stringify(
@@ -199,34 +245,36 @@ export async function startRecording(
     // 8. Gracefully close browser and stop recording
     const stopRecording = async () => {
       logger.info('Stopping video recording and playwright session...')
+      const stoppedAtMs = Date.now()
       try {
-        const videoStopResult = await execAsync(`${cli} video-stop`, { cwd: workspaceDir })
-        logger.info(
-          { stdout: videoStopResult.stdout, stderr: videoStopResult.stderr },
-          'playwright-cli video-stop output',
-        )
-      } catch (e) {
-        logger.warn({ err: e }, 'Failed to stop video recording gracefully')
-      }
+        try {
+          const videoStopResult = await execAsync(`${cli} video-stop`, {
+            cwd: workspaceDir,
+            timeout: RECORDING_STOP_TIMEOUT_MS,
+            killSignal: 'SIGKILL',
+          })
+          logger.info(
+            { stdout: videoStopResult.stdout, stderr: videoStopResult.stderr },
+            'playwright-cli video-stop output',
+          )
+        } catch (e) {
+          logger.warn({ err: e }, 'Failed to stop video recording gracefully')
+        }
 
-      // Diagnostic dump of the recording directory after recording stopped
-      try {
-        const { stdout: lsStdout } = await execAsync(
-          `find "${videoDir}" -maxdepth 3 -type f \\( -name "*.webm" -o -name "*.mp4" \\) -printf "%T@ %p\\n" | sort -n`,
-          { cwd: videoDir },
-        )
-        logger.info({ files: lsStdout.trim() }, 'Video files in recording directory after stop')
-      } catch (e) {
-        logger.warn({ err: e }, 'Failed to list workspace files')
+        recoverRecordingArtifact(workspaceDir, webmPath, startedAtMs)
+        assertRecordingCoversTimeline(await getMediaDurationSec(webmPath), startTime, stoppedAtMs)
+      } finally {
+        try {
+          await execAsync(`${cli} close`, {
+            cwd: workspaceDir,
+            timeout: 15_000,
+            killSignal: 'SIGKILL',
+          })
+        } catch (_e) {}
+        try {
+          await managerBrowser.close()
+        } catch (_e) {}
       }
-      try {
-        await execAsync(`${cli} close`, { cwd: workspaceDir })
-      } catch (_e) {}
-
-      // Clean up CDP Proxy and stop the manager profile
-      try {
-        await managerBrowser.close()
-      } catch (_e) {}
     }
 
     let stopped: Promise<void> | null = null

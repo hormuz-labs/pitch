@@ -46,7 +46,7 @@ import '../../studio/studio.css'
 import './playback.css'
 import './preview-stage.css'
 
-function Preview(props: { store: ProjectStore }) {
+function Preview(props: { store: ProjectStore; detailedTimeline?: boolean }) {
   const s = props.store
   const preview = () => s.project?.description.preview
   const kind = createMemo(() => preview()?.kind)
@@ -63,7 +63,7 @@ function Preview(props: { store: ProjectStore }) {
         <DeckEditor store={s} src={`${src()}&studio=1&edit=1`} />
       </Match>
       <Match when={kind() === 'video' && !!src()}>
-        <VideoPreview store={s} src={src()!} />
+        <VideoPreview store={s} src={src()!} showRangeSelector={!props.detailedTimeline} />
       </Match>
       <Match when={kind() === 'pdf' && !!src()}>
         <PdfPreview store={s} src={src()!} />
@@ -74,6 +74,58 @@ function Preview(props: { store: ProjectStore }) {
     </Switch>
   )
 }
+function StageShot(props: { src: string }) {
+  const [loaded, setLoaded] = createSignal(false)
+  const [failed, setFailed] = createSignal(false)
+  return (
+    <Show when={!failed() && !!props.src}>
+      <img
+        src={props.src}
+        alt=""
+        style={{ display: loaded() ? 'block' : 'none' }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </Show>
+  )
+}
+
+function ShotThumb(props: {
+  thumbUrl?: string | null
+  url: string
+  mtime: string
+  store: ProjectStore
+}) {
+  const [useDirect, setUseDirect] = createSignal(false)
+  const [loaded, setLoaded] = createSignal(false)
+  const [failed, setFailed] = createSignal(false)
+
+  const src = () => {
+    const path = !useDirect() && props.thumbUrl ? props.thumbUrl : props.url
+    return props.store.mediaUrl(path, Date.parse(props.mtime)) ?? ''
+  }
+
+  const handleError = () => {
+    if (!useDirect() && props.thumbUrl) {
+      setUseDirect(true)
+    } else {
+      setFailed(true)
+    }
+  }
+
+  return (
+    <Show when={!failed() && !!src()}>
+      <img
+        src={src()}
+        alt=""
+        style={{ display: loaded() ? 'block' : 'none' }}
+        onLoad={() => setLoaded(true)}
+        onError={handleError}
+      />
+    </Show>
+  )
+}
+
 function Build(props: { store: ProjectStore }) {
   const shots = () => props.store.assets.filter(a => a.kind === 'image' && a.origin !== 'upload')
   return (
@@ -85,7 +137,7 @@ function Build(props: { store: ProjectStore }) {
         </div>
         <div class="build-process__stage">
           <Show when={shots()[0]} keyed>
-            {a => <img src={props.store.mediaUrl(a.url, Date.parse(a.mtime)) ?? ''} alt={a.name} />}
+            {a => <StageShot src={props.store.mediaUrl(a.url, Date.parse(a.mtime)) ?? ''} />}
           </Show>
         </div>
         <Show when={props.store.busy}>
@@ -98,10 +150,7 @@ function Build(props: { store: ProjectStore }) {
           <div class="build-process__shots">
             <For each={shots().slice(1, 13)}>
               {a => (
-                <img
-                  src={props.store.mediaUrl(a.thumbUrl ?? a.url, Date.parse(a.mtime)) ?? ''}
-                  alt={a.name}
-                />
+                <ShotThumb thumbUrl={a.thumbUrl} url={a.url} mtime={a.mtime} store={props.store} />
               )}
             </For>
           </div>
@@ -860,7 +909,7 @@ export function StudioView(props: { projectId: string }) {
                   <div class="player">
                     <div class="player-stage">
                       <Show when={hasPreview()}>
-                        <Preview store={s} />
+                        <Preview store={s} detailedTimeline={stripKind() === 'scenes'} />
                       </Show>
                     </div>
                   </div>

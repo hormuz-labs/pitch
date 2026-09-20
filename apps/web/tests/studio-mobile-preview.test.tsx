@@ -1,16 +1,19 @@
 import { fireEvent, render, screen } from '@solidjs/testing-library'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { pause } = vi.hoisted(() => ({ pause: vi.fn() }))
+const { pause, project } = vi.hoisted(() => ({
+  pause: vi.fn(),
+  project: {
+    title: 'Mobile preview',
+    description: { preview: { kind: 'video', url: '/video.mp4' }, scenes: [] as any[] },
+    outputs: [],
+  },
+}))
 
 vi.mock('@solidjs/router', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../src/solid/studio/useProject', () => ({
   useProject: () => ({
-    project: {
-      title: 'Mobile preview',
-      description: { preview: { kind: 'video', url: '/video.mp4' } },
-      outputs: [],
-    },
+    project,
     assets: [],
     entries: [],
     targets: [],
@@ -26,7 +29,9 @@ vi.mock('../src/solid/studio/Thread', () => ({ Thread: () => null }))
 vi.mock('../src/solid/studio/AssetShelf', () => ({ AssetShelf: () => null }))
 vi.mock('../src/solid/studio/Strips', () => ({ SceneStrip: () => null, SlideStrip: () => null }))
 vi.mock('../src/solid/studio/previews/VideoPreview', () => ({
-  VideoPreview: () => <video data-testid="video" />,
+  VideoPreview: (props: { showRangeSelector?: boolean }) => (
+    <video data-testid="video" data-range-selector={String(props.showRangeSelector)} />
+  ),
 }))
 vi.mock('../src/solid/studio/previews/HtmlPreview', () => ({ HtmlPreview: () => null }))
 vi.mock('../src/solid/studio/previews/DeckPreview', () => ({ DeckPreview: () => null }))
@@ -39,7 +44,19 @@ import { StudioView } from '../src/solid/studio/StudioView'
 describe('mobile preview collapse', () => {
   beforeEach(() => {
     pause.mockClear()
+    project.description.scenes = []
     vi.stubGlobal('innerWidth', 390)
+  })
+
+  it('hides the generic range selector when the detailed scene timeline is available', () => {
+    project.description.scenes = [{ id: 'beat-1', index: 0, start: 0, end: 2 }]
+    render(() => <StudioView projectId="project" />)
+    expect(screen.getByTestId('video').getAttribute('data-range-selector')).toBe('false')
+  })
+
+  it('keeps range selection for a plain video without a detailed timeline', () => {
+    render(() => <StudioView projectId="project" />)
+    expect(screen.getByTestId('video').getAttribute('data-range-selector')).toBe('true')
   })
 
   it('keeps chat open while collapsing and restoring the same player', () => {

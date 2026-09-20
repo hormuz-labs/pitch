@@ -6,7 +6,11 @@ import { useFullscreen } from './useFullscreen'
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`,
   precise = (t: number) => `${fmt(t)}.${Math.floor((t % 1) * 10)}`
-export function VideoPreview(props: { store: ProjectStore; src: string }) {
+export function VideoPreview(props: {
+  store: ProjectStore
+  src: string
+  showRangeSelector?: boolean
+}) {
   const s = props.store
   let video: HTMLVideoElement | undefined,
     player: HTMLDivElement | undefined,
@@ -135,69 +139,71 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
           <FullscreenButton active={fullscreen.active()} onClick={() => void fullscreen.toggle()} />
         </div>
       </div>
-      <div class="video-select">
-        <div class="video-select-head">
-          <span class="video-select-hint">
-            {range()
-              ? isRange()
-                ? `${precise(range()!.start)} – ${precise(range()!.end)} · ${(range()!.end - range()!.start).toFixed(1)}s`
-                : `Moment at ${precise(range()!.start)}`
-              : 'Drag across the track to select a range, or click a moment'}
-          </span>
-          <Show when={range()}>
-            <span class="video-select-actions">
-              <button class="target-clear" onClick={() => setRange(null)}>
-                clear
-              </button>
-              <button class="video-select-ask" onClick={add}>
-                {isRange() ? 'Ask about this range' : 'Ask about this moment'}
-              </button>
+      <Show when={props.showRangeSelector !== false}>
+        <div class="video-select">
+          <div class="video-select-head">
+            <span class="video-select-hint">
+              {range()
+                ? isRange()
+                  ? `${precise(range()!.start)} – ${precise(range()!.end)} · ${(range()!.end - range()!.start).toFixed(1)}s`
+                  : `Moment at ${precise(range()!.start)}`
+                : 'Drag across the track to select a range, or click a moment'}
             </span>
-          </Show>
-        </div>
-        <div
-          ref={track}
-          class="video-track"
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerCancel={up}
-        >
-          <For each={scenes()}>
-            {x => (
-              <span
-                class="video-track-beat"
-                title={x.label ?? `Moment ${x.index}`}
-                style={{
-                  left: `${(x.start / duration()) * 100}%`,
-                  width: `${((x.end - x.start) / duration()) * 100}%`,
-                }}
-              />
-            )}
-          </For>
-          <Show when={range() !== null && duration() > 0}>
-            <Show when={range()} keyed>
-              {r => (
+            <Show when={range()}>
+              <span class="video-select-actions">
+                <button class="target-clear" onClick={() => setRange(null)}>
+                  clear
+                </button>
+                <button class="video-select-ask" onClick={add}>
+                  {isRange() ? 'Ask about this range' : 'Ask about this moment'}
+                </button>
+              </span>
+            </Show>
+          </div>
+          <div
+            ref={track}
+            class="video-track"
+            onPointerDown={down}
+            onPointerMove={move}
+            onPointerUp={up}
+            onPointerCancel={up}
+          >
+            <For each={scenes()}>
+              {x => (
                 <span
-                  class={`video-track-sel ${isRange() ? '' : 'point'}`}
+                  class="video-track-beat"
+                  title={x.label ?? `Moment ${x.index}`}
                   style={{
-                    left: `${(r.start / duration()) * 100}%`,
-                    width: `${Math.max(((r.end - r.start) / duration()) * 100, 0.4)}%`,
+                    left: `${(x.start / duration()) * 100}%`,
+                    width: `${((x.end - x.start) / duration()) * 100}%`,
                   }}
                 />
               )}
+            </For>
+            <Show when={range() !== null && duration() > 0}>
+              <Show when={range()} keyed>
+                {r => (
+                  <span
+                    class={`video-track-sel ${isRange() ? '' : 'point'}`}
+                    style={{
+                      left: `${(r.start / duration()) * 100}%`,
+                      width: `${Math.max(((r.end - r.start) / duration()) * 100, 0.4)}%`,
+                    }}
+                  />
+                )}
+              </Show>
             </Show>
-          </Show>
-          <span
-            class="video-track-playhead"
-            style={{ left: `${duration() ? (s.playhead / duration()) * 100 : 0}%` }}
-          />
+            <span
+              class="video-track-playhead"
+              style={{ left: `${duration() ? (s.playhead / duration()) * 100 : 0}%` }}
+            />
+          </div>
+          <div class="video-track-times">
+            <span>0:00</span>
+            <span>{fmt(duration())}</span>
+          </div>
         </div>
-        <div class="video-track-times">
-          <span>0:00</span>
-          <span>{fmt(duration())}</span>
-        </div>
-      </div>
+      </Show>
     </div>
   )
 }

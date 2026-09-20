@@ -82,6 +82,7 @@ export interface PitchBridge {
 /** Where the bridge lands inside the bwrap namespace. */
 export const GUEST_PITCH_BIN = '/opt/pitch'
 export const GUEST_PITCH_RUN = '/run/pitch'
+export const GUEST_NODE_BIN = '/opt/node'
 
 /** The environment with `pitch` on the PATH and its socket named. */
 function pitchEnv(
@@ -89,7 +90,9 @@ function pitchEnv(
   bin: string,
   socket: string,
 ): Record<string, string> {
-  return { ...env, PATH: env.PATH ? `${bin}:${env.PATH}` : bin, PITCH_SOCKET: socket }
+  const runtimeDir = dirname(GUEST_NODE_BIN)
+  const path = env.PATH ? `${bin}:${runtimeDir}:${env.PATH}` : `${bin}:${runtimeDir}`
+  return { ...env, PATH: path, PITCH_SOCKET: socket }
 }
 
 export interface BwrapOptions {
@@ -192,6 +195,10 @@ export function bwrapArgs(options: BwrapOptions): string[] {
   // /tmp is a fresh tmpfs, so the socket is bound where the program looks.
   if (pitch) {
     args.push('--ro-bind', pitch.bin, GUEST_PITCH_BIN)
+    // The guest clients are plain Node scripts. Development hosts often keep
+    // Node outside /usr (nvm, Bun's toolchain, etc.), so bind the executable
+    // explicitly instead of relying on the host's installation layout.
+    args.push('--ro-bind', process.execPath, GUEST_NODE_BIN)
     args.push('--bind', dirname(pitch.socket), GUEST_PITCH_RUN)
   }
   for (const [key, value] of Object.entries(env)) args.push('--setenv', key, value)
