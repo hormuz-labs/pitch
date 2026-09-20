@@ -1,0 +1,64 @@
+timeout: 3600s
+
+options:
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 100
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: pull-base-cache
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - docker pull "${_IMAGE_PREFIX}/pitch-base:latest" || true
+
+  - id: build-base
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args:
+      - build
+      - --cache-from=${_IMAGE_PREFIX}/pitch-base:latest
+      - --build-arg=BUILDKIT_INLINE_CACHE=1
+      - --tag=${_IMAGE_PREFIX}/pitch-base:${_GIT_HASH}
+      - --tag=${_IMAGE_PREFIX}/pitch-base:latest
+      - --file=Dockerfile.base
+      - .
+
+  - id: push-base
+    name: gcr.io/cloud-builders/docker
+    waitFor: [build-base]
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker push "${_IMAGE_PREFIX}/pitch-base:${_GIT_HASH}"
+        docker push "${_IMAGE_PREFIX}/pitch-base:latest"
+
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args:
+      - build
+      - --build-arg=GIT_HASH=${_GIT_HASH}
+      - --build-arg=RUNTIME_IMAGE=${_IMAGE_PREFIX}/pitch-base:${_GIT_HASH}
+      - --tag=${_IMAGE_PREFIX}/pitch-api:${_GIT_HASH}
+      - --tag=${_IMAGE_PREFIX}/pitch-api:latest
+      - --file=apps/api/Dockerfile
+      - .
+
+  - id: build-discord-bot
+    name: gcr.io/cloud-builders/docker
+    env: [DOCKER_BUILDKIT=1]
+    args:
+      - build
+      - --tag=${_IMAGE_PREFIX}/pitch-discord-bot:${_GIT_HASH}
+      - --tag=${_IMAGE_PREFIX}/pitch-discord-bot:latest
+      - --file=apps/discord-bot/Dockerfile
+      - .
+
+images:
+  - ${_IMAGE_PREFIX}/pitch-api:${_GIT_HASH}
+  - ${_IMAGE_PREFIX}/pitch-api:latest
+  - ${_IMAGE_PREFIX}/pitch-discord-bot:${_GIT_HASH}
+  - ${_IMAGE_PREFIX}/pitch-discord-bot:latest
