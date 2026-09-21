@@ -101,6 +101,7 @@ export function tarCreate(
       code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
     )
   })
+  done.catch(() => {})
   return { stream: proc.stdout, done }
 }
 
@@ -117,7 +118,13 @@ export async function tarExtract(into: string, body: NodeJS.ReadableStream): Pro
       code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
     )
   })
-  await pipeline(body, proc.stdin)
+  exit.catch(() => {})
+  try {
+    await pipeline(body, proc.stdin)
+  } catch (pipeErr) {
+    proc.kill('SIGKILL')
+    throw pipeErr
+  }
   await exit
 }
 

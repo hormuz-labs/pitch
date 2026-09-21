@@ -67,7 +67,7 @@ import {
   resolveNarrationEmphasis,
   runNarratedEmphasisBeat,
 } from '../lib/narrated-emphasis.ts'
-import { workspaceOf } from '../lib/paths.ts'
+import { ASSETS_DIR, workspaceOf } from '../lib/paths.ts'
 import {
   advanceSlideshowProgress,
   appendAutoZoomOut,
@@ -117,6 +117,26 @@ async function withStateLock<T>(base: string, fn: () => Promise<T>): Promise<T> 
     release()
     if (stateLocks.get(base) === tail) stateLocks.delete(base)
   }
+}
+
+function ensureWorkspaceClickSound(base: string): string {
+  const targetDir = path.join(base, 'recording', 'audio')
+  const targetPath = path.join(targetDir, 'click.mp3')
+  if (fs.existsSync(targetPath)) return targetPath
+  const candidates = [
+    path.join(ASSETS_DIR, 'sounds', 'click.mp3'),
+    path.join(ASSETS_DIR, 'sfx', 'click.mp3'),
+  ]
+  for (const src of candidates) {
+    if (fs.existsSync(src)) {
+      try {
+        fs.mkdirSync(targetDir, { recursive: true })
+        fs.copyFileSync(src, targetPath)
+        return targetPath
+      } catch {}
+    }
+  }
+  return targetPath
 }
 
 interface AudioClip {
@@ -792,7 +812,7 @@ export default function demoCommands(): CommandSpec[] {
               const { x: cxClamped, y: cyClamped } = clampToFrame(clickCoords.x, clickCoords.y)
               state.clickEvents.push({ videoTimeSec, x: cxClamped, y: cyClamped, hand: clickHand })
               state.audioClips.push({
-                filePath: path.join(base, 'assets', 'sounds', 'click.mp3'),
+                filePath: ensureWorkspaceClickSound(base),
                 absoluteTimestamp: clickTimestamp,
               })
             }
@@ -1047,7 +1067,7 @@ export default function demoCommands(): CommandSpec[] {
         const target = args.target
         const text = args.text ?? ''
         const shEsc = (s: string) => s.replace(/(["\\$`])/g, '\\$1')
-        const clickSound = path.join(base, 'assets', 'sounds', 'click.mp3')
+        const clickSound = ensureWorkspaceClickSound(base)
 
         // Cursor target: reuse the coords from the preceding zoom_in if they're for
         // this field (avoids an extra lookup call); otherwise ask the browser for

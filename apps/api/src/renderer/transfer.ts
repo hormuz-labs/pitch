@@ -6,7 +6,10 @@
  */
 import { readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { createLogger } from '@saas/shared'
 import { bucket, tarCreate, tarExtract } from '../worker/checkpoint.js'
+
+const logger = createLogger('studio:transfer')
 
 const outputKey = (jobId: string) => `renders/${jobId}/output.tar`
 
@@ -50,8 +53,16 @@ export async function uploadOutput(jobId: string, dir: string, files: string[]):
 export async function downloadOutput(jobId: string, dir: string): Promise<boolean> {
   const body = await bucket().get(outputKey(jobId))
   if (!body) return false
-  await tarExtract(dir, body as any)
-  return true
+  try {
+    await tarExtract(dir, body as any)
+    return true
+  } catch (err: any) {
+    logger.warn(
+      { jobId, dir, err: err?.message ?? String(err) },
+      'failed to extract job output archive',
+    )
+    return false
+  }
 }
 
 export async function discardOutput(jobId: string): Promise<void> {

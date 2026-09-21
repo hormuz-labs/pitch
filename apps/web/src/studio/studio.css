@@ -539,15 +539,31 @@
   background: var(--accent-soft);
 }
 .lv-studio .track-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--panel-2);
   color: var(--ink);
-  border-radius: 999px;
+  border: 0;
+  border-radius: 50%;
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
-  font-size: 10px;
-  line-height: 1;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.lv-studio .track-play svg {
+  display: block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+.lv-studio .track-play svg.lucide-play,
+.lv-studio .track-play .lucide-play {
+  transform: translateX(1px);
 }
 .lv-studio .track-play.empty {
   background: transparent;
@@ -555,6 +571,13 @@
 }
 .lv-studio .track-play:hover:not(:disabled) {
   background: var(--border);
+}
+.lv-studio .track-play.is-playing {
+  background: var(--ink);
+  color: var(--paper);
+}
+.lv-studio .track-play.is-playing:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 85%, var(--paper));
 }
 .lv-studio .track-name {
   flex: 1;

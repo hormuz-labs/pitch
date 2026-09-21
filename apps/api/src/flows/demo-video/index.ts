@@ -13,7 +13,7 @@
  *   storyboard.json      draft/approved storyboard (asset projects, optional)
  *   renders/demo-*.mp4   every render, newest = the preview
  */
-import { existsSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
@@ -381,7 +381,24 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       path.isAbsolute(clip.filePath) && at >= 0
         ? clip.filePath.slice(at + marker.length)
         : clip.filePath
-    const absolute = path.resolve(ws.dir, relative)
+    let absolute = path.resolve(ws.dir, relative)
+    if (!existsSync(absolute) && path.basename(absolute) === 'click.mp3') {
+      const candidates = [
+        path.join(ASSETS_DIR, 'sounds', 'click.mp3'),
+        path.join(ASSETS_DIR, 'sfx', 'click.mp3'),
+      ]
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+          const target = path.join(ws.dir, 'recording', 'audio', 'click.mp3')
+          mkdirSync(path.dirname(target), { recursive: true })
+          try {
+            copyFileSync(candidate, target)
+            absolute = target
+            break
+          } catch {}
+        }
+      }
+    }
     const real = resolveSymlinks(absolute)
     if (!real.startsWith(`${root}${path.sep}`))
       throw new Error('Recorded audio path escapes the workspace.')
