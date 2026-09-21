@@ -52,8 +52,10 @@ at 1080p. One clip, look, refine — never three variations to pick from.
 
 ## Into the film
 
-The clip is an ordinary MP4 in `renders/` and the media tools own it from
-there. Its audio will fight your mix: strip it with
+The clip is an ordinary MP4 in `renders/`. For any trimming, reframing, audio
+treatment or other post-processing, read the shared
+[video-editing](../video-editing/SKILL.md) skill and hand it the clip path and
+current brief. Its audio may fight your mix: strip it when appropriate with
 
 ```
 pitch media ffmpeg --args '["-i","renders/gen-01.mp4","-an","-c:v","copy","renders/gen-01-mute.mp4"]' --out renders/gen-01-mute.mp4 --why "Remove generated audio before the film mix"

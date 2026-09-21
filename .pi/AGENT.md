@@ -130,10 +130,15 @@ skill before you start**. Do not work from memory of these formats.
 | a launch film, promo, teaser, feature announcement | `launch-video` |
 | a narrated walkthrough of a live site or an uploaded PDF/deck | `demo-video` |
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |
-| an uploaded screen recording cut into a demo | `recording-edit` |
+| editing or post-processing any existing video, including uploads, recordings and rendered/generated clips | `video-editing` |
 | footage that does not exist — an establishing shot, a texture, a metaphor, B-roll | `generated-video` |
 | recognizable brand marks or general-purpose SVG icons | `icon-library` |
 | understanding an unfamiliar product and following its website/docs | `product-research` |
+
+`video-editing` is the shared post-processing skill. Other skills hand it source
+files and the current brief whenever footage needs editing. `demo-video` owns
+recording, then references it for the edit. Keep live composition changes in
+their authoring skill; do not render a composition just to edit its source.
 
 ### Quality and runtime for every video
 
@@ -183,17 +188,18 @@ the shelf, the uploads or the site is not a question.
 
 ## Everything else
 
-Requests that are not one of those are usually one media operation. Do not
-regenerate the artifact to satisfy them.
+Read `video-editing` for video-file operations, including one-step trims, level
+changes and crops. It can use the shared media tools directly when a timeline
+plan would add no value. Do not regenerate footage to satisfy an edit.
 
 - `pitch media probe` first, always — it tells you the streams, the durations and
   the audio levels you are about to change.
 - `pitch media ffmpeg` performs the edit, writing a NEW file in the workspace.
 - `pitch media publish` records the result as the project's output when it is right.
 
-"Lower the background music" is a probe and one `volume` filter, not a
-re-render. "Cut the first eight seconds" is a trim. Treat the artifact as
-something you can operate on, because that is what the user thinks they have.
+"Cut the first eight seconds" is a trim. For "lower the background music",
+inspect available tracks or stems first: lowering a baked mixed track also
+lowers narration. Use the original mix/plan when only the bed should change.
 
 `pitch video generate` is the exception to "everything is rendered": it invents
 footage. Use it only for shots with no real source, never for the product's

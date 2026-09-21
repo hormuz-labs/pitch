@@ -26,10 +26,11 @@ import {
   type VideoStoryboard,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
+import { resolveSymlinks } from '../../../../../.pi/lib/paths.ts'
 import { addOutput } from '../../projects/service.js'
 import { shouldWatermarkVideo } from '../../projects/watermark.js'
 import { type DemoState, renderDemo } from '../../render/demo.js'
-import { execAsync } from '../../render/media.js'
+import { execAsync, getVideoBirthTimeMs } from '../../render/media.js'
 import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
 import { writeTimeline } from '../../render/utils/beats.js'
@@ -44,6 +45,7 @@ import {
   buildStoryboardDraft,
   type StoryboardPage,
 } from '../../render/utils/storyboard-planner.js'
+import { runVideoEditing } from '../../render/video-editing/index.js'
 import { demoStreamId } from '../../services/browser-routing.js'
 import { callHostAction, registerHostAction } from '../../studio/host-actions.js'
 import { ASSETS_DIR, fileUrl, type Workspace } from '../../studio/paths.js'
@@ -339,7 +341,7 @@ registerHostAction('demo_record_start', async (ws, params, ctx) => {
     )
   if (storyboard) lines.push(storyboardContract(storyboard, assetCount))
   lines.push(
-    'When the walkthrough and the logo capture are done: demo_record_stop, then demo_render.',
+    'When the walkthrough is done: pitch demo record-stop, then read video-editing/SKILL.md and use pitch demo source to prepare the synchronized editing source.',
   )
   return lines.join('\n\n')
 })
@@ -354,8 +356,53 @@ registerHostAction('demo_record_stop', async ws => {
   }
   coverageWarned.delete(ws.dir)
   const { note } = await stopRecording(ws)
-  return `${note} Next: demo_render.`
+  return `${note} Next: read video-editing/SKILL.md, then pitch demo source. Edit the synchronized source with pitch video commands.`
 })
+
+registerHostAction('demo_source', async (ws, _params, ctx) => {
+  if (active.has(ws.dir) || existsSync(liveFile(ws)))
+    throw new Error('Stop the recording with pitch demo record-stop before preparing its source.')
+  const config = await readJson<{ startTime: number }>(configFile(ws))
+  if (!Number.isFinite(config?.startTime)) throw new Error('No stopped recording configuration.')
+  const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
+  const source = path.join(recordingDir(ws), 'demo.webm')
+  const root = resolveSymlinks(ws.dir)
+  if (!resolveSymlinks(source).startsWith(`${root}${path.sep}`))
+    throw new Error('Recording path escapes the workspace.')
+  const birth = await getVideoBirthTimeMs(source, logger)
+  if (birth === null) throw new Error('Cannot determine the recording timebase.')
+  const offset = Math.max(0, (config!.startTime - birth) / 1000)
+  const clips = (state.audioClips ?? []).map(clip => {
+    // Older capture tools persisted absolute paths. The internal workspace name
+    // is stable across placement; rebase that prefix before checking the file.
+    const marker = `${path.sep}${ws.internal}${path.sep}`
+    const at = clip.filePath.indexOf(marker)
+    const relative =
+      path.isAbsolute(clip.filePath) && at >= 0
+        ? clip.filePath.slice(at + marker.length)
+        : clip.filePath
+    const absolute = path.resolve(ws.dir, relative)
+    const real = resolveSymlinks(absolute)
+    if (!real.startsWith(`${root}${path.sep}`))
+      throw new Error('Recorded audio path escapes the workspace.')
+    if (!Number.isFinite(clip.absoluteTimestamp))
+      throw new Error('Invalid recorded audio timestamp.')
+    return {
+      source: path.relative(ws.dir, absolute),
+      start: Math.max(0, (clip.absoluteTimestamp - config!.startTime) / 1000 + offset),
+      ...(clip.durationSec ? { duration: clip.durationSec } : {}),
+      text: clip.text,
+    }
+  })
+  // Resolve the clock and worker-local audio paths before remote placement.
+  return callHostAction(ws.dir, 'demo_source_encode', { source: 'recording/demo.webm', clips }, ctx)
+})
+
+registerHostAction(
+  'demo_source_encode',
+  (ws, params, ctx) => runVideoEditing(ws.dir, 'assemble_recording', params, ctx.signal),
+  { remote: true },
+)
 
 registerHostAction('demo_render', async (ws, params) => {
   const notes: string[] = []
@@ -481,7 +528,7 @@ registerHostAction(
     return [
       `Rendered ${result.durationSec.toFixed(1)}s (leading trim ${result.leadingTrimSec.toFixed(1)}s) → ${rel} (${look}).`,
       `Video URL: ${published}`,
-      'The demo video has been assembled, rendered, and published. Your production run is complete. Do not re-edit or re-encode with ffmpeg or python scripts; reply to the user with the Video URL and actual runtime now.',
+      'For further edits, read video-editing/SKILL.md and use this rendered file as the source. Use pitch demo source instead when you need the uncut capture with synchronized narration.',
       ...notes,
     ].join('\n')
   },

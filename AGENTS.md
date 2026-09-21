@@ -30,6 +30,7 @@ owned.
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
+| shared video editing / post-processing | `video_edit_*`, `media_transcribe`, `media_publish` | `video-editing` |
 | generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
 
@@ -61,6 +62,10 @@ Rules:
 - Skills are documentation for TOOLS. If a skill tells the agent to run a
   command, that command should be a tool instead — the VM has node and python
   but no ffmpeg, no browser and no network, so most of them have to be.
+- `video-editing` is shared by all video-producing skills. `demo-video` owns
+  capture only, then references it. `pitch demo source` prepares uncut capture
+  plus synchronized narration; `pitch video` inspection/plan/render commands
+  execute the server-owned Python backend under `apps/api/src/render/video-editing/`.
 - Pipelines live in `apps/api/src/flows/*/` and `pipelines/`. They register
   host actions and export helpers; they never import each other.
 - Extensions reach the server only through **host actions**

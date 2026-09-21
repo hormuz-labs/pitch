@@ -24,7 +24,7 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).not.toContain('Go to .')
   })
 
-  it('makes the approved storyboard the exact source of truth for rendering', () => {
+  it('preserves the approved storyboard while handing camera work to shared video editing', () => {
     const input = buildDemoJobInput({
       hasPreparedAssets: true,
       assetCount: 1,
@@ -73,7 +73,8 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).toContain('"overlays":[{"kind":"callout"')
     expect(input.prompt).toMatch(/persistent overlays.*slideshow/i)
     expect(input.prompt).not.toContain('"zoom":1.7')
-    expect(input.prompt).toMatch(/camera.*automatic.*bounding box/i)
+    expect(input.prompt).toMatch(/camera intentions.*shared video-editing skill after recording/i)
+    expect(input.prompt).toMatch(/inspect and frame the actual source/i)
     expect(input.prompt).toMatch(/Do not rewrite, rephrase, omit, or add narration/i)
     expect(input.prompt).toMatch(/display only the pages listed in the approved storyboard/i)
     expect(input.prompt).toMatch(/deleted pages must not be displayed, analyzed, or narrated/i)
