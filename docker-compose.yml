@@ -32,25 +32,6 @@ services:
       postgres:
         condition: service_healthy
 
-  minio:
-    image: minio/minio:latest
-    container_name: pitch_minio
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "127.0.0.1:9002:9000"
-      - "127.0.0.1:9001:9001"
-    volumes:
-      - ./docker-data/minio:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   loki:
     image: grafana/loki:3.2.0
     container_name: pitch_loki
@@ -100,10 +81,13 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
-      MINIO_ENDPOINT: http://minio:9000
-      # Local browser-facing URL. docker-compose.prod.yml replaces this with
-      # the public S3 hostname while uploads still use the internal endpoint.
-      MINIO_PUBLIC_URL: http://localhost:9002
+      STORAGE_DRIVER: gcs
+      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
+      STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
+      STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}
+      STORAGE_PUBLIC_URL: https://storage.googleapis.com
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/secrets/google/application_default_credentials.json
       STUDIO_INTERNAL_ORIGIN: http://api:3000
       # This container is the API and a worker in one (STUDIO_ROLE=all). It
       # registers itself under this id at this URL so worker nodes added later
@@ -118,6 +102,7 @@ services:
       # pi session history (resumable conversations) and the whisper model.
       - ./docker-data/pi:/root/.pi/agent
       - ./docker-data/whisper:/root/.cache/whisper-cpp
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-${HOME}/.config/gcloud/application_default_credentials.json}:/var/run/secrets/google/application_default_credentials.json:ro
     # The agent's shell runs under bubblewrap, which needs to create a user
     # namespace and mount inside it. Docker's default seccomp profile blocks
     # the first and the docker-default AppArmor profile blocks the second.
@@ -141,8 +126,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
       loki:
         condition: service_healthy
 
@@ -163,8 +146,13 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_PUBLIC_URL: http://localhost:9002
+      STORAGE_DRIVER: gcs
+      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
+      STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
+      STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}
+      STORAGE_PUBLIC_URL: https://storage.googleapis.com
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/secrets/google/application_default_credentials.json
       STUDIO_INTERNAL_ORIGIN: http://worker:3000
       STUDIO_ROLE: worker
       STUDIO_WORKER_ID: worker-1
@@ -173,6 +161,7 @@ services:
     volumes:
       - ./docker-data/worker-1/projects:/app/projects
       - ./docker-data/worker-1/pi:/root/.pi/agent
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-${HOME}/.config/gcloud/application_default_credentials.json}:/var/run/secrets/google/application_default_credentials.json:ro
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
@@ -197,22 +186,26 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_PUBLIC_URL: http://localhost:9002
+      STORAGE_DRIVER: gcs
+      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
+      STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
+      STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}
+      STORAGE_PUBLIC_URL: https://storage.googleapis.com
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/secrets/google/application_default_credentials.json
       STUDIO_ROLE: render
       STUDIO_RENDER_ID: render-1
     volumes:
       - ./docker-data/render-1/projects:/app/projects
       - ./docker-data/render-1/pi:/root/.pi/agent
       - ./docker-data/whisper:/root/.cache/whisper-cpp
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-${HOME}/.config/gcloud/application_default_credentials.json}:/var/run/secrets/google/application_default_credentials.json:ro
     group_add:
       - "${VIDEO_GID:-44}"
       - "${RENDER_GID:-992}"
     stop_grace_period: 600s
     depends_on:
       postgres:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
   discord-bot:

@@ -1,15 +1,11 @@
 # Production overrides — applied on the Linux host via: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # Remaps volumes to stable /mnt/hdd paths and enables Linux VAAPI access for the API.
-# Grafana / Loki / MinIO data lives on the HDD at /mnt/hdd; everything else stays on the SSD at /opt/pitch.
+# Grafana / Loki data lives on the HDD at /mnt/hdd; everything else stays on the SSD at /opt/pitch.
 
 services:
   postgres:
     volumes:
       - /opt/pitch/postgres:/var/lib/postgresql/data
-
-  minio:
-    volumes:
-      - /mnt/hdd/minio:/data
 
   loki:
     volumes:
@@ -22,10 +18,6 @@ services:
       - /mnt/hdd/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
 
   api:
-    environment:
-      # Never persist the host-only MinIO address in production project rows.
-      # Cloudflare routes this public hostname to MinIO's host port 9002.
-      MINIO_PUBLIC_URL: https://s3.trypitch.co
     # Ship logs to Loki. This needs a Docker plugin on the HOST:
     #   docker plugin install grafana/loki-docker-driver:latest \
     #     --alias loki --grant-all-permissions

@@ -7,10 +7,12 @@ import { normalizePublishedUrl } from '../apps/api/src/projects/output-urls.js'
 const root = path.resolve(import.meta.dirname, '..')
 
 describe('production storage URLs', () => {
-  it('pins the production API to the public S3 origin', () => {
-    const compose = readFileSync(path.join(root, 'docker-compose.prod.yml'), 'utf8')
+  it('pins the compose API to Google Cloud Storage', () => {
+    const compose = readFileSync(path.join(root, 'docker-compose.yml'), 'utf8')
 
-    expect(compose).toMatch(/MINIO_PUBLIC_URL:\s*https:\/\/s3\.trypitch\.co/)
+    expect(compose).toMatch(/STORAGE_DRIVER:\s*gcs/)
+    expect(compose).toMatch(/STORAGE_PUBLIC_URL:\s*https:\/\/storage\.googleapis\.com/)
+    expect(compose).not.toMatch(/^\s+minio:/m)
   })
 
   it('repairs output URLs stored before the production config fix', () => {
