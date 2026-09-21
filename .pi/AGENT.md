@@ -127,7 +127,8 @@ skill before you start**. Do not work from memory of these formats.
 
 | The user wants | Read |
 |---|---|
-| a launch film, promo, teaser, feature announcement | `launch-video` |
+| a voice-led promo, brand anthem, manifesto film, cinematic editorial montage | `promo-video` |
+| a product-led launch film, teaser, feature announcement | `launch-video` |
 | a narrated walkthrough of a live site or an uploaded PDF/deck | `demo-video` |
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |
 | editing or post-processing any existing video, including uploads, recordings and rendered/generated clips | `video-editing` |

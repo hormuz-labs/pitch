@@ -131,11 +131,12 @@ is material to USE, not the artifact to change.
 
 ### Pipelines
 
-The four products survive as **host actions** plus a skill, not as flows:
+The named outcomes survive as **host actions** plus a skill, not as flows:
 
 | Pipeline | Host actions | Skill |
 |---|---|---|
 | launch film | `motion_*` | `launch-video` |
+| cinematic promo / brand manifesto | `motion_*` | `promo-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
@@ -150,12 +151,14 @@ The current conversational brief controls explicit exact runtimes or maximums.
 Agents edit content for comprehension and complete actions rather than padding
 or squeezing a timeline to the preference. Source trim ranges remain exact.
 
-The launch skill is an entry point: load one treatment (cinematic, composed
-product walkthrough, kinetic type, teaser, feature announcement or 3D), then
-only the production references the current task needs. Audio has separate
-music, narration, SFX and mixing modules. A music-only film does not load
-narration guidance; a level edit loads mixing rather than the entire production
-workflow. `demo-video` owns recording only and references the shared
+The motion pipeline has two authoring entry points. `launch-video` loads one
+product-led treatment (cinematic, composed product walkthrough, kinetic type,
+teaser, feature announcement or 3D). `promo-video` supplies the voice-led,
+editorial-montage grammar for brand anthems and manifesto films. Both then load
+only the production references the current task needs. Audio has separate music,
+narration, SFX and mixing modules. A music-only film does not load narration
+guidance; a level edit loads mixing rather than the entire production workflow.
+`demo-video` owns recording only and references the shared
 `video-editing` skill for post-processing. Generated footage and already rendered
 videos use that same editing skill. Existing event-based recording projects can
 still be maintained with the `recording-edit` reference.
