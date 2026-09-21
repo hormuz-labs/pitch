@@ -75,7 +75,9 @@ export function Composer(props: { store: ProjectStore }) {
     [defaultModel, setDefaultModel] = createSignal<string | null>(null),
     [modelOpen, setModelOpen] = createSignal(false),
     [modelPosition, setModelPosition] = createSignal({ left: 12, bottom: 12 }),
-    [promptUrl, setPromptUrl] = createSignal<string | null>(null)
+    [promptUrl, setPromptUrl] = createSignal<string | null>(null),
+    [stopping, setStopping] = createSignal(false),
+    [stopError, setStopError] = createSignal<string | null>(null)
   let modelEl: HTMLDivElement | undefined,
     modelMenuEl: HTMLDivElement | undefined,
     fileInput: HTMLInputElement | undefined,
@@ -147,6 +149,18 @@ export function Composer(props: { store: ProjectStore }) {
       setFiles([])
     }
     await s.send(text, { uploads, delivery })
+  }
+  const stop = async () => {
+    if (stopping()) return
+    setStopping(true)
+    setStopError(null)
+    try {
+      if (!(await s.stop())) setStopError('No active generation was found. Refresh and try again.')
+    } catch (error: any) {
+      setStopError(error?.message ?? 'Could not stop generation')
+    } finally {
+      setStopping(false)
+    }
   }
   const where = () => scope(s),
     placeholder = () =>
@@ -254,25 +268,25 @@ export function Composer(props: { store: ProjectStore }) {
                 </Show>
               </div>
             </Show>
-            <Show
-              when={s.busy && !s.draft.trim()}
-              fallback={
-                <button
-                  class="job-send-round"
-                  disabled={uploading() || !s.draft.trim()}
-                  onClick={() => void send(s.busy ? 'queue' : undefined)}
-                  aria-label={s.busy ? 'Queue message' : 'Send message'}
-                  title={s.busy ? 'Queue after current work' : undefined}
-                >
-                  <ArrowUp size={17} />
-                </button>
-              }
-            >
+            <Show when={!s.busy || s.draft.trim()}>
+              <button
+                class="job-send-round"
+                disabled={uploading() || !s.draft.trim()}
+                onClick={() => void send(s.busy ? 'queue' : undefined)}
+                aria-label={s.busy ? 'Queue message' : 'Send message'}
+                title={s.busy ? 'Queue after current work' : undefined}
+              >
+                <ArrowUp size={17} />
+              </button>
+            </Show>
+            <Show when={s.busy}>
               <button
                 class="job-stop-task job-send-round"
-                onClick={() => void s.stop()}
+                disabled={stopping()}
+                onClick={() => void stop()}
                 aria-label="Stop generation"
-                title="Stop generation"
+                aria-busy={stopping()}
+                title={stopping() ? 'Stopping generation…' : 'Stop generation'}
               >
                 <Square size={11} fill="currentColor" aria-hidden="true" />
               </button>
@@ -373,6 +387,11 @@ export function Composer(props: { store: ProjectStore }) {
                 </button>
               )}
             </For>
+          </div>
+        </Show>
+        <Show when={stopError()}>
+          <div class="composer-stop-error" role="alert">
+            {stopError()}
           </div>
         </Show>
         <textarea

@@ -517,7 +517,9 @@ export async function prompt(
 
 function generationKind(options: Record<string, any>): string | null {
   if (typeof options.videoType === 'string') return options.videoType
-  return ['launch-video', 'demo-video', 'generated-video', 'recording-edit'].includes(options.skill)
+  return ['launch-video', 'demo-video', 'asset-demo', 'generated-video', 'recording-edit'].includes(
+    options.skill,
+  )
     ? options.skill
     : null
 }
@@ -841,7 +843,15 @@ export async function saveStoryboard(
   const { h } = await ensureOpen(projectId)
   const file = path.join(h.ws.dir, 'storyboard.json')
   const current = JSON.parse(await readFile(file, 'utf8')) as VideoStoryboard
-  const saved = updateVideoStoryboard(current, update)
+  let saved: VideoStoryboard
+  try {
+    saved = updateVideoStoryboard(current, update)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw Object.assign(error instanceof Error ? error : new Error(message), {
+      status: message.startsWith('Storyboard revision conflict:') ? 409 : 400,
+    })
+  }
   await writeFile(file, `${JSON.stringify(saved, null, 2)}\n`, 'utf8')
   markDirty(h)
   return saved

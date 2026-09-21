@@ -185,6 +185,11 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       'The files under uploads/ are source materials attached by the user. Use their workspace-relative paths directly, and inspect relevant images or documents with the read tool before creating or editing the artifact.',
     )
 
+  if (options.skill === 'asset-demo')
+    parts.push(
+      'The user selected Asset demo as the preferred outcome. When their current message is an actionable request to explain or turn the uploaded PDFs/images into a narrated video, read the `asset-demo` skill and follow it. This preference narrows a compatible request; it does not start work by itself and does not override a different explicit request.',
+    )
+
   if (
     typeof options.durationSeconds === 'number' &&
     Number.isFinite(options.durationSeconds) &&

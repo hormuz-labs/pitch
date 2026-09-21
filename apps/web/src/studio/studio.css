@@ -4276,12 +4276,6 @@
   color: #aba7a2;
 }
 
-.lv-studio .job-send-round.stop,
-.lv-studio .job-send-round.stop:hover:not(:disabled) {
-  background: var(--danger);
-  color: #ffffff;
-}
-
 .lv-studio .job-stop-task {
   width: 38px;
   height: 38px;
@@ -5707,6 +5701,13 @@
   box-shadow: 0 3px 10px rgb(0 0 0 / 8%);
   cursor: pointer;
 }
+
+.lv-studio .composer-stop-error {
+  padding: 0 5px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.35;
+}
 .lv-studio:not(.new-project-page) .feed-jump-latest:hover { background: var(--control-hover); transform: translateX(-50%) translateY(-2px); }
 .lv-studio:not(.new-project-page) .feed-jump-latest:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
 
@@ -5965,22 +5966,37 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  background: #0f1011;
+  background: var(--paper);
 }
 
 .lv-studio .storyboard-editor {
-  --sb-canvas: #0f1011;
-  --sb-surface: #171819;
-  --sb-surface-raised: #202123;
-  --sb-line: #303236;
-  --sb-text: #f5f5f4;
-  --sb-muted: #9a9da3;
+  --sb-canvas: var(--paper);
+  --sb-surface: var(--panel);
+  --sb-surface-raised: var(--panel-2);
+  --sb-line: var(--border);
+  --sb-text: var(--ink);
+  --sb-muted: var(--muted);
+  --sb-subtle: var(--faint);
+  --sb-hover: color-mix(in srgb, var(--panel) 92%, var(--ink) 8%);
+  --sb-active: color-mix(in srgb, var(--panel) 86%, var(--ink) 14%);
+  --sb-canvas-panel: color-mix(in srgb, var(--paper) 96%, var(--ink) 4%);
+  --sb-grid-dot: color-mix(in srgb, var(--ink) 13%, transparent);
+  --sb-focus: color-mix(in srgb, var(--ink) 36%, var(--sb-line));
+  --sb-focus-ring: color-mix(in srgb, var(--ink) 8%, transparent);
+  --sb-input: var(--panel);
+  --sb-primary-bg: #18181b;
+  --sb-primary-text: #fff;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   color: var(--sb-text);
   background: var(--sb-canvas);
+}
+
+[data-theme="dark"] .lv-studio .storyboard-editor {
+  --sb-primary-bg: #f1f1ef;
+  --sb-primary-text: #111213;
 }
 
 .lv-studio .storyboard-editor__header {
@@ -5992,7 +6008,7 @@
   justify-content: space-between;
   gap: 24px;
   border-bottom: 1px solid var(--sb-line);
-  background: #121314;
+  background: var(--sb-surface);
 }
 
 .lv-studio .storyboard-editor__eyebrow,
@@ -6037,9 +6053,9 @@
   white-space: nowrap;
 }
 
-.lv-studio .storyboard-save-state.is-dirty { color: #e3af74; }
-.lv-studio .storyboard-save-state.is-error { color: #ff897d; }
-.lv-studio .storyboard-save-state.is-saved { color: #8bc79f; }
+.lv-studio .storyboard-save-state.is-dirty { color: var(--warning); }
+.lv-studio .storyboard-save-state.is-error { color: var(--error); }
+.lv-studio .storyboard-save-state.is-saved { color: var(--success); }
 
 .lv-studio .storyboard-editor__actions,
 .lv-studio .storyboard-canvas-toolbar > div,
@@ -6068,15 +6084,15 @@
 .lv-studio .storyboard-editor .storyboard-btn:hover:not(:disabled),
 .lv-studio .storyboard-editor .storyboard-icon-btn:hover:not(:disabled),
 .lv-studio .storyboard-editor .storyboard-icon-btn.is-active {
-  border-color: #55585f;
+  border-color: var(--sb-focus);
   background: var(--sb-surface-raised);
 }
 
 .lv-studio .storyboard-editor .storyboard-btn--primary,
 .lv-studio .storyboard-editor .storyboard-btn--primary:hover:not(:disabled) {
-  border-color: #f1f1ef;
-  background: #f1f1ef;
-  color: #111213;
+  border-color: var(--sb-primary-bg);
+  background: var(--sb-primary-bg);
+  color: var(--sb-primary-text);
 }
 
 .lv-studio .storyboard-editor__workspace {
@@ -6091,7 +6107,7 @@
 .lv-studio .storyboard-inspector {
   min-height: 0;
   overflow-y: auto;
-  background: #141516;
+  background: var(--sb-surface);
 }
 
 .lv-studio .storyboard-scenes {
@@ -6122,13 +6138,13 @@
 
 .lv-studio .storyboard-editor .storyboard-scene-card:hover:not(:disabled) {
   border-color: var(--sb-line);
-  background: #1b1c1e;
+  background: var(--sb-hover);
 }
 
 .lv-studio .storyboard-editor .storyboard-scene-card.is-active {
-  border-color: #4a4d52;
+  border-color: var(--sb-focus);
   color: var(--sb-text);
-  background: #242527;
+  background: var(--sb-active);
 }
 
 .lv-studio .storyboard-editor .storyboard-scene-card.is-disabled { opacity: 0.48; }
@@ -6137,7 +6153,7 @@
   height: 42px;
   border-radius: 5px;
   object-fit: cover;
-  background: #08090a;
+  background: var(--sb-canvas-panel);
 }
 
 .lv-studio .storyboard-scene-card span { min-width: 0; display: grid; }
@@ -6161,7 +6177,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #0c0d0e;
+  background: var(--sb-canvas-panel);
 }
 
 .lv-studio .storyboard-canvas-toolbar {
@@ -6195,7 +6211,8 @@
   display: grid;
   place-items: center;
   overflow: auto;
-  background-image: radial-gradient(circle at 1px 1px, #242629 1px, transparent 0);
+  background-color: var(--sb-canvas-panel);
+  background-image: radial-gradient(circle at 1px 1px, var(--sb-grid-dot) 1px, transparent 0);
   background-size: 20px 20px;
 }
 
@@ -6204,10 +6221,10 @@
   width: min(100%, 980px);
   max-height: 100%;
   overflow: visible;
-  border: 1px solid #393b3f;
+  border: 1px solid var(--sb-focus);
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+  box-shadow: var(--shadow-lg);
   touch-action: none;
 }
 
@@ -6313,7 +6330,7 @@
   margin-bottom: 14px;
 }
 .lv-studio .storyboard-field > span {
-  color: #d6d7da;
+  color: var(--sb-text);
   font-size: 10px;
   font-weight: 550;
 }
@@ -6323,20 +6340,20 @@
   border-color: var(--sb-line);
   border-radius: 7px;
   color: var(--sb-text);
-  background: #1b1c1e;
+  background: var(--sb-input);
   font-size: 11px;
 }
 .lv-studio .storyboard-editor textarea { resize: vertical; line-height: 1.55; }
 .lv-studio .storyboard-editor :is(input, textarea, select):focus {
-  border-color: #71747a;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+  border-color: var(--sb-focus);
+  box-shadow: 0 0 0 2px var(--sb-focus-ring);
 }
 .lv-studio .storyboard-detected {
   margin-bottom: 16px;
   padding: 10px;
   border: 1px solid var(--sb-line);
   border-radius: 8px;
-  background: #18191b;
+  background: var(--sb-surface-raised);
 }
 .lv-studio .storyboard-detected > span {
   display: flex;
@@ -6346,7 +6363,7 @@
   font-size: 9px;
   text-transform: uppercase;
 }
-.lv-studio .storyboard-detected p { margin: 7px 0 0; color: #c4c6ca; font-size: 10px; }
+.lv-studio .storyboard-detected p { margin: 7px 0 0; color: var(--sb-text); font-size: 10px; }
 .lv-studio .storyboard-highlights { display: grid; gap: 8px; }
 .lv-studio .storyboard-empty-note { margin: 0; color: var(--sb-muted); font-size: 10px; }
 .lv-studio .storyboard-highlight-card {
@@ -6355,21 +6372,21 @@
   padding: 9px;
   border: 1px solid var(--sb-line);
   border-radius: 8px;
-  background: #18191b;
+  background: var(--sb-surface-raised);
 }
-.lv-studio .storyboard-highlight-card.has-error { border-color: #88483f; }
-.lv-studio .storyboard-highlight-card > small { color: #ff897d; font-size: 9px; }
+.lv-studio .storyboard-highlight-card.has-error { border-color: var(--error); }
+.lv-studio .storyboard-highlight-card > small { color: var(--error); font-size: 9px; }
 .lv-studio .storyboard-editor .storyboard-highlight-select {
   justify-self: start;
   display: flex;
   align-items: center;
   gap: 5px;
   padding: 0;
-  color: #d7d8da;
+  color: var(--sb-text);
   background: transparent;
   font-size: 10px;
 }
-.lv-studio .storyboard-editor .storyboard-highlight-select:hover:not(:disabled) { color: #fff; background: transparent; }
+.lv-studio .storyboard-editor .storyboard-highlight-select:hover:not(:disabled) { color: var(--sb-text); background: transparent; }
 .lv-studio .storyboard-highlight-row select { flex: 1 1 auto; }
 .lv-studio .storyboard-highlight-row button {
   width: 30px;
@@ -6380,9 +6397,9 @@
   border: 1px solid var(--sb-line);
   border-radius: 7px;
   color: var(--sb-muted);
-  background: #202123;
+  background: var(--sb-surface-raised);
 }
-.lv-studio .storyboard-highlight-row button:hover:not(:disabled) { color: #fff; background: #292a2d; }
+.lv-studio .storyboard-highlight-row button:hover:not(:disabled) { color: var(--sb-text); background: var(--sb-active); }
 
 @media (max-width: 1180px) {
   .lv-studio .storyboard-editor__workspace { grid-template-columns: 150px minmax(320px, 1fr) 250px; }

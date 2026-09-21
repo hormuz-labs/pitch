@@ -266,6 +266,12 @@ See [`editable-video-export.md`](editable-video-export.md) for the complete
 strategy, sidecar and package contracts, target mappings, security boundaries,
 limitations, and extension guide.
 
+The new-project outcome pills are lightweight skill preferences, not project
+types or creation flows. For example, the **Asset demo** pill stores
+`options.skill: 'asset-demo'`; the agent uses that preference for a compatible
+actionable request, while an empty file-drop creation still waits for the user
+and every project continues through the same studio route.
+
 The new-project composer can pass `options.narrationVoice` as
 `{ provider: 'elevenlabs', id, name }`. It is saved in `project.json` and used
 by both `pitch motion tts` and `pitch demo speak`. It is a narration preference,

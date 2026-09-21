@@ -1,5 +1,59 @@
 import type { StoryboardRect, StoryboardScene, VideoStoryboard } from '../types'
 
+const unchanged = (before: unknown, after: unknown) =>
+  JSON.stringify(before) === JSON.stringify(after)
+
+const preferLocalChange = <T>(before: T, local: T, remote: T): T =>
+  unchanged(before, local) ? remote : local
+
+/**
+ * Reapply local editor fields over a newer server revision after an optimistic
+ * conflict. Remote-only edits survive; when both sides changed the same field,
+ * the still-visible local value wins so nothing the user typed disappears.
+ */
+export function rebaseStoryboard(
+  base: VideoStoryboard,
+  local: VideoStoryboard,
+  remote: VideoStoryboard,
+): VideoStoryboard {
+  const baseScenes = new Map(base.scenes.map(scene => [scene.id, scene]))
+  const localScenes = new Map(local.scenes.map(scene => [scene.id, scene]))
+  const remoteScenes = new Map(remote.scenes.map(scene => [scene.id, scene]))
+  const scenes = remote.scenes.flatMap(remoteScene => {
+    const before = baseScenes.get(remoteScene.id)
+    const edited = localScenes.get(remoteScene.id)
+    if (before && !edited) return []
+    if (!before || !edited) return [remoteScene]
+    const merge = <K extends keyof StoryboardScene>(key: K): StoryboardScene[K] =>
+      preferLocalChange(before[key], edited[key], remoteScene[key])
+    return [
+      {
+        ...remoteScene,
+        enabled: merge('enabled'),
+        title: merge('title'),
+        screenText: merge('screenText'),
+        narration: merge('narration'),
+        emphasis: merge('emphasis'),
+        overlays: merge('overlays'),
+        estimatedDurationSec: merge('estimatedDurationSec'),
+      },
+    ]
+  })
+  for (const localScene of local.scenes) {
+    if (remoteScenes.has(localScene.id)) continue
+    const before = baseScenes.get(localScene.id)
+    if (!before || !unchanged(before, localScene)) scenes.push(localScene)
+  }
+  return {
+    ...remote,
+    status: 'draft',
+    approvedRevision: undefined,
+    transition: preferLocalChange(base.transition, local.transition, remote.transition),
+    titleCards: preferLocalChange(base.titleCards, local.titleCards, remote.titleCards),
+    scenes,
+  }
+}
+
 interface Point {
   x: number
   y: number

@@ -19,6 +19,7 @@ import type {
 } from '../types'
 import type { ProjectStore } from '../useProject'
 import {
+  rebaseStoryboard,
   rectFromDrag,
   type StoryboardRectTransformMode,
   storyboardDurationSec,
@@ -57,6 +58,7 @@ const invalidEmphasis = (storyboard: VideoStoryboard) =>
 export function StoryboardEditor(props: { store: ProjectStore }) {
   const source = () => props.store.project?.description.extra?.storyboard
   const initial = source()
+  let synced = initial ? clone(initial) : null
   const [draft, setDraft] = createSignal<VideoStoryboard | null>(initial ? clone(initial) : null)
   const [selectedId, setSelectedId] = createSignal(initial?.scenes[0]?.id ?? '')
   const [selectedEmphasis, setSelectedEmphasis] = createSignal<number | null>(null)
@@ -92,6 +94,7 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
     const current = draft()
     if (!incoming || saveState() === 'dirty' || saveState() === 'saving') return
     if (!current || incoming.revision > current.revision) {
+      synced = clone(incoming)
       setDraft(clone(incoming))
       if (!incoming.scenes.some(scene => scene.id === selectedId())) {
         setSelectedId(incoming.scenes[0]?.id ?? '')
@@ -151,6 +154,7 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
           if (!latest) return clone(saved)
           return version === editVersion ? clone(saved) : { ...latest, revision: saved.revision }
         })
+        synced = clone(saved)
         if (version === editVersion) {
           setSaveState('saved')
           setSaveMessage(`Revision ${saved.revision} saved`)
@@ -162,6 +166,22 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
         }
         return saved
       } catch (error: unknown) {
+        if ((error as { status?: number })?.status === 409 && synced) {
+          try {
+            const latest = await studio.get(await props.store.getToken(), props.store.id!)
+            const remote = latest.description.extra?.storyboard
+            if (remote) {
+              const rebased = rebaseStoryboard(synced, current, remote)
+              synced = clone(remote)
+              setDraft(rebased)
+              setSaveState('dirty')
+              setSaveMessage(`Merged with revision ${remote.revision} · review and save again`)
+              return null
+            }
+          } catch {
+            // Keep the original conflict below when the latest revision cannot load.
+          }
+        }
         setSaveState('error')
         setSaveMessage(error instanceof Error ? error.message : 'Could not save storyboard')
         return null
@@ -298,7 +318,7 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
         <header class="storyboard-editor__header">
           <div>
             <div class="storyboard-editor__eyebrow">
-              <Sparkles size={13} /> Asset demo storyboard
+              <Sparkles size={13} /> Video storyboard
             </div>
             <div class="storyboard-editor__title-row">
               <h2>Shape the story, then hand it back to the agent.</h2>
