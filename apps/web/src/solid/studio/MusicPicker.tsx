@@ -112,11 +112,15 @@ export function MusicPicker(props: {
                   <div class={`track-row${selected() === track.file ? ' selected' : ''}`}>
                     <button
                       type="button"
-                      class="track-play"
+                      class={`track-play${playing() === track.file ? ' is-playing' : ''}`}
                       aria-label={`${playing() === track.file ? 'Pause' : 'Preview'} ${track.name}`}
                       onClick={() => preview(track)}
                     >
-                      {playing() === track.file ? <Pause size={12} /> : <Play size={12} />}
+                      {playing() === track.file ? (
+                        <Pause size={12} fill="currentColor" />
+                      ) : (
+                        <Play size={12} fill="currentColor" />
+                      )}
                     </button>
                     <button
                       type="button"
