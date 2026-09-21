@@ -137,6 +137,7 @@ The four products survive as **host actions** plus a skill, not as flows:
 |---|---|---|
 | launch film | `motion_*` | `launch-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
+| PDF/image asset demo | `demo_*`, `storyboard_*` | `asset-demo` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
 | generated footage | `video_generate` | `generated-video` |
@@ -230,6 +231,9 @@ GET    /projects/:id/events            SSE (see below)
 GET    /projects/:id/thumbnail?t=      JPEG from the live preview (html/deck) or the render at t
 GET    /projects/:id/assets            Asset[] — the shelf, derived from the workspace
 POST   /projects/:id/assets            { uploads[] } → stages them into uploads/; runs no turn
+POST   /projects/:id/deck              { html } → saves the live deck document; runs no turn
+POST   /projects/:id/deck/render       rebuilds build/output.pdf from the saved deck
+POST   /projects/:id/storyboard        saves one validated storyboard revision; runs no turn
 POST   /projects/:id/export            { res, format? } → RenderStatus (`format` may request an editable ZIP)
 GET    /projects/:id/export            RenderStatus
 POST   /projects/:id/export/cancel

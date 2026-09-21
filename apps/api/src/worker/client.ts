@@ -10,7 +10,12 @@
  */
 
 import { Readable } from 'node:stream'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  type VideoStoryboard,
+} from '@saas/shared'
 import type express from 'express'
 import type { Description, UploadRef } from '../flows/types.js'
 import type { Asset, ThumbRequest } from '../projects/assets.js'
@@ -42,6 +47,15 @@ export interface WorkerClient {
   addAssets(id: string, uploads: UploadRef[]): Promise<Asset[]>
   saveDeck(id: string, html: string): Promise<{ ok: true; slides: number }>
   renderDeck(id: string): Promise<{ ok: true }>
+  saveStoryboard(
+    id: string,
+    update: {
+      revision: number
+      transition?: VideoStoryboard['transition']
+      titleCards?: StoryboardTitleCards
+      scenes: StoryboardScene[]
+    },
+  ): Promise<VideoStoryboard>
   deleteAsset(id: string, rel: string): Promise<boolean>
   assetThumbnail(id: string, req: ThumbRequest): Promise<Buffer | null>
   startExport(id: string, body: Record<string, any>): Promise<ExportStatus>
@@ -90,6 +104,7 @@ const local: WorkerClient = {
   addAssets: host.addAssets,
   saveDeck: host.saveDeck,
   renderDeck: host.renderDeck,
+  saveStoryboard: host.saveStoryboard,
   deleteAsset: host.deleteAsset,
   assetThumbnail: host.assetThumbnail,
   startExport: host.startExport,
@@ -256,6 +271,7 @@ function remote(w: WorkerRow): WorkerClient {
     addAssets: (id, uploads) => call(w, 'POST', pathOf(id, '/assets'), { uploads }),
     saveDeck: (id, html) => call(w, 'POST', pathOf(id, '/deck'), { html }),
     renderDeck: id => call(w, 'POST', pathOf(id, '/deck/render')),
+    saveStoryboard: (id, update) => call(w, 'POST', pathOf(id, '/storyboard'), update),
     deleteAsset: (id, rel) =>
       call<{ removed: boolean }>(
         w,

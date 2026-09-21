@@ -10,6 +10,7 @@ import type {
   ProjectSummary,
   StudioModel,
   UploadRef,
+  VideoStoryboard,
 } from './types'
 
 export function apiUrl(path: string): string {
@@ -98,6 +99,13 @@ export const studio = {
     api.post<{ ok: boolean; slides: number }>(`${p(id)}/deck`, token, { html }),
   renderDeck: (token: string, id: string) =>
     api.post<{ ok: boolean }>(`${p(id)}/deck/render`, token),
+  saveStoryboard: (token: string, id: string, storyboard: VideoStoryboard) =>
+    api.post<VideoStoryboard>(`${p(id)}/storyboard`, token, {
+      revision: storyboard.revision,
+      transition: storyboard.transition,
+      titleCards: storyboard.titleCards,
+      scenes: storyboard.scenes,
+    }),
 }
 export type {
   Asset,
@@ -108,4 +116,5 @@ export type {
   ProjectDetail,
   StudioModel,
   UploadRef,
+  VideoStoryboard,
 }

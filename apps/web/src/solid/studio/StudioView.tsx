@@ -7,6 +7,7 @@ import {
   MonitorPlay,
   MoreHorizontal,
   Music2,
+  PanelsTopLeft,
   Share2,
 } from 'lucide-solid'
 import {
@@ -39,12 +40,15 @@ import { VideoPreview } from './previews/VideoPreview'
 import { SceneStrip, SlideStrip } from './Strips'
 import { StudioProjectControls } from './StudioProjectControls'
 import { StudioTopbarFiles } from './StudioTopbarFiles'
+import { StoryboardEditor } from './storyboard/StoryboardEditor'
 import { Thread } from './Thread'
 import { clampTimelineHeight, timelineHeightLimit, timelineRowsHeight } from './timelineResize'
 import { type ProjectStore, useProject } from './useProject'
 import '../../studio/studio.css'
 import './playback.css'
 import './preview-stage.css'
+
+type StudioViewMode = 'preview' | 'storyboard' | 'files'
 
 function Preview(props: { store: ProjectStore; detailedTimeline?: boolean }) {
   const s = props.store
@@ -172,8 +176,8 @@ const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[
 export function Actions(
   props: ParentProps<{
     store: ProjectStore
-    view?: () => 'preview' | 'files'
-    setView?: (v: 'preview' | 'files') => void
+    view?: () => StudioViewMode
+    setView?: (v: StudioViewMode) => void
   }>,
 ) {
   const s = props.store,
@@ -556,7 +560,7 @@ export function StudioView(props: { projectId: string }) {
     [showJumpToLatest, setShowJumpToLatest] = createSignal(false),
     [timelineOpen, setTimelineOpen] = createSignal(true),
     [musicOpen, setMusicOpen] = createSignal(false),
-    [view, setView] = createSignal<'preview' | 'files'>('preview'),
+    [view, setView] = createSignal<StudioViewMode>('preview'),
     [sidebar, setSidebar] = createSignal(
       typeof window === 'undefined' ? 440 : Math.min(520, Math.max(400, innerWidth * 0.34)),
     ),
@@ -568,6 +572,7 @@ export function StudioView(props: { projectId: string }) {
     wrap: HTMLDivElement | undefined,
     stage: HTMLDivElement | undefined,
     hadPreview = false,
+    hadStoryboard = false,
     followFeed = true,
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
@@ -650,6 +655,7 @@ export function StudioView(props: { projectId: string }) {
       s.assets.some(asset => asset.kind === 'image' && asset.origin !== 'upload')
     )
   })
+  const storyboard = createMemo(() => s.project?.description.extra?.storyboard ?? null)
   const hasVideoSoundtrack = createMemo(() => {
     if (s.project?.description.preview?.kind === 'html') return true
     const published = (s.project?.outputs ?? []).some(output => output.kind === 'video')
@@ -658,7 +664,9 @@ export function StudioView(props: { projectId: string }) {
     )
     return published || workspaceRender
   })
-  const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
+  const showStage = createMemo(
+    () => hasPreview() || Boolean(storyboard()) || (view() === 'files' && s.assets.length > 0),
+  )
   const previewHidden = () => mobileLayout() && previewCollapsed()
   const previewLabel = () =>
     ['html', 'video'].includes(s.project?.description.preview?.kind ?? '') ? 'video' : 'preview'
@@ -687,6 +695,16 @@ export function StudioView(props: { projectId: string }) {
       setView('files')
     }
     hadPreview = available
+  })
+  createEffect(() => {
+    const available = Boolean(storyboard())
+    if (available && !hadStoryboard) {
+      setView('storyboard')
+      setPreviewCollapsed(false)
+    } else if (!available && view() === 'storyboard') {
+      setView(hasPreview() ? 'preview' : 'files')
+    }
+    hadStoryboard = available
   })
   onMount(() => {
     const resize = () => setMobileLayout(window.innerWidth <= 840)
@@ -745,6 +763,19 @@ export function StudioView(props: { projectId: string }) {
                     >
                       <MonitorPlay size={15} />
                       <span class="preview-pane-tab__label">Preview</span>
+                    </button>
+                  </Show>
+                  <Show when={storyboard()}>
+                    <button
+                      aria-label="Storyboard"
+                      class={`preview-pane-tab${view() === 'storyboard' ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setView('storyboard')
+                        setPreviewCollapsed(false)
+                      }}
+                    >
+                      <PanelsTopLeft size={15} />
+                      <span class="preview-pane-tab__label">Storyboard</span>
                     </button>
                   </Show>
                   <Show when={s.assets.length > 0}>
@@ -992,6 +1023,11 @@ export function StudioView(props: { projectId: string }) {
                 <Show when={view() === 'files'}>
                   <div class="studio-files-view">
                     <AssetShelf store={s} />
+                  </div>
+                </Show>
+                <Show when={view() === 'storyboard' && storyboard()}>
+                  <div class="studio-storyboard-view">
+                    <StoryboardEditor store={s} />
                   </div>
                 </Show>
               </div>

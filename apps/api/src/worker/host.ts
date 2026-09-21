@@ -26,7 +26,13 @@ import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  updateVideoStoryboard,
+  type VideoStoryboard,
+} from '@saas/shared'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
 import type { Description, UploadRef } from '../flows/types.js'
@@ -814,6 +820,31 @@ export async function renderDeck(projectId: string): Promise<{ ok: true }> {
   await renderDeckPdf(h.ws.dir)
   markDirty(h)
   return { ok: true }
+}
+
+// ── Asset storyboard ─────────────────────────────────────────────────────────
+
+/**
+ * Persist a whole storyboard revision from Studio. The shared model owns all
+ * validation and optimistic revision checks, matching the agent's
+ * `pitch demo storyboard-save` path without starting or billing a model turn.
+ */
+export async function saveStoryboard(
+  projectId: string,
+  update: {
+    revision: number
+    transition?: VideoStoryboard['transition']
+    titleCards?: StoryboardTitleCards
+    scenes: StoryboardScene[]
+  },
+): Promise<VideoStoryboard> {
+  const { h } = await ensureOpen(projectId)
+  const file = path.join(h.ws.dir, 'storyboard.json')
+  const current = JSON.parse(await readFile(file, 'utf8')) as VideoStoryboard
+  const saved = updateVideoStoryboard(current, update)
+  await writeFile(file, `${JSON.stringify(saved, null, 2)}\n`, 'utf8')
+  markDirty(h)
+  return saved
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────

@@ -137,6 +137,10 @@ router.post(
   '/projects/:id/deck/render',
   route('render deck', async req => host.renderDeck(req.params.id)),
 )
+router.post(
+  '/projects/:id/storyboard',
+  route('save storyboard', async req => host.saveStoryboard(req.params.id, req.body)),
+)
 router.delete(
   '/projects/:id/assets',
   route('delete asset', async req => ({
