@@ -179,6 +179,10 @@ export async function addAssets(
       added.push(`uploads/${name}`)
     } catch (err) {
       logger.warn({ err, ws: ws.internal, name }, 'could not stage the asset')
+      throw Object.assign(new Error(`Could not attach "${name}". Please try uploading it again.`), {
+        status: 502,
+        cause: err,
+      })
     }
   }
   if (!added.length) return []

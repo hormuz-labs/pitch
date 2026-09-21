@@ -18,7 +18,7 @@
  *   audio/                    music bed and narration
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import { deckUpload, modeOf, parseUpload } from '../flows/deck/index.js'
@@ -75,17 +75,18 @@ export async function prepareWorkspace(
   for (const upload of uploads) {
     const name = uploadName(upload.name)
     try {
-      await download(upload.url, path.join(ws.dir, 'uploads', name))
+      const source = path.join(ws.dir, 'uploads', name)
+      await download(upload.url, source)
       // A video is also the recording editor's input, at the fixed path it
       // expects. One upload per workspace: drop an earlier one with a
       // different extension so a stale plan cannot outlive it.
       if (isVideo(upload)) {
         const ext = extOf(upload.name)
         const dir = path.join(ws.dir, 'recording')
+        await copyFile(source, path.join(dir, `upload${ext}`))
         for (const f of await readdir(dir).catch(() => [] as string[]))
           if (/^upload\.[a-z0-9]+$/i.test(f) && f !== `upload${ext}`)
             await rm(path.join(dir, f), { force: true })
-        await download(upload.url, path.join(dir, `upload${ext}`))
         for (const stale of ['demo-state.json', 'edit-session.json'])
           await rm(path.join(dir, stale), { force: true })
       }
@@ -94,6 +95,10 @@ export async function prepareWorkspace(
       known.set(upload.url, { ...upload, name })
     } catch (err) {
       logger.warn({ err, url: upload.url, ws: ws.internal }, 'could not stage upload')
+      throw Object.assign(new Error(`Could not attach "${name}". Please try uploading it again.`), {
+        status: 502,
+        cause: err,
+      })
     }
   }
 

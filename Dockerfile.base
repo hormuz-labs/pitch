@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/root/.npm \
     apt-get -qq update \
     && apt-get install -y -qq --no-install-recommends \
-        curl unzip ca-certificates xz-utils \
+        curl unzip ca-certificates xz-utils python3 \
         mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 mesa-va-drivers \
         libxcb-shm0 libx11-xcb1 libx11-6 libxcb1 libxext6 libxrandr2 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 \
         libgtk-3-0 libpangocairo-1.0-0 libpango-1.0-0 libatk1.0-0 libcairo-gobject2 libcairo2 libgdk-pixbuf-2.0-0 libxrender1 \

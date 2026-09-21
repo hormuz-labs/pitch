@@ -21,7 +21,7 @@ export const BLURBS: Record<string, string> = {
   icons: 'offline brand and interface SVGs — search, import selected assets with provenance',
   motion: 'launch films — recon, scaffold, the engine schema, check, review, audio; user exports',
   media: 'ffmpeg, probing any media file, and publishing a finished file to the project',
-  video: 'generated video from a prompt or a still',
+  video: 'edit existing footage — inspect, plan, render, verify — or generate new footage',
   deck: 'slide decks — render and publish',
   pdf: 'PDFs — scaffold, parse, build, and scrape their images',
   demo: 'driving a browser to record a product demo, and narrating it',

@@ -11,11 +11,8 @@
  *   renders/edit-<stamp>.mp4      renders (newest is the preview)
  *   project.json                  { userId, options, uploads }
  */
-import { createWriteStream } from 'node:fs'
-import { mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import * as db from '@saas/db'
 import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
@@ -128,10 +125,7 @@ async function readProjectJson(
 }
 
 export async function download(url: string, dest: string): Promise<void> {
-  await mkdir(path.dirname(dest), { recursive: true })
-  const res = await fetch(url, { redirect: 'follow' })
-  if (!res.ok || !res.body) throw new Error(`Failed to download ${url}: HTTP ${res.status}`)
-  await pipeline(Readable.fromWeb(res.body as any), createWriteStream(dest))
+  await storage.downloadFile(url, dest)
 }
 
 /** The first-turn brief — the old worker's buildEditPrompt, with edit_render as the last step. */
