@@ -96,13 +96,13 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const pack = planEntitlement(planKey)
       const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
 
-      // Determine billing period. Dodo provides these on the subscription object.
-      // Fall back to now / +30d if not present.
-      const periodStart = data.current_period_start
-        ? new Date(data.current_period_start as string)
-        : new Date()
-      const periodEnd = data.current_period_end
-        ? new Date(data.current_period_end as string)
+      // Determine billing period. Dodo provides previous_billing_date / next_billing_date
+      // (or current_period_start / current_period_end). Fall back to now / +30d if not present.
+      const rawStart = data.previous_billing_date || data.current_period_start || data.created_at
+      const rawEnd = data.next_billing_date || data.current_period_end
+      const periodStart = rawStart ? new Date(rawStart as string) : new Date()
+      const periodEnd = rawEnd
+        ? new Date(rawEnd as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
       // Guard: if user already has a different active subscription, cancel the old one
@@ -117,8 +117,8 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
         creditsPerCycle: credits,
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
-        // idempotency key includes period start so renewals re-grant correctly
-        idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+        // Deterministic initial grant key shared with the checkout polling fallback
+        idempotencyKey: `sub_grant:${subscriptionId}:initial`,
       })
 
       logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription activated')
@@ -147,16 +147,18 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
         parseInt(metadata.credits || '0', 10),
       )
 
-      const periodStart = data.current_period_start
-        ? new Date(data.current_period_start as string)
-        : new Date()
-      const periodEnd = data.current_period_end
-        ? new Date(data.current_period_end as string)
+      const rawStart = data.previous_billing_date || data.current_period_start
+      const rawEnd = data.next_billing_date || data.current_period_end
+      const periodStart = rawStart ? new Date(rawStart as string) : new Date()
+      const periodEnd = rawEnd
+        ? new Date(rawEnd as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
       // Guard: if user somehow got a duplicate active sub, cancel the old one
       await cancelOtherActiveSubs(userId, subscriptionId)
 
+      // Renewal cycle key uses YYYY-MM-DD so retries on the same cycle date deduplicate
+      const cycleKey = periodStart.toISOString().slice(0, 10)
       await db.upsertSubscription({
         userId,
         dodoSubscriptionId: subscriptionId,
@@ -165,7 +167,7 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
         creditsPerCycle: credits,
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
-        idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+        idempotencyKey: `sub_grant:${subscriptionId}:${cycleKey}`,
       })
 
       logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription renewed')
