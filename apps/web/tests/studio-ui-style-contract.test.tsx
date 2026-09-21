@@ -405,4 +405,16 @@ describe('Studio UI style contract', () => {
     expect(view).toContain('<MonitorPlay size={15} />')
     expect(view).toContain('Files ({s.assets.length})')
   })
+
+  it('centers and scales play preview buttons in the music picker', () => {
+    expect(css).toMatch(
+      /\.lv-studio \.track-play\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*border-radius:\s*50%;[^}]*width:\s*28px;[^}]*height:\s*28px;/s,
+    )
+    const picker = readFileSync(
+      resolve(process.cwd(), 'apps/web/src/solid/studio/MusicPicker.tsx'),
+      'utf8',
+    )
+    expect(picker).toContain('<Play size={12} fill="currentColor" />')
+    expect(picker).toContain('<Pause size={12} fill="currentColor" />')
+  })
 })
