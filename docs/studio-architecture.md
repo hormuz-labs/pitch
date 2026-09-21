@@ -139,6 +139,7 @@ The four products survive as **host actions** plus a skill, not as flows:
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
+| shared video editing / post-processing | `video_edit_*`, `media_transcribe`, `media_publish` | `video-editing` |
 | generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
 
@@ -154,7 +155,22 @@ product walkthrough, kinetic type, teaser, feature announcement or 3D), then
 only the production references the current task needs. Audio has separate
 music, narration, SFX and mixing modules. A music-only film does not load
 narration guidance; a level edit loads mixing rather than the entire production
-workflow. Recorded demos continue to use their separate `demo-video` skill.
+workflow. `demo-video` owns recording only and references the shared
+`video-editing` skill for post-processing. Generated footage and already rendered
+videos use that same editing skill. Existing event-based recording projects can
+still be maintained with the `recording-edit` reference.
+
+`pitch demo source` muxes a stopped capture with its wall-clock narration/SFX
+into an uncut `recording/source-*.mp4`, with source-time narration beats. It does
+not apply the old automatic cuts, camera, cards or background. The shared editor
+uses `pitch video probe|frames|focus|analyze|validate|render|verify` host actions,
+backed by the server-owned Python/FFmpeg engine in `render/video-editing/`.
+Plans are version-1 JSON in the workspace; final files belong under `renders/`
+and are published separately with `pitch media publish`. PNG evidence and plan
+snapshots return workspace-relative paths so they survive render-tier placement.
+Heavy actions are remotely dispatchable and cancellation kills their process
+group. Transcription uses the existing host whisper.cpp action through
+`pitch media transcribe`; the VM installs or executes none of these dependencies.
 
 The launch skill embeds every available effect ID, grouped by family. Agents can
 select candidates directly, compare notes/frame strips, then load selected source

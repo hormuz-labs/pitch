@@ -46,8 +46,7 @@ export default function demoFlowCommands(): CommandSpec[] {
   commands.push({
     verb: 'record-stop',
     description:
-      'Stop the screen recording and close the browser. Call as soon as the walkthrough (and the ' +
-      'logo capture) is done — before pitch demo render, and always before you finish a turn.',
+      'Stop the screen recording and close the browser as soon as the walkthrough is done. Always stop before finishing a turn. Then read video-editing and prepare pitch demo source for post-recording edits.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
       return text(await hostAction(workspaceOf(ctx), 'demo_record_stop', {}))
@@ -55,9 +54,19 @@ export default function demoFlowCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'source',
+    description:
+      'Prepare a stopped recording for the video-editing skill: mux the original capture with synchronized narration/SFX into a new recording/source-*.mp4 and narration timeline. Preserves the capture timing and composition; no automatic cuts, zooms, cards, music or publication. Returns the source path for pitch video probe/frames and an edit plan.',
+    parameters: Type.Object({}),
+    async execute(_id, _p, _signal, _onUpdate, ctx) {
+      return text(await hostAction(workspaceOf(ctx), 'demo_source', {}))
+    },
+  })
+
+  commands.push({
     verb: 'render',
     description:
-      'Render the recording with the narration/zoom/click events (cursor, zoom, mix, smart trim, ' +
+      'Re-render an existing event-based demo. For new recordings use pitch demo source and the video-editing skill instead. Applies narration/zoom/click events (cursor, zoom, mix, smart trim, ' +
       'title cards, background, browser header) into renders/ and publish it. Returns the video URL. ' +
       'Options override the ones the user chose at creation; omit to keep them. Re-renders reuse ' +
       'the last recording, so a look change (background, header, cards) needs no re-record.',

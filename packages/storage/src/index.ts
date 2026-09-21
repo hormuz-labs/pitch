@@ -17,6 +17,8 @@
  * serves at https://storage.googleapis.com and what MinIO serves
  * path-style, so a saved URL is portable between them.
  */
+import { mkdir, mkdtemp, rename, rm } from 'node:fs/promises'
+import { pipeline } from 'node:stream/promises'
 import fs from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
@@ -115,6 +117,35 @@ export async function uploadBuffer(
     contentType,
     buffer.length,
   )
+}
+
+/**
+ * Stage a public file on the server. Our own URLs use the authenticated driver:
+ * the browser-facing origin (e.g. localhost:9002) need not be reachable from a
+ * worker container. External attachments still download over HTTP.
+ * Only replace the destination after the entire stream has arrived.
+ */
+export async function downloadFile(url: string, dest: string): Promise<void> {
+  await mkdir(path.dirname(dest), { recursive: true })
+  const tempDir = await mkdtemp(path.join(path.dirname(dest), '.download-'))
+  try {
+    const prefix = `${publicUrl}/${bucket}/`
+    let body: Readable
+    if (url.startsWith(prefix)) {
+      const stored = await driver.get(bucket, url.slice(prefix.length))
+      if (!stored) throw new Error('Uploaded file was not found in storage')
+      body = stored
+    } else {
+      const res = await fetch(url, { redirect: 'follow' })
+      if (!res.ok || !res.body) throw new Error(`Failed to download file: HTTP ${res.status}`)
+      body = Readable.fromWeb(res.body as any)
+    }
+    const temp = path.join(tempDir, 'file')
+    await pipeline(body, fs.createWriteStream(temp))
+    await rename(temp, dest)
+  } finally {
+    await rm(tempDir, { recursive: true, force: true })
+  }
 }
 
 /**

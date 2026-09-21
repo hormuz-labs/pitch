@@ -8,6 +8,11 @@ description: Make or edit a product launch film, promo, teaser, feature announce
 Create `shots.js`; the studio plays the compiled `index.html` live. The user
 exports the MP4. Build and check the preview without rendering a review video.
 
+For post-processing an existing video file (an uploaded clip, generated footage,
+or an already exported film), reference the shared
+[video-editing](../video-editing/SKILL.md) skill with its path and the requested
+change. Keep changes to the live `shots.js` composition in this authoring skill.
+
 ## Select one treatment
 
 Read only the matching file. Use the brief, not the runtime, to choose.

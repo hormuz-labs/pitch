@@ -30,6 +30,7 @@ import pdf from './pdf.ts'
 import recording from './recording.ts'
 import recordingFlow from './recording-flow.ts'
 import video from './video.ts'
+import videoEditing from './video-editing.ts'
 
 /** What a module declares: everything about a command except which namespace it is in. */
 export interface CommandSpec {
@@ -85,7 +86,7 @@ const NAMESPACES: Record<string, Namespace> = {
   motion: { modules: [motion] },
   icons: { modules: [icons] },
   media: { modules: [media] },
-  video: { modules: [video] },
+  video: { modules: [video, videoEditing] },
   deck: { modules: [deck] },
   pdf: { modules: [pdf] },
   demo: { modules: [demo, demoFlow] },

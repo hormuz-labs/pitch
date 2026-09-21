@@ -21,9 +21,26 @@ import type { CommandSpec } from './registry.ts'
 export default function mediaCommands(): CommandSpec[] {
   const commands: CommandSpec[] = []
   commands.push({
+    verb: 'transcribe',
+    description:
+      'Transcribe speech in any workspace media using host whisper.cpp. Writes source-time segments and words to JSON; read it and check names against the footage. Does not reset recording state.',
+    parameters: Type.Object({
+      file: Type.String({ description: 'Workspace-relative audio/video file' }),
+      out: Type.String({
+        description: 'Workspace-relative transcript JSON path, e.g. edits/transcript.json',
+      }),
+      lang: Type.Optional(
+        Type.String({ description: 'Language code; omit for automatic detection' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      return text(await hostAction(workspaceOf(ctx), 'media_transcribe', p))
+    },
+  })
+  commands.push({
     verb: 'probe',
     description:
-      "Inspect a workspace media file with ffprobe: duration, container, and every stream's codec, resolution, channels and volume. Call before editing a file — it says which stream is the narration and which the bed.",
+      "Inspect a workspace media file with ffprobe: duration, container, and every stream's codec, resolution, channels and volume. Inspect stream labels and source stems before treating narration and music separately; a mixed track cannot distinguish them.",
     parameters: Type.Object({
       file: Type.String({
         description: 'Workspace-relative path, e.g. "renders/demo-1.mp4" or "recording/upload.mp4"',

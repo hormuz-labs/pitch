@@ -48,7 +48,7 @@ export function buildDemoJobInput(options: DemoJobInputOptions): DemoJobInput {
       }))
     const renderContract = { slideshowTransition: options.storyboard.transition, scenes }
     sections.push(
-      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call pitch demo analyze-slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box. Persistent overlays are already applied by the slideshow and must remain visible for their complete scene.`,
+      `APPROVED STORYBOARD REVISION ${revision} (recording and editing contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call pitch demo analyze-slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Carry the approved camera intentions into the shared video-editing skill after recording; its editor must inspect and frame the actual source. Persistent overlays are already applied by the slideshow and must remain visible for their complete scene.`,
     )
   }
   return {

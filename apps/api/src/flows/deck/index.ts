@@ -69,13 +69,6 @@ async function readDeck(ws: Workspace): Promise<string | null> {
 
 // ── workspace seeding ─────────────────────────────────────────────────────────
 
-async function download(url: string, dest: string): Promise<void> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Could not download ${url} (${res.status})`)
-  await mkdir(path.dirname(dest), { recursive: true })
-  await writeFile(dest, Buffer.from(await res.arrayBuffer()))
-}
-
 /**
  * Download an uploaded PDF/PPTX to input/<name> and run the skill's parser.
  * The parser writes parsed-slides.json (+ input-images/ for preserve+pptx)
@@ -89,7 +82,7 @@ export async function parseUpload(
 ): Promise<{ file: string; slides: number }> {
   const name = path.basename(upload.name).replace(/[^\w.-]+/g, '_') || 'input.pdf'
   const inputPath = path.join(ws.dir, 'input', name)
-  await download(upload.url, inputPath)
+  await storage.downloadFile(upload.url, inputPath)
   return parsePresentation(ws, inputPath, mode)
 }
 

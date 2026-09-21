@@ -1,9 +1,14 @@
 ---
 name: recording-edit
-description: Edit an uploaded, narrated screen recording into a cinematic demo — reconstruct recording/demo-state.json (the zoom and click events that drive the camera) from the narration and the footage with pitch recording probe-video, pitch recording transcribe-video, pitch recording detect-key-moments and pitch recording inspect-frames, emit events with the record_* tools, render with pitch recording edit-render, and iterate by chat. Read this before editing a recording.
+description: Reference for revising an existing event-based recording/demo-state.json project with the recording tools. For all video editing and post-processing, read the shared video-editing skill first; use this reference only when maintaining an existing event-based render.
 ---
 
 # Recording edits
+
+For new edits of any video, including uploaded screen recordings, read
+[video-editing](../video-editing/SKILL.md). It is the shared editing workflow.
+The commands below are only for maintaining a previously authored event-based
+recording render. To post-process its MP4, hand that file to `video-editing`.
 
 You never modify the video. You **emit events** — the same
 `recording/demo-state.json` the live demo agent produces — and the render

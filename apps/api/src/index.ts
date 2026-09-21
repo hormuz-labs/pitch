@@ -44,6 +44,7 @@ const {
 // import. There is one agent and it can reach all of them; a pipeline that
 // fails to load costs the studio that capability, not the whole app.
 await import('./pipelines/media.js')
+await import('./pipelines/video-editing.js')
 await import('./pipelines/video-gen.js')
 await import('./pipelines/elevenlabs.js')
 await import('./flows/launch-video/index.js')
