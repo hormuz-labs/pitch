@@ -294,7 +294,7 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
 // ---------------------------------------------------------------------------
 
 export interface PrivateObjectStore {
-  put(key: string, body: Readable | Buffer, contentType?: string): Promise<void>
+  put(key: string, body: Readable | Buffer, contentType?: string, size?: number): Promise<void>
   get(key: string): Promise<Readable | null>
   head(key: string): Promise<{ size: number } | null>
   remove(key: string): Promise<void>
@@ -312,9 +312,9 @@ export function privateBucket(bucketName: string): PrivateObjectStore {
     return ensured
   }
   return {
-    async put(key, body, contentType = 'application/octet-stream') {
+    async put(key, body, contentType = 'application/octet-stream', size) {
       await ensure()
-      await driver.put(bucketName, key, body, { contentType })
+      await driver.put(bucketName, key, body, { contentType, size })
     },
     get: key => driver.get(bucketName, key),
     head: key => driver.head(bucketName, key),

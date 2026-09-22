@@ -968,9 +968,11 @@ export async function checkpointForRender(
   if (!h) throw new Error(`this worker does not hold ${ws.internal}; nothing to render from`)
   if (!CHECKPOINTS_ENABLED)
     throw new Error('remote renders need workspace checkpoints (STUDIO_WORKSPACE_BUCKET)')
-  // Dirty, or never checkpointed (a workspace adopted from before
-  // checkpoints existed): either way the bucket must hold what is on disk.
-  if (h.dirtyAt || (await rowById(h.id)).workspaceVersion === 0) await checkpointNow(h)
+  // Tool calls can create files that are neither preview nor shelf assets, so
+  // the watcher deliberately emits no event for them. Snapshot every remote
+  // call to guarantee the render tier sees the exact current workspace.
+  if (h.checkpointing) await h.checkpointing
+  await checkpointNow(h)
   const row = await rowById(h.id)
   if (row.workerId !== WORKER_ID || row.workerEpoch !== h.epoch) throw new NotOwnerError(h.id)
   if (row.workspaceVersion === 0) throw new Error(`${ws.internal} could not be checkpointed`)
