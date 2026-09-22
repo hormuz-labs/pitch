@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  buildGeminiTtsBody,
   chunkTypedText,
   clampToFrame,
   computeZoomFraming,
@@ -20,6 +21,20 @@ import {
   parseElementBoxJson,
   parseMimeType,
 } from '../.pi/lib/demo-core'
+
+describe('buildGeminiTtsBody', () => {
+  it('sends only the approved narration as speech text', () => {
+    const body = buildGeminiTtsBody('gemini-tts', 'Charon', 'Popper introduces a system.')
+
+    expect(body.contents).toEqual([
+      { role: 'user', parts: [{ text: 'Popper introduces a system.' }] },
+    ])
+    expect(body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe(
+      'Charon',
+    )
+    expect(JSON.stringify(body)).not.toContain('Speak in')
+  })
+})
 
 describe('parseMimeType', () => {
   it('reads the sample rate from the mime parameters', () => {

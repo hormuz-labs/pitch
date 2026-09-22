@@ -74,6 +74,7 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
     rect: StoryboardRect
   } | null>(null)
   const [previewing, setPreviewing] = createSignal<number | null>(null)
+  const [recording, setRecording] = createSignal(false)
   const [saveState, setSaveState] = createSignal<'saved' | 'dirty' | 'saving' | 'error'>('saved')
   const [saveMessage, setSaveMessage] = createSignal('Saved')
   let preview: HTMLDivElement | undefined
@@ -100,6 +101,10 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
         setSelectedId(incoming.scenes[0]?.id ?? '')
       }
     }
+  })
+
+  createEffect(() => {
+    if (recording() && !props.store.busy) setRecording(false)
   })
 
   onCleanup(() => {
@@ -210,6 +215,7 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
   const recordWithAgent = async () => {
     const saved = await save()
     if (!saved) return
+    setRecording(true)
     await props.store.send(
       `Use the saved asset storyboard revision ${saved.revision} as the exact contract. Record, render, and publish the finished asset demo now.`,
     )
@@ -345,7 +351,15 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
               disabled={hasProblems() || saveState() === 'saving' || props.store.busy}
               onClick={() => void recordWithAgent()}
             >
-              <Play size={14} /> Record with agent
+              {recording() ? (
+                <>
+                  <span class="spinner" /> Recording…
+                </>
+              ) : (
+                <>
+                  <Play size={14} /> Record with agent
+                </>
+              )}
             </button>
           </div>
         </header>
