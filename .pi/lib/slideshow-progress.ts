@@ -69,25 +69,3 @@ export function advanceSlideshowProgress(
     visitedSlides: addUnique(progress.visitedSlides, currentSlide),
   }
 }
-
-export interface ZoomEventLike {
-  type: 'in' | 'out'
-  videoTimeSec: number
-}
-
-/**
- * Keep the camera from getting stuck zoomed in across slideshow pages. When the
- * agent advances a slide while the last zoom event is still `in`, append an
- * automatic `out` event at the current time so the next page is shown full-view.
- */
-export function appendAutoZoomOut<T extends ZoomEventLike>(
-  events: T[],
-  videoTimeSec: number,
-  buildOut: (videoTimeSec: number) => T,
-): T[] {
-  const last = events[events.length - 1]
-  if (last?.type === 'in') {
-    return [...events, buildOut(videoTimeSec)]
-  }
-  return events
-}

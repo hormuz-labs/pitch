@@ -13,12 +13,6 @@
 
 export const FRAME_W = 1920
 export const FRAME_H = 1080
-export const DEFAULT_ZOOM = 1.7
-// Auto-fit bounds: never tighter than MAX (a hard dive lands on empty container gaps),
-// never looser than MIN. FILL = the fraction of the frame the element should occupy.
-export const FIT_FILL = 0.5
-export const FIT_ZOOM_MIN = 1.3
-export const FIT_ZOOM_MAX = 2.2
 // Visible typing is revealed in at most this many chunks so even long text finishes fast.
 export const TYPE_MAX_STEPS = 8
 
@@ -116,29 +110,6 @@ export function parseElementBoxJson(stdout: string): ElementBox | null {
     }
   } catch {}
   return null
-}
-
-/**
- * Camera framing for a zoom-in on an element. Auto-fits the zoom so the element fills
- * ~FIT_FILL of the frame (clamped to [MIN,MAX]); an explicit zoom is capped by the fit so
- * a hard dive never lands on an empty container center. The camera center is clamped to
- * keep the zoom window fully inside the frame (near an edge it pans as far as it can).
- */
-export function computeZoomFraming(
-  box: { w: number; h: number; cx: number; cy: number },
-  explicitZoom?: number,
-): { cx: number; cy: number; zoom: number } {
-  let zoom = explicitZoom ?? DEFAULT_ZOOM
-  if (box.w > 0 && box.h > 0) {
-    const fit = Math.min((FRAME_W * FIT_FILL) / box.w, (FRAME_H * FIT_FILL) / box.h)
-    const fitZoom = Math.max(FIT_ZOOM_MIN, Math.min(FIT_ZOOM_MAX, fit))
-    zoom = explicitZoom == null ? fitZoom : Math.min(explicitZoom, fitZoom)
-  }
-  const halfW = FRAME_W / 2 / zoom
-  const halfH = FRAME_H / 2 / zoom
-  const cx = Math.max(halfW, Math.min(FRAME_W - halfW, box.cx))
-  const cy = Math.max(halfH, Math.min(FRAME_H - halfH, box.cy))
-  return { cx, cy, zoom }
 }
 
 /** Next tab id = one past the highest existing tab id. */

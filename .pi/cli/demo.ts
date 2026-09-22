@@ -3,9 +3,9 @@
  *
  * Toolset for the product-demo agent (.pi/agents/demo-video). The agent
  * drives an ALREADY-OPEN browser (pitch demo record-start attaches playwright-cli and
- * starts the recording) and narrates with Gemini TTS, while these tools emit
- * the zoom/click/audio events into recording/demo-state.json that the render
- * pipeline (cursor-fx, zoom-filter, smart_trim, intro/outro) consumes unchanged.
+ * starts the recording) and schedules narration alongside browser interactions.
+ * Capture events go into recording/demo-state.json; video-editing owns camera
+ * moves and all post-processing after the synchronized source is prepared.
  *
  * Every tool runs on the STUDIO HOST (not inside a sandbox) with the session's
  * cwd = the project workspace, so `recording/` and the playwright-cli session
@@ -24,10 +24,11 @@
  * seconds); voiceName selects the TTS voice; an approved storyboard supplies
  * persistent slide overlays.
  *
- * Skills are handled by pi natively, so there is no load_skill here. The agent
- * has no built-in read tool either, which is why pitch demo read-file exists.
+ * Skills are handled by pi natively. read-file is retained for older callers;
+ * current sessions also have the built-in workspace read tool.
  */
 
+import { randomUUID } from 'node:crypto'
 import { Type } from '@sinclair/typebox'
 import fs from 'fs'
 import path from 'path'
@@ -44,14 +45,12 @@ import {
   pageRectToViewportRect,
   resolveManifestSlides,
   type StoryboardOverlaySceneLike,
-  zoomEventForViewportRect,
 } from '../lib/asset-demo.ts'
 import { projectAudioConfig } from '../lib/audio-config.ts'
 import {
   buildGeminiTtsBody,
   chunkTypedText,
   clampToFrame,
-  computeZoomFraming,
   createWavHeader,
   ELEMENT_BOX_JS,
   type ElementBox,
@@ -62,16 +61,16 @@ import {
   parseElementBoxJson,
   parseMimeType,
 } from '../lib/demo-core.ts'
+import type { DemoState } from '../lib/demo-state.ts'
+import { assertBrowserCommandSucceeded, waitForNarration } from '../lib/demo-timing.ts'
 import {
   chooseNarratedEmphasisSource,
   type PendingNarrationEmphasis,
   resolveNarrationEmphasis,
-  runNarratedEmphasisBeat,
 } from '../lib/narrated-emphasis.ts'
 import { ASSETS_DIR, workspaceOf } from '../lib/paths.ts'
 import {
   advanceSlideshowProgress,
-  appendAutoZoomOut,
   assertCurrentSlideAnalyzed,
   countForwardSlideAdvances,
   createSlideshowProgress,
@@ -140,55 +139,6 @@ function ensureWorkspaceClickSound(base: string): string {
   return targetPath
 }
 
-interface AudioClip {
-  filePath: string
-  absoluteTimestamp: number
-  // Optional: clip the sound to this many seconds (used to match a keyboard sound
-  // to the exact duration of the typing it accompanies).
-  durationSec?: number
-  // What was said (narration only). The renderer turns these into the beats the
-  // studio shows as a scene strip, so the user can select a moment and edit it.
-  text?: string
-}
-
-interface ZoomEvent {
-  type: 'in' | 'out'
-  videoTimeSec: number
-  x?: number
-  y?: number
-  zoom?: number
-}
-
-interface ClickEvent {
-  videoTimeSec: number
-  x: number
-  y: number
-  // True when the target was a button/link (pressable). Drives the hand-pointer
-  // cursor downstream; fields and plain content stay an arrow. See cursor-fx.ts.
-  hand?: boolean
-}
-
-interface TabEvent {
-  tabId: number
-  wallSec: number
-}
-
-interface DemoState {
-  startTime: number
-  endTime?: number
-  voiceName: string
-  audioClips: AudioClip[]
-  zoomEvents: ZoomEvent[]
-  clickEvents: ClickEvent[]
-  annotationEvents: { videoTimeSec: number }[]
-  tabEvents: TabEvent[]
-  tabCreationTimes: Record<number, number>
-  currentTabId: number
-  lastTargetCoords: { ref: string; x: number; y: number; hand?: boolean } | null
-  pageUrl?: string
-  pageUrlEvents: { videoTimeSec: number; url: string }[]
-}
-
 interface DemoConfig {
   startTime: number
   voiceName?: string
@@ -221,6 +171,7 @@ function slideAnalysisPath(base: string) {
   return path.join(base, 'recording', 'slide-analyses.json')
 }
 function readSlideshowProgress(base: string): SlideshowProgress | null {
+  if (fs.existsSync(path.join(base, 'recording', 'browser.json'))) return null
   const progressPath = slideshowProgressPath(base)
   if (!fs.existsSync(progressPath)) return null
   return JSON.parse(fs.readFileSync(progressPath, 'utf-8'))
@@ -245,6 +196,8 @@ function writeSlideAnalyses(base: string, analyses: Record<string, CachedSlideAn
   fs.writeFileSync(slideAnalysisPath(base), JSON.stringify(analyses, null, 2))
 }
 function readConfig(base: string): DemoConfig {
+  const browser = path.join(base, 'recording', 'browser.json')
+  if (fs.existsSync(browser)) return JSON.parse(fs.readFileSync(browser, 'utf8'))
   const p = configPath(base)
   if (!fs.existsSync(p)) {
     throw new Error(`Demo config not found at ${p}. The worker must write it before prompting.`)
@@ -253,13 +206,12 @@ function readConfig(base: string): DemoConfig {
 }
 function readState(base: string): DemoState {
   const p = statePath(base)
-  if (!fs.existsSync(p)) {
+  if (!fs.existsSync(p) || fs.existsSync(path.join(base, 'recording', 'browser.json'))) {
     const cfg = readConfig(base)
     return {
       startTime: cfg.startTime,
       voiceName: cfg.voiceName || 'Charon',
       audioClips: [],
-      zoomEvents: [],
       clickEvents: [],
       annotationEvents: [],
       tabEvents: [{ tabId: 0, wallSec: 0 }],
@@ -272,6 +224,8 @@ function readState(base: string): DemoState {
   return JSON.parse(fs.readFileSync(p, 'utf-8'))
 }
 function writeState(base: string, state: DemoState) {
+  // Rehearsal must never overwrite a previous take's events.
+  if (fs.existsSync(path.join(base, 'recording', 'browser.json'))) return
   fs.writeFileSync(statePath(base), JSON.stringify(state, null, 2))
 }
 
@@ -424,10 +378,10 @@ export function compactPlaywrightCommand(command: string): string {
 // not from the studio process cwd — and they must be scoped to THIS project's
 // playwright-cli session (named after the workspace directory, the name
 // pitch demo record-start attached with) so concurrent projects never share a browser.
-const run = (base: string, command: string) => {
+const run = async (base: string, command: string) => {
   const session = path.basename(base)
   const scopedCommand = scopePlaywrightCommand(session, compactPlaywrightCommand(command))
-  return runAgentCommand(scopedCommand, { cwd: base })
+  return assertBrowserCommandSucceeded(await runAgentCommand(scopedCommand, { cwd: base }))
 }
 
 /**
@@ -455,7 +409,6 @@ interface NarrationEmphasisArgs {
   coordinateSpace?: RectCoordinateSpace
   style?: AnnotationStyle
   color?: string
-  zoom?: number
 }
 
 interface PendingGrounding extends PendingNarrationEmphasis<NarrationEmphasisArgs> {
@@ -515,7 +468,7 @@ async function resolveViewportRect(
 }
 
 /**
- * Start the camera move and draw the callout immediately before the matching
+ * Draw the callout immediately before the matching
  * narration clip is timestamped. Keeping this inside pitch demo narrate makes the
  * visual and spoken statistic one atomic beat instead of sequential agent calls.
  */
@@ -543,8 +496,6 @@ async function applyNarrationEmphasis(
     rect = await resolveViewportRect(base, source.rect!, emphasis.coordinateSpace ?? 'page')
   }
 
-  const zoomTimeSec = (Date.now() - state.startTime) / 1000
-  state.zoomEvents.push(zoomEventForViewportRect(rect, zoomTimeSec, emphasis.zoom))
   state.lastTargetCoords = null
 
   const style = emphasis.style ?? 'pulse'
@@ -564,12 +515,12 @@ async function applyNarrationEmphasis(
   return { rect, style }
 }
 
-// Smoothly scroll a ref into the center of view BEFORE we zoom/click on it, so the
+// Smoothly scroll a ref into view before clicking on it, so the
 // recording shows the page gliding to the element instead of it snapping into place.
 // Playwright awaits the promise returned by eval, so by the time this resolves the
 // animation has finished and a follow-up snapshot reads the element's settled box.
 // Self-skips (returns false) when the element is already comfortably in view, so it's
-// safe to call unconditionally — e.g. right after a pitch demo zoom-in already scrolled it in.
+// safe to call when the element is already visible.
 async function smoothScrollIntoView(base: string, ref: string): Promise<boolean> {
   try {
     const arg = `"${SMOOTH_SCROLL_JS.replace(/(["\\$`])/g, '\\$1')}"`
@@ -580,7 +531,7 @@ async function smoothScrollIntoView(base: string, ref: string): Promise<boolean>
     return scrolled
   } catch (_e) {
     // Fall back to Playwright's own (instant) scroll so the element is at least in view.
-    await run(base, `playwright-cli hover "${ref}"`).catch(() => {})
+    await run(base, `playwright-cli hover "${ref}"`)
     return false
   }
 }
@@ -590,18 +541,37 @@ interface SpeakResult {
   success: boolean
   error?: string
   durationSecs?: number
+  startTime?: number
 }
 
-async function speak(base: string, text: string, state: DemoState): Promise<SpeakResult> {
-  if (!text) return { success: true, durationSecs: 0 }
+async function speak(
+  base: string,
+  text: string,
+  state: DemoState,
+  beforeStart: () => Promise<void>,
+): Promise<SpeakResult> {
+  if (!text.trim()) return { success: false, error: 'Narration text is empty' }
   console.log(`[Narrator]: ${text}`)
   const audioDir = path.join(base, 'recording', 'audio')
   if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true })
-  const clipId = state.audioClips.length
+  const clipId = randomUUID()
   const audioFilePath = path.join(audioDir, `clip_${clipId}.wav`)
-  // Capture the start time BEFORE the TTS API call so the audio is placed at
-  // the moment the narrator *would have spoken*, not after the inference delay.
-  const playStartTime = Date.now()
+  const schedule = async (filePath: string, durationSecs: number): Promise<SpeakResult> => {
+    if (!Number.isFinite(durationSecs) || durationSecs <= 0)
+      throw new Error('Narration has no playable duration')
+    // Generate first, then align speech and actions. Backdating before inference
+    // puts speech over a static page and leaves the actual interaction silent.
+    await beforeStart()
+    const startTime = Date.now()
+    state.audioClips.push({
+      filePath,
+      absoluteTimestamp: startTime,
+      durationSec: durationSecs,
+      text,
+    })
+    state.narrationEndTime = startTime + durationSecs * 1000
+    return { success: true, durationSecs, startTime }
+  }
   try {
     let projectOptions = {}
     try {
@@ -625,13 +595,7 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
       const durationSecs = Number(result.durationSeconds)
       if (!Number.isFinite(durationSecs) || durationSecs <= 0)
         throw new Error('Narration has no playable duration')
-      state.audioClips.push({
-        filePath: path.join(base, out),
-        absoluteTimestamp: playStartTime,
-        text,
-      })
-      await new Promise(resolve => setTimeout(resolve, durationSecs * 1000))
-      return { success: true, durationSecs }
+      return await schedule(path.join(base, out), durationSecs)
     }
     const apiKey = process.env.GEMINI_TTS_API_KEY_2
     if (!apiKey) throw new Error('No Gemini API key found')
@@ -658,9 +622,7 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
     const byteRate = options.sampleRate * options.numChannels * (options.bitsPerSample / 8)
     const durationSecs = rawPcmBuffer.length / byteRate
     fs.writeFileSync(audioFilePath, finalAudioBuffer)
-    state.audioClips.push({ filePath: audioFilePath, absoluteTimestamp: playStartTime, text })
-    if (durationSecs > 0) await new Promise(resolve => setTimeout(resolve, durationSecs * 1000))
-    return { success: true, durationSecs }
+    return await schedule(audioFilePath, durationSecs)
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : String(e)
     console.error(`Error speaking: ${errMsg}`)
@@ -691,14 +653,25 @@ export default function demoCommands(): CommandSpec[] {
       const base = baseDir(ctx)
       return withStateLock(base, async () => {
         const cmd = normalizePlaywrightCommand(args.command)
+        if (
+          /^playwright-cli\s+(?:(?:--raw|-s=\S+|--session=\S+)\s+)*(?:open|close|attach|detach|video-start|video-stop)\b/.test(
+            cmd,
+          )
+        ) {
+          throw new Error(
+            'Use demo browser-open for preparation, record-start once for the take, and record-stop only at its end. Keep this browser open for snapshots and recovery.',
+          )
+        }
         console.log(`[bash]: ${cmd}`)
 
         const state = readState(base)
-        const nowSec = (Date.now() - state.startTime) / 1000
+        let nowSec = (Date.now() - state.startTime) / 1000
         const advanceCount = countForwardSlideAdvances(cmd)
         const slideshowProgress = readSlideshowProgress(base)
         let advancedSlideshowProgress: SlideshowProgress | null = null
         if (advanceCount > 0 && slideshowProgress) {
+          await waitForNarration(state.narrationEndTime, _signal)
+          nowSec = (Date.now() - state.startTime) / 1000
           try {
             advancedSlideshowProgress = advanceSlideshowProgress(slideshowProgress, advanceCount)
           } catch (error) {
@@ -712,14 +685,6 @@ export default function demoCommands(): CommandSpec[] {
               }),
             )
           }
-          // The camera must reset before each page change. Agents sometimes forget
-          // to call pitch demo zoom-out before pressing ArrowRight, which leaves the
-          // video stuck zoomed in on the previous slide's highlight for the rest of
-          // the demo. Inject the missing zoom-out deterministically.
-          state.zoomEvents = appendAutoZoomOut(state.zoomEvents, nowSec, videoTimeSec => ({
-            type: 'out',
-            videoTimeSec,
-          }))
           // Also clear any lingering callouts so old annotations do not persist
           // across the page transition if the agent skipped pitch demo clear-annotations.
           try {
@@ -763,9 +728,7 @@ export default function demoCommands(): CommandSpec[] {
               clickCoords = { x: state.lastTargetCoords.x, y: state.lastTargetCoords.y }
               clickHand = !!state.lastTargetCoords.hand
             } else {
-              // No matching zoom_in target — this click wasn't preceded by a zoom that
-              // already framed (and scrolled to) the element, so it may be below the
-              // fold. Smoothly scroll it into view so the recording shows the page
+              // The target may be below the fold. Scroll it into view so the recording shows the page
               // gliding to it, and so the box lookup below reads its settled position.
               await smoothScrollIntoView(base, ref)
               // Look up the element's true center from the browser so every ref-based
@@ -794,38 +757,7 @@ export default function demoCommands(): CommandSpec[] {
           }
         }
 
-        // If the agent closes the browser themselves, save the video first.
-        if (cmd.trim().startsWith('playwright-cli close')) {
-          try {
-            await run(base, 'playwright-cli video-stop')
-            state.endTime = Date.now()
-          } catch (_e) {}
-        }
-
-        // Only bother detecting a view change when the camera is zoomed — that's the
-        // only case we act on, and the probe costs two extra playwright-cli spawns,
-        // so we skip it otherwise. A "view change" is either a navigation (URL
-        // change) OR a large overlay opening (a modal/drawer/filter panel that
-        // covers a big share of the viewport, usually behind a full-screen backdrop).
-        // Both mean the meaningful content is no longer where the click was, so the
-        // camera must zoom out to reveal it in full instead of staying parked zoomed
-        // on the now-stale click position.
         const isClickCmd = cmd.includes('click ') || cmd.includes('dblclick ')
-        const lastZoom = state.zoomEvents[state.zoomEvents.length - 1]
-        const wasZoomed = lastZoom?.type === 'in'
-        // Signature = current URL + whether a large (>25% of viewport) fixed/absolute
-        // overlay is visible. Compared before vs after the click, so a pre-existing
-        // sticky element that's present in BOTH never triggers a false zoom-out.
-        const VIEW_SIG_JS =
-          "() => { let m=0; for (const e of document.querySelectorAll('div,aside,section,dialog,[role=dialog]')) { const s=getComputedStyle(e); if((s.position!=='fixed'&&s.position!=='absolute')||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)<0.1) continue; const r=e.getBoundingClientRect(); const a=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0))*Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)); if(a>m)m=a; } return location.href+'|'+(m/(innerWidth*innerHeight)>0.25?'1':'0'); }"
-        const getViewSig = async (): Promise<string | null> => {
-          try {
-            const { stdout } = await run(base, `playwright-cli --raw eval "${VIEW_SIG_JS}"`)
-            return stdout.trim()
-          } catch {
-            return null
-          }
-        }
         // Probe the page URL before the command runs. The URL we stamp in the render
         // must flip when the *action* starts (a click/form submit/goto), not after
         // Playwright waits for the full navigation/load to finish — otherwise the
@@ -835,12 +767,6 @@ export default function demoCommands(): CommandSpec[] {
           isClickCmd ||
           /\b(goto|go-back|go-forward|reload|tab-new)\b/.test(cmd) ||
           /\b(fill|press)\b.*(?:--submit|Enter)\b/.test(cmd)
-        const shouldProbeView = isClickCmd && wasZoomed
-        const extractUrlFromSig = (sig: string | null): string | null => {
-          if (!sig) return null
-          const pipe = sig.indexOf('|')
-          return pipe >= 0 ? sig.slice(0, pipe) : null
-        }
         const probeUrl = async (): Promise<string | null> => {
           if (!isPlaywrightCmd) return null
           try {
@@ -854,28 +780,17 @@ export default function demoCommands(): CommandSpec[] {
           }
         }
 
-        let sigBefore: string | null = null
-        let urlBefore: string | null = null
-        if (shouldProbeView) {
-          sigBefore = await getViewSig()
-          urlBefore = extractUrlFromSig(sigBefore)
-        } else if (mayNavigate) {
-          urlBefore = await probeUrl()
-        }
+        const urlBefore = mayNavigate ? await probeUrl() : null
 
         const result = await run(base, cmd)
+        // Element coordinates are only valid for the snapshot/page state that
+        // produced them. Never carry a cached target through a navigation.
+        if (mayNavigate || /\bsnapshot\b/.test(cmd)) state.lastTargetCoords = null
         if (advancedSlideshowProgress) {
           writeSlideshowProgress(base, advancedSlideshowProgress)
         }
 
-        let sigAfter: string | null = null
-        let urlAfter: string | null = null
-        if (shouldProbeView) {
-          sigAfter = await getViewSig()
-          urlAfter = extractUrlFromSig(sigAfter)
-        } else if (mayNavigate) {
-          urlAfter = await probeUrl()
-        }
+        const urlAfter = mayNavigate ? await probeUrl() : null
 
         // Keep the demo state in sync with the current page URL so the final render
         // can stamp a browser header showing where the demo is taking place. Use the
@@ -890,15 +805,6 @@ export default function demoCommands(): CommandSpec[] {
           state.pageUrl = urlAfter
         }
 
-        // If the click changed the view (navigated OR opened a modal/drawer/filter)
-        // while the camera was zoomed, zoom out so the new content shows in full
-        // instead of the camera staying parked on the old click position.
-        if (sigBefore !== null && sigAfter && sigAfter !== sigBefore) {
-          const tSec = (Date.now() - state.startTime) / 1000
-          state.zoomEvents.push({ type: 'out', videoTimeSec: tSec })
-          console.log(`View changed after click (nav or overlay) — auto zoom-out to reveal it.`)
-        }
-
         writeState(base, state)
         return toolResult(JSON.stringify(result))
       })
@@ -908,19 +814,38 @@ export default function demoCommands(): CommandSpec[] {
   commands.push({
     verb: 'narrate',
     description:
-      'Speak one complete thought from the planned explanation, not a caption for each click or camera move. Each call generates a separate clip, so avoid fragmenting sentences. Brief actions may be silent. Pass focus for the specific element being explained; on a PDF/image slide, emphasis synchronizes its callout with speech.',
+      'Schedule one complete spoken thought on the capture timeline and immediately continue interacting while it plays. Pass action to click or type as the line starts, without another model turn. Speech is muxed into demo source; this does not play live browser audio. Subsequent narration and record-stop wait for the line to finish.',
     parameters: Type.Object({
       text: Type.String({
+        minLength: 1,
         description:
           'A complete spoken thought explaining intent or consequence; preserve approved script content',
       }),
+      action: Type.Optional(
+        Type.Union(
+          [
+            Type.Object({
+              command: Type.String({
+                description:
+                  'One browser command using a fresh ref, e.g. click e53. Verify the resulting state afterward.',
+              }),
+            }),
+            Type.Object({
+              target: Type.String(),
+              text: Type.String(),
+              submit: Type.Optional(Type.Boolean()),
+            }),
+          ],
+          {
+            description:
+              'Execute this click/navigation or visible field entry as speech begins. Only use refs from the current snapshot.',
+          },
+        ),
+      ),
       focus: Type.Optional(
         Type.String({
           description:
-            "Optional element ref (e.g. 'e53') for the thing this line is about. The page smoothly scrolls it " +
-            'to the center of view before the narration starts. ALWAYS pass this when talking about a specific ' +
-            'on-page element — especially one below the current view — so the subject is centered and the ' +
-            'scroll-to-it is shown. No-ops if it is already comfortably centered.',
+            "Optional current ref (e.g. 'e53') for an offscreen subject. Smoothly scrolls it into view before speech; omit when the subject is already visible.",
         }),
       ),
       emphasis: Type.Optional(
@@ -942,7 +867,6 @@ export default function demoCommands(): CommandSpec[] {
             ),
             style: Type.Optional(AnnotationStyleSchema),
             color: Type.Optional(Type.String()),
-            zoom: Type.Optional(Type.Number({ minimum: 1.2, maximum: 2.5 })),
           },
           {
             description:
@@ -953,8 +877,12 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(base, async () => {
+      if (fs.existsSync(path.join(base, 'recording', 'browser.json')) || readState(base).endTime) {
+        throw new Error('Start the continuous take with demo record-start before narrating.')
+      }
+      const output = await withStateLock(base, async () => {
         const state = readState(base)
+        await waitForNarration(state.narrationEndTime, _signal)
         const slideshowProgress = readSlideshowProgress(base)
         if (slideshowProgress) {
           try {
@@ -972,7 +900,7 @@ export default function demoCommands(): CommandSpec[] {
         // Bring the subject into the center of view (and show the scroll) before
         // speaking, so the narration always lands on something centered & visible.
         if (args.focus) {
-          await smoothScrollIntoView(base, args.focus).catch(() => {})
+          await smoothScrollIntoView(base, args.focus)
         }
         const pendingGrounding = readPendingGrounding(base)
         const emphasis = resolveNarrationEmphasis(
@@ -984,39 +912,56 @@ export default function demoCommands(): CommandSpec[] {
         // Clear it before doing work so TTS retries cannot apply stale geometry later.
         if (pendingGrounding) clearPendingGrounding(base)
 
-        let emphasisResult: { rect: ViewportRect; style: AnnotationStyle } | null = null
-        let emphasisError: string | null = null
-        let result: SpeakResult
-        if (emphasis) {
-          const beat = await runNarratedEmphasisBeat({
-            emphasize: () => applyNarrationEmphasis(base, state, emphasis),
-            narrate: () => speak(base, args.text, state),
-          })
-          emphasisResult = beat.emphasis
-          emphasisError = beat.emphasisError
-          result = beat.narration
-        } else {
-          result = await speak(base, args.text, state)
-        }
+        let emphasisNote = ''
+        const result = await speak(base, args.text, state, async () => {
+          _signal?.throwIfAborted()
+          if (!emphasis) return
+          try {
+            const applied = await applyNarrationEmphasis(base, state, emphasis)
+            emphasisNote = `; emphasis=${applied.style}`
+          } catch (error) {
+            emphasisNote = `; emphasis failed: ${error instanceof Error ? error.message : String(error)}`
+          }
+        })
         writeState(base, state)
         if (result.success) {
           const currentProgress = readSlideshowProgress(base)
           if (currentProgress) {
             writeSlideshowProgress(base, markCurrentSlideNarrated(currentProgress))
           }
-          const emphasisNote = emphasisResult
-            ? `; emphasis=${emphasisResult.style}`
-            : emphasisError
-              ? `; emphasis failed: ${emphasisError}`
-              : ''
           return toolResult(
-            `spoken: ${args.text} (${result.durationSecs!.toFixed(1)}s${emphasisNote})`,
+            JSON.stringify({
+              status: 'narration_started',
+              text: args.text,
+              durationSeconds: result.durationSecs,
+              startTime: result.startTime,
+              endTime: state.narrationEndTime,
+              note: `Continue the demonstrated action now; speech is active on the source timeline${emphasisNote}.`,
+            }),
           )
         }
-        return toolResult(
-          `TTS FAILED — audio was NOT recorded. Error: ${result.error}. Continue without narration for this clip; retry pitch demo narrate on the next step.`,
+        throw new Error(
+          `TTS failed; no narration was scheduled: ${result.error}. Keep the take open and recover this beat.`,
         )
       })
+      if (args.action && output.content[0]?.text.includes('"narration_started"')) {
+        const verb = 'command' in args.action ? 'bash' : 'fill-field'
+        const action = commands.find(command => command.verb === verb)!
+        const result = await action.execute(_id, args.action, _signal, _onUpdate, ctx)
+        return toolResult(`${output.content[0].text}\nAction result: ${JSON.stringify(result)}`)
+      }
+      return output
+    },
+  })
+
+  commands.push({
+    verb: 'narration-wait',
+    description:
+      'Hold the current view until its scheduled speech finishes. Use before clearing a slide callout or leaving its subject; clicks and typing that illustrate the line should happen before this. record-stop waits automatically.',
+    parameters: Type.Object({}),
+    async execute(_id, _args, signal, _onUpdate, ctx) {
+      await waitForNarration(readState(baseDir(ctx)).narrationEndTime, signal)
+      return toolResult('Narration finished. Continue to the next beat.')
     },
   })
 
@@ -1025,7 +970,7 @@ export default function demoCommands(): CommandSpec[] {
     description:
       'Type text into a form field with visible character-by-character typing. ALWAYS ' +
       "use this for text inputs (never pitch demo bash 'playwright-cli fill') so the viewer " +
-      'sees each value being entered. Zoom in on the field/form first so it is in view.',
+      'sees each value being entered. Keep the field visible; camera zooms belong to post-processing.',
     parameters: Type.Object({
       target: Type.String({
         description: "Field ref from snapshot (e.g. 'e53'). Do NOT include [ref=...].",
@@ -1044,12 +989,12 @@ export default function demoCommands(): CommandSpec[] {
         const shEsc = (s: string) => s.replace(/(["\\$`])/g, '\\$1')
         const clickSound = ensureWorkspaceClickSound(base)
 
-        // Cursor target: reuse the coords from the preceding zoom_in if they're for
+        // Cursor target: reuse the coords from the preceding interaction if they're for
         // this field (avoids an extra lookup call); otherwise ask the browser for
         // the field's true center instead of parking the cursor in the screen center.
         let cx = 960
         let cy = 540
-        if (state.lastTargetCoords?.ref === target) {
+        if (state.lastTargetCoords && state.lastTargetCoords.ref === target) {
           cx = state.lastTargetCoords.x
           cy = state.lastTargetCoords.y
         } else {
@@ -1071,127 +1016,18 @@ export default function demoCommands(): CommandSpec[] {
           hand: false,
         })
         state.audioClips.push({ filePath: clickSound, absoluteTimestamp: ts })
-        await run(base, `playwright-cli fill "${target}" ""`).catch(() => {})
-        await run(base, `playwright-cli click "${target}"`).catch(() => {})
+        await run(base, `playwright-cli fill "${target}" ""`)
+        await run(base, `playwright-cli click "${target}"`)
 
         // Reveal the value progressively, time-bounded: short fields type char by
         // char; long ones reveal in chunks, capped so even long text finishes quickly.
         for (const chunk of chunkTypedText(text)) {
-          await run(base, `playwright-cli type "${shEsc(chunk)}"`).catch(() => {})
+          await run(base, `playwright-cli type "${shEsc(chunk)}"`)
         }
-        if (args.submit) await run(base, `playwright-cli press Enter`).catch(() => {})
+        if (args.submit) await run(base, `playwright-cli press Enter`)
 
         writeState(base, state)
         return toolResult(`typed "${text}" into ${target}${args.submit ? ' and submitted' : ''}`)
-      })
-    },
-  })
-
-  commands.push({
-    verb: 'zoom-in',
-    description:
-      'Move the camera onto an element (ref from the snapshot). While already zoomed, calling it on a nearby element pans smoothly — do not zoom out between adjacent fields.',
-    parameters: Type.Object({
-      target: Type.String({
-        description: "Element ref from snapshot (e.g. 'e53'). Do NOT include [ref=...].",
-      }),
-      zoom: Type.Optional(
-        Type.Number({
-          minimum: 1.2,
-          maximum: 2.5,
-          description: 'Zoom level (1.2-2.5). Prefer ~1.7; keep it subtle, not a hard dive.',
-        }),
-      ),
-    }),
-    async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      const base = baseDir(ctx)
-      return withStateLock(base, async () => {
-        const target = args.target
-        const state = readState(base)
-        let cx = 960,
-          cy = 540
-        // Default zoom; refined to auto-fit the element's bounding box below.
-        let zoom = args.zoom || 1.7
-        // Whether we actually located the element's box. If not, we must NOT zoom
-        // to the (960,540) default — that lands the camera "out of place" on empty
-        // center space. We leave the camera put and tell the agent to re-snapshot.
-        let boxFound = false
-        try {
-          // Smoothly scroll the element into view first so (a) the viewer sees the
-          // page glide to it instead of it snapping into place, and (b) its bounding
-          // box reflects where it will actually be when clicked. Box coords are
-          // viewport-relative and NOT clamped, so an element below the fold would
-          // otherwise report an off-screen position (e.g. y > 1080) and the
-          // camera/cursor would land on empty space. No-ops if already in view.
-          await smoothScrollIntoView(base, target)
-          // Read the box from the browser; if the element is still settling (just
-          // scrolled in), give it a moment and try once more before giving up.
-          let box = await getElementBox(base, target)
-          if (!box) {
-            await new Promise(r => setTimeout(r, 300))
-            box = await getElementBox(base, target)
-          }
-          if (box) {
-            boxFound = true
-            const { cx: rawCx, cy: rawCy, ax, ay } = box
-            // Auto-fit zoom + edge-safe camera clamp — see computeZoomFraming. Small
-            // controls get a tighter zoom, large cards a looser one; an explicit zoom
-            // is capped by the fit so a hard dive never lands on an empty gap.
-            const framing = computeZoomFraming(box, args.zoom)
-            cx = framing.cx
-            cy = framing.cy
-            zoom = framing.zoom
-            console.log(
-              `zoom_in target=${target} -> cx=${cx.toFixed(0)} cy=${cy.toFixed(0)} raw=(${rawCx.toFixed(0)},${rawCy.toFixed(0)}) zoom=${zoom.toFixed(2)}`,
-            )
-            // Cursor/click anchor is the ELEMENT (ax,ay), not the clamped camera
-            // center — near an edge the camera frames a bit off the element, but the
-            // cursor must still land ON it. (ax,ay) equals the center for normal
-            // controls, or the title/text for a large card so the cursor isn't parked
-            // in an empty container gap. The camera above still frames (rawCx,rawCy).
-            const anchor = clampToFrame(ax, ay)
-            state.lastTargetCoords = { ref: target, x: anchor.x, y: anchor.y, hand: box.hand }
-          } else {
-            console.warn(`zoom_in target=${target} - no bounding box found`)
-          }
-        } catch (_e) {
-          console.warn(`zoom_in target=${target} - box lookup failed`)
-        }
-        if (!boxFound) {
-          // Could not locate the element's box — do NOT record a zoom to the
-          // (960,540) default, which parks the camera "out of place" on empty
-          // center. Leave the camera where it is and tell the agent to recover.
-          console.warn(`zoom_in target=${target} - no box; skipping zoom (camera held)`)
-          writeState(base, state)
-          return toolResult(
-            JSON.stringify({
-              status: 'target_not_found',
-              target,
-              hint: 'That element had no visible box (off-screen, zero-size, or a stale ref). Take a fresh snapshot and zoom_in on a currently-visible ref — do not reuse old refs.',
-            }),
-          )
-        }
-        const videoTimeSec = (Date.now() - state.startTime) / 1000
-        state.zoomEvents.push({ type: 'in', videoTimeSec, x: cx, y: cy, zoom })
-        await new Promise(r => setTimeout(r, 250))
-        writeState(base, state)
-        return toolResult(JSON.stringify({ status: 'zoomed_in', videoTimeSec, x: cx, y: cy, zoom }))
-      })
-    },
-  })
-
-  commands.push({
-    verb: 'zoom-out',
-    description: 'Zoom the camera back out to the full view.',
-    parameters: Type.Object({}),
-    async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
-      const base = baseDir(ctx)
-      return withStateLock(base, async () => {
-        const state = readState(base)
-        const videoTimeSec = (Date.now() - state.startTime) / 1000
-        state.zoomEvents.push({ type: 'out', videoTimeSec })
-        writeState(base, state)
-        return toolResult(JSON.stringify({ status: 'zoomed_out', videoTimeSec }))
       })
     },
   })
@@ -1221,9 +1057,9 @@ export default function demoCommands(): CommandSpec[] {
       'Build a full-screen explanatory slideshow from every prepared PDF page/image in manifest order. OCR regions become labelled hotspot refs for precise fallback emphasis.',
     parameters: Type.Object({
       transition: Type.Optional(
-        Type.Union([Type.Literal('fade'), Type.Literal('slide'), Type.Literal('zoom')], {
+        Type.Union([Type.Literal('fade'), Type.Literal('slide')], {
           description:
-            'Page transition. Use fade for calm material, slide for steps, zoom for reveals.',
+            'Page navigation transition: fade or slide. Camera effects belong to post-processing.',
         }),
       ),
     }),
@@ -1246,8 +1082,10 @@ export default function demoCommands(): CommandSpec[] {
           )
         }
         await activeSlideshowServer?.close()
+        const requestedTransition = reviewedStoryboard?.transition ?? args.transition ?? 'fade'
+        const transition = requestedTransition === 'zoom' ? 'fade' : requestedTransition
         activeSlideshowServer = await startSlideshowServer(slides, {
-          transition: reviewedStoryboard?.transition ?? args.transition,
+          transition,
         })
         const outputPath = path.join(base, 'recording', 'slideshow.html')
         fs.writeFileSync(outputPath, activeSlideshowServer.html)
@@ -1262,7 +1100,13 @@ export default function demoCommands(): CommandSpec[] {
             slideCount: slides.length,
             regionCount: slides.reduce((count, slide) => count + (slide.regions?.length ?? 0), 0),
             overlayCount: slides.reduce((count, slide) => count + (slide.overlays?.length ?? 0), 0),
-            transition: reviewedStoryboard?.transition ?? args.transition ?? 'fade',
+            transition,
+            ...(requestedTransition === 'zoom'
+              ? {
+                  editingNote:
+                    'The storyboard requested a zoom transition. Capture uses fade; carry the zoom intention to video-editing.',
+                }
+              : {}),
             next: `Open ${url}, then call pitch demo analyze-slide on the current rendered page before narration.`,
           }),
         )
@@ -1278,7 +1122,8 @@ export default function demoCommands(): CommandSpec[] {
 
   commands.push({
     verb: 'clear-annotations',
-    description: 'Remove all explanatory callouts before advancing or highlighting another point.',
+    description:
+      'Remove transient callouts between points on the same page after narration-wait. Slideshow page advance clears these automatically.',
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)

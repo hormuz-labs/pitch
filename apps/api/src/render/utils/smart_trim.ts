@@ -617,7 +617,7 @@ export async function processVideo(
   }
 
   // Protect a window around each click so the cursor's glide-in AND the click stay
-  // visible. The lead must cover the cursor glide (see GLIDE in cursor-fx.ts ~0.75s)
+  // visible. The lead retains the cursor approach before the click
   // so the motion isn't trimmed away, leaving the cursor to just "appear".
   const clickProtected: Segment[] = clickEvents.map(c => ({
     start: Math.max(0, c.videoTimeSec - 1.0),

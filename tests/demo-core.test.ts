@@ -3,7 +3,7 @@
  *
  * These import the real functions DIRECTLY — no @opencode-ai/plugin stub, no module
  * alias, no mocked playwright-cli. Every case exercises a genuine decision the demo
- * tools delegate to (zoom framing, the --raw double-encoding parse, ref parsing,
+ * tools delegate to (the --raw double-encoding parse, ref parsing,
  * typing chunks, WAV/mime). If one of these breaks, a real render breaks.
  */
 import { describe, expect, it } from 'vitest'
@@ -11,11 +11,7 @@ import {
   buildGeminiTtsBody,
   chunkTypedText,
   clampToFrame,
-  computeZoomFraming,
   createWavHeader,
-  DEFAULT_ZOOM,
-  FIT_ZOOM_MAX,
-  FIT_ZOOM_MIN,
   nextTabId,
   parseClickRef,
   parseElementBoxJson,
@@ -119,36 +115,6 @@ describe('parseElementBoxJson', () => {
     expect(parseElementBoxJson('not json')).toBeNull()
     expect(parseElementBoxJson('"just a string"')).toBeNull()
     expect(parseElementBoxJson(JSON.stringify({ cx: 'x', cy: 1, w: 1, h: 1 }))).toBeNull()
-  })
-})
-
-describe('computeZoomFraming', () => {
-  it('auto-fits a tighter zoom for a small element than for a large one', () => {
-    const small = computeZoomFraming({ w: 40, h: 20, cx: 960, cy: 540 }).zoom
-    const large = computeZoomFraming({ w: 1200, h: 700, cx: 960, cy: 540 }).zoom
-    expect(small).toBeGreaterThan(large)
-    expect(small).toBeLessThanOrEqual(FIT_ZOOM_MAX)
-    expect(large).toBeGreaterThanOrEqual(FIT_ZOOM_MIN)
-  })
-
-  it('caps an explicit zoom by the fit (never tighter than framing allows)', () => {
-    // Large element: fit is loose, so an explicit 2.5 is capped down.
-    expect(computeZoomFraming({ w: 1200, h: 700, cx: 960, cy: 540 }, 2.5).zoom).toBeLessThan(2.5)
-    // Small element: fit is large, so an explicit (smaller) zoom is honored.
-    expect(computeZoomFraming({ w: 40, h: 20, cx: 960, cy: 540 }, 1.5).zoom).toBeCloseTo(1.5, 5)
-  })
-
-  it('keeps the zoom window inside the frame near an edge', () => {
-    const { cx, cy, zoom } = computeZoomFraming({ w: 60, h: 30, cx: 1900, cy: 1060 }, 2)
-    const halfW = 960 / zoom
-    const halfH = 540 / zoom
-    expect(cx).toBeLessThanOrEqual(1920 - halfW + 1e-6)
-    expect(cy).toBeLessThanOrEqual(1080 - halfH + 1e-6)
-    expect(cx).toBeGreaterThanOrEqual(halfW - 1e-6)
-  })
-
-  it('uses the default zoom for a degenerate (zero-size) box', () => {
-    expect(computeZoomFraming({ w: 0, h: 0, cx: 960, cy: 540 }).zoom).toBe(DEFAULT_ZOOM)
   })
 })
 

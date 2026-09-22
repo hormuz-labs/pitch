@@ -1,4 +1,3 @@
-import { computeZoomFraming } from './demo-core'
 import type { Slide, SlideRegion } from './slideshow'
 import type { ViewportRect } from './visual-grounding'
 
@@ -93,25 +92,4 @@ export function applyStoryboardToSlides(
       }
       return { ...slide, overlays: scene.overlays ?? [] }
     })
-}
-
-export function zoomEventForViewportRect(
-  rect: ViewportRect,
-  videoTimeSec: number,
-  explicitZoom?: number,
-) {
-  const box = {
-    w: (rect.widthPct / 100) * 1920,
-    h: (rect.heightPct / 100) * 1080,
-    cx: ((rect.leftPct + rect.widthPct / 2) / 100) * 1920,
-    cy: ((rect.topPct + rect.heightPct / 2) / 100) * 1080,
-  }
-  const framing = computeZoomFraming(box, explicitZoom)
-  return {
-    type: 'in' as const,
-    videoTimeSec,
-    x: framing.cx,
-    y: framing.cy,
-    zoom: framing.zoom,
-  }
 }

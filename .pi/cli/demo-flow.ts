@@ -17,6 +17,24 @@ import type { CommandSpec } from './registry.ts'
 export default function demoFlowCommands(): CommandSpec[] {
   const commands: CommandSpec[] = []
   commands.push({
+    verb: 'browser-open',
+    description:
+      'Prepare the real browser WITHOUT recording. Inspect navigation and verify the workflow with demo bash, return to the starting view, then record-start once in this same browser. Never use short recordings as inspection sessions.',
+    parameters: Type.Object({ url: Type.Optional(Type.String()) }),
+    async execute(_id, p, _signal, _onUpdate, ctx) {
+      return text(await hostAction(workspaceOf(ctx), 'demo_browser_open', { url: p.url }))
+    },
+  })
+  commands.push({
+    verb: 'browser-close',
+    description:
+      'Close a preparation-only browser when ending a turn without recording. Preserves existing takes. For an active take use record-stop only at the end.',
+    parameters: Type.Object({}),
+    async execute(_id, _p, _signal, _onUpdate, ctx) {
+      return text(await hostAction(workspaceOf(ctx), 'demo_browser_close', {}))
+    },
+  })
+  commands.push({
     verb: 'prepare-assets',
     description:
       "Turn the project's uploaded PDFs/images into the slideshow manifest (page images, text, OCR " +
@@ -31,22 +49,37 @@ export default function demoFlowCommands(): CommandSpec[] {
   commands.push({
     verb: 'record-start',
     description:
-      "Open the user's browser profile, attach playwright-cli and start the screen recording. " +
+      'Start ONE continuous take in the prepared browser (or open it if needed). ' +
       'Optionally navigates to `url` first. Returns the session name, the start time and, when a ' +
-      'storyboard exists, the approved render contract. After this, drive the page with pitch demo bash / ' +
-      'pitch demo narrate / pitch demo zoom-in / pitch demo fill-field. Never call `playwright-cli open` yourself.',
+      'storyboard exists, the approved recording contract. Keep recording through navigation, inspection and recoverable errors; narrate --action drives while speaking. Use demo bash / narrate / fill-field. Never call `playwright-cli open` yourself.',
     parameters: Type.Object({
-      url: Type.Optional(Type.String({ description: 'Page to open once recording has started' })),
+      url: Type.Optional(
+        Type.String({
+          description:
+            'Starting page to open before recording begins; omit to keep the prepared view',
+        }),
+      ),
+      retakeReason: Type.Optional(
+        Type.String({
+          description:
+            'For a replacement take only: the specific missing action or capture failure. Inspect the saved source and correct the route first; use browser-open for exploration.',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(workspaceOf(ctx), 'demo_record_start', { url: p.url }))
+      return text(
+        await hostAction(workspaceOf(ctx), 'demo_record_start', {
+          url: p.url,
+          retakeReason: p.retakeReason,
+        }),
+      )
     },
   })
 
   commands.push({
     verb: 'record-stop',
     description:
-      'Stop the screen recording and close the browser as soon as the walkthrough is done. Always stop before finishing a turn. Then read video-editing and prepare pitch demo source for post-recording edits.',
+      'End the continuous take after the final demonstrated result. Waits for the final narration to finish, then closes the browser. Do not use between steps or for debugging. Always stop before finishing a turn. Then read video-editing and prepare demo source.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
       return text(await hostAction(workspaceOf(ctx), 'demo_record_stop', {}))
@@ -60,54 +93,6 @@ export default function demoFlowCommands(): CommandSpec[] {
     parameters: Type.Object({}),
     async execute(_id, _p, _signal, _onUpdate, ctx) {
       return text(await hostAction(workspaceOf(ctx), 'demo_source', {}))
-    },
-  })
-
-  commands.push({
-    verb: 'render',
-    description:
-      'Re-render an existing event-based demo. For new recordings use pitch demo source and the video-editing skill instead. Applies narration/zoom/click events (cursor, zoom, mix, smart trim, ' +
-      'title cards, background, browser header) into renders/ and publish it. Returns the video URL. ' +
-      'Options override the ones the user chose at creation; omit to keep them. Re-renders reuse ' +
-      'the last recording, so a look change (background, header, cards) needs no re-record.',
-    parameters: Type.Object({
-      background: Type.Optional(
-        Type.String({ description: 'Background asset id (e.g. "gradient-1") or "none"' }),
-      ),
-      shape: Type.Optional(
-        Type.String({ description: 'Corner shape of the inset video: rounded | square | pill' }),
-      ),
-      inset: Type.Optional(
-        Type.Number({
-          description: 'Fraction of the frame the video occupies on a background (0.5–1)',
-        }),
-      ),
-      browserHeader: Type.Optional(
-        Type.Union([Type.Literal('light'), Type.Literal('dark'), Type.Literal('none')], {
-          description: 'Safari-style browser chrome over the recording',
-        }),
-      ),
-      productName: Type.Optional(
-        Type.String({ description: 'Name on the intro/outro cards (defaults to the host)' }),
-      ),
-      fps: Type.Optional(
-        Type.Union([Type.Literal(30), Type.Literal(60)], {
-          description:
-            "Output frame rate. Default: the recording's own (screen recordings are usually 30). 60 makes the camera moves and the cards silky; the source frames are repeated.",
-        }),
-      ),
-    }),
-    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(
-        await hostAction(workspaceOf(ctx), 'demo_render', {
-          background: p.background,
-          shape: p.shape,
-          inset: p.inset,
-          browserHeader: p.browserHeader,
-          productName: p.productName,
-          fps: p.fps,
-        }),
-      )
     },
   })
 
@@ -134,8 +119,7 @@ export default function demoFlowCommands(): CommandSpec[] {
       json: Type.Optional(
         Type.String({
           description:
-            'The complete storyboard JSON to write to storyboard.json before validating (you have no ' +
-            'file tools — pass the whole edited document here). Omit to validate the file as it is.',
+            'Complete storyboard JSON to write before validating. Omit to validate the document already saved in the workspace.',
         }),
       ),
       summary: Type.Optional(Type.String({ description: 'One line describing what changed' })),

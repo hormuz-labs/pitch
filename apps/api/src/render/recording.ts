@@ -21,6 +21,7 @@ import * as db from '@saas/db'
 import type { Logger, VideoStoryboard } from '@saas/shared'
 import { createLogger } from '@saas/shared'
 import { downloadStorageState, uploadStorageState } from '@saas/storage'
+import { assertBrowserCommandSucceeded } from '../../../../.pi/lib/demo-timing.ts'
 import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
@@ -48,6 +49,8 @@ export interface StartRecordingInput {
   /** Stable public stream id, normally the owning project id. */
   streamId: string
   signal?: AbortSignal
+  /** Open a rehearsal browser; startCapture begins the take in this same session. */
+  deferCapture?: boolean
 }
 
 export interface RecordingHandle {
@@ -63,6 +66,10 @@ export interface RecordingHandle {
   session: string
   streamId: string
   cdpUrl: string
+  recording: boolean
+  startCapture: (
+    config?: Pick<StartRecordingInput, 'voice' | 'assetsManifestPath' | 'storyboard'>,
+  ) => Promise<void>
   /** Stops the screencast, closes the playwright session and its browser. */
   stop: () => Promise<void>
 }
@@ -151,21 +158,6 @@ export async function startRecording(
   const videoDir = recDir
   const webmPath = path.join(videoDir, 'demo.webm')
 
-  // Clean up any old demo.webm files in the workspace and videoDir before starting
-  for (const dirToClean of [workspaceDir, videoDir]) {
-    try {
-      if (fs.existsSync(dirToClean)) {
-        for (const f of fs.readdirSync(dirToClean)) {
-          if (f.match(/^demo(?:-\d+)?\.webm$/)) {
-            try {
-              fs.unlinkSync(path.join(dirToClean, f))
-            } catch (_e) {}
-          }
-        }
-      }
-    } catch {}
-  }
-
   // Close any pre-existing session under this name to ensure a fresh session
   await execAsync(`${cli} close`, { cwd: workspaceDir }).catch(() => {})
 
@@ -247,51 +239,70 @@ export async function startRecording(
 
     // Resize browser viewport to match recording size (fixes grey bar on production)
     logger.info('Resizing browser viewport to 1920x1080...')
-    const resizeResult = await execAsync(`${cli} resize 1920 1080`, { cwd: workspaceDir })
+    const resizeResult = assertBrowserCommandSucceeded(
+      await execAsync(`${cli} resize 1920 1080`, { cwd: workspaceDir }),
+    )
     logger.info(
       { stdout: resizeResult.stdout, stderr: resizeResult.stderr },
       'playwright-cli resize output',
     )
 
-    logger.info({ webmPath }, 'Starting video recording...')
-    // Remember when this project's recording began so the post-run WebM sweep
-    // can ignore stale chunks left behind by earlier (failed) attempts.
-    const startedAtMs = Date.now()
-    const videoStartResult = await execAsync(`${cli} video-start "${webmPath}" --size=1920x1080`, {
-      cwd: workspaceDir,
-    })
-    logger.info(
-      { stdout: videoStartResult.stdout, stderr: videoStartResult.stderr },
-      'playwright-cli video-start output',
-    )
-
-    const startTime = Date.now()
-    logger.info(`startTime captured: ${new Date(startTime).toISOString()}`)
-
-    // Write config so the demo-generator tools know the startTime (event clock
-    // anchor) and which TTS voice to use. Skills are NOT bound here anymore —
-    // the agent reads them itself (they are listed in its system prompt).
-    const configPath = path.join(recDir, 'demo-config.json')
-    const voiceName = (input.voice || 'Charon').toString().replace(/\.mp3$/i, '')
-    fs.writeFileSync(
-      configPath,
-      JSON.stringify(
-        {
-          startTime,
-          voiceName,
-          assetsManifestPath: input.assetsManifestPath,
-          storyboard: input.storyboard,
-        },
-        null,
-        2,
-      ),
-    )
+    let startedAtMs = 0
+    let startTime = 0
+    let recording = false
+    const startCapture: RecordingHandle['startCapture'] = async config => {
+      if (recording) return
+      Object.assign(input, config)
+      // Keep the previous take and its events. Audio clips have unique names and
+      // stay at their original paths, so archived state still resolves them.
+      if (fs.existsSync(webmPath)) {
+        const archive = path.join(recDir, 'takes', `${Date.now()}`)
+        fs.mkdirSync(archive, { recursive: true })
+        for (const name of ['demo.webm', 'demo-state.json', 'demo-config.json']) {
+          const file = path.join(recDir, name)
+          if (fs.existsSync(file)) fs.copyFileSync(file, path.join(archive, name))
+        }
+        fs.unlinkSync(webmPath)
+      }
+      logger.info({ webmPath }, 'Starting video recording...')
+      startedAtMs = Date.now()
+      const result = assertBrowserCommandSucceeded(
+        await execAsync(`${cli} video-start "${webmPath}" --size=1920x1080`, { cwd: workspaceDir }),
+      )
+      logger.info(result, 'playwright-cli video-start output')
+      startTime = Date.now()
+      recording = true
+      for (const name of [
+        'demo-state.json',
+        'slideshow-progress.json',
+        'pending-grounding.json',
+        'browser.json',
+      ]) {
+        fs.rmSync(path.join(recDir, name), { force: true })
+      }
+      fs.writeFileSync(
+        path.join(recDir, 'demo-config.json'),
+        JSON.stringify(
+          {
+            startTime,
+            voiceName: (input.voice || 'Charon').toString().replace(/\.mp3$/i, ''),
+            assetsManifestPath: input.assetsManifestPath,
+            storyboard: input.storyboard,
+          },
+          null,
+          2,
+        ),
+      )
+      logger.info(`startTime captured: ${new Date(startTime).toISOString()}`)
+    }
+    if (!input.deferCapture) await startCapture()
 
     // 8. Gracefully close browser and stop recording
     const stopRecording = async () => {
       logger.info('Stopping video recording and playwright session...')
       const stoppedAtMs = Date.now()
       try {
+        if (!recording) return
         try {
           const videoStopResult = await execAsync(`${cli} video-stop`, {
             cwd: workspaceDir,
@@ -309,6 +320,7 @@ export async function startRecording(
         recoverRecordingArtifact(workspaceDir, webmPath, startedAtMs)
         assertRecordingCoversTimeline(await getMediaDurationSec(webmPath), startTime, stoppedAtMs)
       } finally {
+        recording = false
         try {
           await execAsync(`${cli} close`, {
             cwd: workspaceDir,
@@ -331,8 +343,16 @@ export async function startRecording(
     }
 
     return {
-      startTime,
-      startedAtMs,
+      get startTime() {
+        return startTime
+      },
+      get startedAtMs() {
+        return startedAtMs
+      },
+      get recording() {
+        return recording
+      },
+      startCapture,
       webmPath,
       videoDir,
       session,

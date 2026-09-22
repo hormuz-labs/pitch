@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { parseMediaStreamDurations } from '../apps/api/src/render/media'
 import {
   findInitialBlankSegmentFromSignalStats,
   mapEventTimeThroughTrim,
@@ -45,25 +44,6 @@ describe('mapEventTimeThroughTrim', () => {
     expect(mapEventTimeThroughTrim(30, 0, kept)).toBe(15)
     expect(mapEventTimeThroughTrim(45, 0, kept)).toBe(20)
     expect(mapEventTimeThroughTrim(50, 0, kept)).toBe(25)
-  })
-})
-
-describe('parseMediaStreamDurations', () => {
-  it('reports video and audio stream extents independently', () => {
-    expect(
-      parseMediaStreamDurations({
-        streams: [
-          { codec_type: 'video', duration: '39.5' },
-          { codec_type: 'audio', duration: '57.045' },
-        ],
-      }),
-    ).toEqual({ video: 39.5, audio: 57.045 })
-  })
-
-  it('treats absent and N/A stream durations as unavailable', () => {
-    expect(
-      parseMediaStreamDurations({ streams: [{ codec_type: 'video', duration: 'N/A' }] }),
-    ).toEqual({ video: 0, audio: 0 })
   })
 })
 

@@ -3,8 +3,7 @@
  *
  * The user uploads a narrated screen recording; the recording-editor agent
  * reconstructs demo-state.json from it (zoom + click events), and this renders
- * the result through the SAME ffmpeg chain the live demo flow uses
- * (zoom/pan → smart trim → intro/outro), with two differences:
+ * the result with zoom/pan, smart trim and intro/outro:
  *
  *   1. No trimSec — agent events are already in the uploaded video's own timeline.
  *   2. The source audio (the user's narration) is kept and re-encoded to the house
@@ -18,9 +17,9 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Logger } from '@saas/shared'
+import type { ClickEvent } from '../../../../.pi/lib/demo-state.ts'
 import { execAsync, getMediaDurationSec, outputFps, probeVideo } from './media.js'
 import type { Beat } from './utils/beats.js'
-import type { ClickEvent } from './utils/cursor-fx.js'
 import { appendEncoderFilter, videoEncodePlan } from './utils/encoder.js'
 import { addIntroOutro, planTitleCards } from './utils/intro-outro.js'
 import { mapThroughKeptSegments, processVideo, type Segment } from './utils/smart_trim.js'
