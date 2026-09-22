@@ -4,7 +4,7 @@
  * Runs on the worker host (cwd = repo root). Given an UPLOADED narrated screen
  * recording, these tools reconstruct the same recording/demo-state.json that
  * the live demo-generator agent emits — so the existing render engine
- * (zoom-filter, cursor-fx, smart_trim, intro/outro) consumes it unchanged. Only
+ * (zoom-filter, smart_trim, intro/outro) consumes it unchanged. Only
  * the EVENT SOURCE differs:
  *
  *   live flow:   playwright agent drives browser ──────────────→ demo-state.json

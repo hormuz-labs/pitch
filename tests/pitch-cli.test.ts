@@ -152,6 +152,19 @@ describe('the registry', () => {
     }
   })
 
+  it('keeps demo capture separate from camera work and final rendering', () => {
+    const demo = commands()
+      .filter(command => command.namespace === 'demo')
+      .map(command => command.verb)
+    expect(demo).toContain('record-start')
+    expect(demo).toContain('narrate')
+    expect(demo).toContain('source')
+    expect(demo).not.toContain('zoom-in')
+    expect(demo).not.toContain('zoom-out')
+    expect(demo).not.toContain('render')
+    expect(findCommand('video', 'render')).toBeTruthy()
+  })
+
   it('gives every namespace a blurb, so `pitch help` has no blank line', async () => {
     const { BLURBS } = await import('../.pi/cli/help.ts')
     for (const ns of await namespaces()) expect(BLURBS[ns]).toBeTruthy()

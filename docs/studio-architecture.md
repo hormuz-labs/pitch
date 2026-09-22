@@ -172,6 +172,20 @@ Heavy actions are remotely dispatchable and cancellation kills their process
 group. Transcription uses the existing host whisper.cpp action through
 `pitch media transcribe`; the VM installs or executes none of these dependencies.
 
+Demo preparation uses `pitch demo browser-open` without starting capture or
+changing an existing take. `record-start` begins one continuous take in that
+same browser; `record-stop` ends it after the final narration. `narrate` generates
+audio, timestamps it after synthesis, and releases the browser tool lock without
+sleeping for its duration. Its optional `action` runs a click or visible field
+entry as speech begins; subsequent narration and stop wait for `narrationEndTime`.
+The live browser does not play TTS; `demo source` muxes it at those timestamps.
+Browser/typing failures propagate rather than reporting success. Replacement
+takes require a specific `retakeReason` and archive the previous raw video/state
+under `recording/takes/`; uniquely named audio clips remain at their original paths.
+The demo CLI exposes capture and source preparation only: no zoom controls,
+automatic camera events or alternate demo-render path. Camera effects and final
+rendering belong to `video-editing`.
+
 The launch skill embeds every available effect ID, grouped by family. Agents can
 select candidates directly, compare notes/frame strips, then load selected source
 before implementing. Browsing and search remain optional. `bun run effects:sync`
@@ -472,7 +486,7 @@ everything is released at once and the turns in flight are lost. Then
 `renderer/`). A host action registered with `remote: true` is one that
 burns a machine: `launch_export` (capture.mjs through
 the browser, then libx264), `launch_align` and `media_transcribe`
-(whisper), `edit_render`, `demo_encode`, `media_ffmpeg`. On a worker in
+(whisper), `edit_render`, `demo_source_encode`, `video_edit_render`, `media_ffmpeg`. On a worker in
 `STUDIO_RENDER=remote` (the default with checkpoints) the registry hands
 such a call to the dispatcher instead of running it: the workspace is
 checkpointed as it stands, a `RenderJob` names the action, its params and
@@ -487,8 +501,9 @@ land. The action never knows where it ran, which is why it must read only
 the workspace and the database and write only into the workspace. A pod
 that dies stops heartbeating and the job is claimed again, up to
 `STUDIO_RENDER_ATTEMPTS`; one that is asked to stop aborts the action's
-signal. A light action may call a heavy one (`demo_render` stops the live
-browser on the worker, then `demo_encode` runs where renders run).
+signal. A light action may call a heavy one (`demo_source` resolves the stopped
+capture's timestamps and paths on the worker, then `demo_source_encode` assembles
+the synchronized source on the render tier).
 
 **Browsers.** Ordinary deck, thumbnail, launch render and recon work uses local,
 headless Playwright Chromium. CloakBrowser is reserved for authentication and

@@ -105,7 +105,6 @@ const BILLABLE_GENERATION_ACTIONS = new Set([
   'elevenlabs_music',
   'elevenlabs_sound',
   'demo_record_start',
-  'demo_render',
   'edit_render',
   'media_ffmpeg',
   'video_generate',

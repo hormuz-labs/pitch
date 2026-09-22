@@ -89,7 +89,7 @@ const phase = (name: string) =>
   (
     ({
       motion_render: 'Rendering the video…',
-      demo_render: 'Rendering the video…',
+      video_edit_render: 'Rendering the video…',
       edit_render: 'Rendering the video…',
       demo_record_start: 'Opening the browser…',
       demo_narrate: 'Narrating…',

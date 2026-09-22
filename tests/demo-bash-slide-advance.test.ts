@@ -66,7 +66,7 @@ describe('demo_bash slide advance', () => {
     fs.rmSync(base, { recursive: true, force: true })
   })
 
-  it('injects a zoom-out event when advancing a slideshow while zoomed in', async () => {
+  it('advances the slideshow without adding camera events to legacy state', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-advance-'))
     const recordings = path.join(base, 'recording')
     const bin = path.join(base, 'bin')
@@ -123,12 +123,15 @@ describe('demo_bash slide advance', () => {
     expect(JSON.parse(result)).toMatchObject({ stdout: '', stderr: '' })
 
     const state = JSON.parse(fs.readFileSync(path.join(recordings, 'demo-state.json'), 'utf-8'))
-    expect(state.zoomEvents).toHaveLength(2)
+    expect(state.zoomEvents).toHaveLength(1)
     expect(state.zoomEvents[0]).toMatchObject({ type: 'in' })
-    expect(state.zoomEvents[1]).toMatchObject({ type: 'out' })
+    const progress = JSON.parse(
+      fs.readFileSync(path.join(recordings, 'slideshow-progress.json'), 'utf8'),
+    )
+    expect(progress.currentSlide).toBe(1)
   })
 
-  it('does not inject a zoom-out event when already zoomed out', async () => {
+  it('preserves historical camera metadata without applying it during capture', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-advance-out-'))
     const recordings = path.join(base, 'recording')
     const bin = path.join(base, 'bin')
