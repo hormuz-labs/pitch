@@ -1,10 +1,23 @@
 import { A, Navigate } from '@solidjs/router'
-import { Check, Copy, Menu, X } from 'lucide-solid'
+import {
+  ArrowUpRight,
+  BookOpen,
+  Bot,
+  Check,
+  Copy,
+  FileText,
+  Menu,
+  Moon,
+  Sun,
+  Terminal,
+  X,
+} from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
 import { Dynamic, Portal } from 'solid-js/web'
 import tabLogoB from '../../assets/tabLogoB.svg'
 import { type Block, DOC_PAGES, findPage } from '../../docs/pages'
 import { Seo } from '../core/Seo'
+import { useTheme } from '../core/theme'
 import { PitchLogoAnimation } from './brand'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
@@ -103,6 +116,25 @@ const BlockView = (props: { block: Block }) => {
 }
 export const DocsView = (props: { slug?: string }) => {
   const [navOpen, setNavOpen] = createSignal(false)
+  let theme: ReturnType<typeof useTheme>
+  try {
+    theme = useTheme()
+  } catch {
+    theme = {
+      theme: () =>
+        typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+          ? 'dark'
+          : 'light',
+      setTheme: () => {},
+      toggleTheme: () => {
+        if (typeof document !== 'undefined') {
+          const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+          document.documentElement.dataset.theme = next
+          document.documentElement.classList.toggle('dark', next === 'dark')
+        }
+      },
+    }
+  }
   const page = () => findPage(props.slug ?? '')
   createEffect(() => {
     props.slug
@@ -127,101 +159,138 @@ export const DocsView = (props: { slug?: string }) => {
               description={p().lede}
               path={p().slug ? `/docs/${p().slug}` : '/docs'}
             />
-            <header class="docs-top">
-              <A href="/" class="lb-brand docs-brand">
-                <img src={tabLogoB} class="lb-brand-mark" width="28" height="28" alt="" />
-                <span class="lb-brand-word">
-                  <PitchLogoAnimation startAnimation={false} />
-                  <span class="lb-brand-by">A Frontier Agent</span>
-                </span>
-              </A>
-              <nav class="docs-top-links">
-                <A href="/docs/getting-started">Guide</A>
-                <A href="/docs/mcp">AI Agents (MCP)</A>
-                <A href="/docs/api">API Reference</A>
-                <a href="/llms.txt">LLMs</a>
-              </nav>
-              <div class="docs-top-right">
-                <A href="/api-keys" class="lb-cta">
-                  Get an API key
+            <header
+              class="docs-top lb-nav lb-chrome"
+              aria-label="Docs navigation"
+              data-mobile-open={navOpen() || undefined}
+            >
+              <div class="lb-nav-in docs-top-in">
+                <A href="/" class="lb-brand docs-brand">
+                  <img src={tabLogoB} class="lb-brand-mark" width="28" height="28" alt="" />
+                  <span class="lb-brand-word">
+                    <PitchLogoAnimation startAnimation={false} />
+                    <span class="lb-brand-by">A Frontier Agent</span>
+                  </span>
                 </A>
-                <button
-                  class="docs-menu-btn"
-                  aria-label="Toggle navigation"
-                  aria-expanded={navOpen()}
-                  onClick={() => setNavOpen(!navOpen())}
-                >
-                  {navOpen() ? <X size={18} /> : <Menu size={18} />}
-                </button>
+                <nav class="docs-top-links">
+                  <A href="/docs/getting-started">Guide</A>
+                  <A href="/docs/mcp">AI Agents (MCP)</A>
+                  <A href="/docs/api">API Reference</A>
+                  <a href="/llms.txt" target="_blank" rel="external noreferrer">
+                    LLMs
+                  </a>
+                </nav>
+                <div class="docs-top-right lb-nav-r">
+                  <A href="/api-keys" class="lb-cta">
+                    Get an API key
+                  </A>
+                  <button
+                    type="button"
+                    class="lb-mobile-toggle"
+                    aria-label="Toggle navigation"
+                    aria-expanded={navOpen()}
+                    onClick={() => setNavOpen(!navOpen())}
+                  >
+                    {navOpen() ? <X size={16} /> : <Menu size={17} />}
+                  </button>
+                </div>
               </div>
-            </header>
 
-            <Show when={navOpen()}>
-              <Portal>
-                <div
-                  class="docs-mobile-drawer lb-chrome"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Docs navigation"
-                >
-                  <div class="docs-mobile-drawer-head">
-                    <A href="/" class="lb-brand docs-brand" onClick={() => setNavOpen(false)}>
-                      <img src={tabLogoB} class="lb-brand-mark" width="28" height="28" alt="" />
-                      <span class="lb-brand-word">
-                        <PitchLogoAnimation startAnimation={false} />
-                      </span>
-                    </A>
-                    <button
-                      type="button"
-                      class="docs-mobile-close-btn"
-                      aria-label="Close navigation"
+              <Show when={navOpen()}>
+                <div class="lb-mobile-menu">
+                  <p class="lb-mobile-menu-label">Documentation</p>
+                  <div class="lb-mobile-products">
+                    <A
+                      href="/docs/getting-started"
+                      class={`lb-mobile-product ${p().slug === 'getting-started' || p().slug === '' ? 'is-active' : ''}`}
                       onClick={() => setNavOpen(false)}
                     >
-                      <X size={18} />
+                      <span class="lb-mobile-product-icon">
+                        <BookOpen size={15} />
+                      </span>
+                      <span>Guide</span>
+                    </A>
+
+                    <A
+                      href="/docs/mcp"
+                      class={`lb-mobile-product ${p().slug === 'mcp' || p().slug === 'tools' ? 'is-active' : ''}`}
+                      onClick={() => setNavOpen(false)}
+                    >
+                      <span class="lb-mobile-product-icon">
+                        <Bot size={15} />
+                      </span>
+                      <span>AI Agents (MCP)</span>
+                    </A>
+
+                    <A
+                      href="/docs/api"
+                      class={`lb-mobile-product ${p().slug === 'api' ? 'is-active' : ''}`}
+                      onClick={() => setNavOpen(false)}
+                    >
+                      <span class="lb-mobile-product-icon">
+                        <Terminal size={15} />
+                      </span>
+                      <span>REST API</span>
+                    </A>
+
+                    <a
+                      href="/llms.txt"
+                      target="_blank"
+                      rel="external noreferrer"
+                      class="lb-mobile-product"
+                      onClick={() => setNavOpen(false)}
+                    >
+                      <span class="lb-mobile-product-icon">
+                        <FileText size={15} />
+                      </span>
+                      <span style={{ display: 'inline-flex', 'align-items': 'center', gap: '3px' }}>
+                        LLMs <ArrowUpRight size={11} />
+                      </span>
+                    </a>
+                  </div>
+
+                  <div class="docs-mobile-nav-tree">
+                    <For each={['Guide', 'Reference']}>
+                      {group => (
+                        <div class="docs-side-group">
+                          <p class="docs-side-title">{group}</p>
+                          <For each={pages.filter(x => x.group === group)}>
+                            {x => (
+                              <A
+                                class={`docs-side-link${x.slug === p().slug ? ' is-on' : ''}`}
+                                href={x.slug ? `/docs/${x.slug}` : '/docs'}
+                                onClick={() => setNavOpen(false)}
+                              >
+                                {x.nav}
+                              </A>
+                            )}
+                          </For>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+
+                  <div class="lb-mobile-appearance">
+                    <span>Appearance</span>
+                    <button type="button" onClick={theme.toggleTheme}>
+                      {theme.theme() === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                      {theme.theme() === 'dark' ? 'Light' : 'Dark'} theme
                     </button>
                   </div>
-                  <div class="docs-mobile-drawer-body">
-                    <div class="docs-mobile-top-links">
-                      <A href="/docs/getting-started" onClick={() => setNavOpen(false)}>
-                        Guide
-                      </A>
-                      <A href="/docs/mcp" onClick={() => setNavOpen(false)}>
-                        AI Agents (MCP)
-                      </A>
-                      <A href="/docs/api" onClick={() => setNavOpen(false)}>
-                        API Reference
-                      </A>
-                      <a href="/llms.txt">LLMs</a>
-                    </div>
-                    <div class="docs-mobile-cta-wrap">
-                      <A href="/api-keys" class="lb-cta" onClick={() => setNavOpen(false)}>
-                        Get an API key
-                      </A>
-                    </div>
-                    <div class="docs-mobile-nav-groups">
-                      <For each={['Guide', 'Reference']}>
-                        {group => (
-                          <div class="docs-side-group">
-                            <p class="docs-side-title">{group}</p>
-                            <For each={pages.filter(x => x.group === group)}>
-                              {x => (
-                                <A
-                                  class={`docs-side-link${x.slug === p().slug ? ' is-on' : ''}`}
-                                  href={x.slug ? `/docs/${x.slug}` : '/docs'}
-                                  onClick={() => setNavOpen(false)}
-                                >
-                                  {x.nav}
-                                </A>
-                              )}
-                            </For>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
                 </div>
-              </Portal>
-            </Show>
+              </Show>
+            </header>
+
+            <Portal>
+              <button
+                type="button"
+                class="lb-mobile-scrim"
+                data-open={navOpen() || undefined}
+                aria-hidden={!navOpen()}
+                tabIndex={navOpen() ? 0 : -1}
+                onClick={() => setNavOpen(false)}
+              />
+            </Portal>
 
             <div class="docs-shell">
               <aside class="docs-side">
