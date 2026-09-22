@@ -8,6 +8,8 @@ const read = (relativePath: string) =>
 
 describe('asset-demo skill tool contract', () => {
   const skill = read('.pi/skills/asset-demo/SKILL.md')
+  const demoSkill = read('.pi/skills/demo-video/SKILL.md')
+  const agentPrompt = read('.pi/AGENT.md')
   const referencedVerbs = [
     ...new Set([...skill.matchAll(/`pitch demo ([a-z-]+)/g)].map(match => match[1])),
   ]
@@ -33,5 +35,16 @@ describe('asset-demo skill tool contract', () => {
 
     expect(ordered.every(index => index >= 0)).toBe(true)
     expect(ordered).toEqual([...ordered].sort((a, b) => a - b))
+  })
+
+  it('routes from the requested outcome rather than attachment presence', () => {
+    const normalized = [skill, demoSkill, agentPrompt].map(text => text.replace(/\s+/g, ' '))
+
+    expect(normalized[0]).toContain('Route from what the user asked to make')
+    expect(normalized[0]).toContain('reference does not make the project an asset demo')
+    expect(normalized[1]).toContain("Choose from the requested video's subject")
+    expect(normalized[1]).toContain('uploaded PDF or image may still supply facts')
+    expect(normalized[2]).toContain('Route by the requested outcome')
+    expect(normalized[2]).toContain('used only as reference material does not select `asset-demo`')
   })
 })

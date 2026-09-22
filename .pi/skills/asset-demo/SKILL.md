@@ -1,11 +1,12 @@
 ---
 name: asset-demo
-description: "Create or revise a narrated demo video whose primary subject is uploaded PDFs or images, using a reviewable visual storyboard and page-grounded camera moves. Do not use for slide-deck creation, document-only analysis, ordinary image edits, or a walkthrough whose primary subject is a live website."
+description: "Create or revise a narrated demo video that presents uploaded PDFs or images, or is built primarily from their content, using a reviewable visual storyboard and page-grounded camera moves. An attached reference document alone does not select this skill. Do not use for slide-deck creation, document-only analysis, ordinary image edits, or a walkthrough whose primary subject is a live website."
 ---
 
 # Asset demos
 
-Turn uploaded PDFs or images into a camera-led explanation. Treat the rendered
+Turn uploaded PDFs or images into a camera-led explanation. The result may show
+the pages directly or build its visual story from their content. Treat the rendered
 pages as the factual and visual source; do not invent claims or use a live site
 as a substitute for missing evidence.
 
@@ -21,8 +22,10 @@ chat both update `storyboard.json`; do not create another project or pipeline.
 - **User asks to record, finish, or publish:** validate any pending storyboard
   changes, then record that revision as the production contract.
 
-If the files are merely supporting material and the live product is the main
-subject, use `demo-video` instead.
+Route from what the user asked to make, not from the presence of an upload. A PDF
+or image supplied only for facts, a script, brand guidance, requirements, or other
+reference does not make the project an asset demo. Follow the skill for the requested
+outcome; if a live product is the main subject, use `demo-video` instead.
 
 ## Draft and review
 

@@ -1,12 +1,15 @@
 ---
 name: demo-video
-description: Record a real product walkthrough in the user's browser (prepare assets, start capture, drive the page, narrate and stop). Recording only; reference the shared video-editing skill for all post-recording editing, rendering and publication. For a video primarily made from uploaded PDFs or images, read asset-demo instead.
+description: Record a real product walkthrough in the user's browser (prepare assets, start capture, drive the page, narrate and stop). Use this for a live-site walkthrough even when uploaded PDFs or images are reference or supporting material. If the requested video presents those files or is built primarily from their content, read asset-demo instead. Recording only; reference the shared video-editing skill for all post-recording editing, rendering and publication.
 ---
 
 # Demo recording
 
-If uploaded PDFs or images are the main content, stop and read `asset-demo` instead. Use
-this skill for a live product walkthrough; files may still appear as supporting material.
+Choose from the requested video's subject, not merely from which files are attached.
+Use this skill when a live product is the main subject. An uploaded PDF or image may
+still supply facts, a script, brand guidance, requirements, or supporting visuals.
+If the video should present those files themselves or be built chiefly from their
+content, stop and read `asset-demo` instead.
 
 Record a real walkthrough. This skill owns capture; the shared
 [video-editing](../video-editing/SKILL.md) skill owns post-processing.
