@@ -927,6 +927,178 @@ describe('shared pi video editor', () => {
     )
   }, 30_000)
 
+  it('composites timestamped cursor sprites in source assembly and carries them through edits', async () => {
+    const event = (
+      time: number,
+      x: number,
+      y: number,
+      shape = 'arrow',
+      kind = 'move',
+      buttons = 0,
+      page = 0,
+    ) => ({ time, x, y, shape, kind, buttons, page })
+    const trace = {
+      version: 2,
+      complete: true,
+      startTime: 1000,
+      duration: 4,
+      width: 320,
+      height: 180,
+      events: [
+        event(0, 40, 40, 'hidden', 'document'),
+        event(0.2, 40, 40),
+        event(0.5, 40, 40, 'arrow', 'down', 1),
+        event(0.51, 40, 40, 'arrow', 'up'),
+        event(1, 40, 40, 'arrow', 'document', 0, 1),
+        event(1.1, 160, 60, 'hand', 'move', 0, 1),
+        event(2, 240, 100, 'text', 'move', 0, 1),
+        event(3, 240, 100, 'hidden', 'hide', 0, 1),
+      ],
+    }
+    await writeFile(path.join(root, 'recording/cursor.json'), JSON.stringify(trace))
+    const args = {
+      source: 'recording/demo.webm',
+      cursor: 'recording/cursor.json',
+      capture_start: 1000,
+      clips: [{ source: 'recording/voice.wav', start: 1 }],
+    }
+    const result = await call('assemble_recording', args)
+    expect(result.cursor).toMatchObject({ events: 8, sprite_size: 32, fps: 10 })
+    expect(result.cursor.position_updates).toBeLessThan(10)
+    expect((await call('verify', { source: result.source, expected_duration: 4 })).passed).toBe(
+      true,
+    )
+    const pixels = async (file: string, time: number) =>
+      (
+        await exec(
+          'ffmpeg',
+          [
+            '-v',
+            'error',
+            '-ss',
+            String(time),
+            '-i',
+            path.join(root, file),
+            '-frames:v',
+            '1',
+            '-f',
+            'rawvideo',
+            '-pix_fmt',
+            'rgb24',
+            'pipe:1',
+          ],
+          { encoding: 'buffer' },
+        )
+      ).stdout
+    const white = (frame: Buffer, x: number, y: number) => {
+      let count = 0
+      for (let dy = -8; dy < 20; dy++)
+        for (let dx = -8; dx < 20; dx++) {
+          const at = ((y + dy) * 320 + x + dx) * 3
+          if (frame[at]! > 140 && frame[at + 1]! > 140) count++
+        }
+      return count
+    }
+    expect(white(await pixels(result.source, 0), 40, 40)).toBe(0)
+    expect(white(await pixels(result.source, 0.3), 40, 40)).toBeGreaterThan(10)
+    // No invented glide through the idle gap toward the next recorded position.
+    expect(white(await pixels(result.source, 0.9), 100, 50)).toBe(0)
+    expect(white(await pixels(result.source, 1.3), 160, 60)).toBeGreaterThan(10)
+    expect(white(await pixels(result.source, 2.3), 240, 100)).toBeGreaterThan(3)
+    expect(white(await pixels(result.source, 3.3), 240, 100)).toBe(0)
+    const edited = await plan([
+      {
+        source: result.source,
+        in: 1.1,
+        out: 1.9,
+        speed: 2,
+        camera: { viewport: { x: 0.25, y: 0.1, width: 0.5, height: 0.5 } },
+      },
+    ])
+    const rendered = await call('render', { plan: edited.plan })
+    expect(white(await pixels(rendered.output, 0.1), 160, 84)).toBeGreaterThan(10)
+    await expect(call('assemble_recording', { ...args, capture_start: 2000 })).rejects.toThrow(
+      'different capture clocks',
+    )
+    await writeFile(
+      path.join(root, 'recording/cursor.json'),
+      JSON.stringify({ ...trace, complete: false }),
+    )
+    await expect(call('assemble_recording', args)).rejects.toThrow('incomplete')
+    await writeFile(
+      path.join(root, 'recording/cursor.json'),
+      JSON.stringify({ ...trace, width: 1920 }),
+    )
+    await expect(call('assemble_recording', args)).rejects.toThrow('viewport')
+  }, 30_000)
+
+  it('keeps dense 60Hz pointer movement on the correct 30fps output frame', async () => {
+    const input = 'recording/cursor-motion.webm'
+    await ff([
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=blue:s=320x180:r=30:d=2',
+      '-c:v',
+      'libvpx',
+      path.join(root, input),
+    ])
+    const events = Array.from({ length: 120 }, (_, i) => ({
+      time: i / 60,
+      kind: 'move',
+      x: 20 + i * 2,
+      y: 40,
+      shape: 'arrow',
+      buttons: 0,
+      page: 0,
+    }))
+    await writeFile(
+      path.join(root, 'recording/dense-cursor.json'),
+      JSON.stringify({
+        version: 2,
+        complete: true,
+        startTime: 1000,
+        duration: 2,
+        width: 320,
+        height: 180,
+        events,
+      }),
+    )
+    const rendered = await call('assemble_recording', {
+      source: input,
+      cursor: 'recording/dense-cursor.json',
+      capture_start: 1000,
+    })
+    const { stdout } = await exec(
+      'ffmpeg',
+      [
+        '-v',
+        'error',
+        '-i',
+        path.join(root, rendered.source),
+        '-map',
+        '0:v:0',
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'rgb24',
+        'pipe:1',
+      ],
+      { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 },
+    )
+    for (let frame = 0; frame < 60; frame++) {
+      let left = 320
+      for (let y = 35; y < 60; y++)
+        for (let x = 0; x < 320; x++) {
+          const at = (frame * 320 * 180 + y * 320 + x) * 3
+          if (stdout[at]! > 180 && stdout[at + 1]! > 180) left = Math.min(left, x)
+        }
+      // White interior begins 1–3px inside the arrow's outlined hotspot.
+      expect(left, `cursor at output frame ${frame}`).toBeGreaterThanOrEqual(20 + frame * 4)
+      expect(left, `cursor at output frame ${frame}`).toBeLessThanOrEqual(23 + frame * 4)
+    }
+  }, 30_000)
+
   it('assembles uncut capture with narration at its source-time offset', async () => {
     const result = await call('assemble_recording', {
       source: 'recording/demo.webm',

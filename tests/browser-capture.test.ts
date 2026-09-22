@@ -31,6 +31,7 @@ function browser() {
     let options: any
     const p: any = {
       isClosed: () => false,
+      setViewportSize: vi.fn(async () => {}),
       evaluate: async () => visible({ page: p }, foreground),
       screencast: {
         start: vi.fn(async (opts: any) => {
@@ -55,8 +56,13 @@ describe('visible-tab capture lifecycle', () => {
     const b = browser()
     const first = b.page('first', true)
     const second = b.page('second', false)
-    const capture = await startBrowserCapture(b.context, 'capture.webm')
+    const recorder = { start: vi.fn(), select: vi.fn(), stop: vi.fn() }
+    const capture = await startBrowserCapture(b.context, 'capture.webm', undefined, {
+      recorder: recorder as any,
+      file: 'cursor.json',
+    })
     expect(capture.startTime).toBe(1000)
+    expect(recorder.start).toHaveBeenCalledExactlyOnceWith('cursor.json', 1000)
     expect(first.screencast.start).toHaveBeenCalledWith(
       expect.objectContaining({
         size: { width: 1920, height: 1080 },
@@ -74,6 +80,8 @@ describe('visible-tab capture lifecycle', () => {
     await capture.stop()
     await capture.stop()
     expect(encoder.stop).toHaveBeenCalledExactlyOnceWith(3000)
+    expect(recorder.stop).toHaveBeenCalledExactlyOnceWith(4000)
+    expect(recorder.select).toHaveBeenLastCalledWith(second)
     expect(first.screencast.stop).toHaveBeenCalledTimes(1)
     expect(second.screencast.stop).toHaveBeenCalledTimes(1)
     expect(b.context.listenerCount('page')).toBe(0)

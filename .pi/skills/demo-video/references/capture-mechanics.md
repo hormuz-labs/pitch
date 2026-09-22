@@ -23,20 +23,23 @@ include the toolbar/window frame and the bottom of that viewport. Do not resize
 the browser during a take. The host records full-size JPEG frames into a 30fps,
 quality-based VP9 master, then source assembly supplies the H.264/AAC editing source.
 
-The host paints a visible arrow and a brief click ring from actual mouse events
-into the browser capture. It is installed on existing pages and future documents
-and frames. Move/hover/click through browser input; a DOM `element.click()` or
-value assignment does not move a mouse. The pointer is hidden until the first
-mouse event and stays still while idle. Ref-based click/hover/check and field-entry
-tools move the real mouse with eased travel (roughly 0.35–1.1s plus a brief settle)
-before activation. Avoid direct DOM clicks or ad-hoc instantaneous mouse jumps.
-Check a recorded interaction on each page for a visible
-pointer before delivery; successful input is not proof that the overlay painted.
-If missing, report a capture failure and use a corrected capture path/retake;
-do not keep applying CSS blindly or fabricate a path from saved click positions.
-Do not add a second cursor in post-processing. Since the
-pointer is in the source pixels, the shared editor's cuts, speed changes and crops
-carry it with the UI automatically.
+The host records actual pointer positions, button states, cursor shapes and
+page changes in `recording/cursor.json`, on the raw video's first-frame clock.
+It observes existing pages and future documents/frames without painting an overlay
+into the page. `recording/demo.webm` is intentionally cursorless. `pitch demo source`
+composites the white, outlined arrow/hand/I-beam and subtle press treatment with
+FFmpeg while assembling narration; the synchronized `source-*.mp4` has the cursor.
+Click sounds use actual press timestamps. Missing/incomplete telemetry fails source
+assembly; do not replace it with guesses from `clickEvents` or rewrite its clock.
+
+Move/hover/click through real browser input; DOM `element.click()` and value
+assignment do not move a mouse. The pointer stays still while idle. Ref-based
+click/hover/check and field-entry tools move the real mouse with eased travel
+(roughly 0.35–1.1s plus a brief settle) before activation. Avoid instantaneous jumps.
+Review a synchronized-source interaction on each page for cursor position, press,
+and shape; the live browser and raw master are not the composited deliverable.
+Do not inject a second cursor or manufacture paths between clicks. Subsequent
+cuts, speed changes and camera crops carry the source's cursor with the UI.
 
 Scroll is part of the demonstration. Capture its complete visible travel and
 settling, whether driven by wheel, keyboard or smooth-scroll-to-target. Include
@@ -85,7 +88,7 @@ if the provider remains unavailable, report the missing beat rather than looping
 
 An encoder timeout, missing duration, truncated source or audio extending beyond
 the video is a failed capture, even if a second stop reports that nothing is running.
-Never rewrite `demo-state.json`/`demo-config.json` timestamps, shorten `endTime`,
+Never rewrite `demo-state.json`/`demo-config.json`/`cursor.json` timestamps, shorten `endTime`,
 move narration earlier, or replace the raw master to make validation accept it.
 These timestamps are capture evidence, not edit controls. Preserve the failed take;
 recover the complete artifact through the host or prepare a retake with a specific

@@ -31,6 +31,7 @@ import { execAsync, getVideoBirthTimeMs } from '../../render/media.js'
 import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
 import { buildDemoJobInput } from '../../render/utils/demo-job-input.js'
+import type { CursorEvent } from '../../render/utils/recording-cursor.js'
 import {
   expectedSlideshowSlideCount,
   type SlideshowProgress,
@@ -362,7 +363,9 @@ registerHostAction('demo_record_stop', async (ws, _params, ctx) => {
 registerHostAction('demo_source', async (ws, _params, ctx) => {
   if (active.has(ws.dir) || existsSync(liveFile(ws)))
     throw new Error('Stop the recording with pitch demo record-stop before preparing its source.')
-  const config = await readJson<{ startTime: number; videoStartTime?: number }>(configFile(ws))
+  const config = await readJson<{ startTime: number; videoStartTime?: number; cursor?: string }>(
+    configFile(ws),
+  )
   if (!Number.isFinite(config?.startTime)) throw new Error('No stopped recording configuration.')
   const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
   const source = path.join(recordingDir(ws), 'demo.webm')
@@ -376,7 +379,7 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
     : await getVideoBirthTimeMs(source, logger)
   if (birth === null) throw new Error('Cannot determine the recording timebase.')
   const offset = Math.max(0, (config!.startTime - birth) / 1000)
-  const clips = (state.audioClips ?? []).map(clip => {
+  let clips = (state.audioClips ?? []).map(clip => {
     // Older capture tools persisted absolute paths. The internal workspace name
     // is stable across placement; rebase that prefix before checking the file.
     const marker = `${path.sep}${ws.internal}${path.sep}`
@@ -415,8 +418,45 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       text: clip.text,
     }
   })
+  if (config?.cursor) {
+    const cursorPath = resolveSymlinks(path.resolve(ws.dir, config.cursor))
+    if (!cursorPath.startsWith(`${root}${path.sep}`))
+      throw new Error('Cursor path escapes the workspace.')
+    const trace = await readJson<{
+      version: number
+      complete: boolean
+      startTime: number
+      events: CursorEvent[]
+    }>(cursorPath)
+    if (
+      trace?.version !== 2 ||
+      !trace.complete ||
+      trace.startTime !== birth ||
+      !Array.isArray(trace.events)
+    )
+      throw new Error(
+        'Missing, incomplete or mismatched cursor telemetry; recover the capture or retake.',
+      )
+    // Old click SFX were stamped before multiple CLI round-trips. Align them to
+    // the actual pointer press too, rather than letting sound lead the new cursor.
+    const sound = clips.find(clip => path.basename(clip.source) === 'click.mp3')
+    clips = clips.filter(clip => path.basename(clip.source) !== 'click.mp3')
+    if (sound)
+      for (const event of trace.events) {
+        if (event.kind === 'down' && event.buttons & 1) clips.push({ ...sound, start: event.time })
+      }
+  }
   // Resolve the clock and worker-local audio paths before remote placement.
-  return callHostAction(ws.dir, 'demo_source_encode', { source: 'recording/demo.webm', clips }, ctx)
+  return callHostAction(
+    ws.dir,
+    'demo_source_encode',
+    {
+      source: 'recording/demo.webm',
+      clips,
+      ...(config?.cursor ? { cursor: config.cursor, capture_start: birth } : {}),
+    },
+    ctx,
+  )
 })
 
 registerHostAction(

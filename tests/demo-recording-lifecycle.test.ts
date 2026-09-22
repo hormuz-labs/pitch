@@ -48,6 +48,7 @@ beforeEach(() => {
     context: {
       storageState: async () => ({ cookies: [], origins: [] }),
       addInitScript: mocks.initScript,
+      exposeBinding: vi.fn(),
       pages: () => [{ frames: () => [{ evaluate: mocks.evaluate }] }],
     },
   })
@@ -66,6 +67,7 @@ describe('preparation and one continuous take', () => {
     fs.writeFileSync(path.join(base, 'recording/demo.webm'), 'old take')
     fs.writeFileSync(path.join(base, 'recording/demo-state.json'), '{"audioClips":[]}')
     fs.writeFileSync(path.join(base, 'recording/demo-config.json'), '{"startTime":1}')
+    fs.writeFileSync(path.join(base, 'recording/cursor.json'), '{"version":2}')
     const handle = await startRecording({
       userId: 'test',
       workspaceDir: base,
@@ -87,6 +89,9 @@ describe('preparation and one continuous take', () => {
       mocks.capture.mock.invocationCallOrder[0]!,
     )
     const archived = fs.readdirSync(path.join(base, 'recording/takes'))[0]
+    expect(
+      fs.readFileSync(path.join(base, 'recording/takes', archived, 'cursor.json'), 'utf8'),
+    ).toBe('{"version":2}')
     expect(fs.readFileSync(path.join(base, 'recording/takes', archived, 'demo.webm'), 'utf8')).toBe(
       'old take',
     )
@@ -119,7 +124,7 @@ describe('preparation and one continuous take', () => {
     expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 
-  it('does not silently record a cursorless take when pointer installation fails', async () => {
+  it('does not silently record without input telemetry when installation fails', async () => {
     mocks.initScript.mockRejectedValueOnce(new Error('cursor installation failed'))
     await expect(
       startRecording({ userId: 'test', workspaceDir: base, streamId: 'demo-test' }),

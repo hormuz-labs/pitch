@@ -206,9 +206,9 @@ export async function startRecording(
   }
   let capture: BrowserCapture | undefined
   try {
-    // Page screencasts do not include the native OS mouse cursor. Install once
-    // during preparation, before capture, including all future documents.
-    await installRecordingCursor(cloakBrowser.context)
+    // Capture actual input without painting into the page. Source assembly
+    // composites the cursor later, on the same first-frame clock as narration.
+    const cursor = await installRecordingCursor(cloakBrowser.context)
     // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
     logger.info(
       { cdpUrl: cloakBrowser.cdpUrl, session },
@@ -262,7 +262,7 @@ export async function startRecording(
       if (fs.existsSync(webmPath)) {
         const archive = path.join(recDir, 'takes', `${Date.now()}`)
         fs.mkdirSync(archive, { recursive: true })
-        for (const name of ['demo.webm', 'demo-state.json', 'demo-config.json']) {
+        for (const name of ['demo.webm', 'demo-state.json', 'demo-config.json', 'cursor.json']) {
           const file = path.join(recDir, name)
           if (fs.existsSync(file)) fs.copyFileSync(file, path.join(archive, name))
         }
@@ -270,7 +270,10 @@ export async function startRecording(
       }
       logger.info({ webmPath }, 'Starting video recording...')
       startedAtMs = Date.now()
-      capture = await startBrowserCapture(cloakBrowser.context, webmPath, input.signal)
+      capture = await startBrowserCapture(cloakBrowser.context, webmPath, input.signal, {
+        recorder: cursor,
+        file: path.join(recDir, 'cursor.json'),
+      })
       startTime = capture.startTime
       recording = true
       for (const name of [
@@ -287,6 +290,7 @@ export async function startRecording(
           {
             startTime,
             videoStartTime: startTime,
+            cursor: 'recording/cursor.json',
             voiceName: (input.voice || 'Charon').toString().replace(/\.mp3$/i, ''),
             assetsManifestPath: input.assetsManifestPath,
             storyboard: input.storyboard,

@@ -979,7 +979,7 @@ class Engine:
         return {"source": info, "checks": checks, "passed": checks.get("duration_matches", True), "requires_review": ["Visual quality and target framing", "Speech/action synchronization and lip sync", "Caption correctness and readability", "Audio artifacts, intelligibility, and true peak", "Meaning, continuity, and pacing"]}
 
     def assemble_recording(self, args):
-        """Mux stopped capture + wall-clock narration; editorial work happens later."""
+        """Composite recorded cursor + wall-clock narration in one source encode."""
         info = self.video(args["source"])
         duration = number(info["duration"], "recording duration", 0.001)
         target = self.path(f"recording/source-{uuid.uuid4().hex}.mp4", exists=False)
@@ -1007,13 +1007,23 @@ class Engine:
         # No zoom, automatic cuts, music, cards, background or publication here.
         with tempfile.TemporaryDirectory(prefix="source-", dir=self.workspace()) as tmp:
             rendered = Path(tmp) / "source.mp4"
-            self.ff([*inputs, "-filter_complex", ";".join(filters), "-map", f"0:{info['video']['index']}", "-map", "[audio]", "-t", duration, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-movflags", "+faststart", rendered])
+            cursor = None
+            video_map = f"0:{info['video']['index']}"
+            if args.get("cursor"):
+                from cursor import prepare_cursor
+                cursor = prepare_cursor(self, args, info, Path(tmp), len(args.get("clips", [])) + 1)
+                inputs += cursor["inputs"]
+                filters += cursor["filters"]
+                video_map = "[cursor_video]"
+            self.ff([*inputs, "-filter_complex", ";".join(filters), "-map", video_map, "-map", "[audio]", "-t", duration, "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-movflags", "+faststart", rendered], cwd=tmp, internal_concat=bool(cursor))
             with target.open("xb") as dst, rendered.open("rb") as src:
                 shutil.copyfileobj(src, dst)
         timeline = self.path(str(target.with_suffix(".timeline.json")), exists=False)
         with timeline.open("x", encoding="utf-8") as handle:
             json.dump({"durationSec": duration, "beats": beats}, handle, indent=2)
-        return {"source": str(target), "duration": duration, "timeline": str(timeline), "narration_clips": len(beats), "next": "Read video-editing/SKILL.md and choose the scenario: narrated screen, presentation, or mixed sequences. Follow its preprocessing/reading-hold policy and bounded plan authoring. Raw-only requests can use this synchronized source directly."}
+        return {"source": str(target), "duration": duration, "timeline": str(timeline), "narration_clips": len(beats),
+                "cursor": cursor["report"] if cursor else None,
+                "next": "Read video-editing/SKILL.md and choose the scenario: narrated screen, presentation, or mixed sequences. Follow its preprocessing/reading-hold policy and bounded plan authoring. Raw-only requests can use this synchronized source directly."}
 
 
 def main():

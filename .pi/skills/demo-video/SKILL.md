@@ -17,8 +17,9 @@ state. Generated code proves generation, not correctness or production readiness
 Report contradictions between the script and actual source; never manufacture
 supporting footage. Camera moves and final editing belong to the shared editor.
 Capture complete gestures, scrolling and native page transitions so the final
-walkthrough can remain continuous. A successful click without a visible cursor
-or a jump to a scrolled destination is incomplete visual evidence.
+walkthrough can remain continuous. Verify cursor visibility in the synchronized
+source (the raw master is cursorless); a jump to a scrolled destination is
+incomplete visual evidence.
 
 ## Choose the instructions
 
