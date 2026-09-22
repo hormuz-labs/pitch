@@ -202,6 +202,13 @@ reported in final time by validation. Media transcription isolates utterances at
 long quiet gaps before whisper, preserving original offsets so words do not
 drift across idle holds. These are timing/preservation checks, not semantic proof
 that a narration claim or zoom target is correct.
+The adjacent and one-second scans run concurrently. Their fast path stacks the
+native Y/U/V difference planes and requires `blackframe.pblack == 100` with an
+integer threshold: every pixel must pass, including a lone changed chroma pixel.
+Oversized sources retain channel maxima to avoid the filter's 32-bit counter
+overflow. FFmpeg/Whisper subprocess waits are asynchronous so render health checks
+and lease heartbeats remain responsive. Screenshot extraction uses input-side
+accurate seeking rather than decoding from the beginning for each frame.
 Action-only moves use a clip-output `camera.delay` rather than inventing a speech
 cue; this also avoids splitting a clip solely to schedule a delayed camera reset.
 
@@ -212,6 +219,11 @@ audio, timestamps it after synthesis, and releases the browser tool lock without
 sleeping for its duration. Its optional `action` runs a click or visible field
 entry as speech begins; subsequent narration and stop wait for `narrationEndTime`.
 The live browser does not play TTS; `demo source` muxes it at those timestamps.
+Gemini narration explicitly requests AUDIO and searches response parts for audio.
+Temporary 429/5xx errors get one host retry, respecting Retry-After up to 30 seconds;
+the script stays unchanged and no audio/action is scheduled until synthesis succeeds.
+Requests are cancellable and bounded to 60 seconds each. Missing audio reports
+the provider's finish/block reason instead of an unqualified inlineData error.
 Browser/typing failures propagate rather than reporting success. Replacement
 takes require a specific `retakeReason` and archive the previous raw video/state
 under `recording/takes/`; uniquely named audio clips remain at their original paths.
@@ -226,6 +238,19 @@ the raw capture. It has no idle animation, and later source assembly, preprocess
 retiming and camera crops carry those pixels with the UI. It does not reconstruct
 old cursorless uploads: saved click positions identify anchors, not the original
 continuous mouse path. Review actual captured interaction frames for visibility.
+
+Ref-based mouse actions use host-owned eased input movement before activation,
+including a short settle, rather than smoothing only the painted cursor after
+the click has already happened. The pointer has no idle animation. Screen-editing
+instructions retain approaches/clicks at natural speed when accelerating work.
+The 1920×1080 content viewport sits inside a 1960×1240 Xvfb desktop so VNC includes
+the browser chrome and the full viewport. VNC requests its highest JPEG quality.
+`render/utils/browser-capture.ts` consumes full-size quality-100 screencast JPEGs
+and tracks the visible tab into a single source-quality VP9 master; the timestamped
+Matroska feed in `capture-encoder.ts` preserves static holds without pumping copies
+through IPC. This replaces the CLI's fixed 1 Mbps VP8 recording. The first-frame
+clock is saved as `videoStartTime` so narration muxing does not infer it from file
+birth time. The raw master costs more compute/storage; published output stays MP4.
 
 The launch skill embeds every available effect ID, grouped by family. Agents can
 select candidates directly, compare notes/frame strips, then load selected source

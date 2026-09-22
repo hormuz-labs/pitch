@@ -86,6 +86,45 @@ async function seed() {
 }
 
 describe('workspace checkpoints', () => {
+  it('consumes delayed transport padding after archive end markers without EPIPE', async () => {
+    await seed()
+    await checkpoint.uploadCheckpoint({
+      projectId,
+      ws,
+      version: 1,
+      sessionFile: null,
+      artifactKind: null,
+    })
+    const archive = objects.get('workspaces/proj_1/1/workspace.tar')!
+    let chunks = 0
+    const body = Readable.from(
+      (async function* () {
+        yield archive
+        // tar can finish the archive before the network delivers its final chunks.
+        await new Promise(resolve => setTimeout(resolve, 30))
+        for (let i = 0; i < 4; i++) {
+          yield Buffer.alloc(64 * 1024)
+          chunks++
+        }
+      })(),
+    )
+    const into = path.join(root, 'padded-restore')
+    await checkpoint.tarExtract(into, body)
+    expect(chunks).toBe(4)
+    expect(await readFile(path.join(into, ws.internal, 'shots.js'), 'utf8')).toBe(
+      'export default []',
+    )
+  })
+
+  it('still rejects a corrupt archive rather than hiding extraction errors', async () => {
+    await expect(
+      checkpoint.tarExtract(
+        path.join(root, 'corrupt-restore'),
+        Readable.from([Buffer.from('not an archive')]),
+      ),
+    ).rejects.toThrow(/tar|archive|extraction/i)
+  })
+
   it('round-trips the workspace, its history and the transcript, minus caches', async () => {
     const session = await seed()
     const manifest = await checkpoint.uploadCheckpoint({

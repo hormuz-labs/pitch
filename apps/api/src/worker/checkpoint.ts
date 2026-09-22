@@ -107,7 +107,11 @@ export function tarCreate(
 
 export async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
   await mkdir(into, { recursive: true })
-  const proc = spawn('tar', ['-xf', '-', '-C', into], { stdio: ['pipe', 'ignore', 'pipe'] })
+  // Read through archive end markers to the transport EOF. Otherwise GNU tar
+  // can exit successfully while S3 is still delivering padding, producing EPIPE.
+  const proc = spawn('tar', ['--ignore-zeros', '-xf', '-', '-C', into], {
+    stdio: ['pipe', 'ignore', 'pipe'],
+  })
   let err = ''
   proc.stderr.on('data', (c: Buffer) => {
     err += c.toString('utf8')
@@ -123,7 +127,11 @@ export async function tarExtract(into: string, body: NodeJS.ReadableStream): Pro
     await pipeline(body, proc.stdin)
   } catch (pipeErr) {
     proc.kill('SIGKILL')
-    throw pipeErr
+    await exit.catch(() => {})
+    const detail = err.trim().slice(0, 500)
+    throw new Error(`Checkpoint extraction stream failed: ${detail || String(pipeErr)}`, {
+      cause: pipeErr,
+    })
   }
   await exit
 }

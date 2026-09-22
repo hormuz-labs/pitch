@@ -61,6 +61,7 @@ import {
   parseElementBoxJson,
   parseMimeType,
 } from '../lib/demo-core.ts'
+import { pointerGlideCode } from '../lib/demo-pointer.ts'
 import type { DemoState } from '../lib/demo-state.ts'
 import { assertBrowserCommandSucceeded, waitForNarration } from '../lib/demo-timing.ts'
 import {
@@ -536,6 +537,13 @@ async function smoothScrollIntoView(base: string, ref: string): Promise<boolean>
   }
 }
 
+async function glideToTarget(base: string, ref: string): Promise<void> {
+  await run(
+    base,
+    `playwright-cli --raw run-code "${shellDoubleQuoteEscape(pointerGlideCode(ref))}"`,
+  )
+}
+
 // ── TTS ────────────────────────────────────────────────────────────────────
 interface SpeakResult {
   success: boolean
@@ -549,6 +557,7 @@ async function speak(
   text: string,
   state: DemoState,
   beforeStart: () => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<SpeakResult> {
   if (!text.trim()) return { success: false, error: 'Narration text is empty' }
   console.log(`[Narrator]: ${text}`)
@@ -602,16 +611,47 @@ async function speak(
     const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`
     const currentVoice = state.voiceName || 'Charon'
     const ttsBody = buildGeminiTtsBody(GEMINI_TTS_MODEL, currentVoice, text)
-    const ttsRes = await fetch(ttsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ttsBody),
-    })
+    const request = () =>
+      fetch(ttsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ttsBody),
+        signal: AbortSignal.any([AbortSignal.timeout(60_000), ...(signal ? [signal] : [])]),
+      })
+    let ttsRes = await request()
+    if (ttsRes.status === 429 || ttsRes.status >= 500) {
+      // One bounded host retry, keeping the exact script and scheduling nothing
+      // until synthesis succeeds. Do not let the model repeatedly rewrite it.
+      const header = ttsRes.headers?.get('retry-after')
+      const seconds = header ? Number(header) : 1
+      const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header!) - Date.now()
+      if (Number.isFinite(delay) && delay >= 0 && delay <= 30_000) {
+        await ttsRes.body?.cancel()
+        await waitForNarration(Date.now() + delay, signal)
+        ttsRes = await request()
+      }
+    }
     if (!ttsRes.ok) throw new Error(`TTS API failed: ${ttsRes.status} ${await ttsRes.text()}`)
     const ttsData = await ttsRes.json()
+    const parts = ttsData.candidates?.[0]?.content?.parts ?? []
     const inlineData =
-      ttsData.candidates?.[0]?.content?.parts?.[0]?.inlineData || ttsData.inlineData
-    if (!inlineData?.data) throw new Error('TTS response missing inlineData')
+      parts.find(
+        (part: any) =>
+          part.inlineData?.data &&
+          (!part.inlineData.mimeType || part.inlineData.mimeType.startsWith('audio/')),
+      )?.inlineData || ttsData.inlineData
+    if (!inlineData?.data) {
+      const reason =
+        ttsData.promptFeedback?.blockReason ||
+        ttsData.candidates?.[0]?.finishReason ||
+        'unspecified'
+      const kinds = parts.map((part: any) =>
+        part.text ? 'text' : part.inlineData ? 'inlineData' : 'other',
+      )
+      throw new Error(
+        `TTS returned no audio (finish/block reason: ${reason}; parts: ${kinds.join(',') || 'none'}). Preserve the script; do not substitute test phrases.`,
+      )
+    }
     const rawPcmBuffer = Buffer.from(inlineData.data, 'base64')
     const responseMimeType = inlineData.mimeType || 'audio/pcm;rate=24000'
     const options = parseMimeType(responseMimeType)
@@ -713,6 +753,14 @@ export default function demoCommands(): CommandSpec[] {
             state.tabEvents.push({ tabId: selectId, wallSec: nowSec })
             state.currentTabId = selectId
           }
+        }
+
+        const pointerTarget = cmd.match(
+          /^playwright-cli\s+(?:(?:--raw|-s=\S+|--session=\S+)\s+)*(?:click|dblclick|hover|check|uncheck)\s+["']?([a-zA-Z0-9]+)["']?(?=\s|$)/,
+        )?.[1]
+        if (pointerTarget && cmd.startsWith('playwright-cli ')) {
+          await smoothScrollIntoView(base, pointerTarget)
+          await glideToTarget(base, pointerTarget)
         }
 
         // Stamp click events/sounds when the click is dispatched, not after the
@@ -913,16 +961,22 @@ export default function demoCommands(): CommandSpec[] {
         if (pendingGrounding) clearPendingGrounding(base)
 
         let emphasisNote = ''
-        const result = await speak(base, args.text, state, async () => {
-          _signal?.throwIfAborted()
-          if (!emphasis) return
-          try {
-            const applied = await applyNarrationEmphasis(base, state, emphasis)
-            emphasisNote = `; emphasis=${applied.style}`
-          } catch (error) {
-            emphasisNote = `; emphasis failed: ${error instanceof Error ? error.message : String(error)}`
-          }
-        })
+        const result = await speak(
+          base,
+          args.text,
+          state,
+          async () => {
+            _signal?.throwIfAborted()
+            if (!emphasis) return
+            try {
+              const applied = await applyNarrationEmphasis(base, state, emphasis)
+              emphasisNote = `; emphasis=${applied.style}`
+            } catch (error) {
+              emphasisNote = `; emphasis failed: ${error instanceof Error ? error.message : String(error)}`
+            }
+          },
+          _signal,
+        )
         writeState(base, state)
         if (result.success) {
           const currentProgress = readSlideshowProgress(base)
@@ -1005,7 +1059,10 @@ export default function demoCommands(): CommandSpec[] {
           }
         }
 
-        // Record a cursor click + click sound on the field, then clear & focus it.
+        await smoothScrollIntoView(base, target)
+        await run(base, `playwright-cli fill "${target}" ""`)
+        await glideToTarget(base, target)
+        // Record a cursor click + click sound after the approach, then focus it.
         // hand:false — a text field keeps the arrow cursor, never the hand pointer.
         const ts = Date.now()
         const clamped = clampToFrame(cx, cy)
@@ -1016,7 +1073,6 @@ export default function demoCommands(): CommandSpec[] {
           hand: false,
         })
         state.audioClips.push({ filePath: clickSound, absoluteTimestamp: ts })
-        await run(base, `playwright-cli fill "${target}" ""`)
         await run(base, `playwright-cli click "${target}"`)
 
         // Reveal the value progressively, time-bounded: short fields type char by

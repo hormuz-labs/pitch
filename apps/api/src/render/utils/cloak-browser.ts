@@ -103,6 +103,7 @@ export async function startCloakBrowser(options: {
       headless: false,
       viewport: { width: 1920, height: 1080 },
       args: [
+        '--window-position=0,0',
         `--remote-debugging-port=${port}`,
         '--remote-debugging-address=127.0.0.1',
         `--fingerprint=${fingerprintSeed(options.fingerprintIdentity ?? options.streamId)}`,

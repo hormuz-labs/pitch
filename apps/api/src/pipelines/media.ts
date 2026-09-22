@@ -288,7 +288,7 @@ registerHostAction('media_publish', async (ws, params) => {
  */
 registerHostAction(
   'media_transcribe',
-  async (ws, params) => {
+  async (ws, params, ctx) => {
     const rel = String(params.file ?? '')
     const file = insideWorkspace(ws, rel)
     if (!existsSync(file)) throw new Error(`no such file in the workspace: ${rel}`)
@@ -298,11 +298,17 @@ registerHostAction(
     const tmp = await mkdtemp(path.join(tmpdir(), 'transcribe-'))
     try {
       const wav = path.join(tmp, 'audio.wav')
-      await execAsync(`ffmpeg -y -hide_banner -i "${file}" -vn -ac 1 -ar 16000 "${wav}"`, {
-        maxBuffer: 8 * 1024 * 1024,
-      })
+      await execFileP(
+        'ffmpeg',
+        ['-y', '-hide_banner', '-nostdin', '-i', file, '-vn', '-ac', '1', '-ar', '16000', wav],
+        { maxBuffer: 8 * 1024 * 1024, signal: ctx.signal },
+      )
       const lang = typeof params.lang === 'string' ? params.lang : undefined
-      const { model, words, segments } = transcribeWav(wav, { lang, splitOnSilence: true })
+      const { model, words, segments } = await transcribeWav(wav, {
+        lang,
+        splitOnSilence: true,
+        signal: ctx.signal,
+      })
       await mkdir(path.dirname(out), { recursive: true })
       await writeFile(out, JSON.stringify({ source: rel, model, segments, words }, null, 2))
       const dur = segments.length ? segments[segments.length - 1].end : 0

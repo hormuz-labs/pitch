@@ -4,7 +4,7 @@
  * Lifted from steps 1–3 (and the stop half of step 8) of the old worker
  * (apps/worker/src/job-processor.ts): start the user's CloakBrowser profile,
  * attach playwright-cli to its local CDP endpoint, resize the
- * viewport, start the WebM screencast and write demo-config.json — the handoff
+ * viewport, start the high-quality WebM capture and write demo-config.json — the handoff
  * contract the demo tools read (`{ startTime, voiceName, assetsManifestPath?,
  * storyboard? }`).
  *
@@ -24,6 +24,7 @@ import { downloadStorageState, uploadStorageState } from '@saas/storage'
 import { assertBrowserCommandSucceeded } from '../../../../.pi/lib/demo-timing.ts'
 import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
+import { type BrowserCapture, startBrowserCapture } from './utils/browser-capture.js'
 import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
 import { installRecordingCursor } from './utils/recording-cursor.js'
 
@@ -57,7 +58,7 @@ export interface StartRecordingInput {
 export interface RecordingHandle {
   /** The event clock anchor every demo-tools timestamp is measured against. */
   startTime: number
-  /** When video-start ran (for the post-run stale-chunk sweep). */
+  /** When capture began (for the post-run stale-chunk sweep). */
   startedAtMs: number
   /** Expected recording path: <workspaceDir>/recording/demo.webm */
   webmPath: string
@@ -74,8 +75,6 @@ export interface RecordingHandle {
   /** Stops the screencast, closes the playwright session and its browser. */
   stop: () => Promise<void>
 }
-
-const RECORDING_STOP_TIMEOUT_MS = 60_000
 
 export function recoverRecordingArtifact(
   workspaceDir: string,
@@ -205,9 +204,10 @@ export async function startRecording(
       force: true,
     })
   }
+  let capture: BrowserCapture | undefined
   try {
     // Page screencasts do not include the native OS mouse cursor. Install once
-    // during preparation, before video-start, including all future documents.
+    // during preparation, before capture, including all future documents.
     await installRecordingCursor(cloakBrowser.context)
     // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
     logger.info(
@@ -270,11 +270,8 @@ export async function startRecording(
       }
       logger.info({ webmPath }, 'Starting video recording...')
       startedAtMs = Date.now()
-      const result = assertBrowserCommandSucceeded(
-        await execAsync(`${cli} video-start "${webmPath}" --size=1920x1080`, { cwd: workspaceDir }),
-      )
-      logger.info(result, 'playwright-cli video-start output')
-      startTime = Date.now()
+      capture = await startBrowserCapture(cloakBrowser.context, webmPath, input.signal)
+      startTime = capture.startTime
       recording = true
       for (const name of [
         'demo-state.json',
@@ -289,6 +286,7 @@ export async function startRecording(
         JSON.stringify(
           {
             startTime,
+            videoStartTime: startTime,
             voiceName: (input.voice || 'Charon').toString().replace(/\.mp3$/i, ''),
             assetsManifestPath: input.assetsManifestPath,
             storyboard: input.storyboard,
@@ -307,19 +305,7 @@ export async function startRecording(
       const stoppedAtMs = Date.now()
       try {
         if (!recording) return
-        try {
-          const videoStopResult = await execAsync(`${cli} video-stop`, {
-            cwd: workspaceDir,
-            timeout: RECORDING_STOP_TIMEOUT_MS,
-            killSignal: 'SIGKILL',
-          })
-          logger.info(
-            { stdout: videoStopResult.stdout, stderr: videoStopResult.stderr },
-            'playwright-cli video-stop output',
-          )
-        } catch (e) {
-          logger.warn({ err: e }, 'Failed to stop video recording gracefully')
-        }
+        await capture!.stop()
 
         recoverRecordingArtifact(workspaceDir, webmPath, startedAtMs)
         assertRecordingCoversTimeline(await getMediaDurationSec(webmPath), startTime, stoppedAtMs)
@@ -365,8 +351,9 @@ export async function startRecording(
       stop,
     }
   } catch (err) {
-    // Attach/resize/video-start failed: shut down the CDP proxy and stop the
+    // Attach/resize/capture failed: shut down the browser connection and stop the
     // browser process so the user's session isn't left running.
+    await capture?.stop().catch(() => {})
     try {
       await execAsync(`${cli} close`, { cwd: workspaceDir })
     } catch (_e) {}

@@ -362,14 +362,18 @@ registerHostAction('demo_record_stop', async (ws, _params, ctx) => {
 registerHostAction('demo_source', async (ws, _params, ctx) => {
   if (active.has(ws.dir) || existsSync(liveFile(ws)))
     throw new Error('Stop the recording with pitch demo record-stop before preparing its source.')
-  const config = await readJson<{ startTime: number }>(configFile(ws))
+  const config = await readJson<{ startTime: number; videoStartTime?: number }>(configFile(ws))
   if (!Number.isFinite(config?.startTime)) throw new Error('No stopped recording configuration.')
   const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
   const source = path.join(recordingDir(ws), 'demo.webm')
   const root = resolveSymlinks(ws.dir)
   if (!resolveSymlinks(source).startsWith(`${root}${path.sep}`))
     throw new Error('Recording path escapes the workspace.')
-  const birth = await getVideoBirthTimeMs(source, logger)
+  // Host capture timestamps zero at its first frame. File creation time can
+  // precede that frame and must not shift narration on new recordings.
+  const birth = Number.isFinite(config?.videoStartTime)
+    ? config!.videoStartTime!
+    : await getVideoBirthTimeMs(source, logger)
   if (birth === null) throw new Error('Cannot determine the recording timebase.')
   const offset = Math.max(0, (config!.startTime - birth) / 1000)
   const clips = (state.audioClips ?? []).map(clip => {

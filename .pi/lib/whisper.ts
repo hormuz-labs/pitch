@@ -7,10 +7,13 @@
  * used to be a second transcriber, a transformers.js container that the
  * recording tools posted audio to, doing the same job with a different model.
  */
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { availableParallelism, cpus, homedir, tmpdir } from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 export interface Word {
   word: string
@@ -152,10 +155,23 @@ export function speechWindows(log: string, duration: number): Array<[number, num
  * reason when the binary or the model is missing — a host problem the agent
  * can only report.
  */
-export function transcribeWav(
+export async function transcribeWav(
   wav: string,
-  opts: { lang?: string; bin?: string; threads?: number; splitOnSilence?: boolean } = {},
-): { model: string; words: Word[]; segments: Segment[] } {
+  opts: {
+    lang?: string
+    bin?: string
+    threads?: number
+    splitOnSilence?: boolean
+    signal?: AbortSignal
+  } = {},
+): Promise<{ model: string; words: Word[]; segments: Segment[] }> {
+  opts.signal?.throwIfAborted()
+  const commandOptions = {
+    encoding: 'utf8' as const,
+    signal: opts.signal,
+    timeout: 30 * 60_000,
+    maxBuffer: 64 * 1024 * 1024,
+  }
   const bin = opts.bin ?? process.env.WHISPER_CLI ?? 'whisper-cli'
   const threads = opts.threads ?? defaultWhisperThreads()
   const model = findWhisperModel()
@@ -171,16 +187,18 @@ export function transcribeWav(
     let windows: Array<[number, number]> | undefined
     if (opts.splitOnSilence) {
       const duration = Number(
-        execFileSync(
-          'ffprobe',
-          ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', wav],
-          { encoding: 'utf8' },
-        ).trim(),
+        (
+          await execFileAsync(
+            'ffprobe',
+            ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', wav],
+            commandOptions,
+          )
+        ).stdout.trim(),
       )
       if (!Number.isFinite(duration) || duration <= 0) throw new Error('Invalid audio duration')
       // A long low-level gap is a segmentation boundary, never a video cut.
       // Capture detector metadata rather than FFmpeg's progress stream.
-      const metadata = execFileSync(
+      const { stdout: metadata } = await execFileAsync(
         'ffmpeg',
         [
           '-v',
@@ -194,7 +212,7 @@ export function transcribeWav(
           'null',
           '-',
         ],
-        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+        { ...commandOptions, maxBuffer: 16 * 1024 * 1024 },
       )
       windows = speechWindows(
         metadata
@@ -208,7 +226,7 @@ export function transcribeWav(
       let input = wav
       if (window) {
         input = path.join(tmp, `utterance-${index}.wav`)
-        execFileSync(
+        await execFileAsync(
           'ffmpeg',
           [
             '-v',
@@ -226,10 +244,10 @@ export function transcribeWav(
             '16000',
             input,
           ],
-          { stdio: 'pipe' },
+          commandOptions,
         )
       }
-      execFileSync(
+      await execFileAsync(
         bin,
         [
           '-m',
@@ -248,7 +266,7 @@ export function transcribeWav(
           base,
           '-np',
         ],
-        { stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 },
+        commandOptions,
       )
       const chunk = parseWhisperJson(JSON.parse(readFileSync(`${base}.json`, 'utf8')))
       for (const word of chunk) {

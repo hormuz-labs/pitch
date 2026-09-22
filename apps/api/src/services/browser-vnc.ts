@@ -227,7 +227,8 @@ export async function startVncDisplay(id: string, signal?: AbortSignal): Promise
   try {
     const xvfb = spawn(
       'Xvfb',
-      ['-displayfd', '3', '-screen', '0', '1920x1080x24', '-nolisten', 'tcp', '-ac'],
+      // Leave room for browser chrome around the 1920x1080 content viewport.
+      ['-displayfd', '3', '-screen', '0', '1960x1240x24', '-nolisten', 'tcp', '-ac'],
       {
         env: process.env,
         stdio: ['ignore', 'ignore', 'pipe', 'pipe'],

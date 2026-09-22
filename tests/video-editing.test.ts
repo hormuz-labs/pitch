@@ -80,6 +80,39 @@ afterAll(async () => {
 })
 
 describe('shared pi video editor', () => {
+  it('accurately seeks non-keyframe times without changing the decoded screenshot', async () => {
+    const times = [0, 0.55, 3.15]
+    const result = await call('frames', { source, times, max_width: 320 })
+    for (let i = 0; i < times.length; i++) {
+      const reference = await exec(
+        'ffmpeg',
+        [
+          '-v',
+          'error',
+          '-i',
+          path.join(root, source),
+          '-ss',
+          String(times[i]),
+          '-map',
+          '0:v:0',
+          '-vf',
+          "scale=round(iw*sar):ih,setsar=1,scale='min(320,iw)':-1",
+          '-frames:v',
+          '1',
+          '-threads',
+          '1',
+          '-c:v',
+          'png',
+          '-f',
+          'image2pipe',
+          'pipe:1',
+        ],
+        { encoding: 'buffer' },
+      )
+      expect(await readFile(path.join(root, result.images[i].path))).toEqual(reference.stdout)
+    }
+  })
+
   it('exposes commands alongside generation and parses the documented flags', () => {
     expect(findCommand('video', 'generate')).toBeTruthy()
     const frames = findCommand('video', 'frames')!
@@ -225,6 +258,24 @@ describe('shared pi video editor', () => {
       protect: [{ start: 0, end: 4 }],
     })
     expect(protectedResult.removed_seconds).toBe(0)
+  }, 30_000)
+
+  it('keeps a single changing chroma pixel even when luminance is completely still', async () => {
+    const input = 'uploads/chroma-activity.mkv'
+    await ff([
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=gray:s=320x180:r=10:d=8',
+      '-vf',
+      "format=yuv444p,geq=lum=128:cb='if(eq(X,160)*eq(Y,90)*between(N,30,59),128+32*mod(N,2),128)':cr=128",
+      '-c:v',
+      'ffv1',
+      path.join(root, input),
+    ])
+    const result = await call('preprocess', { source: input })
+    expect(result.removed_seconds).toBeGreaterThan(0)
+    expect(result.removed.every(([a, b]: number[]) => b <= 3 || a >= 6)).toBe(true)
   }, 30_000)
 
   it('allows continuous accelerated typing but rejects dropped, reordered or accelerated speech', async () => {

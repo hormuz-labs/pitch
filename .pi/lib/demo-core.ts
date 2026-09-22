@@ -21,6 +21,7 @@ export function buildGeminiTtsBody(model: string, voiceName: string, text: strin
     model,
     contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
+      responseModalities: ['AUDIO'],
       speechConfig: {
         voiceConfig: { prebuiltVoiceConfig: { voiceName } },
       },

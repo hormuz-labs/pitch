@@ -4,6 +4,7 @@
 Standard library only; invoked by a metered host action, never the agent VM.
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import math
 import os
@@ -83,11 +84,13 @@ def static_ranges(log, tolerance=8):
     still, start, previous = [], None, None
     for block in re.split(r"(?=frame:\d+)", log):
         stamp = re.search(r"pts_time:([\d.e+-]+)", block)
+        black = re.search(r"lavfi.blackframe.pblack=(\d+)", block)
         values = re.findall(r"lavfi.signalstats.[YUV]MAX=([\d.e+-]+)", block)
-        if not stamp or len(values) != 3:
+        if not stamp or (not black and len(values) != 3):
             continue
         time = float(stamp[1])
-        if all(float(v) <= tolerance for v in values):
+        unchanged = int(black[1]) == 100 if black else all(float(v) <= tolerance for v in values)
+        if unchanged:
             if start is None:
                 start = time if previous is None else previous
         elif start is not None:
@@ -213,7 +216,9 @@ class Engine:
         if info["duration"] and time >= info["duration"]:
             raise VideoError("Frame timestamp must be before the source duration")
         chain = "scale=round(iw*sar):ih,setsar=1" + ("," + filters if filters else "")
-        # Seek at the input so late frames do not require decoding the entire video first.
+        # Input-side accurate seeking decodes from the preceding keyframe, not
+        # from the beginning for every requested screenshot. Transcoding retains
+        # FFmpeg's default accurate-seek discard up to the requested timestamp.
         self.ff(["-ss", time, "-i", info["path"], "-map", f"0:{info['video']['index']}", "-vf", chain, "-frames:v", "1", "-threads", "1", dest])
         if not dest.is_file():
             raise VideoError(f"No frame decoded at {time}s")
@@ -357,18 +362,37 @@ class Engine:
             protected.append(self.time_range(item, duration))
         # Per-pixel tolerance absorbs low-level codec noise, not small areas:
         # one changed character still counts. Cursor blink/spinners retain time.
-        log = self.ff(["-i", info["path"], "-map", f"0:{info['video']['index']}", "-an",
-                       "-vf", "format=yuv444p,tblend=all_mode=difference,signalstats,metadata=mode=print:file=-",
-                       "-f", "null", "-"], verbose=True).stdout
-        still = static_ranges(log)
-        if duration > 2:
-            # A slow fade can change <8 levels each frame yet clearly change
-            # over a second. Check that baseline too, at every frame timestamp.
-            lag = self.ff(["-i", info["path"], "-an", "-filter_complex",
-                f"[0:{info['video']['index']}]format=yuv444p,split[now][past];"
-                "[past]setpts=PTS+1/TB[lag];[now][lag]blend=all_mode=difference:shortest=1,"
-                "signalstats,metadata=mode=print:file=-[diff]", "-map", "[diff]", "-f", "null", "-"], verbose=True).stdout
-            still = intersect_ranges(still, static_ranges(lag, tolerance=16))
+        def scan(graph, tolerance):
+            # Stack the unscaled Y/U/V planes as gray pixels. blackframe floors
+            # its percentage: 100 means EVERY pixel is below tolerance+1. One
+            # changed character/chroma pixel makes it <100. This is equivalent
+            # to three channel maxima, without signalstats' histogram/hue work.
+            pixels = info["video"]["coded_width"] * info["video"]["coded_height"]
+            if pixels * 3 * 100 > 0xffffffff:
+                # blackframe uses a 32-bit counter before dividing by area.
+                # Keep exact maxima on oversized sources rather than overflow.
+                graph += "signalstats,metadata=mode=print:file=-[diff]"
+            else:
+                graph += (f"extractplanes=y+u+v[y][u][v];[y][u][v]vstack=inputs=3,"
+                          f"blackframe=amount=0:threshold={tolerance + 1},metadata=mode=print:file=-[diff]")
+            log = self.ff(["-i", info["path"], "-an", "-filter_complex", graph,
+                           "-map", "[diff]", "-f", "null", "-"], verbose=True).stdout
+            return static_ranges(log, tolerance)
+
+        # Independent scans share no output files. Two processes make use of the
+        # render tier without sampling/skipping frames or relaxing the cut gate.
+        with ThreadPoolExecutor(max_workers=2) as scans:
+            adjacent = scans.submit(scan, f"[0:{info['video']['index']}]format=yuv444p,tblend=all_mode=difference,", 8)
+            baseline = None
+            if duration > 2:
+                # Slow changes can be below the adjacent threshold yet visible
+                # over one second. Keep the existing second gate at every frame.
+                baseline = scans.submit(scan,
+                    f"[0:{info['video']['index']}]format=yuv444p,split[now][past];"
+                    "[past]setpts=PTS+1/TB[lag];[now][lag]blend=all_mode=difference:shortest=1,", 16)
+            still = adjacent.result()
+            if baseline is not None:
+                still = intersect_ranges(still, baseline.result())
         silent = [(0, duration)]
         if info["audio_tracks"]:
             # -50 dB and boundary handles deliberately preserve quiet speech.

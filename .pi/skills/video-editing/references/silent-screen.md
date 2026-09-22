@@ -12,6 +12,8 @@ anchors or a transcript to make the camera API convenient.
 3. Accelerate continuous typing/loading/streaming interiors, leaving first/last
    states and the result understandable. Avoid an apparent instant result when
    duration matters; retain progress context or label acceleration if appropriate.
+   Keep pointer approaches and clicks at 1×; accelerate the work between them,
+   not the pointer travel. Check motion after retiming.
 4. Focus before first input or the meaningful click, then hold through completion.
    Use `camera.delay` plus `enter` to place the move in clip-output time, or split
    move/hold clips when needed. `camera.cue` requires speech, so do not populate

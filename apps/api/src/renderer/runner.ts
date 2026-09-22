@@ -62,6 +62,7 @@ export async function runJob(job: queue.RenderJobRow): Promise<void> {
   }, HEARTBEAT_MS)
   beat.unref()
   let lastProgress = 0
+  let phase = 'restoring'
   try {
     if (!isRemoteAction(job.action))
       throw new Error(
@@ -70,6 +71,7 @@ export async function runJob(job: queue.RenderJobRow): Promise<void> {
     await queue.progress(job.id, 'restoring')
     const ws = await materialise(job.projectId, job.workspaceVersion)
     const since = Date.now()
+    phase = 'running'
     await queue.progress(job.id, 'running')
     const params = JSON.parse(job.params || '{}') as Record<string, unknown>
     const result = await callHostAction(ws.dir, job.action, params, {
@@ -81,6 +83,7 @@ export async function runJob(job: queue.RenderJobRow): Promise<void> {
         void queue.progress(job.id, stage, percent)
       },
     })
+    phase = 'shipping'
     await queue.progress(job.id, 'shipping', 100)
     const files = await changedSince(ws.dir, since)
     const shipped = await uploadOutput(job.id, ws.dir, files)
@@ -91,8 +94,8 @@ export async function runJob(job: queue.RenderJobRow): Promise<void> {
     )
   } catch (err: any) {
     const message = controller.signal.aborted ? 'cancelled' : (err?.message ?? String(err))
-    log.warn({ err: message }, 'render job failed')
-    await queue.fail(job.id, RENDER_ID, message).catch(() => {})
+    log.warn({ err: message, phase, workspaceVersion: job.workspaceVersion }, 'render job failed')
+    await queue.fail(job.id, RENDER_ID, `${phase}: ${message}`).catch(() => {})
   } finally {
     clearInterval(beat)
   }

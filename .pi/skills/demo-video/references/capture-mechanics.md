@@ -18,13 +18,19 @@ Shared commands include `snapshot`, `goto <url>` and `press ArrowRight`.
 Snapshot after navigation or slide advance. Refs belong to the current page
 state; never reuse them across transitions or sessions. There is no Playwright
 wait command; a short host `sleep` after navigation can allow settling when needed.
-The recorded browser is 1920×1080.
+The recorded content viewport is 1920×1080. The VNC desktop is 1960×1240 to
+include the toolbar/window frame and the bottom of that viewport. Do not resize
+the browser during a take. The host records full-size JPEG frames into a 30fps,
+quality-based VP9 master, then source assembly supplies the H.264/AAC editing source.
 
 The host paints a visible arrow and a brief click ring from actual mouse events
 into the browser capture. It is installed on existing pages and future documents
 and frames. Move/hover/click through browser input; a DOM `element.click()` or
 value assignment does not move a mouse. The pointer is hidden until the first
-mouse event and stays still while idle. Check a recorded interaction for a visible
+mouse event and stays still while idle. Ref-based click/hover/check and field-entry
+tools move the real mouse with eased travel (roughly 0.35–1.1s plus a brief settle)
+before activation. Avoid direct DOM clicks or ad-hoc instantaneous mouse jumps.
+Check a recorded interaction for a visible
 pointer before delivery; do not add a second cursor in post-processing. Since the
 pointer is in the source pixels, the shared editor's cuts, speed changes and crops
 carry it with the UI automatically.
@@ -62,3 +68,7 @@ first button or replay a batch of refs through navigation. Do not wrap snapshots
 or single clicks in exploratory scripts with record-start/record-stop or
 `finally: record-stop`. Keep the preparation browser or take open during recovery.
 If narration fails, recover that beat in the same take; do not assume audio exists.
+Preserve the intended words. Do not insert test greetings into a live take or
+shorten the script repeatedly to probe a provider failure. Inspect the reported
+HTTP/finish reason. Temporary 429/5xx errors already get one bounded host retry;
+if the provider remains unavailable, report the missing beat rather than looping.

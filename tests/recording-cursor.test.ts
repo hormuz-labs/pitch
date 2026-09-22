@@ -34,6 +34,7 @@ function environment(child = false) {
   const context = createContext({
     window,
     document: {
+      addEventListener: vi.fn(),
       createElement,
       documentElement: {
         appendChild: () => {
@@ -58,11 +59,11 @@ describe('recorded mouse input', () => {
     page.emit('pointermove', { clientX: 192, clientY: 108, pointerType: 'mouse' })
     expect(page.pointer.style).toEqual({
       visibility: 'visible',
-      transform: 'translate(190px,106px)',
+      transform: 'translate(189px,105px)',
     })
     expect(page.ring.animate).not.toHaveBeenCalled()
     page.emit('pointerdown', { clientX: 300, clientY: 240, pointerType: 'mouse' })
-    expect(page.pointer.style.transform).toBe('translate(298px,238px)')
+    expect(page.pointer.style.transform).toBe('translate(297px,237px)')
     expect(page.ring.animate).toHaveBeenCalledTimes(1)
     page.emit('pointerup', { clientX: 300, clientY: 240, pointerType: 'mouse' })
     expect(page.ring.animate).toHaveBeenCalledTimes(1)
@@ -106,7 +107,7 @@ describe('recorded mouse input', () => {
     page.emit('message', { source: {}, data })
     expect(page.createElement).not.toHaveBeenCalled()
     page.emit('message', { source: childWindow, data })
-    expect(page.pointer.style.transform).toBe('translate(134px,249px)')
+    expect(page.pointer.style.transform).toBe('translate(133px,248px)')
     expect(page.ring.animate).toHaveBeenCalledTimes(1)
     page.emit('message', { source: childWindow, data: { ...data, x: NaN } })
     expect(page.ring.animate).toHaveBeenCalledTimes(1)

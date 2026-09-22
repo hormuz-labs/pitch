@@ -73,6 +73,9 @@ Keep silent typing and streamed output continuous. Accelerate their interior,
 typically 2–4×, while retaining recognizable first/last input, submission, first
 response and completed result. Speech stays at 1×. Small changing text counts as
 activity. Do not replace a progressing field/response with a completed frame.
+Keep deliberate pointer approaches, presses and navigation gestures at 1×; split
+those from accelerated typing/loading interiors so the cursor does not dart
+across the screen after retiming. Review the actual pointer motion in output.
 
 ## Camera continuity and navigation
 
