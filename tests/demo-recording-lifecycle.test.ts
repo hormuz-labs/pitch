@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   browser: vi.fn(),
   close: vi.fn(),
   profile: vi.fn(),
+  initScript: vi.fn(),
+  evaluate: vi.fn(),
 }))
 vi.mock('@saas/db', () => ({
   getOrCreateBrowserProfile: mocks.profile,
@@ -38,7 +40,11 @@ beforeEach(() => {
     streamId: 'demo-test',
     cdpUrl: 'http://127.0.0.1:12345',
     close: mocks.close,
-    context: { storageState: async () => ({ cookies: [], origins: [] }) },
+    context: {
+      storageState: async () => ({ cookies: [], origins: [] }),
+      addInitScript: mocks.initScript,
+      pages: () => [{ frames: () => [{ evaluate: mocks.evaluate }] }],
+    },
   })
   mocks.exec.mockImplementation(async (command: string) => {
     if (command.includes('video-stop'))
@@ -60,6 +66,8 @@ describe('preparation and one continuous take', () => {
       deferCapture: true,
     })
     expect(handle.recording).toBe(false)
+    expect(mocks.initScript).toHaveBeenCalledTimes(1)
+    expect(mocks.evaluate).toHaveBeenCalledTimes(1)
     expect(mocks.exec.mock.calls.some(([command]) => command.includes('video-start'))).toBe(false)
     expect(fs.readFileSync(path.join(base, 'recording/demo.webm'), 'utf8')).toBe('old take')
     await handle.startCapture()
@@ -70,6 +78,11 @@ describe('preparation and one continuous take', () => {
     ).toHaveLength(1)
     expect(handle.recording).toBe(true)
     expect(handle.startTime).toBeGreaterThan(0)
+    expect(mocks.initScript.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.exec.mock.invocationCallOrder[
+        mocks.exec.mock.calls.findIndex(([command]) => command.includes('video-start'))
+      ]!,
+    )
     const archived = fs.readdirSync(path.join(base, 'recording/takes'))[0]
     expect(fs.readFileSync(path.join(base, 'recording/takes', archived, 'demo.webm'), 'utf8')).toBe(
       'old take',
@@ -100,6 +113,15 @@ describe('preparation and one continuous take', () => {
       false,
     )
     expect(fs.readFileSync(config, 'utf8')).toBe('previous config')
+    expect(mocks.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not silently record a cursorless take when pointer installation fails', async () => {
+    mocks.initScript.mockRejectedValueOnce(new Error('cursor installation failed'))
+    await expect(
+      startRecording({ userId: 'test', workspaceDir: base, streamId: 'demo-test' }),
+    ).rejects.toThrow('cursor installation failed')
+    expect(mocks.exec.mock.calls.some(([command]) => command.includes('video-start'))).toBe(false)
     expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 })

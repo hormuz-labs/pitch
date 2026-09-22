@@ -3,7 +3,7 @@ import { registerHostAction } from '../studio/host-actions.js'
 
 // Register on every role; heavy render/extraction work can run against a render-tier checkpoint.
 // Schema validation, fast ffprobe inspections, and focus framing run locally.
-const REMOTE_ACTIONS = new Set(['render', 'frames', 'analyze'])
+const REMOTE_ACTIONS = new Set(['render', 'frames', 'analyze', 'preprocess'])
 
 for (const action of [
   'capabilities',
@@ -11,6 +11,8 @@ for (const action of [
   'frames',
   'focus',
   'analyze',
+  'preprocess',
+  'plan',
   'validate',
   'render',
   'verify',

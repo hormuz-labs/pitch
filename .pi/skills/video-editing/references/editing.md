@@ -19,6 +19,9 @@ different decisions.
 ## Screen recordings, product demos and coding tutorials
 
 - Retain prerequisite state, action and observable result.
+- Preprocess joint silence/stillness before editorial decisions. Retain its
+  coverage contract. Typing and streamed responses remain continuous; shorten
+  silent progression with speed, never by replacing it with completed text.
 - Log meaningful controls/text entry, address bars and nested/final links.
   Focus requested targets and otherwise unreadable interactions.
 - Follow [zoom.md](zoom.md) for centering, holds, continuity and pre-trigger

@@ -97,8 +97,8 @@ interface Description {
 workspace by mtime and previews the newest, so the preview follows the work:
 ask for a deck and get a deck, ask that project for a video and the preview
 becomes the video, with no flag saying which it is. A live recording
-(`recording/live.json`) always wins, because then the user is watching a
-browser rather than a file.
+(`recording/browser.json` during preparation or `recording/live.json` during
+capture) always wins, because then the user is watching a browser rather than a file.
 
 ### Workspace layout
 
@@ -161,10 +161,20 @@ workflow. `demo-video` owns recording only and references the shared
 videos use that same editing skill. Existing event-based recording projects can
 still be maintained with the `recording-edit` reference.
 
+Both demo and video-editing entry skills use progressive disclosure. Demo routes
+to browser capture or documents/storyboards, sharing capture mechanics. The
+editor selects narrated-screen, silent-screen, speech/people, presentation,
+montage/action or targeted-edit instructions from the footage and current request,
+per sequence for mixed media. These are model-selected documentation branches,
+not creation flows or stored project types. Named screen-demo subjects get a
+complete attention map before camera planning; interviews and slide reading holds
+do not inherit screen-demo silence-removal rules. Review follows the required
+subjects, including missing emphasis, rather than only the effects in a plan.
+
 `pitch demo source` muxes a stopped capture with its wall-clock narration/SFX
 into an uncut `recording/source-*.mp4`, with source-time narration beats. It does
 not apply the old automatic cuts, camera, cards or background. The shared editor
-uses `pitch video probe|frames|focus|analyze|validate|render|verify` host actions,
+uses `pitch video probe|frames|focus|analyze|preprocess|plan|validate|render|verify` host actions,
 backed by the server-owned Python/FFmpeg engine in `render/video-editing/`.
 Plans are version-1 JSON in the workspace; final files belong under `renders/`
 and are published separately with `pitch media publish`. PNG evidence and plan
@@ -172,6 +182,28 @@ snapshots return workspace-relative paths so they survive render-tier placement.
 Heavy actions are remotely dispatchable and cancellation kills their process
 group. Transcription uses the existing host whisper.cpp action through
 `pitch media transcribe`; the VM installs or executes none of these dependencies.
+
+`pitch video plan` keeps authoring bounded: create an initial plan, inspect one
+page (5 items by default, max 10), then patch at most 8 fields/entries with the
+exact SHA256 revision. The host validates the whole candidate under a per-plan
+lock, preserves coverage, backs up the prior revision and atomically replaces the
+file. Invalid/stale edits leave it unchanged. CLI analysis/validation/preprocess/
+render reports are compact by default, with full workspace artifacts and an
+explicit `--details` option. The model does not regenerate long timelines.
+
+Before screen-recording editorial work, `pitch video preprocess` intersects
+native-resolution adjacent/one-second pixel differences with conservative audio
+silence, keeps boundary handles and supplied protected ranges, and renders a
+prepared source plus original-to-prepared map. Its starter plan carries coverage:
+retained activity cannot be cut/reordered and speech remains at 1×; typing and
+streaming can be accelerated continuously. Narrated camera moves use measured
+source-time `cue` anchors (speech, action, hold_until), resolved after retiming and
+reported in final time by validation. Media transcription isolates utterances at
+long quiet gaps before whisper, preserving original offsets so words do not
+drift across idle holds. These are timing/preservation checks, not semantic proof
+that a narration claim or zoom target is correct.
+Action-only moves use a clip-output `camera.delay` rather than inventing a speech
+cue; this also avoids splitting a clip solely to schedule a delayed camera reset.
 
 Demo preparation uses `pitch demo browser-open` without starting capture or
 changing an existing take. `record-start` begins one continuous take in that
@@ -186,6 +218,14 @@ under `recording/takes/`; uniquely named audio clips remain at their original pa
 The demo CLI exposes capture and source preparation only: no zoom controls,
 automatic camera events or alternate demo-render path. Camera effects and final
 rendering belong to `video-editing`.
+
+Demo preparation installs `render/utils/recording-cursor.ts` on existing pages
+and future documents/frames. CDP page video omits the native OS pointer, so this
+input-driven, non-interactive overlay burns an arrow and brief click ring into
+the raw capture. It has no idle animation, and later source assembly, preprocessing,
+retiming and camera crops carry those pixels with the UI. It does not reconstruct
+old cursorless uploads: saved click positions identify anchors, not the original
+continuous mouse path. Review actual captured interaction frames for visibility.
 
 The launch skill embeds every available effect ID, grouped by family. Agents can
 select candidates directly, compare notes/frame strips, then load selected source

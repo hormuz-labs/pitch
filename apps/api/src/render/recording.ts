@@ -25,6 +25,7 @@ import { assertBrowserCommandSucceeded } from '../../../../.pi/lib/demo-timing.t
 import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
+import { installRecordingCursor } from './utils/recording-cursor.js'
 
 const moduleLogger = createLogger('studio:render:recording')
 
@@ -205,6 +206,9 @@ export async function startRecording(
     })
   }
   try {
+    // Page screencasts do not include the native OS mouse cursor. Install once
+    // during preparation, before video-start, including all future documents.
+    await installRecordingCursor(cloakBrowser.context)
     // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
     logger.info(
       { cdpUrl: cloakBrowser.cdpUrl, session },

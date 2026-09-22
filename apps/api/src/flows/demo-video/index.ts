@@ -280,6 +280,9 @@ async function openDemo(
     ))
   active.set(ws.dir, handle)
   await writeJson(path.join(recordingDir(ws), 'browser.json'), {
+    streamId: handle.streamId,
+    session: handle.session,
+    startedAt: Date.now(),
     startTime: Date.now(),
     voiceName: project.options.voice || 'Charon',
     assetsManifestPath: manifest ? manifestFile(ws) : undefined,

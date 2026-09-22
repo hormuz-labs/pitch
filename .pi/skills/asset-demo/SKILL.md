@@ -72,8 +72,8 @@ recording from an invalid or stale revision.
 4. Speak approved narration verbatim. Split it only at `emphasis.phrase`
    boundaries so the matching spoken chunk carries that one saved emphasis.
    Clear annotations before the next beat, and advance exactly once per scene.
-5. End zoomed out, then run `pitch demo record-stop` and `pitch demo render`.
-   Return the published URL and actual runtime.
+5. End zoomed out, then run `pitch demo record-stop` and `pitch demo source`.
+   Then follow `video-editing` to render and publish the finished movie.
 
 Never finish a turn while recording is live. If recording cannot continue,
 attempt `pitch demo record-stop` before reporting the failure. Do not rebuild
