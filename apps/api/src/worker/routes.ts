@@ -177,6 +177,13 @@ router.post(
     cancelled: await host.stopExport(req.params.id),
   })),
 )
+router.post(
+  '/projects/:id/publish',
+  route('publish artifact', async req => {
+    await host.publishArtifact(req.params.id)
+    return { ok: true }
+  }),
+)
 
 router.get('/projects/:id/events', async (req, res) => {
   let off: (() => void) | undefined

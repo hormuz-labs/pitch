@@ -141,6 +141,23 @@ describe('workspace checkpoints', () => {
     expect(objects.size).toBe(0)
   })
 
+  it('keeps an older version while a render job still references it', async () => {
+    await seed()
+    for (const version of [1, 2, 3, 4])
+      await checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version,
+        sessionFile: null,
+        artifactKind: null,
+      })
+    await checkpoint.pruneCheckpoints(projectId, 2, [1])
+    const versions = new Set(
+      [...objects.keys()].map(k => k.match(/\/(\d+)\//)?.[1]).filter(Boolean),
+    )
+    expect([...versions].sort()).toEqual(['1', '3', '4'])
+  })
+
   it('leaves the local copy alone when the download fails', async () => {
     await seed()
     await writeFile(path.join(ws.dir, 'shots.js'), 'local truth')

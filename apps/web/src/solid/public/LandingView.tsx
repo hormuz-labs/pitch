@@ -7,8 +7,6 @@ import {
   Check,
   ChevronDown,
   Clapperboard,
-  Code2,
-  Compass,
   Crosshair,
   MonitorPlay,
   Presentation,
@@ -29,17 +27,17 @@ import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 
 gsap.registerPlugin(ScrollTrigger)
-type Agent = 'launch-video' | 'demo-video' | 'ppt-generator' | 'recording-edit'
-const AGENTS = {
-  'launch-video': { label: 'Launch Video', href: '/new?flow=launch-video', icon: Clapperboard },
+type Outcome = 'launch-video' | 'demo-video' | 'ppt-generator' | 'recording-edit'
+const OUTCOMES = {
+  'launch-video': { label: 'Launch Film', href: '/new?flow=launch-video', icon: Clapperboard },
   'demo-video': {
     label: 'Product Demo Video',
     href: '/new?flow=demo-video',
     icon: MonitorPlay,
   },
-  'ppt-generator': { label: 'PPT Generator', href: '/new?flow=deck', icon: Presentation },
+  'ppt-generator': { label: 'Slide Deck', href: '/new?flow=deck', icon: Presentation },
   'recording-edit': {
-    label: 'Edit Recording',
+    label: 'Video Edit',
     href: '/new?flow=recording-edit',
     icon: Scissors,
   },
@@ -58,31 +56,31 @@ const suggestions = [
     'Record a narrated walkthrough of the core flow on https://trypitch.co',
   ],
   [
-    'Onboarding tour',
-    'demo-video',
-    Compass,
-    'Give a guided tour of the sign-up and onboarding flow on https://trypitch.co',
+    'Slide deck',
+    'ppt-generator',
+    Presentation,
+    'Turn my rough notes into a clear 10-slide investor deck',
   ],
   [
-    'Feature deep-dive',
-    'demo-video',
+    'Edit a recording',
+    'recording-edit',
+    Scissors,
+    'Polish my recording with tighter pacing, captions, and clean audio',
+  ],
+  [
+    'Feature launch',
+    'launch-video',
     Crosshair,
-    'Do a focused deep-dive on the main feature of https://trypitch.co',
+    'Create a short feature announcement using my product assets',
   ],
   [
     'Investor deck',
     'ppt-generator',
     Presentation,
-    'Create a 10-slide investor pitch deck for https://trypitch.co',
-  ],
-  [
-    'API demo',
-    'demo-video',
-    Code2,
-    'Demonstrate the API and developer experience of https://trypitch.co',
+    'Create an investor deck from my existing PDF and product notes',
   ],
 ] as const
-const placeholders: Record<Agent, string[]> = {
+const placeholders: Record<Outcome, string[]> = {
   'launch-video': [
     'Make a 60-second cinematic launch video for https://trypitch.co',
     'Create an upbeat product reveal video for https://trypitch.co',
@@ -92,8 +90,8 @@ const placeholders: Record<Agent, string[]> = {
     'Create a narrated feature walkthrough of https://trypitch.co',
   ],
   'ppt-generator': [
-    'Create a 10-slide seed round investor pitch deck for an AI startup',
-    'Make a sleek product one-pager presentation for our enterprise tier',
+    'Turn my notes into a 10-slide seed round investor deck',
+    'Rework my existing presentation into a sharp sales deck',
   ],
   'recording-edit': [
     'Upload a recording to polish with clean cuts and captions',
@@ -107,7 +105,7 @@ export const LandingChatInput = () => {
   const auth = useAuth(),
     navigate = useNavigate(),
     [input, setInput] = createSignal(''),
-    [agent, setAgent] = createSignal<Agent>('launch-video'),
+    [outcome, setOutcome] = createSignal<Outcome>('launch-video'),
     [focused, setFocused] = createSignal(false),
     [open, setOpen] = createSignal(false),
     [hint, setHint] = createSignal('')
@@ -116,7 +114,7 @@ export const LandingChatInput = () => {
   createEffect(() => {
     clearTimeout(timer)
     if (input()) return
-    const full = placeholders[agent()][0]
+    const full = placeholders[outcome()][0]
     setHint('')
     let i = 0
     const type = () => {
@@ -127,7 +125,7 @@ export const LandingChatInput = () => {
   })
   onCleanup(() => clearTimeout(timer))
   const send = () => {
-    const base = AGENTS[agent()].href,
+    const base = OUTCOMES[outcome()].href,
       dest = input().trim() ? `${base}&prompt=${encodeURIComponent(input().trim())}` : base
     navigate(isSigned(auth) ? dest : `/sign-up?redirect=${encodeURIComponent(dest)}`)
   }
@@ -172,7 +170,7 @@ export const LandingChatInput = () => {
                   aria-expanded={open()}
                   onClick={() => setOpen(!open())}
                 >
-                  <span class="landing-chat-dropdown-label">{AGENTS[agent()].label}</span>
+                  <span class="landing-chat-dropdown-label">{OUTCOMES[outcome()].label}</span>
                   <span
                     class={`landing-chat-dropdown-chevron${open() ? ' landing-chat-dropdown-chevron--open' : ''}`}
                   >
@@ -181,10 +179,10 @@ export const LandingChatInput = () => {
                 </button>
                 <Show when={open()}>
                   <div class="landing-chat-dropdown-menu" role="listbox">
-                    <For each={Object.entries(AGENTS)}>
+                    <For each={Object.entries(OUTCOMES)}>
                       {([value, item]) => {
                         const Icon = item.icon
-                        const selected = () => value === agent()
+                        const selected = () => value === outcome()
                         return (
                           <button
                             type="button"
@@ -192,7 +190,7 @@ export const LandingChatInput = () => {
                             aria-selected={selected()}
                             class={`landing-chat-dropdown-option${selected() ? ' landing-chat-dropdown-option--active' : ''}`}
                             onClick={() => {
-                              setAgent(value as Agent)
+                              setOutcome(value as Outcome)
                               setOpen(false)
                             }}
                           >
@@ -225,7 +223,7 @@ export const LandingChatInput = () => {
               <button
                 class="landing-chat-suggestion"
                 onClick={() => {
-                  setAgent(s[1])
+                  setOutcome(s[1])
                   setInput(s[3])
                   area.focus()
                 }}
@@ -387,13 +385,13 @@ export const ScrollSpreadFilms = () => {
     <section ref={section} class="lb-band lb-spread" aria-labelledby="films-heading">
       <div class="lb-spread-inner">
         <div ref={header} class="lb-spread-header lb-wrap">
-          <p class="lb-chy">URL to film</p>
+          <p class="lb-chy">Made in Pitch</p>
           <h2 id="films-heading" class="lb-h2">
-            A sentence in. <i>A film out.</i>
+            One studio. <i>Work worth shipping.</i>
           </h2>
           <p class="lb-sub lb-muted">
-            One URL and a line of direction. Scroll to open the reel. Every clip still carries the
-            brief that made it.
+            Launch films are one of the things Pitch makes. Scroll to open the reel, then bring your
+            own brief, footage, deck, or product.
           </p>
         </div>
         <div class="lb-spread-carousel">
@@ -508,38 +506,38 @@ export const ScrollSpreadFilms = () => {
 const steps = [
   [
     '01',
-    'The brief',
-    'Prompt',
-    'Describe the demo in one sentence and drop the URL. No storyboard, no script to write.',
-    ['Plan mode', 'Pick a voice', 'Aspect & length'],
+    'Bring anything',
+    'Start',
+    'Begin with a URL, recording, deck, document, asset, or half-formed idea. You do not have to prepare the perfect brief.',
+    ['URLs & files', 'Rough ideas', 'Existing work'],
   ],
   [
     '02',
-    'Understanding',
-    'Research',
-    'The agent reads your site and brand: real colours, type and tone, plus the flows actually worth showing.',
-    ['Reads your site', 'Pulls brand', 'Finds the flows'],
+    'Build context',
+    'Understand',
+    'The agent researches the product, inspects your files, and works out the right medium, structure, and production plan.',
+    ['Researches', 'Inspects assets', 'Chooses a pipeline'],
   ],
   [
     '03',
-    'Direction',
-    'Plan',
-    'It storyboards the cut scene by scene, with pacing, a shot list and narration.',
-    ['Scene by scene', 'Shot list', 'Narration beats'],
+    'Production',
+    'Make',
+    'It writes, designs, records, edits, and mixes using the tools the job needs, all inside the same project.',
+    ['Films & demos', 'Decks', 'Video edits'],
   ],
   [
     '04',
-    'Production',
-    'Shoot',
-    'It drives the real product, records every scene, then narrates, scores and colour-grades a 1080p cut.',
-    ['Real browser', 'Narrated & scored', '40+ languages'],
+    'Live preview',
+    'Direct',
+    'Watch the work take shape. Point to an element, a moment in the timeline, or an asset and say exactly what should change.',
+    ['Select anything', 'Precise feedback', 'Preview updates live'],
   ],
   [
     '05',
-    'Iterate',
-    'Edit',
-    'Swap a voice, trim a scene, restyle a caption. No full re-render, no hallucinated frames.',
-    ['Edit any scene', 'Swap the voice', 'No re-render'],
+    'Finish',
+    'Ship',
+    'Keep refining in the same conversation, then export a polished video, PDF, or presentation-ready artifact.',
+    ['Resumable project', 'MP4 & PDF', 'Ready to share'],
   ],
 ] as const
 
@@ -649,10 +647,10 @@ export const HowItWorks = () => {
       <div class="lb-wrap lb-hiw-head lb-reveal">
         <p class="lb-chy">How it works</p>
         <h2 id="hiw-heading" class="lb-h2">
-          One agent. Idea to finished cut.
+          One agent. Any starting point.
         </h2>
         <p class="lb-sub lb-muted">
-          Research, planning, shooting, voiceover, scoring and edit. One pass, one place.
+          Research, writing, design, recording, editing, and revision in one continuous workspace.
         </p>
       </div>
       <div class="lb-wrap lb-hiw-grid">
@@ -691,9 +689,9 @@ export const McpConnect = () => (
       <p class="lb-chy">MCP · API</p>
       <h2 class="lb-h2">Plug Pitch into your existing agents.</h2>
       <p class="lb-sub lb-muted">
-        Call Pitch from Claude, Cursor, ChatGPT or any agent over MCP. It visits the URL, films the
-        demo and hands the file back. It’s on the official MCP registry as{' '}
-        <code class="lb-mcp-name">{REGISTRY_NAME}</code>.
+        Call Pitch from Claude, Cursor, ChatGPT, or your own software over MCP and REST. Send a
+        creative brief, continue the conversation, and retrieve the finished output. It’s on the
+        official MCP registry as <code class="lb-mcp-name">{REGISTRY_NAME}</code>.
       </p>
     </div>
     <div class="lb-wrap lb-mcp-body-wrap lb-reveal">
@@ -775,15 +773,15 @@ export const LandingView = () => {
   return (
     <>
       <Seo
-        title="Pitch: An agent uses your product, then films the demo"
-        description="Give Pitch a URL and a paragraph of direction. An AI agent runs the real flows in a browser, narrates what happened, and cuts a scored 1080p demo video in minutes."
+        title="Pitch: The AI production studio you can direct"
+        description="Turn a URL, recording, deck, document, or idea into a launch film, product demo, presentation, or polished video edit. Direct every revision in a live preview."
         path="/"
       />
       <div class="lb-root" ref={root}>
         <LandingNav />
         <section class="lb-band lb-hero">
           <div class="lb-hero-in">
-            <h1 class="sr-only">Pitch, an agent that uses your product, then films the demo</h1>
+            <h1 class="sr-only">Pitch, the AI production studio you can direct</h1>
             <div class="lb-wordmark" aria-hidden="true">
               <PitchLogoAnimation onComplete={() => setLogoDone(true)} />
               <span
@@ -794,14 +792,13 @@ export const LandingView = () => {
               </span>
             </div>
             <p class="lb-hero-tag">
-              A <b>frontier</b> agent that visits your product, runs the real flows, and films the
-              demo.
+              An AI production studio you can <b>direct</b>. Bring a URL, recording, deck, or idea.
             </p>
             <div class="lb-composer-wrap">
               <LandingChatInput />
             </div>
             <p class="lb-hintrow">
-              Choose a plan to create. Or{' '}
+              Start with a prompt or file. Or{' '}
               <button
                 onClick={() => setVideoSrc(carouselAsset('demo.mp4'))}
                 style={{ 'text-decoration': 'underline' }}
@@ -821,11 +818,11 @@ export const LandingView = () => {
           <div class="lb-endcap-inner">
             <div class="lb-endcap-copy">
               <h2 class="lb-endcap-title">
-                Your next demo is
-                <br /> one <em>sentence</em> away.
+                Bring what you have.
+                <br /> Make what you <em>meant.</em>
               </h2>
               <div class="lb-endcap-actions">
-                <a class="lb-endcap-link" href="mailto:support@trypitch.co?subject=Pitch%20demo">
+                <a class="lb-endcap-link" href="mailto:support@trypitch.co?subject=Pitch%20project">
                   Book a demo
                 </a>
                 <A href={isSigned(auth) ? '/new' : '/sign-up'} class="lb-endcap-primary">

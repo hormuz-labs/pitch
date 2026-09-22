@@ -61,6 +61,7 @@ export interface WorkerClient {
   startExport(id: string, body: Record<string, any>): Promise<ExportStatus>
   exportStatus(id: string): Promise<ExportStatus>
   cancelExport(id: string): Promise<boolean>
+  publishArtifact(id: string): Promise<void>
   /** Attach to the project's event stream; `send` gets `hello` first. */
   events(id: string, send: (ev: StudioEvent) => void, signal: AbortSignal): Promise<void>
   emit(id: string, ev: StudioEvent): Promise<void>
@@ -110,6 +111,7 @@ const local: WorkerClient = {
   startExport: host.startExport,
   exportStatus: host.exportStatus,
   cancelExport: host.stopExport,
+  publishArtifact: host.publishArtifact,
   async events(id, send, signal) {
     const off = await host.subscribe(id, send)
     if (signal.aborted) off()
@@ -291,6 +293,7 @@ function remote(w: WorkerRow): WorkerClient {
     exportStatus: id => call(w, 'GET', pathOf(id, '/export')),
     cancelExport: id =>
       call<{ cancelled: boolean }>(w, 'POST', pathOf(id, '/export/cancel')).then(r => r.cancelled),
+    publishArtifact: id => call(w, 'POST', pathOf(id, '/publish')).then(() => undefined),
     async events(id, send, signal) {
       if (!WORKER_TOKEN) throw new WorkerError('STUDIO_WORKER_TOKEN is not set', 500)
       const res = await fetch(`${w.url}/internal/worker${pathOf(id, '/events')}`, {
