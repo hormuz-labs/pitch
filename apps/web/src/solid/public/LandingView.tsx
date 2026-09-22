@@ -9,13 +9,17 @@ import {
   Clapperboard,
   Crosshair,
   MonitorPlay,
+  Paperclip,
+  Plus,
   Presentation,
   Scissors,
+  X,
 } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import demoThumbnail from '../../assets/demo-thumbnail.jpg'
 import { GenerateButton } from '../../components/ui/generate-button'
+import { ComposerShell } from '../common/ComposerShell'
 import { useAuth, useClerk } from '../core/auth'
 import { Seo } from '../core/Seo'
 import { PitchLogoAnimation } from './brand'
@@ -101,14 +105,18 @@ const placeholders: Record<Outcome, string[]> = {
 const isSigned = (auth: ReturnType<typeof useAuth>) =>
   typeof auth.isSignedIn === 'function' ? auth.isSignedIn() : auth.isSignedIn
 
+const ACCEPT =
+  '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
+
 export const LandingChatInput = () => {
   const auth = useAuth(),
     navigate = useNavigate(),
     [input, setInput] = createSignal(''),
+    [files, setFiles] = createSignal<{ name: string; size: number }[]>([]),
     [outcome, setOutcome] = createSignal<Outcome>('launch-video'),
-    [focused, setFocused] = createSignal(false),
     [open, setOpen] = createSignal(false),
     [hint, setHint] = createSignal('')
+  let fileInput!: HTMLInputElement
   let area!: HTMLTextAreaElement
   let timer: number | undefined
   createEffect(() => {
@@ -124,112 +132,169 @@ export const LandingChatInput = () => {
     type()
   })
   onCleanup(() => clearTimeout(timer))
+
+  const handleFiles = (selected: FileList | null) => {
+    if (!selected) return
+    const incoming = Array.from(selected).map(f => ({ name: f.name, size: f.size }))
+    setFiles(prev => [...prev, ...incoming])
+  }
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
   const send = () => {
-    const base = OUTCOMES[outcome()].href,
-      dest = input().trim() ? `${base}&prompt=${encodeURIComponent(input().trim())}` : base
+    const base = OUTCOMES[outcome()].href
+    const params = new URLSearchParams()
+    if (input().trim()) params.set('prompt', input().trim())
+    const q = params.toString()
+    const dest = q ? `${base}${base.includes('?') ? '&' : '?'}${q}` : base
     navigate(isSigned(auth) ? dest : `/sign-up?redirect=${encodeURIComponent(dest)}`)
   }
+
   return (
-    <div class="landing-chat-root">
-      <div class={`landing-chat-card${focused() ? ' landing-chat-card--focused' : ''}`}>
-        <div class="landing-chat-inner">
-          <div class="landing-chat-textarea-wrap">
-            <textarea
-              ref={area}
-              value={input()}
-              rows="1"
-              onInput={e => setInput(e.currentTarget.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  send()
-                }
+    <div class="composer-wrap new-composer-wrap">
+      <ComposerShell
+        class="composer-box"
+        footerClass="composer-footer"
+        leadingClass="tool-row composer-add"
+        trailingClass="tool-row"
+        leading={
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              hidden
+              multiple
+              accept={ACCEPT}
+              onChange={e => {
+                handleFiles(e.currentTarget.files)
+                e.currentTarget.value = ''
               }}
-              class="landing-chat-textarea"
-              aria-label="AI prompt"
             />
-            <Show when={!input()}>
-              <div class="landing-chat-placeholder-overlay" onClick={() => area.focus()}>
-                <span class="landing-chat-placeholder-text">
-                  {hint()}
-                  <span class="landing-chat-typing-cursor">|</span>
+            <button
+              type="button"
+              class="attach-plus"
+              title="Add files & photos"
+              aria-label="Add files & photos"
+              onClick={() => fileInput.click()}
+            >
+              <Plus size={19} />
+            </button>
+            <div class="relative">
+              <button
+                type="button"
+                class="new-composer-mode"
+                aria-haspopup="listbox"
+                aria-expanded={open()}
+                onClick={() => setOpen(!open())}
+              >
+                <span class="new-composer-mode__icon">
+                  {(() => {
+                    const Icon = OUTCOMES[outcome()].icon
+                    return <Icon size={14} />
+                  })()}
                 </span>
-              </div>
-            </Show>
-          </div>
-          <div class="landing-chat-toolbar">
-            <span />
-            <div class="landing-chat-toolbar-right">
-              <div class="landing-chat-dropdown-wrap">
-                <button
-                  class="landing-chat-dropdown-trigger"
-                  type="button"
-                  aria-haspopup="listbox"
-                  aria-expanded={open()}
-                  onClick={() => setOpen(!open())}
-                >
-                  <span class="landing-chat-dropdown-label">{OUTCOMES[outcome()].label}</span>
-                  <span
-                    class={`landing-chat-dropdown-chevron${open() ? ' landing-chat-dropdown-chevron--open' : ''}`}
-                  >
-                    <ChevronDown size={13} />
-                  </span>
-                </button>
-                <Show when={open()}>
-                  <div class="landing-chat-dropdown-menu" role="listbox">
-                    <For each={Object.entries(OUTCOMES)}>
-                      {([value, item]) => {
-                        const Icon = item.icon
-                        const selected = () => value === outcome()
-                        return (
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={selected()}
-                            class={`landing-chat-dropdown-option${selected() ? ' landing-chat-dropdown-option--active' : ''}`}
-                            onClick={() => {
-                              setOutcome(value as Outcome)
-                              setOpen(false)
+                <span>{OUTCOMES[outcome()].label}</span>
+                <ChevronDown size={12} />
+              </button>
+              <Show when={open()}>
+                <div class="new-composer-mode-menu" role="listbox">
+                  <For each={Object.entries(OUTCOMES)}>
+                    {([key, item]) => {
+                      const Icon = item.icon
+                      const isSelected = () => outcome() === key
+                      return (
+                        <button
+                          type="button"
+                          class={`new-composer-mode-option${isSelected() ? ' is-selected' : ''}`}
+                          onClick={() => {
+                            setOutcome(key as Outcome)
+                            setOpen(false)
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              'align-items': 'center',
+                              gap: '8px',
                             }}
                           >
-                            <span class="landing-chat-dropdown-icon">
-                              <Icon size={14} />
-                            </span>
-                            <span class="landing-chat-dropdown-option-label">{item.label}</span>
-                            <Show when={selected()}>
-                              <span class="landing-chat-dropdown-check">
-                                <Check size={13} />
-                              </span>
-                            </Show>
-                          </button>
-                        )
-                      }}
-                    </For>
-                  </div>
-                </Show>
-              </div>
-              <GenerateButton isReady={Boolean(input().trim())} onClick={send} />
+                            <Icon size={14} />
+                            <span>{item.label}</span>
+                          </span>
+                          <Show when={isSelected()}>
+                            <Check size={13} />
+                          </Show>
+                        </button>
+                      )
+                    }}
+                  </For>
+                </div>
+              </Show>
             </div>
+          </>
+        }
+        trailing={
+          <GenerateButton
+            isReady={Boolean(input().trim() || files().length)}
+            disabled={!input().trim() && !files().length}
+            onClick={send}
+          />
+        }
+      >
+        <Show when={files().length > 0}>
+          <div class="new-landing-attachments">
+            <For each={files()}>
+              {(file, index) => (
+                <span class="new-landing-attachment">
+                  <Paperclip size={12} />
+                  <span>{file.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() => removeFile(index())}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+            </For>
           </div>
-        </div>
-      </div>
-      <div class="landing-chat-suggestions">
+        </Show>
+        <textarea
+          ref={area}
+          value={input()}
+          rows={2}
+          onInput={e => setInput(e.currentTarget.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+              e.preventDefault()
+              send()
+            }
+          }}
+          placeholder={input() ? '' : hint() || placeholders[outcome()][0]}
+          aria-label="Describe your project"
+        />
+      </ComposerShell>
+
+      <div class="new-skills" aria-label="Project suggestions">
         <For each={suggestions}>
           {s => {
             const Icon = s[2]
+            const active = () => outcome() === s[1]
             return (
               <button
-                class="landing-chat-suggestion"
+                type="button"
+                class={`new-skill-pill${active() ? ' is-active' : ''}`}
                 onClick={() => {
                   setOutcome(s[1])
                   setInput(s[3])
                   area.focus()
                 }}
               >
-                <Icon size={13} />
-                {s[0]}
+                <Icon size={15} />
+                <span>{s[0]}</span>
               </button>
             )
           }}

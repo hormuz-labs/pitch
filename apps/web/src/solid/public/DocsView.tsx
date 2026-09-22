@@ -1,7 +1,7 @@
 import { A, Navigate } from '@solidjs/router'
 import { Check, Copy, Menu, X } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
-import { Dynamic } from 'solid-js/web'
+import { Dynamic, Portal } from 'solid-js/web'
 import tabLogoB from '../../assets/tabLogoB.svg'
 import { type Block, DOC_PAGES, findPage } from '../../docs/pages'
 import { Seo } from '../core/Seo'
@@ -19,6 +19,8 @@ const legacy = (node: any): any => {
   if (node == null || typeof node === 'boolean') return null
   if (typeof node === 'string' || typeof node === 'number') return node
   if (Array.isArray(node)) return node.map(legacy)
+  if (typeof node === 'function') return legacy(node())
+  if (typeof Node !== 'undefined' && node instanceof Node) return node.cloneNode(true)
   if (node?.props) {
     if (typeof node.type === 'function') return legacy(node.type(node.props))
     if (typeof node.type === 'symbol') return legacy(node.props.children)
@@ -35,7 +37,7 @@ const legacy = (node: any): any => {
       </Dynamic>
     )
   }
-  return String(node)
+  return node
 }
 const CodeBlock = (props: { code: string; lang?: string }) => {
   const [copied, setCopied] = createSignal(false)
@@ -127,7 +129,7 @@ export const DocsView = (props: { slug?: string }) => {
             />
             <header class="docs-top">
               <A href="/" class="lb-brand docs-brand">
-                <img src={tabLogoB} class="lb-brand-mark" />
+                <img src={tabLogoB} class="lb-brand-mark" width="28" height="28" alt="" />
                 <span class="lb-brand-word">
                   <PitchLogoAnimation startAnimation={false} />
                   <span class="lb-brand-by">A Frontier Agent</span>
@@ -143,13 +145,86 @@ export const DocsView = (props: { slug?: string }) => {
                 <A href="/api-keys" class="lb-cta">
                   Get an API key
                 </A>
-                <button class="docs-menu-btn" onClick={() => setNavOpen(!navOpen())}>
-                  {navOpen() ? <X /> : <Menu />}
+                <button
+                  class="docs-menu-btn"
+                  aria-label="Toggle navigation"
+                  aria-expanded={navOpen()}
+                  onClick={() => setNavOpen(!navOpen())}
+                >
+                  {navOpen() ? <X size={18} /> : <Menu size={18} />}
                 </button>
               </div>
             </header>
+
+            <Show when={navOpen()}>
+              <Portal>
+                <div
+                  class="docs-mobile-drawer lb-chrome"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Docs navigation"
+                >
+                  <div class="docs-mobile-drawer-head">
+                    <A href="/" class="lb-brand docs-brand" onClick={() => setNavOpen(false)}>
+                      <img src={tabLogoB} class="lb-brand-mark" width="28" height="28" alt="" />
+                      <span class="lb-brand-word">
+                        <PitchLogoAnimation startAnimation={false} />
+                      </span>
+                    </A>
+                    <button
+                      type="button"
+                      class="docs-mobile-close-btn"
+                      aria-label="Close navigation"
+                      onClick={() => setNavOpen(false)}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div class="docs-mobile-drawer-body">
+                    <div class="docs-mobile-top-links">
+                      <A href="/docs/getting-started" onClick={() => setNavOpen(false)}>
+                        Guide
+                      </A>
+                      <A href="/docs/mcp" onClick={() => setNavOpen(false)}>
+                        AI Agents (MCP)
+                      </A>
+                      <A href="/docs/api" onClick={() => setNavOpen(false)}>
+                        API Reference
+                      </A>
+                      <a href="/llms.txt">LLMs</a>
+                    </div>
+                    <div class="docs-mobile-cta-wrap">
+                      <A href="/api-keys" class="lb-cta" onClick={() => setNavOpen(false)}>
+                        Get an API key
+                      </A>
+                    </div>
+                    <div class="docs-mobile-nav-groups">
+                      <For each={['Guide', 'Reference']}>
+                        {group => (
+                          <div class="docs-side-group">
+                            <p class="docs-side-title">{group}</p>
+                            <For each={pages.filter(x => x.group === group)}>
+                              {x => (
+                                <A
+                                  class={`docs-side-link${x.slug === p().slug ? ' is-on' : ''}`}
+                                  href={x.slug ? `/docs/${x.slug}` : '/docs'}
+                                  onClick={() => setNavOpen(false)}
+                                >
+                                  {x.nav}
+                                </A>
+                              )}
+                            </For>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </div>
+                </div>
+              </Portal>
+            </Show>
+
             <div class="docs-shell">
-              <aside class={`docs-side${navOpen() ? ' is-open' : ''}`}>
+              <aside class="docs-side">
                 <For each={['Guide', 'Reference']}>
                   {group => (
                     <div class="docs-side-group">

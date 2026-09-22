@@ -682,7 +682,7 @@ const credits: DocPage = {
     { k: 'h2', text: 'Launch video exports' },
     {
       k: 'p',
-      text: 'Launch exports are usage-metered. Higher resolutions usually consume more host compute, while model usage on a turn that loads a provided Pitch SKILL.',
+      text: 'Launch exports are usage-metered. Higher resolutions usually consume more host compute. A turn that loads one of Pitch’s provided skills applies a 2.5x multiplier to that turn’s model usage only.',
     },
     {
       k: 'p',
@@ -1670,7 +1670,7 @@ const tools: DocPage = {
           <C key="b">prompt</C>,
           'string',
           'yes',
-          'The product URL and brief, the topic, the instructions',
+          'What to make: the product URL, recording, document, asset, brief, topic, or instructions',
         ],
         [
           <C key="c">options</C>,
@@ -1688,8 +1688,8 @@ const tools: DocPage = {
           'array',
           'no',
           <>
-            <C>{`{ fileBase64, fileName }`}</C> entries: PDFs or images for demo-video, a PDF or
-            PPTX for deck, the video for recording-edit
+            <C>{`{ fileBase64, fileName }`}</C> entries: PDFs or images for demo-video assets, a PDF
+            or PPTX for deck, a video for recording-edit
           </>,
         ],
       ],
