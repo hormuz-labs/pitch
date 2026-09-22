@@ -45,8 +45,9 @@ version and remap unchanged conclusions after upstream edits.
    Deduplicate; extract up to 12 per call. One sheet may cover several actions.
 3. **Narrow locally:** inspect only brackets straddling an event, roughly
    0.1–0.25s spacing for quick UI actions when necessary. Record conservative
-   bounds: settle before earliest input, retain through latest completion,
-   finish navigation exits before earliest trigger.
+   bounds: settle before earliest input and retain through latest completion.
+   Inspect navigation trigger and destination; choose the reset from the actual
+   layout change and the scenario's attention requirements.
 4. **Approve compositions:** `focus` once per distinct target/composition, then
    open context/crop. Reuse only over established stable layouts. Recheck changed
    targets, layouts/output geometry or failed crop reviews; a still does not
@@ -65,16 +66,16 @@ This is a soft budget, not a quota or coverage limit; exceed for named concerns.
 ## Consolidated rendered review
 
 Use one deduplicated output-time list across these checks. One frame can answer
-several questions. Calculate timing inequalities from [zoom.md](zoom.md#interaction-coverage-audit)
+several questions. Calculate timing from [zoom.md](zoom.md#verify-the-attention-not-just-the-effect)
 and logged event bounds. Validation checks geometry/timing fields; verification
 checks media integrity. Neither establishes semantic or visual quality.
 
 - **Focused actions:** settled framing at input, visibility through focused
   work and readable results. Use boundary evidence plus known fixed holds;
   add samples for uncertain motion/text/state rather than every action phase.
-- **Navigation/handoffs:** full-composition trigger and first destination,
-  affected cut/pan boundaries. Combine calculated exit timing with rendered
-  evidence; add earlier/intermediate samples only for unresolved motion.
+- **Navigation/handoffs:** visible named control through activation, appropriate
+  orientation at the first destination, and affected cut/pan boundaries. Choose
+  framing from actual layout continuity, not an unconditional pre-click reset.
 - **Other edits:** cuts, transitions, overlays and captions in the same list.
   Redactions need coverage throughout; sparse endpoints cannot prove completeness.
 - **Delivery detail:** representative final-resolution frames for distinct

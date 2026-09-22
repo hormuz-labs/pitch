@@ -5,9 +5,17 @@ import { describe, expect, it } from 'vitest'
 const read = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf-8')
 
+function documentGuidance() {
+  const directory = '.pi/skills/demo-video'
+  const reference = 'references/documents-storyboards.md'
+  // Document capture policy is loaded through the scenario router.
+  expect(read(`${directory}/SKILL.md`)).toContain(`](${reference})`)
+  return read(`${directory}/${reference}`)
+}
+
 describe('prepared-asset narration guidance', () => {
   it('requires atomic emphasis while the matching statistic is spoken', () => {
-    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const agent = documentGuidance()
 
     for (const guidance of [agent]) {
       expect(guidance).toContain('emphasis')
@@ -19,7 +27,7 @@ describe('prepared-asset narration guidance', () => {
   })
 
   it('uses Gemini on rendered slide pixels as the primary PDF targeting source', () => {
-    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const agent = documentGuidance()
 
     for (const guidance of [agent]) {
       expect(guidance).toMatch(/Gemini[- ]first/i)
@@ -32,7 +40,7 @@ describe('prepared-asset narration guidance', () => {
   })
 
   it('requires rendered-pixel page understanding before narrating every slide', () => {
-    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const agent = documentGuidance()
 
     for (const guidance of [agent]) {
       expect(guidance).toContain('pitch demo analyze-slide')

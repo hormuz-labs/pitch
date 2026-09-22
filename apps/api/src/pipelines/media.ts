@@ -302,7 +302,7 @@ registerHostAction(
         maxBuffer: 8 * 1024 * 1024,
       })
       const lang = typeof params.lang === 'string' ? params.lang : undefined
-      const { model, words, segments } = transcribeWav(wav, { lang })
+      const { model, words, segments } = transcribeWav(wav, { lang, splitOnSilence: true })
       await mkdir(path.dirname(out), { recursive: true })
       await writeFile(out, JSON.stringify({ source: rel, model, segments, words }, null, 2))
       const dur = segments.length ? segments[segments.length - 1].end : 0

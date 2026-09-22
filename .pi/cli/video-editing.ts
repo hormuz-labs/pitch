@@ -8,6 +8,12 @@ const plan = Type.String({
   description: 'Workspace-relative version-1 edit plan JSON; read video-editing/references/plan.md',
 })
 const optionalNumber = (description: string) => Type.Optional(Type.Number({ description }))
+const details = Type.Optional(
+  Type.Boolean({
+    description: 'Return the full report instead of a compact summary and report file',
+  }),
+)
+const compactCommands = new Set(['analyze', 'preprocess', 'validate', 'render'])
 
 export default function videoEditingCommands(): CommandSpec[] {
   const specs = [
@@ -65,16 +71,83 @@ export default function videoEditingCommands(): CommandSpec[] {
       parameters: Type.Object({
         source,
         start: optionalNumber('Start source second, default 0'),
+        details,
         end: optionalNumber('End source second, default duration'),
         silence_db: optionalNumber('Silence threshold, default -35 dB'),
         silence_duration: optionalNumber('Minimum silence, default 0.6 seconds'),
       }),
     },
     {
+      verb: 'preprocess',
+      description:
+        'Before editing a screen recording, remove only sustained unchanged picture AND silence, allowing low-level codec noise. Returns prepared video, original-to-prepared map and starter plan with required coverage. Keep coverage: silent typing/streaming may be sped up, never cut. Music/noise conservatively keeps footage.',
+      parameters: Type.Object({
+        source,
+        audio_track: optionalNumber('Zero-based audio track; required for multi-track sources'),
+        details,
+        protect: Type.Optional(
+          Type.Array(Type.Object({ start: Type.Number(), end: Type.Number() }), {
+            description:
+              'Original-source ranges to keep intact, including known typing/streaming envelopes, narration and required reading holds',
+          }),
+        ),
+      }),
+    },
+    {
+      verb: 'plan',
+      description:
+        'Create, page or atomically patch a v1 video plan. Inspect returns an exact-byte SHA256 revision. Patch requires it, at most 8 ops and a total payload <=12 KiB; edit individual entries/fields, never whole plans or bulk arrays.',
+      parameters: Type.Object({
+        operation: Type.Union([
+          Type.Literal('create'),
+          Type.Literal('inspect'),
+          Type.Literal('patch'),
+        ]),
+        plan,
+        source: Type.Optional(source),
+        output: Type.Optional(
+          Type.String({ description: 'Create: new workspace-relative MP4 path' }),
+        ),
+        section: Type.Optional(
+          Type.Union(
+            [
+              'clips',
+              'timeline',
+              'captions',
+              'overlays',
+              'redactions',
+              'coverage',
+              'output',
+              'music',
+            ].map(value => Type.Literal(value)),
+            {
+              description:
+                'Inspect: one section, default clips; timeline is computed and read-only',
+            },
+          ),
+        ),
+        offset: Type.Optional(Type.Integer({ minimum: 0, default: 0 })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, default: 5 })),
+        revision: Type.Optional(Type.String({ description: 'Patch: revision from inspect' })),
+        ops: Type.Optional(
+          Type.Array(
+            Type.Object({
+              op: Type.Union(
+                ['add', 'replace', 'remove', 'test'].map(value => Type.Literal(value)),
+              ),
+              path: Type.String({ description: 'JSON pointer; ~0 escapes ~, ~1 escapes /' }),
+              value: Type.Optional(Type.Unknown()),
+            }),
+            { minItems: 1, maxItems: 8 },
+          ),
+        ),
+      }),
+    },
+    {
       verb: 'validate',
       description:
-        'Validate edit-plan fields, assets, timing, geometry and output collisions. Returns the frame-quantized timeline for mapping captions, overlays and camera timing.',
-      parameters: Type.Object({ plan }),
+        'Validate edit-plan fields, assets, timing, geometry and output collisions. Returns a compact summary and full report file; use plan inspect --section timeline for bounded timing pages, or --details for the full report.',
+      parameters: Type.Object({ plan, details }),
     },
     {
       verb: 'render',
@@ -82,6 +155,7 @@ export default function videoEditingCommands(): CommandSpec[] {
         'Render a reproducible edit plan to H.264/AAC MP4 plus a plan snapshot. Preview renders the full timeline at reduced resolution under .video-work/. Final output.path should be a NEW file under renders/. Verify and inspect before pitch media publish.',
       parameters: Type.Object({
         plan,
+        details,
         preview: Type.Optional(
           Type.Boolean({ description: 'Reduced-resolution draft, default false' }),
         ),
@@ -100,7 +174,9 @@ export default function videoEditingCommands(): CommandSpec[] {
   return specs.map(spec => ({
     ...spec,
     async execute(_id, params, _signal, _onUpdate, ctx) {
-      return text(await hostAction(workspaceOf(ctx), `video_edit_${spec.verb}`, params))
+      const { details, ...args } = params
+      const request = compactCommands.has(spec.verb) ? { ...args, compact: details !== true } : args
+      return text(await hostAction(workspaceOf(ctx), `video_edit_${spec.verb}`, request))
     },
   }))
 }

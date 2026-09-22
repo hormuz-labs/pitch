@@ -1,11 +1,16 @@
 # Edit plan v1
 
+Use [bounded authoring](authoring.md) to create and patch plans. This page is the
+stored schema reference, not a request to emit an entire timeline JSON. Read the
+fields needed for the current small change.
+
 Media and plan paths resolve from the **project workspace**, not the plan's
 directory. Use workspace-relative paths so plans survive worker placement.
 Remote media and paths/symlinks escaping the workspace are rejected.
 
 `pitch video validate` checks fields, input metadata, timing, geometry and
-output collisions. It returns the actual frame-quantized timeline; `render`
+output collisions. It saves the actual frame-quantized timeline in its report;
+page it with `pitch video plan --operation inspect --section timeline`. `render`
 validates again. This is a finite contract: unknown JSON keys are errors.
 
 ## Minimal plan
@@ -111,7 +116,67 @@ For a constant-scale pan, keep equal endpoint width/height, changing only x/y:
 Set the preceding exit to 0 and copy its final viewport exactly to the next
 `start_viewport`. Continue holds without entrance/exit. The renderer does not
 infer adjacent camera states or stable layouts; encode observed continuity.
-See [zoom.md](zoom.md#camera-continuity-on-a-stationary-page-or-scene).
+See [zoom.md](zoom.md#holds-pans-and-layout-changes).
+
+#### Speech/action cue
+
+For narrated emphasis, add measured timestamps in the **clip's source**:
+
+```json
+"cue": {"speech": 12.4, "action": 12.6, "hold_until": 14.2}
+```
+
+`speech` is the start of the intended phrase/word, optional `action` the observed
+first input or result reveal, and `hold_until` the end of required focused
+work/reading. Omit `action` when explaining an already-visible result; settlement
+then follows speech alone. Do not invent an action timestamp to match speech.
+All must be inside the clip; speech/action must have a renderable frame.
+These are prepared-source times after preprocessing, never original-source or
+final-output times. A cued clip must run at 1×. Split silent acceleration first.
+
+The renderer delays the approach to settle at or up to one output frame before
+`min(speech, action)`. `enter` remains its duration, not an absolute timestamp.
+Insufficient lead-in and departure before `hold_until` are validation errors.
+With `enter: 0`, the crop is static from clip start. The validated timeline includes
+`camera_timing` with final-time move start, settlement, speech, action, hold and
+departure. Geometry/timing validation cannot decide whether a phrase refers to
+the chosen target; ground both in evidence.
+
+#### Action-only timing
+
+For a move placed by measured visual events, optional `delay` schedules the
+entrance in **clip-output seconds**. For example, `delay: 0.8, enter: 0.2` holds
+the starting view for 0.8s, then reaches the target at clip-output 1.0s. This works
+on accelerated clips. Use a full-frame target plus `start_viewport` for a delayed
+navigation reset without inserting extra clips just for camera phases.
+
+`delay` defaults to 0, requires a nonzero entrance when positive, and the entrance
+must settle by a rendered frame within the clip. `delay+enter+exit` must fit.
+`delay` and `cue` are mutually exclusive because they use different clocks.
+The reported `camera_timing` has null speech/action for an output-time move.
+Do not disguise an output-time deadline as `cue.speech`.
+
+### Required coverage
+
+The preprocessor binds preservation to a `.coverage.json` sidecar beside the
+prepared media, which validation loads automatically. Its starter plan also
+includes top-level `coverage` so the constraints are visible and can be extended:
+
+```json
+"coverage": [
+  {"source":".video-work/preprocess-example/prepared.mp4", "start":0, "end":30, "kind":"activity"},
+  {"source":".video-work/preprocess-example/prepared.mp4", "start":4, "end":9, "kind":"typing"},
+  {"source":".video-work/preprocess-example/prepared.mp4", "start":12, "end":16, "kind":"speech"}
+]
+```
+
+Ranges are source seconds, with `kind` of `activity`, `typing`, `stream` or
+`speech`. They must be covered exactly once, continuously and in order; split
+clips and speed changes are allowed, gaps/duplicates/reordering and transition
+overlaps are rejected. Speech ranges must remain at 1×. Keep these constraints
+when editing the generated plan; omitting the plan field does not disable the
+prepared media's sidecar. Do not remove either to bypass a failed check.
+They express preservation of the agreed source scope, not a content classifier.
 
 ### Incoming transition
 

@@ -44,14 +44,15 @@ async function mtimeOf(dir: string, rel: string): Promise<number | null> {
   return st?.isFile() ? st.mtimeMs : null
 }
 
-/** A recording in progress: the user watches the browser, not a file. */
+/** An open demo browser: preparation and recording both use the live preview. */
 async function liveBrowser(ws: Workspace): Promise<string | null> {
-  try {
-    const live = JSON.parse(await readFile(path.join(ws.dir, 'recording', 'live.json'), 'utf8'))
-    return typeof live?.streamId === 'string' ? live.streamId : null
-  } catch {
-    return null
+  for (const file of ['live.json', 'browser.json']) {
+    try {
+      const live = JSON.parse(await readFile(path.join(ws.dir, 'recording', file), 'utf8'))
+      if (typeof live?.streamId === 'string') return live.streamId
+    } catch {}
   }
+  return null
 }
 
 async function videoDescription(ws: Workspace, rel: string): Promise<Description> {
@@ -178,7 +179,7 @@ export async function activeArtifact(
 ): Promise<{ kind: string; rel: string; at: number } | null> {
   if (!existsSync(ws.dir)) return null
   const streamId = await liveBrowser(ws)
-  if (streamId) return { kind: 'browser', rel: 'recording/live.json', at: Date.now() }
+  if (streamId) return { kind: 'browser', rel: 'recording/browser.json', at: Date.now() }
   return (await candidates(ws))[0] ?? null
 }
 
@@ -235,4 +236,4 @@ export async function describeWorkspace(ws: Workspace): Promise<Description> {
 
 /** Workspace-relative paths whose change means "the preview changed". */
 export const RELEVANT =
-  /^(index\.html|deck\.html|js\/shots(\.custom)?\.js|audio\/mix\.wav|recording\/(live|demo-state|demo-config)\.json|recording\/upload\.[a-z0-9]+|renders\/.+|build\/output\.(html|pdf)|storyboard\.json|uploads\/[^/]+\.pdf|[^/]+\.(mp4|webm|mov|mkv))$/
+  /^(index\.html|deck\.html|js\/shots(\.custom)?\.js|audio\/mix\.wav|recording\/(live|browser|demo-state|demo-config)\.json|recording\/upload\.[a-z0-9]+|renders\/.+|build\/output\.(html|pdf)|storyboard\.json|uploads\/[^/]+\.pdf|[^/]+\.(mp4|webm|mov|mkv))$/

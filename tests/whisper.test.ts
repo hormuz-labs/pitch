@@ -7,6 +7,7 @@ import {
   defaultWhisperThreads,
   findWhisperModel,
   parseWhisperJson,
+  speechWindows,
   wordsToSegments,
 } from '../.pi/lib/whisper'
 
@@ -44,6 +45,20 @@ describe('parseWhisperJson', () => {
     ])
     expect(words[3]).toEqual({ word: 'product.', start: 1.32, end: 2.13 })
     expect(words[8]).toEqual({ word: 'demo.', start: 4.15, end: 4.8 })
+  })
+})
+
+describe('speechWindows', () => {
+  it('isolates utterances across long gaps with short phoneme handles', () => {
+    const log =
+      'silence_start: 0\nsilence_end: 2\nsilence_start: 6\nsilence_end: 20\nsilence_start: 24'
+    expect(speechWindows(log, 30)).toEqual([
+      [1.85, 6.15],
+      [19.85, 24.15],
+    ])
+    expect(speechWindows('', 8)).toEqual([[0, 8]])
+    expect(speechWindows('silence_start: 0', 8)).toEqual([])
+    expect(speechWindows('silence_start: 0\nsilence_end: 8', 8)).toEqual([])
   })
 })
 
