@@ -43,7 +43,7 @@ const overview: DocPage = {
   title: 'Overview',
   group: 'Guide',
   nav: 'Overview',
-  lede: 'Pitch turns a product URL into a finished video. You can drive it from an AI agent over MCP, or from your own code over REST.',
+  lede: 'Pitch is a directable AI production studio that turns URLs, recordings, documents, assets, or ideas into launch films, demo recordings, decks, and video edits. You can drive it from an AI agent over MCP, or from your own code over REST.',
   blocks: [
     {
       k: 'p',
@@ -74,7 +74,7 @@ const overview: DocPage = {
       rows: [
         [
           <C key="a">demo-video</C>,
-          'The agent drives your live product and narrates the flow',
+          'The agent drives your live product or assets and narrates the walkthrough',
           'Metered',
         ],
         [

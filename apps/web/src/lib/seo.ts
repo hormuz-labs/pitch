@@ -2,9 +2,9 @@ export const SITE_URL = 'https://trypitch.co'
 export const SITE_NAME = 'Pitch'
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`
 
-export const DEFAULT_TITLE = 'Pitch - Automated cinematic product pitches'
+export const DEFAULT_TITLE = 'Pitch — Directable AI production studio'
 export const DEFAULT_DESCRIPTION =
-  'Pitch — Automated cinematic product pitches. Generate AI-powered product demo videos in minutes.'
+  'Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos.'
 
 export interface BlogSeoInput {
   slug: string

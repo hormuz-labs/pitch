@@ -961,6 +961,54 @@
   .lb-spread-nav { margin-top: -10px; }
 }
 
+/* ── studio manifesto / positioning ─────────────── */
+.lb-manifesto {
+  padding: 88px 0;
+  border-top: 1px solid var(--lb-line);
+}
+.lb-manifesto-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+  gap: 56px;
+  align-items: start;
+}
+.lb-manifesto-head .lb-h2 {
+  max-width: 14ch;
+}
+.lb-manifesto-lead {
+  font-size: clamp(1.05rem, 1.6vw, 1.22rem);
+  line-height: 1.6;
+  color: var(--lb-ink);
+  margin: 0 0 28px;
+  font-weight: 400;
+  letter-spacing: -0.012em;
+}
+.lb-manifesto-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--lb-line);
+}
+.lb-manifesto-h3 {
+  font-family: var(--lb-sans);
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--lb-ink);
+  margin: 0 0 10px;
+}
+.lb-manifesto-p {
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--lb-ink-2);
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .lb-manifesto-grid { grid-template-columns: 1fr; gap: 32px; }
+  .lb-manifesto-columns { grid-template-columns: 1fr; gap: 24px; }
+}
+
 /* ── how it works — sticky panel + scrolling steps ─────────────── */
 .lb-hiw-head { text-align: center; margin-bottom: 8px; }
 .lb-hiw-head .lb-sub { margin-left: auto; margin-right: auto; }

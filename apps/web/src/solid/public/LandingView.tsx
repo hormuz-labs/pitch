@@ -31,7 +31,7 @@ type Outcome = 'launch-video' | 'demo-video' | 'ppt-generator' | 'recording-edit
 const OUTCOMES = {
   'launch-video': { label: 'Launch Film', href: '/new?flow=launch-video', icon: Clapperboard },
   'demo-video': {
-    label: 'Product Demo Video',
+    label: 'Demo Recording',
     href: '/new?flow=demo-video',
     icon: MonitorPlay,
   },
@@ -50,10 +50,16 @@ const suggestions = [
     'Make a 60-second cinematic launch video for https://trypitch.co',
   ],
   [
-    'Product walkthrough',
+    'Demo recording',
     'demo-video',
     MonitorPlay,
     'Record a narrated walkthrough of the core flow on https://trypitch.co',
+  ],
+  [
+    'Asset to demo',
+    'demo-video',
+    MonitorPlay,
+    'Turn product screenshots and pdfs into a narrated demo recording',
   ],
   [
     'Slide deck',
@@ -73,12 +79,6 @@ const suggestions = [
     Crosshair,
     'Create a short feature announcement using my product assets',
   ],
-  [
-    'Investor deck',
-    'ppt-generator',
-    Presentation,
-    'Create an investor deck from my existing PDF and product notes',
-  ],
 ] as const
 const placeholders: Record<Outcome, string[]> = {
   'launch-video': [
@@ -86,8 +86,8 @@ const placeholders: Record<Outcome, string[]> = {
     'Create an upbeat product reveal video for https://trypitch.co',
   ],
   'demo-video': [
+    'Turn product screenshots and assets into a narrated demo recording',
     'Walk through the onboarding and sign-up flow on https://trypitch.co',
-    'Create a narrated feature walkthrough of https://trypitch.co',
   ],
   'ppt-generator': [
     'Turn my notes into a 10-slide seed round investor deck',
@@ -508,8 +508,8 @@ const steps = [
     '01',
     'Bring anything',
     'Start',
-    'Begin with a URL, recording, deck, document, asset, or half-formed idea. You do not have to prepare the perfect brief.',
-    ['URLs & files', 'Rough ideas', 'Existing work'],
+    'Begin with a URL, recording, document, asset, or half-formed idea. You do not have to prepare the perfect brief.',
+    ['URLs & assets', 'Recordings & docs', 'Rough ideas'],
   ],
   [
     '02',
@@ -523,7 +523,7 @@ const steps = [
     'Production',
     'Make',
     'It writes, designs, records, edits, and mixes using the tools the job needs, all inside the same project.',
-    ['Films & demos', 'Decks', 'Video edits'],
+    ['Launch films', 'Demo recordings', 'Decks & edits'],
   ],
   [
     '04',
@@ -683,6 +683,48 @@ export const HowItWorks = () => {
     </section>
   )
 }
+export const StudioManifesto = () => (
+  <section class="lb-band lb-manifesto" id="studio">
+    <div class="lb-wrap lb-reveal">
+      <div class="lb-manifesto-grid">
+        <div class="lb-manifesto-head">
+          <p class="lb-chy">The Studio</p>
+          <h2 class="lb-h2">Directable AI for presentation-ready creative work.</h2>
+        </div>
+        <div class="lb-manifesto-content">
+          <p class="lb-manifesto-lead">
+            Pitch is a directable AI production studio that turns a URL, recording, document, asset,
+            or rough idea into polished launch films, product demos, demo recordings, slide decks,
+            and edited videos. Its agent can research your product, write the story, design visuals,
+            record real browser workflows, generate narration and music, edit footage, and render
+            the final result.
+          </p>
+          <div class="lb-manifesto-columns">
+            <div class="lb-manifesto-col">
+              <h3 class="lb-manifesto-h3">Live, interactive workflow</h3>
+              <p class="lb-manifesto-p">
+                What makes Pitch different is its live, interactive workflow. Instead of accepting a
+                one-shot AI output, you can watch the work take shape, select any visual element,
+                timestamp, or asset, and request precise changes in plain language. The same project
+                can evolve from a deck into a demo recording or launch video without starting over
+                or switching tools.
+              </p>
+            </div>
+            <div class="lb-manifesto-col">
+              <h3 class="lb-manifesto-h3">Complete creative control</h3>
+              <p class="lb-manifesto-p">
+                Pitch helps founders, marketers, and product teams move from an unfinished idea to
+                presentation-ready creative work faster, with fewer handoffs, less production
+                overhead, and complete control over every revision.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+)
+
 export const McpConnect = () => (
   <section class="lb-band lb-mcp" id="api">
     <div class="lb-wrap lb-mcp-head lb-reveal">
@@ -774,7 +816,7 @@ export const LandingView = () => {
     <>
       <Seo
         title="Pitch: The AI production studio you can direct"
-        description="Turn a URL, recording, deck, document, or idea into a launch film, product demo, presentation, or polished video edit. Direct every revision in a live preview."
+        description="Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos."
         path="/"
       />
       <div class="lb-root" ref={root}>
@@ -792,7 +834,8 @@ export const LandingView = () => {
               </span>
             </div>
             <p class="lb-hero-tag">
-              An AI production studio you can <b>direct</b>. Bring a URL, recording, deck, or idea.
+              An AI production studio you can <b>direct</b>. Bring a URL, recording, document,
+              asset, or idea.
             </p>
             <div class="lb-composer-wrap">
               <LandingChatInput />
@@ -812,6 +855,7 @@ export const LandingView = () => {
         <div id="work">
           <ScrollSpreadFilms />
         </div>
+        <StudioManifesto />
         <HowItWorks />
         <McpConnect />
         <section class="lb-band lb-endcap">
