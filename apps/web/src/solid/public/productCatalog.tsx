@@ -124,17 +124,17 @@ export const PRODUCTS: ProductEntry[] = [
   {
     slug: 'pitch-decks',
     name: 'Pitch decks',
-    nav: 'Investor and sales decks, built from your URL.',
+    nav: 'Investor and sales decks from a brief, URL, or file.',
     icon: 'presentation',
     href: '/new?flow=deck',
     ctaLabel: 'Make a deck',
     eyebrow: 'Product · Pitch decks',
-    title: 'Decks, built from your URL.',
-    lede: 'Same agent, a different deliverable. Pitch researches your product and market, then writes and designs an investor pitch, sales one-pager, or board update as an editable PDF.',
+    title: 'Decks, built from what you have.',
+    lede: 'Start with a brief, URL, PDF, or existing presentation. Pitch researches the subject, then writes and designs an investor pitch, sales one-pager, or board update as an editable deck.',
     points: [
       {
         h: 'Researched, not templated',
-        p: 'It pulls your positioning, pricing and traction from the site before it writes a single slide.',
+        p: 'It works from your source material and can research your positioning, pricing, and traction before it writes a single slide.',
       },
       {
         h: 'Structured like a real pitch',
@@ -145,7 +145,7 @@ export const PRODUCTS: ProductEntry[] = [
         p: 'Every slide stays open in the editor. Restyle, reorder or rewrite before you export.',
       },
     ],
-    sampleCaption: 'A 10-slide seed deck generated from a single product URL',
+    sampleCaption: 'A 10-slide seed deck created from product research and a concise brief',
     seoDescription:
       'Pitch researches your product and market, then writes and designs an editable investor pitch, sales one-pager, or board update as a PDF you can still edit slide by slide.',
   },

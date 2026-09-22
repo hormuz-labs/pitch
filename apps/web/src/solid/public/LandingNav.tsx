@@ -95,7 +95,7 @@ const ProductMenu = () => {
             </For>
           </div>
           <div class="lb-mega-foot">
-            <span>One agent. Idea to finished cut.</span>
+            <span>One agent. Any brief. Any format.</span>
             <A href="/#work" onClick={() => setOpen(false)}>
               See the work
             </A>
@@ -165,7 +165,7 @@ export const LandingNav = () => {
             <img src={tabLogoB} alt="" class="lb-brand-mark" width="32" height="32" />
             <span class="lb-brand-word">
               <PitchLogoAnimation startAnimation={false} />
-              <span class="lb-brand-by">A Frontier Agent</span>
+              <span class="lb-brand-by">AI Production Studio</span>
             </span>
           </A>
           <div class="lb-nav-center">
