@@ -1,6 +1,6 @@
 ---
 name: demo-video
-description: Prepare and record one continuous real product walkthrough, demonstrating actions while narrating. Use this for a live-site walkthrough even when uploaded PDFs or images are reference or supporting material. If the requested video presents those files or is built primarily from their content, read asset-demo instead. Also supports narrated PDF/image slideshows. Hands stopped footage to video-editing for post-processing.
+description: Record one continuous real product walkthrough, discovering the workflow and demonstrating actions while narrating in the same live take. Use this for a live-site walkthrough even when uploaded PDFs or images are reference or supporting material. If the requested video presents those files or is built primarily from their content, read asset-demo instead. Also supports narrated PDF/image slideshows. Hands stopped footage to video-editing for post-processing.
 ---
 
 # Demo recording
@@ -20,6 +20,12 @@ Capture complete gestures, scrolling and native page transitions so the final
 walkthrough can remain continuous. Verify cursor visibility in the synchronized
 source (the raw master is cursorless); a jump to a scrolled destination is
 incomplete visual evidence.
+
+For a live-site walkthrough, **start recording before exploring the workflow**.
+Discovery, snapshots, thinking and recoverable mistakes happen inside that one
+take. The editor removes frozen, silent waiting afterward while preserving speech,
+input, scrolling and useful progress. Do not rehearse the route off-camera or
+return to the homepage to repeat completed steps for a cleaner take.
 
 ## Choose the instructions
 
@@ -47,14 +53,17 @@ one take; switching references does not start a new recording.
    or look, or ask once recording starts. Choose one audience takeaway and the
    smallest sequence that proves it. Runtime follows coverage unless explicitly
    exact or capped; preserve required content and useful reading holds.
-2. **Prepare using the chosen branch.** The context supplies URL, voice, uploads
+2. **Use the supplied brief.** The context supplies URL, voice, uploads
    and sometimes a script. Preserve a supplied script's content, order and tone;
    split at complete thoughts and add connective words only where needed. Approved
    storyboard narration has the stricter verbatim rules in the document reference.
-   Keep a short ledger of intended phrases/subjects, planned actions, expected
-   visible changes and evidence of success. Establish the starting state before capture.
-3. **Start once, demonstrate, verify.** Use `pitch demo record-start` in the
-   prepared browser; the branch explains initial navigation. Capture runs in real
+   Keep a short ledger as the work progresses; do not explore the site to fill it
+   before recording. Document uploads still need their asset preparation, and
+   explicitly requested storyboard review happens before capture.
+3. **Start once, discover, demonstrate, verify.** For a live site, use
+   `pitch demo record-start --url <url>` as the first browser operation once the
+   brief is actionable. If a browser is already open, start in its current view.
+   The branch explains initial navigation. Capture runs in real
    time, including while you think. Keep one continuous take through navigation,
    inspection and recoverable errors. Follow the branch's speech/action or page
    rhythm; update the ledger with observed results and gaps.
@@ -105,7 +114,7 @@ If context says capture is LIVE and the request is to finish, inspect the curren
 state and continue that take. Stop when complete, when the user asks, or on an
 irrecoverable browser failure; use the shared mechanics for recoverable errors.
 For a replacement, inspect the saved footage first: record again only when required
-actions/content are missing or capture failed. Prepare the corrected route, then use
+actions/content are missing or capture failed. Identify the specific correction, then use
 `pitch demo record-start --retake-reason "<specific missing step or failed capture>"`.
 Previous raw footage/state is archived under `recording/takes/`; do not repeat an
 unchanged failing approach or use a new take for inspection.

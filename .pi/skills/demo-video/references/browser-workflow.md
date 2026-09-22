@@ -3,24 +3,31 @@
 Read only for sequences demonstrating a real app. Use the
 [shared mechanics](capture-mechanics.md) for transport, narration timing and recovery.
 
-## Prepare the proof
+## Start recording, then discover the route
 
-Open `pitch demo browser-open --url <url>`, then use `pitch demo bash` to snapshot
-and inspect controls and starting state without recording. Establish the actual
-navigation route and what visible result proves each requested step. Return to
-the starting view in this same browser. Do not trigger paid/destructive actions
-just to rehearse them. Check toggle state before clicking: a successful click can
-turn an already-enabled feature OFF. Verify the selected state before claiming
-the feature is enabled.
+For an actionable walkthrough request, start with
+`pitch demo record-start --url <url>`. Then snapshot and discover the controls as
+you demonstrate the requested workflow. No preliminary browser tour or rehearsal
+is needed. Use `browser-open` only for a task explicitly requiring an unrecorded
+browser, such as account setup or inspecting an existing take's missing step.
 
-Expand the lifecycle's ledger with actual controls and success evidence. Prefer
+Stay in this one take through reading, thinking, navigation and recovery. The
+editor later removes frozen, silent gaps; those gaps are not a reason to rehearse
+first or restart. Preserve real speech, typing, scrolling and streamed responses.
+Check toggle state before clicking: a successful click can turn an already-enabled
+feature OFF. Verify its selected state before claiming the feature is enabled.
+
+Expand the lifecycle's ledger with actual controls and success evidence as you go. Prefer
 “Enable Search, enter this question, then inspect the returned links” to a generic
 claim about power. Draft connected, complete thoughts about intent and consequence.
 For a new action-led line, put that action's intent near its beginning so the
 gesture can coincide; this is not a rule to cue every camera move at sentence start.
 
-Start with `pitch demo record-start` in the prepared browser. If already familiar
-with the workflow, `pitch demo record-start --url <url>` can open its starting page.
+Inspect only what is needed for the next requested step. Use a current snapshot
+instead of a chain of one-property DOM queries. Once a result is established,
+continue to the next subject; do not return to the starting page to perform the
+same journey again. For “Istanbul's roads, then culture,” discover and demonstrate
+the search, Roads and Culture in that order within the same recording.
 
 ## Demonstrate while explaining
 

@@ -699,7 +699,7 @@ export default function demoCommands(): CommandSpec[] {
           )
         ) {
           throw new Error(
-            'Use demo browser-open for preparation, record-start once for the take, and record-stop only at its end. Keep this browser open for snapshots and recovery.',
+            'Use demo record-start --url as the first browser operation for a new walkthrough. Discover the route and recover inside one take; record-stop only at its end. browser-open is for explicitly unrecorded tasks.',
           )
         }
         console.log(`[bash]: ${cmd}`)

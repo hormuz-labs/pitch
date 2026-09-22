@@ -229,7 +229,7 @@ async function openDemo(
   if (existing?.recording)
     return 'The continuous take is already recording. Keep it open; use demo bash to snapshot and continue. Stop only after the final demonstrated result.'
   if (existing && rehearse)
-    return 'Preparation browser is already open, without recording. Continue with demo bash; use goto to navigate, then record-start when ready.'
+    return 'An unrecorded browser is already open. For a walkthrough, call record-start now and discover the route inside the take; do not rehearse and replay the workflow.'
   if (
     !rehearse &&
     existsSync(path.join(recordingDir(ws), 'demo.webm')) &&
@@ -311,7 +311,7 @@ async function openDemo(
     }
   }
   if (rehearse)
-    return `Browser ready for preparation, NOT recording.${opened}\nUse demo bash to inspect the real workflow. Keep this session open, return to the starting view and call record-start once. Fresh snapshots supply refs; do not reuse refs from an earlier browser.`
+    return `Browser open, NOT recording.${opened}\nFor a walkthrough, call record-start now and discover the workflow inside the take. Do not rehearse the route or return to the homepage to replay it. Stay unrecorded only for an explicitly unrecorded task. Fresh snapshots supply refs; do not reuse refs from an earlier browser.`
   await handle.startCapture({
     voice: typeof project.options.voice === 'string' ? project.options.voice : undefined,
     assetsManifestPath: manifest ? manifestFile(ws) : undefined,
@@ -331,7 +331,7 @@ async function openDemo(
     )
   if (storyboard) lines.push(storyboardContract(storyboard, assetCount))
   lines.push(
-    'Keep this ONE take open through the complete workflow. Use narrate --action to demonstrate while speaking; verify actual results after each transition. Do not stop to inspect or debug. After the final visible result: record-stop (waits for speech), then video-editing/SKILL.md and demo source.',
+    'Discover and demonstrate the workflow in this ONE live take, including snapshots, thinking and recovery. Do not rehearse or replay completed steps; the editor removes frozen silent waiting later while preserving speech and real activity. Use narrate --action to demonstrate while speaking; verify results after transitions. The raw master has no HTML cursor: demo source composites the cursor with FFmpeg. After the final result: record-stop (waits for speech), then video-editing/SKILL.md and demo source.',
   )
   return lines.join('\n\n')
 }

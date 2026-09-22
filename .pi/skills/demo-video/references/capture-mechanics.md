@@ -47,7 +47,10 @@ its observed range in the editing handoff so the editor protects it at 1× and
 keeps the destination visible. Never describe an instant jump as a recorded scroll.
 
 `pitch demo browser-open [--url <url>]` prepares without recording or altering
-an existing take. Keep that browser open while inspecting/debugging. If ending
+an existing take. It is for explicitly unrecorded tasks, not the default first
+step of a live walkthrough. Use `record-start --url <url>` and discover the route
+inside the take; frozen, silent waiting is handled by the editor afterward.
+If an unrecorded browser is needed, keep it open while inspecting/debugging. If ending
 a preparation-only turn, use `pitch demo browser-close`. After capture, reopen
 for inspection with browser-open, never a throwaway recording.
 
