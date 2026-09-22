@@ -940,9 +940,17 @@ async function checkpointNow(h: Held): Promise<void> {
     }
     await writeMarker(h.ws.dir, { projectId: h.id, version })
     if (h.dirtyAt === at) h.dirtyAt = 0
-    void pruneCheckpoints(h.id).catch(err =>
-      logger.warn({ err, projectId: h.id }, 'could not prune old checkpoints'),
-    )
+    void (async () => {
+      const activeRenders = await db.prisma.renderJob.findMany({
+        where: { projectId: h.id, status: { in: ['queued', 'running'] } },
+        select: { workspaceVersion: true },
+      })
+      await pruneCheckpoints(
+        h.id,
+        2,
+        activeRenders.map(job => job.workspaceVersion),
+      )
+    })().catch(err => logger.warn({ err, projectId: h.id }, 'could not prune old checkpoints'))
   })().finally(() => {
     h.checkpointing = null
   })

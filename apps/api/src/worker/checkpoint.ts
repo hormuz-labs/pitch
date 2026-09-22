@@ -277,8 +277,12 @@ export async function restoreCheckpoint(
   }
 }
 
-/** Drop every stored version except the newest `keep`. */
-export async function pruneCheckpoints(projectId: string, keep = 2): Promise<void> {
+/** Drop stored versions except the newest `keep` and versions a render job still needs. */
+export async function pruneCheckpoints(
+  projectId: string,
+  keep = 2,
+  protectedVersions: Iterable<number> = [],
+): Promise<void> {
   const s = bucket()
   const keys = await s.list(`workspaces/${projectId}/`)
   const versions = new Set<number>()
@@ -286,7 +290,11 @@ export async function pruneCheckpoints(projectId: string, keep = 2): Promise<voi
     const m = k.match(/^workspaces\/[^/]+\/(\d+)\//)
     if (m) versions.add(Number(m[1]))
   }
-  const stale = [...versions].sort((a, b) => b - a).slice(keep)
+  const protectedSet = new Set(protectedVersions)
+  const stale = [...versions]
+    .sort((a, b) => b - a)
+    .slice(keep)
+    .filter(version => !protectedSet.has(version))
   for (const k of keys) {
     const m = k.match(/^workspaces\/[^/]+\/(\d+)\//)
     if (m && stale.includes(Number(m[1]))) await s.remove(k).catch(() => {})
