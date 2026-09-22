@@ -41,7 +41,30 @@ function ShareHeader() {
   )
 }
 
-function ProjectDetails(props: { project: PublicProject; kind: 'video' | 'pdf' }) {
+function ProjectActions(props: { project: PublicProject; kind: 'video' | 'pdf' }) {
+  return (
+    <div class="share-actions">
+      <Show when={props.kind === 'pdf' && props.project.pdfUrl}>
+        {url => (
+          <a class="share-secondary-action" href={url()} target="_blank" rel="noopener noreferrer">
+            Open PDF
+            <ExternalLink size={15} />
+          </a>
+        )}
+      </Show>
+      <A href="/sign-up" class="share-primary-action">
+        Create your own
+      </A>
+      <span>Made with Pitch</span>
+    </div>
+  )
+}
+
+function ProjectDetails(props: {
+  project: PublicProject
+  kind: 'video' | 'pdf'
+  actions?: boolean
+}) {
   return (
     <div class="share-details">
       <div class="share-copy">
@@ -52,25 +75,9 @@ function ProjectDetails(props: { project: PublicProject; kind: 'video' | 'pdf' }
         <h1 id="shared-project-title">{props.project.title}</h1>
         <p class="share-date">Published {formatDate(props.project.createdAt)}</p>
       </div>
-      <div class="share-actions">
-        <Show when={props.kind === 'pdf' && props.project.pdfUrl}>
-          {url => (
-            <a
-              class="share-secondary-action"
-              href={url()}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open PDF
-              <ExternalLink size={15} />
-            </a>
-          )}
-        </Show>
-        <A href="/sign-up" class="share-primary-action">
-          Create your own
-        </A>
-        <span>Made with Pitch</span>
-      </div>
+      <Show when={props.actions !== false}>
+        <ProjectActions project={props.project} kind={props.kind} />
+      </Show>
     </div>
   )
 }
@@ -99,13 +106,14 @@ function PdfProject(props: { project: PublicProject }) {
   return (
     <main class="share-main share-pdf-main">
       <section class="share-pdf-project" aria-labelledby="shared-project-title">
-        <ProjectDetails project={props.project} kind="pdf" />
+        <ProjectDetails project={props.project} kind="pdf" actions={false} />
         <div class="share-pdf-stage">
           <iframe src={props.project.pdfUrl!} title={`${props.project.title} PDF`} />
           <noscript>
             <a href={props.project.pdfUrl!}>Open {props.project.title}</a>
           </noscript>
         </div>
+        <ProjectActions project={props.project} kind="pdf" />
       </section>
     </main>
   )
