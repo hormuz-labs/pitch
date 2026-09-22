@@ -115,3 +115,27 @@ describe('an export never displaces the artifact it came from', () => {
     expect(await artifactKind(film)).toBe('launch')
   })
 })
+
+describe('asset storyboard discovery', () => {
+  it('surfaces a storyboard beside the current artifact without changing its preview kind', async () => {
+    const storyboard = { revision: 2, status: 'draft', transition: 'fade', scenes: [] }
+    const description = await describeWorkspace(
+      workspace({ 'project.json': '{}', 'storyboard.json': JSON.stringify(storyboard) }),
+    )
+
+    expect(description.preview).toBeNull()
+    expect(description.extra?.storyboard).toEqual(storyboard)
+  })
+
+  it('ignores a malformed storyboard instead of breaking the project preview', async () => {
+    const description = await describeWorkspace(
+      workspace({
+        ...FILM,
+        'storyboard.json': '{not valid json',
+      }),
+    )
+
+    expect(description.preview?.kind).toBe('html')
+    expect(description.extra?.storyboard).toBeUndefined()
+  })
+})

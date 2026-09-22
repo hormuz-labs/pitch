@@ -26,7 +26,13 @@ import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  updateVideoStoryboard,
+  type VideoStoryboard,
+} from '@saas/shared'
 import * as storage from '@saas/storage'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
@@ -513,7 +519,9 @@ export async function prompt(
 
 function generationKind(options: Record<string, any>): string | null {
   if (typeof options.videoType === 'string') return options.videoType
-  return ['launch-video', 'demo-video', 'generated-video', 'recording-edit'].includes(options.skill)
+  return ['launch-video', 'demo-video', 'asset-demo', 'generated-video', 'recording-edit'].includes(
+    options.skill,
+  )
     ? options.skill
     : null
 }
@@ -820,6 +828,39 @@ export async function renderDeck(projectId: string): Promise<{ ok: true }> {
   await renderDeckPdf(h.ws.dir)
   markDirty(h)
   return { ok: true }
+}
+
+// ── Asset storyboard ─────────────────────────────────────────────────────────
+
+/**
+ * Persist a whole storyboard revision from Studio. The shared model owns all
+ * validation and optimistic revision checks, matching the agent's
+ * `pitch demo storyboard-save` path without starting or billing a model turn.
+ */
+export async function saveStoryboard(
+  projectId: string,
+  update: {
+    revision: number
+    transition?: VideoStoryboard['transition']
+    titleCards?: StoryboardTitleCards
+    scenes: StoryboardScene[]
+  },
+): Promise<VideoStoryboard> {
+  const { h } = await ensureOpen(projectId)
+  const file = path.join(h.ws.dir, 'storyboard.json')
+  const current = JSON.parse(await readFile(file, 'utf8')) as VideoStoryboard
+  let saved: VideoStoryboard
+  try {
+    saved = updateVideoStoryboard(current, update)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw Object.assign(error instanceof Error ? error : new Error(message), {
+      status: message.startsWith('Storyboard revision conflict:') ? 409 : 400,
+    })
+  }
+  await writeFile(file, `${JSON.stringify(saved, null, 2)}\n`, 'utf8')
+  markDirty(h)
+  return saved
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────

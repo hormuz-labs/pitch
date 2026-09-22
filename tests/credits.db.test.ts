@@ -27,7 +27,7 @@ vi.mock('@prisma/client', () => {
       updateMany: vi.fn(),
     },
     discordRewardClaim: { findUnique: vi.fn() },
-    subscription: { update: vi.fn() },
+    subscription: { update: vi.fn(), upsert: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
     $transaction: vi.fn(),
   }
   function PrismaClient() {
@@ -55,6 +55,7 @@ import {
   refundProjectUsage,
   reserveCredits,
   settleCreditReservation,
+  upsertSubscription,
 } from '../packages/db/src/index.js'
 
 // The singleton the module uses — same object returned by the constructor.
@@ -231,6 +232,52 @@ describe('addCredits', () => {
     })
     expect(mockPrisma.creditTransaction.create).not.toHaveBeenCalled()
     expect(result).toBe(7) // returns existing balance, no double-grant
+  })
+
+  it('gracefully handles P2002 unique constraint race conditions', async () => {
+    mockPrisma.creditTransaction.findUnique.mockResolvedValue(null)
+    mockPrisma.creditTransaction.create.mockRejectedValue({
+      code: 'P2002',
+      message: 'Unique constraint failed',
+    })
+    mockPrisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 15 } })
+
+    const result = await addCredits('user_1', 10, 'subscription_grant', 'monthly', {
+      idempotencyKey: 'sub_grant:sub_1:initial',
+    })
+
+    expect(result).toBe(15)
+  })
+})
+
+describe('upsertSubscription', () => {
+  it('guards against duplicate initial grants even if idempotency key check was bypassed', async () => {
+    const txOps = {
+      subscription: {
+        upsert: vi.fn().mockResolvedValue({ id: 'sub_row_1', dodoSubscriptionId: 'sub_123' }),
+      },
+      creditTransaction: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'existing_initial_tx' }),
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 2500 } }),
+      },
+    }
+    mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(txOps))
+
+    const sub = await upsertSubscription({
+      userId: 'user_1',
+      dodoSubscriptionId: 'sub_123',
+      planKey: 'pro',
+      status: 'active',
+      creditsPerCycle: 2500,
+      currentPeriodStart: new Date('2026-09-22T00:00:00Z'),
+      currentPeriodEnd: new Date('2026-10-22T00:00:00Z'),
+      idempotencyKey: 'sub_grant:sub_123:initial',
+    })
+
+    expect(sub.id).toBe('sub_row_1')
+    expect(txOps.creditTransaction.create).not.toHaveBeenCalled()
   })
 })
 

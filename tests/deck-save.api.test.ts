@@ -5,7 +5,7 @@
  * editable one. The browser render is faked; everything else is real, with
  * the workspace in a tmp dir.
  */
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import express from 'express'
@@ -146,6 +146,46 @@ const DECK = `<html><body>
 <section class="slide"><h2>Two</h2></section>
 </body></html>`
 
+const STORYBOARD = {
+  revision: 3,
+  status: 'draft',
+  transition: 'fade',
+  titleCards: {
+    intro: { enabled: false, title: '', subtitle: '' },
+    outro: { enabled: false, title: '', subtitle: '' },
+  },
+  scenes: [
+    {
+      id: 'scene-1',
+      pageIndex: 0,
+      previewUrl: 'https://example.test/page-1.png',
+      enabled: true,
+      title: 'Result',
+      screenText: ['Revenue increased by 24%'],
+      narration: 'Revenue increased by 24% in the first quarter.',
+      emphasis: [
+        {
+          phrase: 'Revenue increased by 24%',
+          rect: { leftPct: 10, topPct: 20, widthPct: 30, heightPct: 12 },
+          coordinateSpace: 'page',
+          style: 'highlighter',
+          zoom: 1.7,
+        },
+      ],
+      overlays: [],
+      estimatedDurationSec: 3.2,
+    },
+  ],
+} as const
+
+async function seedStoryboard(id: string, over: Record<string, unknown> = {}) {
+  row(id, over)
+  const ws = workspaceFor('studio', String(over.userId ?? 'user_1'), id)
+  await mkdir(ws.dir, { recursive: true })
+  await writeFile(path.join(ws.dir, 'storyboard.json'), `${JSON.stringify(STORYBOARD, null, 2)}\n`)
+  return ws
+}
+
 beforeEach(async () => {
   rows.clear()
   mocks.userId = 'user_1'
@@ -247,6 +287,84 @@ describe('host.saveDeck', () => {
     row('deck-pdf')
     await host.saveDeck('deck-pdf', DECK)
     expect(mocks.renderDeckPdf).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /projects/:id/storyboard', () => {
+  it('answers 401 without a session', async () => {
+    mocks.userId = null
+    const res = await request(app).post('/projects/p1/storyboard').send(STORYBOARD)
+    expect(res.status).toBe(401)
+  })
+
+  it('answers 400 when the optimistic revision or scenes are missing', async () => {
+    row('p1')
+    expect((await request(app).post('/projects/p1/storyboard').send({ scenes: [] })).status).toBe(
+      400,
+    )
+    expect((await request(app).post('/projects/p1/storyboard').send({ revision: 1 })).status).toBe(
+      400,
+    )
+  })
+
+  it("answers 404 without touching another user's storyboard", async () => {
+    const ws = await seedStoryboard('owned-elsewhere', { userId: 'user_2' })
+    const before = await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')
+
+    const res = await request(app).post('/projects/owned-elsewhere/storyboard').send(STORYBOARD)
+
+    expect(res.status).toBe(404)
+    expect(await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')).toBe(before)
+  })
+
+  it('saves one validated revision and preserves stable scene identity', async () => {
+    const ws = await seedStoryboard('storyboard-save')
+    const update = {
+      ...STORYBOARD,
+      transition: 'slide',
+      scenes: [{ ...STORYBOARD.scenes[0], title: 'Sharper result' }],
+    }
+
+    const res = await request(app).post('/projects/storyboard-save/storyboard').send(update)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      revision: 4,
+      status: 'draft',
+      transition: 'slide',
+      scenes: [{ id: 'scene-1', pageIndex: 0, title: 'Sharper result' }],
+    })
+    expect(JSON.parse(await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8'))).toEqual(
+      res.body,
+    )
+  })
+
+  it('answers 400 and preserves the file when storyboard content is invalid', async () => {
+    const ws = await seedStoryboard('invalid-storyboard')
+    const before = await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')
+    const invalid = {
+      ...STORYBOARD,
+      scenes: [{ ...STORYBOARD.scenes[0], narration: '' }],
+    }
+
+    const res = await request(app).post('/projects/invalid-storyboard/storyboard').send(invalid)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/needs narration/i)
+    expect(await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')).toBe(before)
+  })
+
+  it('answers 409 and preserves the newer file on an optimistic revision conflict', async () => {
+    const ws = await seedStoryboard('storyboard-conflict')
+    const before = await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')
+
+    const res = await request(app)
+      .post('/projects/storyboard-conflict/storyboard')
+      .send({ ...STORYBOARD, revision: 2 })
+
+    expect(res.status).toBe(409)
+    expect(res.body.error).toMatch(/revision conflict/i)
+    expect(await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8')).toBe(before)
   })
 })
 

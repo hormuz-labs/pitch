@@ -137,6 +137,7 @@ The four products survive as **host actions** plus a skill, not as flows:
 |---|---|---|
 | launch film | `motion_*` | `launch-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
+| PDF/image asset demo | `demo_*`, `storyboard_*` | `asset-demo` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
 | shared video editing / post-processing | `video_edit_*`, `media_transcribe`, `media_publish` | `video-editing` |
@@ -300,6 +301,9 @@ GET    /projects/:id/events            SSE (see below)
 GET    /projects/:id/thumbnail?t=      JPEG from the live preview (html/deck) or the render at t
 GET    /projects/:id/assets            Asset[] — the shelf, derived from the workspace
 POST   /projects/:id/assets            { uploads[] } → stages them into uploads/; runs no turn
+POST   /projects/:id/deck              { html } → saves the live deck document; runs no turn
+POST   /projects/:id/deck/render       rebuilds build/output.pdf from the saved deck
+POST   /projects/:id/storyboard        saves one validated storyboard revision; runs no turn
 POST   /projects/:id/export            { res, format? } → RenderStatus (`format` may request an editable ZIP)
 GET    /projects/:id/export            RenderStatus
 POST   /projects/:id/export/cancel
@@ -331,6 +335,12 @@ require a current MP4 at the selected resolution before packaging.
 See [`editable-video-export.md`](editable-video-export.md) for the complete
 strategy, sidecar and package contracts, target mappings, security boundaries,
 limitations, and extension guide.
+
+The new-project outcome pills are lightweight skill preferences, not project
+types or creation flows. For example, the **Asset demo** pill stores
+`options.skill: 'asset-demo'`; the agent uses that preference for a compatible
+actionable request, while an empty file-drop creation still waits for the user
+and every project continues through the same studio route.
 
 The new-project composer can pass `options.narrationVoice` as
 `{ provider: 'elevenlabs', id, name }`. It is saved in `project.json` and used

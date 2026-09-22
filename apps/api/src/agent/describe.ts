@@ -10,6 +10,7 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
+import type { VideoStoryboard } from '@saas/shared'
 import { parseSlides } from '../flows/deck/index.js'
 import { describeLaunch } from '../flows/launch-video/describe.js'
 import type { Description, Output } from '../flows/types.js'
@@ -53,6 +54,25 @@ async function liveBrowser(ws: Workspace): Promise<string | null> {
     } catch {}
   }
   return null
+}
+
+/**
+ * Storyboards are workspace artifacts, not a project mode. Surface one beside
+ * whichever artifact currently wins preview selection so Studio can offer the
+ * review editor without changing what the project "is".
+ */
+async function withStoryboard(ws: Workspace, description: Description): Promise<Description> {
+  try {
+    const storyboard = JSON.parse(
+      await readFile(path.join(ws.dir, 'storyboard.json'), 'utf8'),
+    ) as VideoStoryboard
+    if (!Array.isArray(storyboard?.scenes) || typeof storyboard.revision !== 'number') {
+      return description
+    }
+    return { ...description, extra: { ...description.extra, storyboard } }
+  } catch {
+    return description
+  }
 }
 
 async function videoDescription(ws: Workspace, rel: string): Promise<Description> {
@@ -201,18 +221,18 @@ export async function describeWorkspace(ws: Workspace): Promise<Description> {
   if (!existsSync(ws.dir)) return { preview: null, outputs: [] }
 
   const streamId = await liveBrowser(ws)
-  if (streamId) return { preview: { kind: 'browser', streamId }, outputs: [] }
+  if (streamId) return withStoryboard(ws, { preview: { kind: 'browser', streamId }, outputs: [] })
 
   const [best] = await candidates(ws)
-  if (!best) return { preview: null, outputs: [] }
+  if (!best) return withStoryboard(ws, { preview: null, outputs: [] })
 
   // Launch films keep their own describer: shots.js carries the scene list,
   // the audio track and the per-resolution renders, none of which can be read
   // off the filesystem.
-  if (best.kind === 'launch') return describeLaunch(ws)
-  if (best.kind === 'deck') return deckDescription(ws)
+  if (best.kind === 'launch') return withStoryboard(ws, await describeLaunch(ws))
+  if (best.kind === 'deck') return withStoryboard(ws, await deckDescription(ws))
   if (best.kind === 'pdf')
-    return {
+    return withStoryboard(ws, {
       // `path` and `pages` are what the page picker needs. They come from the
       // description rather than the asset shelf because a deck's own
       // build/output.pdf is previewable without being shelf material.
@@ -230,8 +250,8 @@ export async function describeWorkspace(ws: Workspace): Promise<Description> {
           createdAt: new Date(best.at).toISOString(),
         },
       ],
-    }
-  return videoDescription(ws, best.rel)
+    })
+  return withStoryboard(ws, await videoDescription(ws, best.rel))
 }
 
 /** Workspace-relative paths whose change means "the preview changed". */

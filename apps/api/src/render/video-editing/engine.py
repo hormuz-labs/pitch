@@ -213,7 +213,8 @@ class Engine:
         if info["duration"] and time >= info["duration"]:
             raise VideoError("Frame timestamp must be before the source duration")
         chain = "scale=round(iw*sar):ih,setsar=1" + ("," + filters if filters else "")
-        self.ff(["-i", info["path"], "-ss", time, "-map", f"0:{info['video']['index']}", "-vf", chain, "-frames:v", "1", "-threads", "1", dest])
+        # Seek at the input so late frames do not require decoding the entire video first.
+        self.ff(["-ss", time, "-i", info["path"], "-map", f"0:{info['video']['index']}", "-vf", chain, "-frames:v", "1", "-threads", "1", dest])
         if not dest.is_file():
             raise VideoError(f"No frame decoded at {time}s")
 

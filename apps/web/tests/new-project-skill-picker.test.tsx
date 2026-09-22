@@ -23,6 +23,18 @@ function Harness() {
 }
 
 describe('new project outcome selection', () => {
+  it('offers uploaded PDFs and images as a distinct narrated asset demo outcome', () => {
+    render(() => <Harness />)
+
+    const assetDemo = screen.getByRole('button', { name: 'Asset demo' })
+    expect(assetDemo.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(assetDemo)
+
+    expect(screen.getByRole('button', { name: 'Clear Asset demo' })).not.toBeNull()
+    expect(assetDemo.getAttribute('aria-pressed')).toBe('true')
+  })
+
   it('shows the selected outcome inline beside the add control', () => {
     render(() => <Harness />)
 

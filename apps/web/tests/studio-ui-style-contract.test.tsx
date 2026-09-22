@@ -18,6 +18,33 @@ const appShell = readFileSync(
 )
 
 describe('Studio UI style contract', () => {
+  it('themes the storyboard editor through the shared Studio palette', () => {
+    expect(css).toMatch(
+      /\.lv-studio \.studio-storyboard-view\s*\{[^}]*background:\s*var\(--paper\);/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.storyboard-editor\s*\{[^}]*--sb-canvas:\s*var\(--paper\);[^}]*--sb-surface:\s*var\(--panel\);[^}]*--sb-surface-raised:\s*var\(--panel-2\);[^}]*--sb-line:\s*var\(--border\);[^}]*--sb-text:\s*var\(--ink\);[^}]*--sb-muted:\s*var\(--muted\);/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.storyboard-editor__header\s*\{[^}]*background:\s*var\(--sb-surface\);/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.storyboard-scenes,[\s\S]*?\.storyboard-inspector\s*\{[^}]*background:\s*var\(--sb-surface\);/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.storyboard-editor :is\(input, textarea, select\)\s*\{[^}]*background:\s*var\(--sb-input\);/s,
+    )
+    expect(css).toMatch(
+      /\.lv-studio \.storyboard-editor\s*\{[^}]*--sb-primary-bg:\s*#18181b;[^}]*--sb-primary-text:\s*#fff;/s,
+    )
+    expect(css).toMatch(
+      /\[data-theme="dark"\] \.lv-studio \.storyboard-editor\s*\{[^}]*--sb-primary-bg:\s*#f1f1ef;[^}]*--sb-primary-text:\s*#111213;/s,
+    )
+    expect(css).toMatch(
+      /\.storyboard-btn--primary[^}]*background:\s*var\(--sb-primary-bg\);[^}]*color:\s*var\(--sb-primary-text\);/s,
+    )
+  })
+
   it('opens project conversations without the global sidebar', () => {
     expect(appShell).toContain(
       "window.innerWidth < 1024 || routeKey(location.pathname) === 'studio'",
@@ -125,11 +152,13 @@ describe('Studio UI style contract', () => {
     expect(css).toMatch(
       /\.lv-studio \.job-stop-task\s*\{[^}]*width:\s*38px;[^}]*height:\s*38px;[^}]*max-width:\s*38px;[^}]*border-radius:\s*50%;[^}]*background:\s*#111111;[^}]*color:\s*#ffffff;/s,
     )
+    expect(css).not.toMatch(/\.job-send-round\.stop\s*\{[^}]*background:\s*var\(--danger\)/s)
     const composer = readFileSync(
       resolve(process.cwd(), 'apps/web/src/solid/studio/Composer.tsx'),
       'utf8',
     )
     expect(composer).toContain('aria-label="Stop generation"')
+    expect(composer).toContain('class="job-stop-task job-send-round"')
     expect(composer).toContain('<Square size={11} fill="currentColor" aria-hidden="true" />')
     expect(composer).not.toContain('<span>Stop</span>')
   })

@@ -153,6 +153,14 @@ describe('shared pi video editor', () => {
     expect(analysis.time_basis).toBe('source seconds')
   }, 30_000)
 
+  it('seeks before opening the input when extracting frames', async () => {
+    const engine = await readFile(
+      path.join(process.cwd(), 'apps/api/src/render/video-editing/engine.py'),
+      'utf8',
+    )
+    expect(engine).toMatch(/self\.ff\(\["-ss", time, "-i", info\["path"\].*"-frames:v", "1"/)
+  })
+
   it('extracts timestamped contact sheets with usable tile coordinates', async ctx => {
     if (!capabilities.filters.drawtext) return ctx.skip()
     const result = await call('frames', { source, times: [0, 1, 2], contact_sheet: true })

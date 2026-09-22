@@ -1,4 +1,4 @@
-import { MonitorPlay, Presentation, Rocket, Scissors, X } from 'lucide-solid'
+import { Images, MonitorPlay, Presentation, Rocket, Scissors, X } from 'lucide-solid'
 import { For, Show } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 
@@ -14,6 +14,12 @@ export const SKILLS = [
     label: 'Product demo',
     icon: MonitorPlay,
     prompt: 'Create a narrated product demo for ',
+  },
+  {
+    id: 'asset-demo',
+    label: 'Asset demo',
+    icon: Images,
+    prompt: 'Turn these PDFs or images into a narrated visual demo. ',
   },
   {
     id: 'slide-deck',

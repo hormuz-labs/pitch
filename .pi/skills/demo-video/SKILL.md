@@ -1,9 +1,15 @@
 ---
 name: demo-video
-description: Prepare and capture one continuous real product walkthrough or narrated PDF/image slideshow, including reviewed storyboards and mixed app/document sequences. Owns visible actions and synchronized narration; routes stopped footage to video-editing for post-processing.
+description: Prepare and record one continuous real product walkthrough, demonstrating actions while narrating. Use this for a live-site walkthrough even when uploaded PDFs or images are reference or supporting material. If the requested video presents those files or is built primarily from their content, read asset-demo instead. Also supports narrated PDF/image slideshows. Hands stopped footage to video-editing for post-processing.
 ---
 
 # Demo recording
+
+Choose from the requested video's subject, not merely from which files are attached.
+Use this skill when a live product is the main subject. An uploaded PDF or image may
+still supply facts, a script, brand guidance, requirements, or supporting visuals.
+If the video should present those files themselves or be built chiefly from their
+content, stop and read `asset-demo` instead.
 
 Capture a truthful **intent → visible action → verified result**. Each specific
 claim needs visible evidence; tool success alone does not prove the intended

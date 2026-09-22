@@ -41,6 +41,17 @@ describe('agent conversation contract', () => {
     expect(context).not.toContain('Options the user chose')
   })
 
+  it('uses the selected asset-demo outcome to route a compatible actionable request', async () => {
+    const context = await buildContext(workspace(), {
+      first: true,
+      options: { skill: 'asset-demo' },
+    })
+
+    expect(context).toContain('selected Asset demo as the preferred outcome')
+    expect(context).toContain('read the `asset-demo` skill')
+    expect(context).toContain('does not start work by itself')
+  })
+
   it('limits ask_user to consequential omissions in explicit outcome requests', () => {
     expect(ASK_USER_DESCRIPTION).toContain(
       'only after the user explicitly requests a named outcome',
