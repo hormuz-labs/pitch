@@ -79,11 +79,11 @@ export function renderTransactionalEmail(
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(content.subject)}</title>
-<style>@media only screen and (max-width:600px){.outer{padding:12px!important}.card{border-radius:12px!important}.mobile-pad{padding-left:22px!important;padding-right:22px!important}.hero-pad{padding:22px!important}.hero-title{font-size:27px!important;line-height:32px!important}.cta{display:block!important;text-align:center!important}.footer-links{display:block!important;margin-top:8px!important}}@media (prefers-color-scheme:dark){.force-light{background:#fff!important;color:#171717!important}}</style></head>
+<style>@media only screen and (max-width:600px){.outer{padding:12px 8px!important}.card{border-radius:12px!important;max-width:100%!important;width:100%!important}.mobile-pad{padding-left:18px!important;padding-right:18px!important}.hero-pad{padding:22px 18px!important}.hero-title{font-size:25px!important;line-height:31px!important;word-break:break-word!important}.cta{display:block!important;text-align:center!important;width:auto!important;box-sizing:border-box!important}.footer-links{display:block!important;margin-top:8px!important}}@media (prefers-color-scheme:dark){.force-light{background:#fff!important;color:#171717!important}}</style></head>
 <body class="force-light" style="margin:0;padding:0;background:#f5f5f5;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#171717;-webkit-text-size-adjust:100%">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(content.preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;background:#f5f5f5"><tr><td class="outer" align="center" style="padding:32px 16px">
-<table role="presentation" class="card force-light" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border:1px solid #dedede;border-radius:16px;overflow:hidden">
+<table role="presentation" class="card force-light" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #dedede;border-radius:16px;overflow:hidden">
 <tr><td style="height:6px;background:#111;font-size:0">&nbsp;</td></tr>
 <tr><td class="mobile-pad" style="padding:28px 40px 18px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="padding-right:10px"><img src="${logoUrl}" width="34" height="34" alt="Pitch" style="display:block;border:0;width:34px;height:34px"></td><td style="font-size:21px;font-weight:750;letter-spacing:-.5px;color:#111">Pitch</td></tr></table></td></tr>
 <tr><td class="mobile-pad" style="padding:8px 40px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:14px"><tr><td class="hero-pad" style="padding:30px"><p style="margin:0 0 16px;color:#bdbdbd;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase">${escapeHtml(content.eyebrow)}</p><h1 class="hero-title" style="margin:0;color:#fff;font-size:34px;line-height:39px;letter-spacing:-1.1px;font-weight:760">${escapeHtml(content.title)}</h1><p style="margin:16px 0 0;color:#a3a3a3;font-size:12px;line-height:19px">Made with care by Pitch.</p></td></tr></table></td></tr>
@@ -172,21 +172,74 @@ export function sendWelcomeEmail(input: { to: string; firstName?: string | null;
   )
 }
 
+export function sendJobStartedEmail(input: {
+  to: string
+  firstName?: string | null
+  jobId: string
+  title?: string
+  prompt?: string
+  kind?: JobEmailKind
+  projectUrl?: string
+}) {
+  const label = input.kind ? jobLabel(input.kind) : 'project'
+  const displayTitle = input.title || 'Untitled Project'
+  const projectUrl = input.projectUrl || `${APP_URL()}/projects/${input.jobId}`
+
+  return sendTransactional(
+    input.to,
+    {
+      subject: `We've started working on your ${label}: ${displayTitle}`,
+      preheader: `Pitch is now processing your ${label}.`,
+      eyebrow: 'Project Started',
+      title: "We're bringing your vision to life.",
+      intro: `Your ${label} has started processing. Pitch's agent is analyzing your request and assembling the story, visuals, and scenes.`,
+      badge: 'In Progress',
+      badgeTone: 'neutral',
+      details: [
+        { label: 'Project', value: displayTitle },
+        { label: 'Job ID', value: input.jobId },
+        ...(input.prompt
+          ? [
+              {
+                label: 'Prompt',
+                value:
+                  input.prompt.length > 180 ? `${input.prompt.slice(0, 180)}...` : input.prompt,
+              },
+            ]
+          : []),
+      ],
+      ctaLabel: 'Open in Pitch Studio',
+      ctaUrl: projectUrl,
+      note: "You can watch real-time generation live in Pitch Studio, or sit back — we'll email you the moment it's complete.",
+    },
+    { firstName: input.firstName, idempotencyKey: `job-started-${input.jobId}` },
+  )
+}
+
 export function sendJobCompletedEmail(input: {
   to: string
   firstName?: string | null
   jobId: string
-  kind: JobEmailKind
-  outputUrl: string
+  kind?: JobEmailKind
+  outputUrl?: string
   title?: string
+  projectUrl?: string
 }) {
-  const label = jobLabel(input.kind)
+  const kind = input.kind ?? 'demo'
+  const label = jobLabel(kind)
   const cta =
-    input.kind === 'pdf' || input.kind === 'enhancement' ? 'Open presentation' : 'Watch video'
+    input.kind === 'pdf' || input.kind === 'enhancement'
+      ? 'Open presentation'
+      : input.outputUrl
+        ? 'Watch video'
+        : 'Open in Pitch Studio'
+  const targetUrl = input.outputUrl || input.projectUrl || `${APP_URL()}/projects/${input.jobId}`
+  const displayTitle = input.title ? `: ${input.title}` : ''
+
   return sendTransactional(
     input.to,
     {
-      subject: `Your ${label} is ready`,
+      subject: `Your ${label} is ready${displayTitle}`,
       preheader: `Pitch finished your ${label}.`,
       eyebrow: 'Ready in Pitch',
       title: `Your ${label} is ready.`,
@@ -198,9 +251,50 @@ export function sendJobCompletedEmail(input: {
         { label: 'Job ID', value: input.jobId },
       ],
       ctaLabel: cta,
-      ctaUrl: input.outputUrl,
+      ctaUrl: targetUrl,
+      note: 'Need to make changes? You can adjust scripts, timing, audio, or visuals right in the studio anytime.',
     },
     { firstName: input.firstName, idempotencyKey: `job-completed-${input.jobId}` },
+  )
+}
+
+export function sendVideoReadyEmail(input: {
+  to: string
+  firstName?: string | null
+  jobId: string
+  videoUrl: string
+  title?: string
+  resolution?: string
+  projectUrl?: string
+}) {
+  const displayTitle = input.title || 'Untitled Video'
+  const targetUrl = input.videoUrl || input.projectUrl || `${APP_URL()}/projects/${input.jobId}`
+  const resLabel = input.resolution ? ` (${input.resolution})` : ''
+
+  return sendTransactional(
+    input.to,
+    {
+      subject: `Your video is rendered & ready to export: ${displayTitle}`,
+      preheader: `High-definition MP4 render is ready${resLabel}.`,
+      eyebrow: 'Render Complete',
+      title: 'Your video is ready to export.',
+      intro: `Your video has finished rendering in high definition${resLabel} and is ready to download, export, or share.`,
+      badge: 'Ready to Export',
+      badgeTone: 'success',
+      details: [
+        { label: 'Project', value: displayTitle },
+        ...(input.resolution ? [{ label: 'Resolution', value: input.resolution }] : []),
+        { label: 'Format', value: 'MP4 Video' },
+        { label: 'Job ID', value: input.jobId },
+      ],
+      ctaLabel: 'Download / Export Video',
+      ctaUrl: targetUrl,
+      note: 'You can download your MP4 directly from the link above or access all export formats (Premiere, After Effects, etc.) inside the studio.',
+    },
+    {
+      firstName: input.firstName,
+      idempotencyKey: `video-ready-${input.jobId}-${input.resolution || 'default'}`,
+    },
   )
 }
 

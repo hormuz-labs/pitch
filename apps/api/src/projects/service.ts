@@ -10,7 +10,7 @@
  * in the single-box layout, and some other node otherwise.
  */
 import * as db from '@saas/db'
-import { createLogger, sendDiscordMessage } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import type { Description, UploadRef } from '../flows/types.js'
 import { publishProjectEvent } from '../studio/events.js'
 import { selectStudioModel } from '../studio/model-picker.js'
@@ -21,6 +21,7 @@ import { clientForWorker, currentOwner, forgetOwner, withOwner } from '../worker
 import { followFirstTurn, type PromptOptions, type PromptProjectResult } from '../worker/host.js'
 import { isLive } from '../worker/lease.js'
 import { durationOptionFromText, normalizeCreationOptions } from './creation-options.js'
+import { notifyProjectStarted } from './notifications.js'
 import {
   deleteRow,
   getRow,
@@ -250,14 +251,9 @@ export async function createProject(
     throw err
   }
 
-  db.prisma.userProfile
-    .findUnique({ where: { id: userId } })
-    .then(u =>
-      sendDiscordMessage(
-        `🎬 **New project**\nProject: \`${p.id}\`\nUser: ${u?.email || userId}\nTitle: ${title}\nPrompt: *${prompt.slice(0, 300) || '(opened from an upload)'}*`,
-      ),
-    )
-    .catch(() => {})
+  void notifyProjectStarted(p, { prompt }).catch(err =>
+    logger.warn({ err, projectId: p.id }, 'project started notification failed'),
+  )
 
   return getProject(userId, p.id)
 }
@@ -332,7 +328,13 @@ function slug(): string {
 }
 
 export async function shareProject(userId: string, id: string): Promise<ProjectRow> {
-  const p = await getRow(userId, id)
+  let p = await getRow(userId, id)
+  // A render can exist only in the workspace (for preview/download) while the
+  // public row still has no storage URL. Publish the current artifact before
+  // returning even for an existing slug, so copying a previously broken link
+  // repairs it and a project that changed from deck to video shares the video.
+  await withOwner(p.id, owner => owner.publishArtifact(p.id))
+  p = await getRow(userId, id)
   if (p.isPublic && p.shareSlug) return p
   const row = await db.prisma.project.update({
     where: { id },
