@@ -16,6 +16,9 @@ claim needs visible evidence; tool success alone does not prove the intended
 state. Generated code proves generation, not correctness or production readiness.
 Report contradictions between the script and actual source; never manufacture
 supporting footage. Camera moves and final editing belong to the shared editor.
+Capture complete gestures, scrolling and native page transitions so the final
+walkthrough can remain continuous. A successful click without a visible cursor
+or a jump to a scrolled destination is incomplete visual evidence.
 
 ## Choose the instructions
 
@@ -85,7 +88,9 @@ into the editor's notes. For each distinct subject or intended emphasis, include
   uncertainty; otherwise mark unknown for source inspection. Do not substitute a
   tool return time or invent an action for an already-visible result.
 - Required completion, narration, reading/comparison holds; known input/response
-  boundaries; baked-in callouts; missing or contradictory results.
+  boundaries; complete scroll intervals; navigation trigger and observed arrival
+  separately; cursor visibility on each page; baked-in callouts; missing or
+  contradictory results. Separate actual speech/action spans from idle gaps.
 
 These are capture facts and intentions, not camera commands. The editor measures
 phrase timing from the synchronized source, resolves any action timing, maps

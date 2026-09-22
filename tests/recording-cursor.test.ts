@@ -6,9 +6,9 @@ import { RECORDING_CURSOR_SCRIPT } from '../apps/api/src/render/utils/recording-
  * this minimal DOM is evidence of the browser's painted/recorded pixels. */
 function environment(child = false) {
   const listeners = new Map<string, ((event: any) => void)[]>()
-  const pointer = { style: {} as Record<string, string> }
+  const pointer = { style: {} as Record<string, string>, appendChild: vi.fn() }
   const cancel = vi.fn()
-  const ring = { animate: vi.fn(() => ({ cancel })) }
+  const ring = { style: {}, animate: vi.fn(() => ({ cancel })) }
   const frames: any[] = []
   const host = {
     style: { cssText: '' },
@@ -18,11 +18,15 @@ function environment(child = false) {
     hidePopover: vi.fn(),
     matches: () => false,
     attachShadow: () => ({
-      innerHTML: '',
-      querySelector: (selector: string) => (selector === '.pointer' ? pointer : ring),
+      set innerHTML(_value: string) {
+        throw new TypeError('This document requires TrustedHTML assignment')
+      },
+      appendChild: vi.fn(),
     }),
   }
-  const createElement = vi.fn(() => host)
+  const elements = [host, pointer, ring]
+  const createElement = vi.fn(() => elements.shift())
+  const svg = { style: {}, setAttribute: vi.fn(), appendChild: vi.fn() }
   const parent = { postMessage: vi.fn() }
   const window: any = {
     parent,
@@ -36,6 +40,7 @@ function environment(child = false) {
     document: {
       addEventListener: vi.fn(),
       createElement,
+      createElementNS: () => svg,
       documentElement: {
         appendChild: () => {
           host.isConnected = true
@@ -57,7 +62,7 @@ describe('recorded mouse input', () => {
     const page = environment()
     expect(page.createElement).not.toHaveBeenCalled()
     page.emit('pointermove', { clientX: 192, clientY: 108, pointerType: 'mouse' })
-    expect(page.pointer.style).toEqual({
+    expect(page.pointer.style).toMatchObject({
       visibility: 'visible',
       transform: 'translate(189px,105px)',
     })
@@ -84,9 +89,20 @@ describe('recorded mouse input', () => {
     expect(page.pointer.style.visibility).toBe('hidden')
     page.emit('pointermove', { clientX: 120, clientY: 80 })
     expect(page.pointer.style.visibility).toBe('visible')
-    expect(page.createElement).toHaveBeenCalledTimes(1)
+    expect(page.createElement).toHaveBeenCalledTimes(3)
     page.emit('blur')
     expect(page.pointer.style.visibility).toBe('hidden')
+  })
+
+  it('paints under Trusted Types and falls back when popovers are unavailable', () => {
+    const page = environment()
+    page.host.showPopover.mockImplementation(() => {
+      throw new Error('Popover unavailable')
+    })
+    page.emit('pointermove', { clientX: 120, clientY: 80 })
+    expect(page.pointer.style.visibility).toBe('visible')
+    expect(page.pointer.appendChild).toHaveBeenCalledTimes(2)
+    expect(page.pointer.style.transform).toBe('translate(117px,77px)')
   })
 
   it('relays cross-origin frame input to one top-level pointer with border and scale offsets', () => {

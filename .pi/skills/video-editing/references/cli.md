@@ -32,7 +32,7 @@ All rows below begin with `pitch video`:
 | `frames` | `--source` | `--times '[0]'` (1–12 timestamps); `--max-width 1280` (160–3840); `--grid`; `--contact-sheet`; `--tile-width 480` (160–960) |
 | `focus` | `--source`, `--time`, `--target '{"x":…, "y":…, "width":…, "height":…}'` | `--width 1920`; `--height 1080` (16–7680); `--margin 0.15` (0–2) |
 | `analyze` | `--source` | `--start 0`; `--end <duration>`; `--silence-db -35` (−90 to −5); `--silence-duration 0.6` (0.1–30); `--details` |
-| `preprocess` | `--source` | `--audio-track 0` (explicit for multi-track media); `--protect '[{"start":2,"end":8}]'` (original-source ranges kept intact); `--details` |
+| `preprocess` | `--source` | `--audio-track 0` (explicit for multi-track media); `--protect '[{"start":2,"end":8,"kind":"scroll"}]'`; `--reviewed-idle '[{"start":10,"end":18,"reason":"Inspected interval: only unrelated ad animates; no input or task progress"}]'`; `--details` |
 | `plan --operation create` | `--plan`, `--source`, `--output` | None |
 | `plan --operation inspect` | `--plan` | `--section clips`; `--offset 0`; `--limit 5` (max 10) |
 | `plan --operation patch` | `--plan`, `--revision`, `--ops '[…]'` | 1–8 add/replace/remove/test ops; total request ≤12 KiB |
@@ -74,6 +74,25 @@ retain 0.4s handles and round inward to frames. This intentionally keeps music,
 noise, blinking cursors and uncertain intervals. Supply `protect` for known
 activity envelopes, narration and reading holds; slow or low-contrast activity
 can evade a pixel threshold. Original files remain intact.
+
+`protect` accepts `start`, `end` and optional `kind` (default `activity`): `activity`,
+`typing`, `stream`, `speech`, `scroll`, `interaction`, `reading`. Measured ranges
+are mapped to prepared coverage; speech/scroll/interaction/reading also stay at 1×.
+Do not protect a whole narration-to-click gap when most of it is idle.
+
+The pixel gate deliberately cannot distinguish autoplay ads from useful video or
+caret blink from typing. Inspect silence candidates before preprocessing. For an
+interval verified to contain no task input, scroll, response progress or required
+reading, `reviewed_idle` supplies `start`, `end`, and a nonempty evidence-based
+`reason`. It overrides only the unchanged-picture gate, never the silence gate,
+protected ranges or boundary handles. Reasons are saved in the prepass report.
+Wrong editorial classification can still lose content; review the whole interval.
+For a continuous walkthrough, check that removing it joins matching UI/cursor/scroll
+states without a visible jump. If it does not, retain the interval and accelerate
+its nonessential interior continuously instead. The returned screen starter enables
+`output.continuous_camera`; keep it enabled and review action continuity separately.
+If a missed idle gap is found later, rerun from the original with that evidence
+and remap timing, rather than deleting prepared-source coverage.
 
 Prepared files live under `.video-work/preprocess-*/`. Start from the returned
 edit plan (copy it to `edits/` if useful), retaining `coverage`; write final output

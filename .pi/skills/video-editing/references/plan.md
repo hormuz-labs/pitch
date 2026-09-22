@@ -40,6 +40,7 @@ validates again. This is a finite contract: unknown JSON keys are errors.
 | `crf` | 18; 0–40, lower is higher quality/larger file |
 | `preset` | `medium`; libx264 presets from ultrafast through veryslow |
 | `normalize_audio` | false; single-pass loudnorm aiming for −16 LUFS / −1.5 dBTP / LRA 11 |
+| `continuous_camera` | false generally; true in screen-prepass starter plans. Requires a wide opening and matched rendered camera endpoints across all clips. Rejects internal fades/transition overlaps; use smooth moves and continuous holds. Does not infer UI/cursor/scroll continuity. |
 
 Output is SDR H.264/yuv420p, AAC stereo 48 kHz with fast-start metadata. HDR
 clips/overlays require an explicit color-managed conversion first. Clips without
@@ -116,6 +117,9 @@ For a constant-scale pan, keep equal endpoint width/height, changing only x/y:
 Set the preceding exit to 0 and copy its final viewport exactly to the next
 `start_viewport`. Continue holds without entrance/exit. The renderer does not
 infer adjacent camera states or stable layouts; encode observed continuity.
+With `output.continuous_camera: true`, unmatched rendered endpoints fail validation,
+including crop → full jumps caused by simply omitting the next clip's camera.
+Patch adjacent clips together when changing their shared framing.
 See [zoom.md](zoom.md#holds-pans-and-layout-changes).
 
 #### Speech/action cue
@@ -170,11 +174,12 @@ includes top-level `coverage` so the constraints are visible and can be extended
 ]
 ```
 
-Ranges are source seconds, with `kind` of `activity`, `typing`, `stream` or
-`speech`. They must be covered exactly once, continuously and in order; split
-clips and speed changes are allowed, gaps/duplicates/reordering and transition
-overlaps are rejected. Speech ranges must remain at 1×. Keep these constraints
-when editing the generated plan; omitting the plan field does not disable the
+Ranges are source seconds, with `kind` of `activity`, `typing`, `stream`, `speech`,
+`scroll`, `interaction` or `reading`. They must be covered exactly once, continuously
+and in order; split clips and speed changes are allowed, gaps/duplicates/reordering and transition
+overlaps are rejected. Speech, scroll, interaction and reading ranges must remain
+at 1×. Keep these constraints when editing the generated plan; omitting the plan
+field does not disable the
 prepared media's sidecar. Do not remove either to bypass a failed check.
 They express preservation of the agreed source scope, not a content classifier.
 

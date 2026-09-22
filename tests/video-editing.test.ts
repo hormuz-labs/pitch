@@ -260,6 +260,71 @@ describe('shared pi video editor', () => {
     expect(protectedResult.removed_seconds).toBe(0)
   }, 30_000)
 
+  it('removes reviewed idle despite incidental animation but preserves speech and scrolling', async () => {
+    const input = 'uploads/animated-idle.mp4'
+    await ff([
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc2=size=320x180:rate=10:duration=12',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:sample_rate=48000:duration=12',
+      '-af',
+      "volume=0:enable='lt(t,8)'",
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-c:a',
+      'aac',
+      path.join(root, input),
+    ])
+    const baseline = await call('preprocess', { source: input })
+    expect(baseline.removed_seconds).toBe(0)
+    const reviewed_idle = [
+      {
+        start: 0,
+        end: 12,
+        reason: 'Only unrelated thumbnail animation outside the protected task scroll',
+      },
+    ]
+    const result = await call('preprocess', {
+      source: input,
+      reviewed_idle,
+      protect: [{ start: 3, end: 5, kind: 'scroll' }],
+    })
+    expect(result.removed_seconds).toBeGreaterThan(3)
+    expect(result.removed.every(([a, b]: number[]) => b <= 3 || (a >= 5 && b < 8))).toBe(true)
+    expect(result.reviewed_idle).toEqual(reviewed_idle)
+    const starter = JSON.parse(await readFile(path.join(root, result.plan), 'utf8'))
+    const scroll = starter.coverage.find((span: any) => span.kind === 'scroll')
+    expect(scroll.end - scroll.start).toBeCloseTo(2)
+    expect(scroll.start).toBeLessThan(3) // Mapped through the earlier cut.
+    await call('validate', { plan: result.plan })
+    // Media-bound protection survives a fresh plan omitting the coverage array.
+    const sped = await plan([
+      { source: result.source, in: 0, out: scroll.start },
+      { source: result.source, in: scroll.start, out: scroll.end, speed: 2 },
+      { source: result.source, in: scroll.end, out: result.duration },
+    ])
+    await expect(call('validate', { plan: sped.plan })).rejects.toThrow(
+      'Protected scroll must remain at 1x',
+    )
+    const cut = await plan([
+      { source: result.source, in: 0, out: scroll.start },
+      { source: result.source, in: scroll.end, out: result.duration },
+    ])
+    await expect(call('validate', { plan: cut.plan })).rejects.toThrow('Coverage activity')
+    await expect(
+      call('preprocess', { source: input, reviewed_idle: [{ start: 0, end: 4 }] }),
+    ).rejects.toThrow('requires a reason')
+    await expect(
+      call('preprocess', { source: input, protect: [{ start: 0, end: 4, kind: 'unknown' }] }),
+    ).rejects.toThrow('protect.kind')
+  }, 30_000)
+
   it('keeps a single changing chroma pixel even when luminance is completely still', async () => {
     const input = 'uploads/chroma-activity.mkv'
     await ff([
@@ -276,6 +341,54 @@ describe('shared pi video editor', () => {
     const result = await call('preprocess', { source: input })
     expect(result.removed_seconds).toBeGreaterThan(0)
     expect(result.removed.every(([a, b]: number[]) => b <= 3 || a >= 6)).toBe(true)
+  }, 30_000)
+
+  it('enforces continuous camera handoffs instead of accepting abrupt crop resets', async () => {
+    const a = { x: 0.1, y: 0.1, width: 0.5, height: 0.5 }
+    const b = { x: 0.4, y: 0.2, width: 0.5, height: 0.5 }
+    const output = {
+      path: 'renders/continuous.mp4',
+      width: 320,
+      height: 180,
+      fps: 10,
+      preset: 'ultrafast',
+      continuous_camera: true,
+    }
+    const clips = [
+      { source, in: 0, out: 1, camera: { viewport: a, enter: 0.4 } },
+      { source, in: 1, out: 2, camera: { start_viewport: a, viewport: b, enter: 0.4 } },
+      { source, in: 2, out: 3, camera: { viewport: b, exit: 0.4 } },
+      { source, in: 3, out: 4 },
+    ]
+    const good = await plan(clips, { output })
+    expect((await call('validate', { plan: good.plan })).duration).toBe(4)
+    // Native action remains continuous; only framing is interpolated by the renderer.
+    const rendered = await call('render', { plan: good.plan })
+    expect((await call('verify', { source: rendered.output, expected_duration: 4 })).passed).toBe(
+      true,
+    )
+    const unusedOutput = { ...output, path: 'renders/continuity-invalid.mp4' }
+    for (const broken of [
+      [clips[0], { source, in: 1, out: 4 }], // Zoom -> full without a return.
+      [clips[0], { source, in: 1, out: 4, camera: { viewport: b } }], // Pan jump.
+      [{ source, camera: { viewport: a } }], // Cropped opening.
+      [clips[0], { source, in: 1, out: 4, camera: { viewport: a, enter: 0.4 } }], // Restarted zoom.
+      [
+        { source, in: 0, out: 1, camera: { viewport: a, enter: 1 } },
+        { source, in: 1, out: 4, camera: { viewport: a } },
+      ], // Last rendered frame hasn't settled.
+    ]) {
+      const p = await plan(broken, { output: unusedOutput })
+      await expect(call('validate', { plan: p.plan })).rejects.toThrow('Camera discontinuity')
+    }
+    const fade = await plan(
+      [
+        { source, in: 0, out: 2, fade_out: 0.3 },
+        { source, in: 2, out: 4 },
+      ],
+      { output: unusedOutput },
+    )
+    await expect(call('validate', { plan: fade.plan })).rejects.toThrow('must not hide joins')
   }, 30_000)
 
   it('allows continuous accelerated typing but rejects dropped, reordered or accelerated speech', async () => {

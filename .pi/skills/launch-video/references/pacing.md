@@ -55,7 +55,7 @@ changed. That is not a semantic event: a continuous move can count several
 times, while a small but important UI change may not register at all.
 
 The default notes flag a gap over 1.5s or a film below 0.7 events/s. They came
-from fast motion-graphics references in `docs/studies/`; they are not quality
+from fast motion-graphics references; they are not quality
 targets for every kind of film. Set `--max_quiet` and `--min_eps` to suit the
 planned rhythm when useful. A pacing note never fails the audit.
 

@@ -6,7 +6,7 @@ framing or motion, and sound that carries across a cut. A question followed
 by its answer or a feature followed by its result can connect with a clean
 cut. Neither a persistent object nor a particular transition is required.
 
-Two reference films measured frame by frame (`docs/studies/`) use object
+Two reference films measured frame by frame use object
 handoffs especially well: a 33s SaaS launch ad with no cut and a 40s promo
 with thirty whole-frame turnovers. These are examples of one approach,
 not a requirement that every launch film keep a shape on screen.

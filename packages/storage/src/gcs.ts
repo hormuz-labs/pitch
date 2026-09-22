@@ -3,8 +3,7 @@
  * credentials come from Application Default Credentials, which is Workload
  * Identity in the cluster and `gcloud auth application-default login` on a
  * laptop. GCS_PROJECT names the project buckets are created in when one is
- * missing (usually they are provisioned ahead of time; see
- * docs/gke-deployment.md) and GCS_LOCATION where.
+ * missing (usually they are provisioned ahead of time) and GCS_LOCATION where.
  */
 
 import { pipeline } from 'node:stream/promises'

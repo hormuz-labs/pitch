@@ -1,5 +1,5 @@
 /**
- * Typed client for the studio routes (docs/studio-architecture.md → Routes).
+ * Typed client for the studio routes.
  * Tokens are passed in explicitly (Clerk `getToken()` at the call site) so this
  * module stays hook-free and testable.
  */

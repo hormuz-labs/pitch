@@ -8,6 +8,9 @@ description: Edit existing video files, including narrated product demos, silent
 Make the viewer understand the intended subject at the intended moment. Choose
 editing rules from the task and the footage; a software walkthrough, interview
 and trailer do not use the same silence, preservation or camera policy.
+Screen walkthroughs must feel continuous from beginning to end: smooth camera
+handoffs, complete gestures/scroll, and no jump cuts to completed states. Removing
+dead time must preserve that continuity; it does not justify abrupt transitions.
 
 ## Choose the instructions
 

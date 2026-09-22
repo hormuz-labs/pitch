@@ -21,6 +21,9 @@ class VideoError(Exception):
     pass
 
 
+COVERAGE_KINDS = ("activity", "typing", "stream", "speech", "scroll", "interaction", "reading")
+
+
 def number(value, name, low=None, high=None):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise VideoError(f"{name} must be a finite number")
@@ -356,10 +359,23 @@ class Engine:
             raise VideoError("Select audio_track explicitly for a multi-track source")
         if info["audio_tracks"] and track >= len(info["audio_tracks"]):
             raise VideoError("audio_track is out of range")
-        protected = []
+        protected, obligations = [], []
         for item in args.get("protect", []):
-            keys(item, "start end", "protect range")
-            protected.append(self.time_range(item, duration))
+            keys(item, "start end kind", "protect range")
+            span = self.time_range(item, duration)
+            kind = item.get("kind", "activity")
+            if kind not in COVERAGE_KINDS:
+                raise VideoError(f"protect.kind must be one of {', '.join(COVERAGE_KINDS)}")
+            protected.append(span)
+            obligations.append((*span, kind))
+        # Explicit editorial evidence can distinguish task progress from an
+        # unrelated autoplay thumbnail/caret. Never infer this from silence alone.
+        reviewed_idle = []
+        for item in args.get("reviewed_idle", []):
+            keys(item, "start end reason", "reviewed_idle range")
+            if not isinstance(item.get("reason"), str) or not item["reason"].strip():
+                raise VideoError("reviewed_idle requires a reason describing the inspected idle interval")
+            reviewed_idle.append(self.time_range(item, duration))
         # Per-pixel tolerance absorbs low-level codec noise, not small areas:
         # one changed character still counts. Cursor blink/spinners retain time.
         def scan(graph, tolerance):
@@ -409,7 +425,10 @@ class Engine:
                     pending = None
             if pending is not None:
                 silent.append((pending, duration))
-        candidates = intersect_ranges(intersect_ranges(still, silent), complement(protected, duration))
+        # Union reviewed spans with pixel-static evidence. Audio/protected ranges
+        # remain authoritative even when the supplied review interval is too wide.
+        eligible = complement(complement(still + reviewed_idle, duration), duration)
+        candidates = intersect_ranges(intersect_ranges(eligible, silent), complement(protected, duration))
         removed = []
         for a, b in candidates:
             # Keep orientation/reading and speech handles on BOTH sides. Round
@@ -438,6 +457,12 @@ class Engine:
                                "end": min(item["end"], item["start"] + b - item["source_in"])})
         coverage = [{"source": str(source), "start": 0, "end": rendered["duration"], "kind": "activity"}]
         coverage += [{"source": str(source), **span, "kind": "speech"} for span in speech if span["end"] > span["start"]]
+        for a, b, kind in obligations:
+            for item in rendered["timeline"]:
+                for left, right in intersect_ranges([(a, b)], [(item["source_in"], item["source_out"])]):
+                    coverage.append({"source": str(source), "kind": kind,
+                        "start": item["start"] + left - item["source_in"],
+                        "end": min(item["end"], item["start"] + right - item["source_in"])})
         # Bind preservation to the prepared media too. Starting a fresh plan or
         # accidentally omitting its coverage field must not disable the guard.
         with source.with_suffix(".coverage.json").open("x", encoding="utf-8") as handle:
@@ -445,12 +470,13 @@ class Engine:
         starter = folder / "edit.json"
         starter.write_text(json.dumps(self.portable({"version": 1,
             "output": {"path": f"renders/edited-{uuid.uuid4().hex[:8]}.mp4", "width": prepass["output"]["width"],
-                       "height": prepass["output"]["height"], "fps": fps},
+                       "height": prepass["output"]["height"], "fps": fps, "continuous_camera": True},
             "coverage": coverage, "clips": [{"source": str(source)}]}), indent=2), encoding="utf-8")
         report = {"source": str(source), "original": info["path"], "duration": rendered["duration"],
                   "removed_seconds": sum(b - a for a, b in removed), "removed": removed,
-                  "still": still, "silences": silent, "map": rendered["timeline"], "plan": str(starter), "prepass_plan": str(plan_path),
-                  "policy": "Every decoded frame; maximum per-pixel Y/U/V change <=8/255 adjacent and <=16/255 over 1s AND silence below -50 dB for >=2s; 0.4s handles. Cursor blink is activity. No VAD-only cuts. Keep coverage; speed silent typing/streaming rather than deleting it.",
+                  "still": still, "silences": silent, "reviewed_idle": args.get("reviewed_idle", []),
+                  "map": rendered["timeline"], "plan": str(starter), "prepass_plan": str(plan_path),
+                  "policy": "Every decoded frame; maximum per-pixel Y/U/V change <=8/255 adjacent and <=16/255 over 1s, or explicitly reviewed idle, AND silence below -50 dB for >=2s; 0.4s handles. Protected ranges always win. No VAD-only cuts. Keep coverage; speech, scroll, interactions and reading stay at 1x; speed silent typing/streaming rather than deleting it.",
                   "next": "Read the prepared source and starter plan. Map original transcript/action times through map before camera cues; removed times have no mapping."}
         report_path = folder / "preprocess.json"
         report_path.write_text(json.dumps(self.portable(report), indent=2), encoding="utf-8")
@@ -470,7 +496,7 @@ class Engine:
         if type(plan.get("version")) is not int or plan["version"] != 1:
             raise VideoError("Plan version must be 1")
         out = plan.get("output")
-        keys(out, "path width height fps crf preset normalize_audio", "output")
+        keys(out, "path width height fps crf preset normalize_audio continuous_camera", "output")
         output = self.path(out.get("path"), exists=False)
         if output.suffix.lower() != ".mp4":
             raise VideoError("Output must be .mp4 (H.264/AAC)")
@@ -485,6 +511,7 @@ class Engine:
         if out["preset"] not in ("ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"):
             raise VideoError("Invalid H.264 preset")
         boolean(out.get("normalize_audio", False), "normalize_audio")
+        continuous_camera = boolean(out.get("continuous_camera", False), "continuous_camera")
         clips = plan.get("clips")
         if not isinstance(clips, list) or not 1 <= len(clips) <= 100:
             raise VideoError("A plan needs 1–100 clips")
@@ -600,6 +627,16 @@ class Engine:
                     "departure": total + (frames - 1) / out["fps"] - leave if leave else total + duration,
                 }
             total += duration
+        if continuous_camera:
+            previous = {"x": 0, "y": 0, "width": 1}
+            for i, (clip, item) in enumerate(zip(clips, timeline)):
+                if item["overlap"] or (i and clip.get("fade_in")) or (i < len(clips) - 1 and clip.get("fade_out")):
+                    raise VideoError("Continuous camera edits must not hide joins with transitions or internal fades")
+                first = self.camera_edge(clip, item, out, last=False)
+                if any(abs(first[k] - previous[k]) > 1 / max(out["width"], out["height"]) for k in first):
+                    raise_index = f"before clip {i}" if i else "at the opening"
+                    raise VideoError(f"Camera discontinuity {raise_index}: match the previous endpoint with start_viewport, continue the crop, or finish a smooth return before the join. Do not reset by cutting.")
+                previous = self.camera_edge(clip, item, out, last=True)
         self.validate_coverage(plan.get("coverage", []), timeline)
         for source in {item["source"] for item in timeline}:
             sidecar = self.path(str(Path(source).with_suffix(".coverage.json")), exists=False)
@@ -669,8 +706,8 @@ class Engine:
             keys(required, "source start end kind", "coverage")
             info = self.video(required.get("source"))
             a, b = self.time_range(required, info["duration"])
-            if required.get("kind") not in ("activity", "typing", "stream", "speech"):
-                raise VideoError("coverage.kind must be activity, typing, stream or speech")
+            if required.get("kind") not in COVERAGE_KINDS:
+                raise VideoError(f"coverage.kind must be one of {', '.join(COVERAGE_KINDS)}")
             cursor = a
             for item in timeline:
                 if item["source"] != info["path"]:
@@ -686,8 +723,8 @@ class Engine:
                 final_right = item["start"] + (right - item["source_in"]) / item["speed"]
                 if any(other["overlap"] and other["start"] < final_right and other["start"] + other["overlap"] > final_left for other in timeline):
                     raise VideoError("Protected activity cannot be hidden in a transition overlap")
-                if required["kind"] == "speech" and item["speed"] != 1:
-                    raise VideoError("Protected speech must remain at 1x; split silent activity before accelerating")
+                if required["kind"] in ("speech", "scroll", "interaction", "reading") and item["speed"] != 1:
+                    raise VideoError(f"Protected {required['kind']} must remain at 1x; split silent activity before accelerating")
                 cursor = right
             if cursor < b - 1e-6:
                 raise VideoError(f"Coverage {required['kind']} was removed at {cursor:.3f}s; retain it and speed up silent activity instead")
@@ -700,6 +737,48 @@ class Engine:
     def validate(self, args):
         _, report = self.load_plan(args["plan"])
         return report
+
+    def camera_edge(self, clip, item, out, last):
+        """Actual first/last camera frame, in normalized padded-source space.
+
+        Match zoompan's easing and frame quantization, including incomplete moves.
+        This checks framing continuity, not whether UI content changed at a splice.
+        """
+        info = self.video(clip["source"])
+        w, h = info["video"]["display_width"], info["video"]["display_height"]
+        bw = math.ceil(max(w, h * out["width"] / out["height"]) / 2) * 2
+        bh = math.ceil(bw * out["height"] / out["width"] / 2) * 2
+        full = {"x": 0.0, "y": 0.0, "width": 1.0}
+        camera = clip.get("camera")
+        if not camera:
+            if clip.get("fit", "contain") == "contain":
+                return full
+            cw = min(w, h * out["width"] / out["height"])
+            ch = cw * out["height"] / out["width"]
+            return {"x": (bw - cw) / (2 * bw), "y": (bh - ch) / (2 * bh), "width": cw / bw}
+        def padded(view):
+            return {"x": (view["x"] * w + (bw - w) / 2) / bw,
+                    "y": (view["y"] * h + (bh - h) / 2) / bh, "width": view["width"] * w / bw}
+        def ease(t):
+            t = min(1, max(0, t))
+            return t * t * (3 - 2 * t)
+        fps, final = out["fps"], item["frames"] - 1
+        on = final if last else 0
+        enter, leave = camera.get("enter", 0), camera.get("exit", 0)
+        delay = camera.get("delay", 0) * fps
+        if "cue" in camera and enter:
+            cue = camera["cue"]
+            settled = math.floor((min(cue["speech"], cue.get("action", cue["speech"])) - clip["in"]) * fps + 1e-7)
+            delay = max(0, settled - enter * fps)
+        outgoing = min(1, max(0, (final - on) / max(1, leave * fps))) if leave else 1
+        target = padded(camera["viewport"])
+        if "start_viewport" in camera:
+            start = padded(camera["start_viewport"])
+            incoming = ease(max(0, on - delay) / max(1, min(enter * fps, max(1, final))))
+            return {k: full[k] + (start[k] - full[k] + (target[k] - start[k]) * incoming) * ease(outgoing) for k in full}
+        incoming = min(1, max(0, on - delay) / max(1, enter * fps)) if enter else 1
+        progress = ease(min(incoming, outgoing))
+        return {k: full[k] + (target[k] - full[k]) * progress for k in full}
 
     def camera_filter(self, camera, info, out, duration, source_in=0):
         w, h = info["video"]["display_width"], info["video"]["display_height"]
@@ -915,7 +994,7 @@ class Engine:
             start = number(clip["start"], "clip.start", 0)
             length = number(clip.get("duration", audio["duration"]), "clip.duration", 0.001)
             if start + length > duration + 0.75:
-                raise VideoError("Recording ends before its narration/audio; recover the complete capture before editing")
+                raise VideoError("Recording ends before its narration/audio; recover the complete capture or retake. Do not rewrite capture timestamps, backdate narration or shorten endTime to bypass this check.")
             inputs += ["-i", audio["path"]]
             filters.append(f"[{i}:{audio['audio_tracks'][0]['index']}]atrim=duration={length},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,adelay={round(start*1000)}:all=1[a{i}]")
             labels.append(f"[a{i}]")

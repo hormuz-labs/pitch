@@ -60,11 +60,24 @@ for `camera.cue`; `delay` and `cue` cannot be combined.
   the crop, hold rather than manufacturing movement.
 - Departure follows the required spoken/action/reading hold. A full composition
   can be necessary for orientation or comparison; choose it from the scenario.
-- Navigation timing depends on whether the layout invalidates the crop. Inspect
-  the trigger and first destination; widen at the appropriate change instead of
-  imposing an unconditional pre-click reset that hides the named control.
+- New pages/tabs and major layout changes arrive at full composition. Inspect
+  the trigger and first destination separately: finish a smooth return before the
+  first destination frame. If necessary start earlier while retaining the trigger
+  or keep the whole navigation action wider. Never reset the camera by cutting.
+  An exit at the end of a clip that already contains the destination is too late.
+  Hold the new layout for orientation before focusing again. Only stable panel
+  updates with all relevant context can hold a crop.
 - Scroll, reflow, transitions and moving subjects can invalidate a fixed crop.
-  Use a wider view or inspected separate compositions, not a claimed tracker.
+  Preserve the complete scroll, including settling; use a wider view or inspected
+  separate compositions, not a claimed tracker or a cut to the final position.
+
+For continuous walkthroughs, keep `output.continuous_camera: true`. Match the
+preceding rendered endpoint to the next starting view even across removed idle
+time and speed changes. The validator checks framing at these joins; separately
+review cursor position, UI/scroll state and motion so a matched crop does not hide
+a temporal jump. Prefer fewer stable holds and smooth moves over repeated in/out
+effects. A native page transition can be instantaneous; the editorial camera
+must remain stable across it.
 
 For an uncued move, settled start is `clip_start+delay+enter` (delay defaults to 0). A nonzero exit starts
 around `clip_end-exit`, with the last-frame detail supplied by the backend.

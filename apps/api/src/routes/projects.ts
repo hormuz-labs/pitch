@@ -1,5 +1,5 @@
 /**
- * Projects API (docs/studio-architecture.md → Routes).
+ * Projects API.
  */
 import { createLogger } from '@saas/shared'
 import express from 'express'

@@ -18,14 +18,33 @@ export const RECORDING_CURSOR_SCRIPT = `(() => {
       host.setAttribute('aria-hidden', 'true');
       host.setAttribute('popover', 'manual');
       host.style.cssText = 'all:initial!important;position:fixed!important;left:0!important;top:0!important;width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:visible!important;pointer-events:none!important;z-index:2147483647!important;';
+      // No HTML sinks or stylesheet injection: sites such as YouTube enforce
+      // Trusted Types/CSP. A rejected innerHTML used to leave a half-mounted host
+      // and every subsequent pointer event failed too.
       const shadow = host.attachShadow({mode: 'open'});
-      shadow.innerHTML = '<style>:host::backdrop{display:none!important}*{pointer-events:none!important}.pointer{position:absolute;left:0;top:0;width:24px;height:24px;filter:drop-shadow(0 1px 1px #0004)}.ring{position:absolute;left:-9px;top:-9px;width:24px;height:24px;box-sizing:border-box;border:1.5px solid #64748b;background:#ffffff30;border-radius:50%;opacity:0}svg{display:block;width:24px;height:24px;overflow:visible}</style><div class="pointer"><div class="ring"></div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 3 Q2.5 2.5 2.8 3.6 L8.6 20 Q9 21 9.5 20 L12.3 13.2 Q12.5 12.6 13.1 12.4 L20 9.6 Q21 9.2 20 8.8 Z" fill="#fff" stroke="#17202e" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round"/></svg></div>';
-      pointer = shadow.querySelector('.pointer');
-      ring = shadow.querySelector('.ring');
+      pointer = document.createElement('div');
+      pointer.style.cssText = 'position:absolute;left:0;top:0;width:24px;height:24px;pointer-events:none;filter:drop-shadow(0 1px 1px #0004)';
+      ring = document.createElement('div');
+      ring.style.cssText = 'position:absolute;left:-9px;top:-9px;width:24px;height:24px;pointer-events:none;box-sizing:border-box;border:1.5px solid #64748b;background:#ffffff30;border-radius:50%;opacity:0';
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.style.cssText = 'display:block;width:24px;height:24px;overflow:visible;pointer-events:none';
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      for (const [name, value] of Object.entries({
+        d: 'M3 3 Q2.5 2.5 2.8 3.6 L8.6 20 Q9 21 9.5 20 L12.3 13.2 Q12.5 12.6 13.1 12.4 L20 9.6 Q21 9.2 20 8.8 Z',
+        fill: '#fff', stroke: '#17202e', 'stroke-width': '1.25',
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+      })) arrow.setAttribute(name, value);
+      svg.appendChild(arrow);
+      pointer.appendChild(ring);
+      pointer.appendChild(svg);
+      shadow.appendChild(pointer);
     }
     if (!host.isConnected) document.documentElement.appendChild(host);
     // Top layer keeps the pointer visible over dialogs and fullscreen content.
-    if (host.showPopover && !host.matches(':popover-open')) host.showPopover();
+    try {
+      if (host.showPopover && !host.matches(':popover-open')) host.showPopover();
+    } catch { /* Keep the fixed overlay if the top layer is unavailable. */ }
     return true;
   }
 

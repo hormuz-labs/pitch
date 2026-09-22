@@ -30,10 +30,18 @@ value assignment does not move a mouse. The pointer is hidden until the first
 mouse event and stays still while idle. Ref-based click/hover/check and field-entry
 tools move the real mouse with eased travel (roughly 0.35–1.1s plus a brief settle)
 before activation. Avoid direct DOM clicks or ad-hoc instantaneous mouse jumps.
-Check a recorded interaction for a visible
-pointer before delivery; do not add a second cursor in post-processing. Since the
+Check a recorded interaction on each page for a visible
+pointer before delivery; successful input is not proof that the overlay painted.
+If missing, report a capture failure and use a corrected capture path/retake;
+do not keep applying CSS blindly or fabricate a path from saved click positions.
+Do not add a second cursor in post-processing. Since the
 pointer is in the source pixels, the shared editor's cuts, speed changes and crops
 carry it with the UI automatically.
+
+Scroll is part of the demonstration. Capture its complete visible travel and
+settling, whether driven by wheel, keyboard or smooth-scroll-to-target. Include
+its observed range in the editing handoff so the editor protects it at 1× and
+keeps the destination visible. Never describe an instant jump as a recorded scroll.
 
 `pitch demo browser-open [--url <url>]` prepares without recording or altering
 an existing take. Keep that browser open while inspecting/debugging. If ending
@@ -72,3 +80,18 @@ Preserve the intended words. Do not insert test greetings into a live take or
 shorten the script repeatedly to probe a provider failure. Inspect the reported
 HTTP/finish reason. Temporary 429/5xx errors already get one bounded host retry;
 if the provider remains unavailable, report the missing beat rather than looping.
+
+## Damaged captures and infrastructure failures
+
+An encoder timeout, missing duration, truncated source or audio extending beyond
+the video is a failed capture, even if a second stop reports that nothing is running.
+Never rewrite `demo-state.json`/`demo-config.json` timestamps, shorten `endTime`,
+move narration earlier, or replace the raw master to make validation accept it.
+These timestamps are capture evidence, not edit controls. Preserve the failed take;
+recover the complete artifact through the host or prepare a retake with a specific
+failure reason. Report missing content if recovery is blocked.
+
+A checkpoint/extraction/transport failure means the operation did not complete.
+Retry the same operation once when transient; if it remains blocked, report it.
+Do not bypass failed source assembly/preprocessing/verification with a different
+render path and publish an unchecked substitute.

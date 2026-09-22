@@ -80,16 +80,48 @@ export default function videoEditingCommands(): CommandSpec[] {
     {
       verb: 'preprocess',
       description:
-        'Before editing a screen recording, remove only sustained unchanged picture AND silence, allowing low-level codec noise. Returns prepared video, original-to-prepared map and starter plan with required coverage. Keep coverage: silent typing/streaming may be sped up, never cut. Music/noise conservatively keeps footage.',
+        'Before editing a screen recording, remove sustained unchanged picture AND silence, or explicitly reviewed idle AND silence. Protect task activity, scroll and reading. Returns prepared video, original-to-prepared map and starter plan with required coverage. Keep coverage: silent typing/streaming may be sped up, never cut. A failed prepass must be recovered before editing.',
       parameters: Type.Object({
         source,
         audio_track: optionalNumber('Zero-based audio track; required for multi-track sources'),
         details,
         protect: Type.Optional(
-          Type.Array(Type.Object({ start: Type.Number(), end: Type.Number() }), {
-            description:
-              'Original-source ranges to keep intact, including known typing/streaming envelopes, narration and required reading holds',
-          }),
+          Type.Array(
+            Type.Object({
+              start: Type.Number(),
+              end: Type.Number(),
+              kind: Type.Optional(
+                Type.Union(
+                  [
+                    'activity',
+                    'typing',
+                    'stream',
+                    'speech',
+                    'scroll',
+                    'interaction',
+                    'reading',
+                  ].map(value => Type.Literal(value)),
+                ),
+              ),
+            }),
+            {
+              description:
+                'Measured original-source ranges to keep intact. Optional kind defaults to activity; speech, scroll, interaction and reading also remain at 1x. Do not protect whole narration-to-action gaps.',
+            },
+          ),
+        ),
+        reviewed_idle: Type.Optional(
+          Type.Array(
+            Type.Object({
+              start: Type.Number(),
+              end: Type.Number(),
+              reason: Type.String({ minLength: 1 }),
+            }),
+            {
+              description:
+                'Visually reviewed original-source idle ranges with an evidence-based reason: no task input, scrolling, response progress or required reading; incidental ads/caret animation may continue. Silence and protect still gate every cut. Inspect candidates from analyze first.',
+            },
+          ),
         ),
       }),
     },
