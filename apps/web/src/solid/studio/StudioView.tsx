@@ -235,8 +235,11 @@ export function Actions(
     setSharing(true)
     try {
       const url = await s.share()
-      if (url) await navigator.clipboard.writeText(url)
+      if (!url) throw new Error('No share link was returned')
+      await navigator.clipboard.writeText(url)
       setOpen(false)
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not publish and copy share link')
     } finally {
       setSharing(false)
     }

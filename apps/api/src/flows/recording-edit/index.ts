@@ -14,8 +14,7 @@
 import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
-import { createLogger, sendDiscordMessage } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { addOutput } from '../../projects/service.js'
 import { shouldWatermarkVideo } from '../../projects/watermark.js'
@@ -239,19 +238,6 @@ registerHostAction(
         createdAt,
       })
     else log.warn('no project row for workspace — output not recorded')
-
-    // Notify once, when the first render lands (iterations are watched live in the studio).
-    if (published && firstRender && row) {
-      const videoTitle = options.productName || (project?.uploads?.[0]?.name ?? ws.name)
-      void (async () => {
-        const email = await getClerkUserEmail(ws.userId)
-        if (email)
-          await sendJobCompleteEmail({ to: email, jobId: row.id, videoUrl: url, videoTitle })
-        await sendDiscordMessage(
-          `✅ **Recording Edit Completed**\nProject: \`${row.id}\`\nUser: ${email ?? ws.userId}\nTitle: ${row.title}\nOutput Video: ${url}`,
-        )
-      })().catch(err => log.warn({ err }, 'completion notification failed'))
-    }
 
     log.info({ url, durationSec: result.durationSec }, 'edit_render done')
     return (

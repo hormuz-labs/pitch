@@ -6,13 +6,15 @@ export {
   sendBillingEmail,
   sendJobCompletedEmail,
   sendJobFailedEmail,
+  sendJobStartedEmail,
   sendReferralInviteEmail,
+  sendVideoReadyEmail,
   sendWelcomeEmail,
   type TransactionalEmailContent,
 } from './transactional.js'
 
 import { embedSocialIcons } from './social-assets.js'
-import { sendJobCompletedEmail } from './transactional.js'
+import { sendJobCompletedEmail, sendJobStartedEmail, sendVideoReadyEmail } from './transactional.js'
 
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
 
@@ -422,28 +424,99 @@ To unsubscribe, please email support@trypitch.co
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+export async function sendJobStartEmail({
+  to,
+  jobId,
+  title,
+  prompt,
+  projectUrl,
+  firstName,
+}: {
+  to: string
+  jobId: string
+  title?: string
+  prompt?: string
+  projectUrl?: string
+  firstName?: string | null
+}): Promise<void> {
+  const result = await sendJobStartedEmail({
+    to,
+    jobId,
+    title,
+    prompt,
+    projectUrl,
+    firstName,
+  })
+  if (result.error) {
+    console.warn(`[Email] Failed to send job-start notification to ${to}:`, result.error)
+  } else {
+    console.log(`[Email] Sent job-start notification to ${to} for job ${jobId}`)
+  }
+}
+
 export async function sendJobCompleteEmail({
   to,
   jobId,
   videoUrl,
   videoTitle,
+  title,
+  projectUrl,
+  firstName,
 }: {
   to: string
   jobId: string
-  videoUrl: string
+  videoUrl?: string
   videoTitle?: string // e.g. "razorpay.com" — shown inside the thumbnail block
+  title?: string
+  projectUrl?: string
+  firstName?: string | null
 }): Promise<void> {
   const result = await sendJobCompletedEmail({
     to,
     jobId,
     outputUrl: videoUrl,
-    title: videoTitle,
+    title: title ?? videoTitle,
+    projectUrl,
+    firstName,
     kind: 'demo',
   })
   if (result.error) {
     console.warn(`[Email] Failed to send job-complete notification to ${to}:`, result.error)
   } else {
     console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`)
+  }
+}
+
+export async function sendVideoRenderReadyEmail({
+  to,
+  jobId,
+  videoUrl,
+  title,
+  resolution,
+  projectUrl,
+  firstName,
+}: {
+  to: string
+  jobId: string
+  videoUrl: string
+  title?: string
+  resolution?: string
+  projectUrl?: string
+  firstName?: string | null
+}): Promise<void> {
+  const result = await sendVideoReadyEmail({
+    to,
+    jobId,
+    videoUrl,
+    title,
+    resolution,
+    projectUrl,
+    firstName,
+  })
+  if (result.error) {
+    console.warn(`[Email] Failed to send video-render-ready notification to ${to}:`, result.error)
+  } else {
+    console.log(`[Email] Sent video-render-ready notification to ${to} for job ${jobId}`)
   }
 }
 

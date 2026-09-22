@@ -17,11 +17,9 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
 import {
   approveVideoStoryboard,
   createLogger,
-  sendDiscordMessage,
   updateVideoStoryboard,
   type VideoStoryboard,
 } from '@saas/shared'
@@ -224,33 +222,6 @@ async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: s
 /** Worker lifecycle hook: finalize and remove a live recording before release. */
 export async function releaseDemoRecording(ws: Workspace): Promise<void> {
   await stopRecording(ws)
-}
-
-async function notifyPublished(
-  ws: Workspace,
-  projectId: string,
-  videoUrl: string,
-  options: Record<string, any>,
-): Promise<void> {
-  try {
-    const profile = await db.prisma.userProfile.findUnique({ where: { id: ws.userId } })
-    const instructions = options.instructions
-      ? `\nPrompt: *${String(options.instructions).slice(0, 300)}*`
-      : ''
-    await sendDiscordMessage(
-      `✅ **Video Creation Completed**\nProject: \`${projectId}\`\nUser: ${profile?.email || ws.userId}\nTarget URL: ${options.url || 'N/A'}${instructions}\nOutput Video: ${videoUrl}`,
-    )
-    const email = await getClerkUserEmail(ws.userId)
-    if (email)
-      await sendJobCompleteEmail({
-        to: email,
-        jobId: projectId,
-        videoUrl,
-        videoTitle: hostOf(options.url) ?? options.productName ?? 'pitch.com',
-      })
-  } catch (err) {
-    logger.warn({ err, projectId }, 'completion notifications failed')
-  }
 }
 
 // ── host actions ─────────────────────────────────────────────────────────────
@@ -529,7 +500,6 @@ registerHostAction(
         url: published,
         createdAt: new Date().toISOString(),
       })
-      void notifyPublished(ws, row.id, published, { ...o, ...options })
     } catch (err) {
       logger.warn({ err, projectId: row.id }, 'render upload failed — serving the local file')
       await addOutput(ws.userId, row.id, {

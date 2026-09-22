@@ -27,6 +27,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
+import * as storage from '@saas/storage'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
 import type { Description, UploadRef } from '../flows/types.js'
@@ -40,6 +41,7 @@ import {
 } from '../projects/assets.js'
 import { durationOptionFromText, videoTypeOptionFromText } from '../projects/creation-options.js'
 import { cancelExport, type ExportStatus, exportProject, getExport } from '../projects/export.js'
+import { notifyProjectCompleted } from '../projects/notifications.js'
 import {
   addOutput,
   failProject,
@@ -50,6 +52,7 @@ import {
   syncOutputs,
   workspaceOf,
 } from '../projects/rows.js'
+import { publishShareArtifact } from '../projects/share-artifact.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import {
   chargeTurn,
@@ -667,6 +670,10 @@ export function followFirstTurn(p: ProjectRow, turn: number): void {
       const ok = await agent.hasResult(workspaceOf(p)).catch(() => false)
       if (ok) {
         await syncOutputs(p.userId, p.id).catch(() => {})
+        const updated = await getRow(p.userId, p.id).catch(() => p)
+        void notifyProjectCompleted(updated).catch(err =>
+          logger.warn({ err, projectId: p.id }, 'completion notification failed'),
+        )
         return
       }
       // A greeting, explanation or question card can finish successfully with
@@ -836,6 +843,19 @@ export async function exportStatus(projectId: string): Promise<ExportStatus> {
 export async function stopExport(projectId: string): Promise<boolean> {
   await ensureOpen(projectId)
   return cancelExport(projectId)
+}
+
+/** Make the current workspace artifact readable by an unauthenticated share page. */
+export async function publishArtifact(projectId: string): Promise<void> {
+  const { h, row } = await ensureOpen(projectId)
+  const description = await describeWorkspace(h.ws, projectId)
+  await publishShareArtifact(
+    row,
+    h.ws,
+    description,
+    (file, prefix) => storage.uploadFile(file, undefined, prefix),
+    output => addOutput(row.userId, row.id, output).then(() => undefined),
+  )
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
