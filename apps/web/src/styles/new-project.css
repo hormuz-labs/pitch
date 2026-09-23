@@ -268,8 +268,11 @@
   .composer-credit-notice { max-width: 100%; min-height: 0; padding: 6px; flex-wrap: wrap; gap: 5px; border-radius: 12px; font-size: 10.5px; }
   .lv-studio.new-project-page .new-voice-trigger { max-width: 112px; padding: 7px 4px; gap: 4px; }
   .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 130px; padding-left: 4px; font-size: 11px; }
-  .lv-studio.new-project-page .new-skills { width: fit-content; max-width: 100%; margin-top: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 8px; }
-  .lv-studio.new-project-page .new-skill-pill { min-width: 0; justify-content: flex-start; font-size: 12px; padding: 9px 12px; }
+  /* One swipeable row, bled to the hero's 12px gutters so pills slide off the
+     screen edge instead of being clipped inside the composer column. */
+  .lv-studio.new-project-page .new-skills { width: calc(100% + 24px); max-width: none; margin: 24px -12px 0; padding: 0 12px 4px; display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 12px; scroll-snap-type: x proximity; scrollbar-width: none; touch-action: pan-x pan-y; }
+  .lv-studio.new-project-page .new-skills::-webkit-scrollbar { display: none; }
+  .lv-studio.new-project-page .new-skill-pill { flex: none; white-space: nowrap; scroll-snap-align: start; font-size: 12px; padding: 9px 12px; }
   .new-project-hint { max-width: 285px; margin: 18px auto 0; font-size: 10px; }
   .lv-studio.new-project-page .new-featured-cue { width: calc(100% - 36px); height: 58px; padding: 18px 16px; padding-left: calc(16px + 28px * var(--explore-progress, 0)); border-radius: 24px 24px 0 0; }
   .new-featured-cue > span:last-child { font-size: 10px; }

@@ -1,5 +1,6 @@
 import type { Component } from 'solid-js'
 import { lazy } from 'solid-js'
+import { isStaleBuildError, reloadForNewBuild, whileReloading } from '../../lib/stale-build'
 import { discoveredRouteModules } from './route-modules'
 
 export type SolidRouteModule = { default: Component }
@@ -60,15 +61,42 @@ function missingRoute(id: RouteModuleId): SolidRouteModule {
   }
 }
 
+/** A chunk that would not load even after reloading for the new build. */
+function unavailableRoute(id: RouteModuleId): SolidRouteModule {
+  return {
+    default: () => (
+      <main
+        data-unavailable-solid-route={id}
+        role="alert"
+        style={{ padding: '2rem', 'font-family': 'sans-serif', 'text-align': 'center' }}
+      >
+        <h1 style={{ 'font-size': '18px' }}>This page didn’t load</h1>
+        <p>Pitch may have just been updated. Refresh to load the latest version.</p>
+        <button type="button" onClick={() => window.location.reload()}>
+          Refresh
+        </button>
+      </main>
+    ),
+  }
+}
+
 export async function loadRouteModule(id: RouteModuleId): Promise<SolidRouteModule> {
   const contract = ROUTE_MODULES[id]
   const loader = discoveredRouteModules[contract.path]
   if (!loader) return missingRoute(id)
   try {
-    const module = (await loader()) as Record<string, unknown>
+    const module = (await loader()) as Record<string, unknown> | undefined
+    // Undefined means the vite:preloadError handler cancelled a stale-chunk
+    // failure because the page is already reloading onto the new build.
+    if (!module) return whileReloading()
     const component = module.default ?? module[contract.exportName]
     return typeof component === 'function' ? { default: component as Component } : missingRoute(id)
   } catch (error) {
+    if (isStaleBuildError(error)) {
+      if (reloadForNewBuild()) return whileReloading()
+      console.error(`Failed to load Solid route ${id} after reloading`, error)
+      return unavailableRoute(id)
+    }
     console.error(`Failed to load Solid route ${id}`, error)
     return missingRoute(id)
   }
