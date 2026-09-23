@@ -4,8 +4,9 @@ import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { execFileAsync, splitArgs } from '../media.js'
 import { prepareBackgroundFrame } from './background.js'
-import type { BrowserHeaderMode } from './browser-chrome.js'
 import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
+
+export type BrowserHeaderMode = 'light' | 'dark'
 
 // Bundled Goudy Old Style revival (Sorts Mill Goudy, OFL). Resolved relative to this
 // module so it works regardless of cwd. Loaded into Resvg below so the intro brand

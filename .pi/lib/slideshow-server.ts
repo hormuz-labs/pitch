@@ -2,7 +2,7 @@ import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import { type NetworkInterfaceInfo, networkInterfaces } from 'node:os'
-import path from 'node:path'
+import { contentTypeFor } from './mime'
 import { buildSlideshowHtml, type Slide, type SlideshowOptions } from './slideshow'
 
 export interface RunningSlideshowServer {
@@ -22,8 +22,10 @@ type NetworkAddresses = Record<string, readonly NetworkAddress[] | undefined>
 const VIRTUAL_INTERFACE = /^(?:lo|docker|br-|veth|virbr|tailscale|tun|tap)/i
 
 /**
- * Pick an address reachable from a browser running in a sibling container.
- * Loopback points back at the browser container, not at the host-side tool.
+ * Pick a non-loopback address to advertise. The recorded browser runs in this
+ * process today, where loopback would do, but a pod or container address stays
+ * reachable if the browser is ever placed elsewhere. On GKE the worker pins it
+ * with SLIDESHOW_BROWSER_HOST=$(POD_IP).
  */
 export function selectBrowserReachableHost(addresses: NetworkAddresses): string {
   const candidates = Object.entries(addresses).flatMap(([name, entries]) =>
@@ -37,26 +39,6 @@ export function selectBrowserReachableHost(addresses: NetworkAddresses): string 
     candidates[0]?.address ??
     '127.0.0.1'
   )
-}
-
-const contentTypeFor = (filePath: string): string => {
-  switch (path.extname(filePath).toLowerCase()) {
-    case '.png':
-      return 'image/png'
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg'
-    case '.webp':
-      return 'image/webp'
-    case '.gif':
-      return 'image/gif'
-    case '.svg':
-      return 'image/svg+xml'
-    case '.avif':
-      return 'image/avif'
-    default:
-      return 'application/octet-stream'
-  }
 }
 
 const listen = (server: Server, host: string): Promise<number> =>
@@ -75,8 +57,8 @@ const listen = (server: Server, host: string): Promise<number> =>
 
 /**
  * Serve one generated slideshow and only its prepared image files over HTTP.
- * Playwright intentionally blocks file:// navigation, so asset videos need a real
- * HTTP origin instead of asking the agent to improvise a background web server.
+ * `pitch demo browser goto` opens http(s) URLs only, so the slideshow needs a
+ * real origin; every local image path is rewritten to /assets/<index> here.
  */
 export async function startSlideshowServer(
   slides: Slide[],

@@ -28,13 +28,13 @@ import { resolveSymlinks } from '../../../../../.pi/lib/paths.ts'
 import { getVideoBirthTimeMs } from '../../render/media.js'
 import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
-import { buildDemoJobInput } from '../../render/utils/demo-job-input.js'
 import type { CursorEvent } from '../../render/utils/recording-cursor.js'
 import {
   expectedSlideshowSlideCount,
   type SlideshowProgress,
   validateSlideshowCoverage,
 } from '../../render/utils/slideshow-progress.js'
+import { storyboardContract } from '../../render/utils/storyboard-contract.js'
 import {
   analyzeStoryboardPage,
   buildStoryboardDraft,
@@ -111,17 +111,6 @@ async function projectRow(ws: Workspace) {
 
 // ── storyboard helpers ───────────────────────────────────────────────────────
 
-/** The section the worker used to send for an approved storyboard (buildDemoJobInput). */
-function storyboardContract(storyboard: VideoStoryboard, assetCount: number): string {
-  const full = buildDemoJobInput({
-    hasPreparedAssets: assetCount > 0,
-    assetCount,
-    storyboard,
-  }).prompt
-  const at = full.indexOf('APPROVED STORYBOARD REVISION')
-  return at >= 0 ? full.slice(at) : ''
-}
-
 function storyboardSummary(sb: VideoStoryboard): string {
   const lines = sb.scenes.map((s, i) => {
     const narration = s.narration.length > 140 ? `${s.narration.slice(0, 140)}…` : s.narration
@@ -144,7 +133,7 @@ function preparedSlideCount(manifest: AssetManifest): number {
   return manifest.assets.reduce((n, a) => n + (a.kind === 'pdf' ? a.pages.length : 1), 0)
 }
 
-/** The old worker's pre-render check: every prepared page displayed, analyzed and narrated. */
+/** Before a take may stop: every prepared page displayed, analyzed and narrated. */
 async function coverageProblem(ws: Workspace): Promise<string | null> {
   const manifest = await readJson<AssetManifest>(manifestFile(ws))
   if (!manifest || manifest.assets.length === 0) return null
@@ -345,7 +334,7 @@ async function openDemo(
     lines.push(
       `${assetCount} prepared asset(s): call pitch demo list-assets, then pitch demo build-slideshow and goto the URL it returns.`,
     )
-  if (storyboard) lines.push(storyboardContract(storyboard, assetCount))
+  if (storyboard) lines.push(storyboardContract(storyboard))
   lines.push(
     'Discover and demonstrate the workflow in this ONE live take, including snapshots, thinking and recovery. Do not rehearse or replay completed steps; the editor removes frozen silent waiting later while preserving speech and real activity. Use narrate --action to demonstrate while speaking; verify results after transitions. The raw master has no HTML cursor: demo source composites the cursor with FFmpeg. After the final result: record-stop (waits for speech), then video-editing/SKILL.md and demo source.',
   )

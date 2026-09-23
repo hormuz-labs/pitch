@@ -1173,13 +1173,18 @@ export async function drain(settleMs = 0): Promise<void> {
   const deadline = Date.now() + settleMs
   const letGo = (id: string) =>
     release(id).catch(err => logger.error({ err, projectId: id }, 'release failed on drain'))
+  let reported = 0
   while (held.size && Date.now() < deadline) {
     for (const h of [...held.values()]) {
       if (isBusy(h.id) || exportRunning(h.id)) continue
       await letGo(h.id)
     }
     if (!held.size) break
-    logger.info({ waiting: held.size }, 'draining: waiting for turns to finish')
+    // Say it when the count changes, not on every two-second poll.
+    if (held.size !== reported) {
+      reported = held.size
+      logger.info({ waiting: held.size }, 'draining: waiting for turns to finish')
+    }
     await sleep(Math.max(0, Math.min(2000, deadline - Date.now())))
   }
   if (held.size && settleMs > 0)

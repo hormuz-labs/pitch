@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
-import { createServer } from 'node:net'
 import { createLogger } from '@saas/shared'
 import { launchPersistentContext } from 'cloakbrowser'
 import type { BrowserContext, Page } from 'playwright'
-import { startVncDisplay } from '../../services/browser-vnc.js'
+import { freePort, startVncDisplay } from '../../services/browser-vnc.js'
 
 const logger = createLogger('studio:cloak-browser')
 const START_TIMEOUT_MS = Number(process.env.CLOAK_BROWSER_START_TIMEOUT_MS || 60_000)
@@ -11,6 +10,10 @@ const OP_TIMEOUT_MS = Number(process.env.CLOAK_BROWSER_OPERATION_TIMEOUT_MS || 3
 const MAX_BROWSERS = Number(
   process.env.CLOAK_BROWSER_CONCURRENCY || (process.env.CLOAKBROWSER_LICENSE_KEY ? 4 : 1),
 )
+// cloakbrowser checks this in our process (not the browser's env) before it
+// warns that the host lacks the Windows fonts its fingerprint claims. The image
+// is what it is; the warning is noise in every pod's log. Set it empty to see it.
+process.env.CLOAKBROWSER_SUPPRESS_FONT_WARNING ??= '1'
 let activeBrowsers = 0
 const browserWaiters: Array<() => void> = []
 
@@ -62,19 +65,6 @@ export async function withTimeout<T>(
   } finally {
     if (timer) clearTimeout(timer)
   }
-}
-
-async function freePort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  const address = server.address()
-  const port = typeof address === 'object' && address ? address.port : 0
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  if (!port) throw new Error('Could not allocate a CDP port')
-  return port
 }
 
 export async function startCloakBrowser(options: {

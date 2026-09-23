@@ -1,15 +1,13 @@
 /**
  * recording-editor — `pitch recording` commands.
  *
- * Runs on the worker host (cwd = repo root). Given an UPLOADED narrated screen
- * recording, these tools reconstruct the same recording/demo-state.json that
- * the live demo-generator agent emits — so the existing render engine
- * (zoom-filter, smart_trim, intro/outro) consumes it unchanged. Only
- * the EVENT SOURCE differs:
+ * Runs in the studio process with the session's workspace as authority.
+ * Given an UPLOADED narrated screen recording, these tools build a
+ * recording/demo-state.json of camera and click events for the edit render
+ * (zoom-filter, smart_trim, intro/outro):
  *
- *   live flow:   playwright agent drives browser ──────────────→ demo-state.json
- *   upload flow: whisper transcript + ffmpeg scene cuts ──→ agent proposes windows
- *                     ──→ Agentic Vision verifies ──→ demo-state.json   (these tools)
+ *   whisper transcript + ffmpeg scene cuts ──→ agent proposes windows
+ *       ──→ Agentic Vision verifies ──→ demo-state.json
  *
  * Tools:
  *   pitch recording probe-video        duration / resolution / fps / has-audio
@@ -38,15 +36,16 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
+import { FRAME_H, FRAME_W } from '../lib/demo-core.ts'
+import type { ClickEvent } from '../lib/demo-state.ts'
 import { resolveIn, workspaceOf } from '../lib/paths.ts'
-import { hostAction } from '../lib/studio-host.ts'
+import { hostAction, text } from '../lib/studio-host.ts'
+import { withWorkspaceLock } from '../lib/workspace-lock.ts'
 import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
 
 // ── constants ────────────────────────────────────────────────────────────────
-const FRAME_W = 1920
-const FRAME_H = 1080
 // Agentic Vision requires a Gemini 3 Flash variant with code execution enabled.
 const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'
 const SCENE_THRESHOLD = 0.3
@@ -54,18 +53,13 @@ const DEDUPE_WINDOW_SEC = 1.0
 const MAX_KEY_MOMENTS = 80
 const BIG_BUFFER = 64 * 1024 * 1024
 
-// ── demo-state (same shape as demo-generator.ts) ────────────────────────────
+// ── demo-state: the camera and click events the edit render reads ───────────
 interface ZoomEvent {
   type: 'in' | 'out'
   videoTimeSec: number
   x?: number
   y?: number
   zoom?: number
-}
-interface ClickEvent {
-  videoTimeSec: number
-  x: number
-  y: number
 }
 interface DemoState {
   startTime: number
@@ -74,12 +68,6 @@ interface DemoState {
   audioClips: { filePath: string; absoluteTimestamp: number; durationSec?: number }[]
   zoomEvents: ZoomEvent[]
   clickEvents: ClickEvent[]
-  tabEvents: { tabId: number; wallSec: number }[]
-  tabCreationTimes: Record<number, number>
-  currentTabId: number
-  lastTargetCoords: { ref: string; x: number; y: number } | null
-  pageUrl?: string
-  pageUrlEvents: { videoTimeSec: number; url: string }[]
 }
 
 function initialState(): DemoState {
@@ -89,32 +77,7 @@ function initialState(): DemoState {
     audioClips: [],
     zoomEvents: [],
     clickEvents: [],
-    tabEvents: [{ tabId: 0, wallSec: 0 }],
-    tabCreationTimes: { 0: 0 },
-    currentTabId: 0,
-    lastTargetCoords: null,
-    pageUrlEvents: [],
   }
-}
-
-// Simple mutex to serialize state reads/writes across concurrent tool calls.
-let stateLock = Promise.resolve()
-async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
-  const release = await new Promise<() => void>(resolve => {
-    const prev = stateLock
-    stateLock = prev.then(() => new Promise<void>(done => resolve(done)))
-    prev.then(() => {})
-  })
-  try {
-    return await fn()
-  } finally {
-    release()
-  }
-}
-
-// ── tool result plumbing ─────────────────────────────────────────────────────
-function text(out: string) {
-  return { content: [{ type: 'text' as const, text: out }], details: {} }
 }
 
 // ── path helpers ─────────────────────────────────────────────────────────────
@@ -648,7 +611,7 @@ export default function recordingCommands(): CommandSpec[] {
       ),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)
@@ -714,7 +677,7 @@ export default function recordingCommands(): CommandSpec[] {
       }),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)
@@ -742,7 +705,7 @@ export default function recordingCommands(): CommandSpec[] {
       y: Type.Number({ description: 'Click pixel y (bbox centre).' }),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)

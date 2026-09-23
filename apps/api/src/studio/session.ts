@@ -50,6 +50,15 @@ import { unwatchWorkspace, watchWorkspace } from './watch.js'
 
 const logger = createLogger('studio:session')
 
+/** Configuration warnings hold for the life of the process: say them once. */
+const configWarned = new Set<string>()
+function warnConfigOnce(fields: Record<string, unknown>, message: string): void {
+  const key = `${message}\0${JSON.stringify(fields.spec ?? '')}`
+  if (configWarned.has(key)) return
+  configWarned.add(key)
+  logger.warn(fields, message)
+}
+
 export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
 
 /** One question the studio draws as clickable options (see .pi/extensions/ask-tools.ts). */
@@ -223,7 +232,7 @@ export function initStudio(): Promise<void> {
           logger.warn({ err }, 'could not apply GEMINI_API_KEY to the model runtime')
         }
       } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'google')) {
-        logger.warn(
+        warnConfigOnce(
           { allowed: ALLOWED_SPECS },
           'GEMINI_API_KEY is not set — Google models will be hidden from the picker',
         )
@@ -236,7 +245,7 @@ export function initStudio(): Promise<void> {
           logger.warn({ err }, 'could not apply OPENAI_API_KEY to the model runtime')
         }
       } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'openai')) {
-        logger.warn(
+        warnConfigOnce(
           { allowed: ALLOWED_SPECS },
           'OPENAI_API_KEY is not set — GPT models will be hidden from the picker',
         )
@@ -249,7 +258,7 @@ export function initStudio(): Promise<void> {
           logger.warn({ err }, 'could not apply AZURE_APIM_API_KEY to the model runtime')
         }
       } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'azure-apim')) {
-        logger.warn(
+        warnConfigOnce(
           { allowed: ALLOWED_SPECS },
           'AZURE_APIM_API_KEY is not set — Azure models will be hidden from the picker',
         )
@@ -866,7 +875,8 @@ export async function listStudioModels(userId?: string): Promise<PickerModel[]> 
     const { provider, id } = parseModelSpec(spec)
     const model = modelRuntime.getModel(provider, id)
     if (model && providerIsRunnable(provider)) available.set(spec, model)
-    else logger.warn({ spec }, 'STUDIO_MODELS entry is not runnable here — hidden from the picker')
+    else
+      warnConfigOnce({ spec }, 'STUDIO_MODELS entry is not runnable here — hidden from the picker')
   }
   return assembleStudioPicker(available.values(), {
     defaultSpec: MODEL_SPEC,

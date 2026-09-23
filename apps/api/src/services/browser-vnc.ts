@@ -37,7 +37,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-async function freePort(): Promise<number> {
+export async function freePort(): Promise<number> {
   const server = createServer()
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
@@ -46,7 +46,7 @@ async function freePort(): Promise<number> {
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : 0
   await new Promise<void>(resolve => server.close(() => resolve()))
-  if (!port) throw new Error('Could not allocate a VNC port')
+  if (!port) throw new Error('Could not allocate a loopback port')
   return port
 }
 

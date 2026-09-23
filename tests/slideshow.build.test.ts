@@ -3,16 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { buildSlideshowHtml, labelForRegion, type Slide, toFileUrl } from '../.pi/lib/slideshow.ts'
-
-describe('toFileUrl', () => {
-  it('prefixes absolute paths and passes through URLs', () => {
-    expect(toFileUrl('/abs/page-1.png')).toBe('file:///abs/page-1.png')
-    expect(toFileUrl('file:///abs/x.png')).toBe('file:///abs/x.png')
-    expect(toFileUrl('https://x/y.png')).toBe('https://x/y.png')
-    expect(toFileUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc')
-  })
-})
+import { buildSlideshowHtml, labelForRegion, type Slide } from '../.pi/lib/slideshow.ts'
 
 describe('labelForRegion', () => {
   it('collapses whitespace and truncates long text', () => {
@@ -41,42 +32,26 @@ describe('buildSlideshowHtml', () => {
     expect(html).toContain('aria-label="Voter ID &amp; PIN"')
     expect(html).toContain('left:10%;top:12%;width:30%;height:4%')
     expect(html).toContain('data-region="p0r0"')
-    // Image referenced as a file URL.
-    expect(html).toContain('src="file:///tmp/assets/page-1.png"')
+    // The image source is used as given; the server rewrites local paths first.
+    expect(html).toContain('src="/tmp/assets/page-1.png"')
     // Annotation layer + nav present.
     expect(html).toContain('id="annotations"')
     expect(html).toContain('__goToSlide')
   })
 
-  it('renders a title card as the first slide and counts it in the total', () => {
-    const html = buildSlideshowHtml([slideWithRegions], { title: 'My Demo' })
-    expect(html).toContain('title-card')
-    expect(html).toContain('<h1>My Demo</h1>')
-    // title + 1 slide = 2 total.
-    expect(html).toContain('data-total="2"')
-    expect(html).toContain('1 / 2')
-  })
-
   it('renders a plain image slide (no regions) without hotspots', () => {
     const html = buildSlideshowHtml([{ image: '/tmp/photo.png' }])
-    expect(html).toContain('src="file:///tmp/photo.png"')
+    expect(html).toContain('src="/tmp/photo.png"')
     expect(html).not.toContain('class="hotspot"')
     expect(html).toContain('data-total="1"')
   })
 
-  it('emits an auto-advance timer only when durationMs is set', () => {
-    expect(buildSlideshowHtml([slideWithRegions], { durationMs: 4000 })).toContain('setInterval')
-    expect(buildSlideshowHtml([slideWithRegions])).not.toContain('setInterval')
-  })
-
   it('renders the requested explanatory slide transition', () => {
     const sliding = buildSlideshowHtml([slideWithRegions], { transition: 'slide' })
-    const zooming = buildSlideshowHtml([slideWithRegions], { transition: 'zoom' })
 
     expect(sliding).toContain('class="transition-slide"')
     expect(sliding).toContain('.transition-slide .slide')
-    expect(zooming).toContain('class="transition-zoom"')
-    expect(zooming).toContain('.transition-zoom .slide')
+    expect(buildSlideshowHtml([slideWithRegions])).toContain('class="transition-fade"')
   })
 
   it('renders persistent blur, media, and callout overlays on the slide page', () => {

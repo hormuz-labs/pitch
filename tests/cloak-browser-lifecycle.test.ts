@@ -4,7 +4,10 @@ import { startCloakBrowser } from '../apps/api/src/render/utils/cloak-browser.ts
 
 const mocks = vi.hoisted(() => ({ launch: vi.fn(), display: vi.fn() }))
 vi.mock('cloakbrowser', () => ({ launchPersistentContext: mocks.launch }))
-vi.mock('../apps/api/src/services/browser-vnc.ts', () => ({ startVncDisplay: mocks.display }))
+vi.mock('../apps/api/src/services/browser-vnc.ts', () => ({
+  freePort: async () => 12345,
+  startVncDisplay: mocks.display,
+}))
 beforeEach(() => vi.clearAllMocks())
 
 describe('worker-owned browser lifetime', () => {

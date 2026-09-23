@@ -7,8 +7,8 @@
  * hotspot is a real `role="button"` element, atomic narrated emphasis can use
  * it as deterministic fallback geometry exactly like an element on a website.
  *
- * No @opencode-ai/plugin or Node-runtime imports — kept pure so it is
- * unit-testable and safe to import anywhere.
+ * No Node-runtime imports — kept pure so it is unit-testable and safe to
+ * import anywhere. slideshow-server.ts serves the result.
  */
 
 import { defaultCalloutNoteRect, type StoryboardOverlay, type StoryboardRect } from '@saas/shared'
@@ -23,7 +23,10 @@ export interface SlideRegion {
 }
 
 export interface Slide {
-  /** Absolute path or file:///http(s) URL to the page/image. */
+  /**
+   * Local path, or an http(s)/data URL. startSlideshowServer rewrites local
+   * paths to its own origin before the page is built.
+   */
   image: string
   /** Targetable regions on this slide (empty for a plain image). */
   regions?: SlideRegion[]
@@ -32,12 +35,8 @@ export interface Slide {
 }
 
 export interface SlideshowOptions {
-  /** Optional big title card shown as the first slide. */
-  title?: string
-  /** Auto-advance interval in ms (0/undefined = manual navigation only). */
-  durationMs?: number
-  /** Visual motion used when changing pages. */
-  transition?: 'fade' | 'slide' | 'zoom'
+  /** Visual motion used when changing pages. A storyboard's zoom is a camera move for video-editing. */
+  transition?: 'fade' | 'slide'
 }
 
 const MAX_LABEL_LEN = 60
@@ -49,12 +48,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-}
-
-/** Absolute filesystem path → file:// URL; pass through anything already a URL. */
-export function toFileUrl(p: string): string {
-  if (/^(?:file|https?):\/\//i.test(p) || /^data:/i.test(p)) return p
-  return `file://${p}`
 }
 
 /** Trim + collapse whitespace + cap length for an aria-label. */
@@ -100,7 +93,7 @@ function renderOverlay(overlay: StoryboardOverlay, id: string, defaultLayer: num
 }
 
 function renderSlide(slide: Slide, index: number, active: boolean): string {
-  const src = escapeHtml(toFileUrl(slide.image))
+  const src = escapeHtml(slide.image)
   const hotspots = (slide.regions ?? []).map(renderHotspot).join('')
   const overlays = (slide.overlays ?? [])
     .map((overlay, overlayIndex) =>
@@ -116,33 +109,13 @@ function renderSlide(slide: Slide, index: number, active: boolean): string {
     </div>`
 }
 
-function renderTitleCard(title: string, index: number, active: boolean): string {
-  return `<div class="slide title-slide${active ? ' active' : ''}" data-index="${index}">
-      <div class="title-card"><h1>${escapeHtml(title)}</h1></div>
-    </div>`
-}
-
 /**
- * Build the full slideshow HTML document. The first slide is a title card when
- * `opts.title` is set. Slides cross-fade; ArrowRight/Space/click advance;
+ * Build the full slideshow HTML document. ArrowRight/Space/click advance;
  * `window.__goToSlide(i)` jumps programmatically.
  */
 export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {}): string {
-  const parts: string[] = []
-  let idx = 0
-  if (opts.title) {
-    parts.push(renderTitleCard(opts.title, idx, idx === 0))
-    idx++
-  }
-  for (const slide of slides) {
-    parts.push(renderSlide(slide, idx, idx === 0))
-    idx++
-  }
-  const total = idx
-  const autoAdvance =
-    opts.durationMs && opts.durationMs > 0
-      ? `setInterval(() => go(current + 1), ${Math.round(opts.durationMs)});`
-      : ''
+  const parts = slides.map((slide, index) => renderSlide(slide, index, index === 0))
+  const total = slides.length
   const transition = opts.transition ?? 'fade'
 
   return `<!DOCTYPE html>
@@ -150,7 +123,7 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(opts.title || 'Demo')}</title>
+  <title>Demo</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -161,7 +134,7 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     #app { position: relative; width: 100%; height: 100%; }
     .stage { position: absolute; inset: 0; }
     /* Inactive slides are visibility:hidden (not just opacity:0) so that ONLY
-       the active slide's hotspots appear in Playwright's ARIA snapshot. All
+       the active slide's hotspots appear in the agent's ARIA snapshot. All
        slides are stacked at inset:0; if inactive ones stayed in the a11y tree,
        the agent would see (and could zoom/annotate) another slide's overlapping
        hotspots — landing the highlight on the wrong slide. */
@@ -174,8 +147,6 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     .slide.active { opacity: 1; visibility: visible; z-index: 1; }
     .transition-slide .slide { transform: translateX(6%); transition: opacity 450ms ease, transform 450ms cubic-bezier(.2,.8,.2,1); }
     .transition-slide .slide.active { transform: translateX(0); }
-    .transition-zoom .slide { transform: scale(.94); transition: opacity 450ms ease, transform 520ms cubic-bezier(.2,.8,.2,1); }
-    .transition-zoom .slide.active { transform: scale(1); }
     /* JS sizes .page to the largest uncropped rectangle that fits the live
        viewport. The image and its percentage hotspots then scale together. */
     .page {
@@ -228,17 +199,6 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       font-size: clamp(14px, 1.5vw, 25px); font-weight: 650; line-height: 1.25;
       overflow: hidden; overflow-wrap: anywhere;
       box-shadow: 0 10px 28px rgba(15,23,42,0.22);
-    }
-    .title-slide { padding: 0; }
-    .title-card {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%; height: 100%; padding: 120px;
-      background: radial-gradient(circle at 50% 30%, #1b2233 0%, #0a0d14 70%);
-    }
-    .title-card h1 {
-      color: #f4f6fb; font-size: 84px; font-weight: 700; line-height: 1.1;
-      text-align: center; letter-spacing: -0.02em; max-width: 1400px;
-      text-shadow: 0 4px 24px rgba(0,0,0,0.4);
     }
     #progress {
       display: none;
@@ -325,7 +285,6 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
         if (e.key === 'ArrowRight' || e.key === ' ') go(current + 1);
         if (e.key === 'ArrowLeft') go(current - 1);
       });
-      ${autoAdvance}
     })();
   </script>
 </body>

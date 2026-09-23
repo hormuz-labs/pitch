@@ -79,28 +79,12 @@ import {
   type SlideAnalysis,
   type ViewportRect,
 } from '../lib/visual-grounding.ts'
+import { withWorkspaceLock } from '../lib/workspace-lock.ts'
 import type { CommandSpec } from './registry.ts'
 
-// Serialize state updates within a recording, without one slow browser blocking
-// every other project hosted by this worker.
-const stateLocks = new Map<string, Promise<void>>()
-let activeSlideshowServer: RunningSlideshowServer | null = null
-async function withStateLock<T>(base: string, fn: () => Promise<T>): Promise<T> {
-  const previous = stateLocks.get(base) ?? Promise.resolve()
-  let release!: () => void
-  const current = new Promise<void>(resolve => {
-    release = resolve
-  })
-  const tail = previous.then(() => current)
-  stateLocks.set(base, tail)
-  await previous
-  try {
-    return await fn()
-  } finally {
-    release()
-    if (stateLocks.get(base) === tail) stateLocks.delete(base)
-  }
-}
+// One slideshow server per workspace: several projects record at once in one
+// studio process, and a rebuild must replace only its own project's server.
+const slideshowServers = new Map<string, RunningSlideshowServer>()
 
 interface DemoConfig {
   startTime: number
@@ -493,7 +477,7 @@ export default function demoCommands(): CommandSpec[] {
     async execute(_id, args: any, signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
       const op = parseBrowserCommand(String(args.command ?? ''))
-      return withStateLock(base, async () => {
+      return withWorkspaceLock(base, async () => {
         console.log(`[browser]: ${args.command}`)
         const state = readState(base)
         const slideshowProgress = isSlideAdvance(op) ? readSlideshowProgress(base) : null
@@ -598,7 +582,7 @@ export default function demoCommands(): CommandSpec[] {
       if (fs.existsSync(path.join(base, 'recording', 'browser.json')) || readState(base).endTime) {
         throw new Error('Start the continuous take with demo record-start before narrating.')
       }
-      const output = await withStateLock(base, async () => {
+      const output = await withWorkspaceLock(base, async () => {
         const state = readState(base)
         await waitForNarration(state.narrationEndTime, _signal)
         const slideshowProgress = readSlideshowProgress(base)
@@ -710,7 +694,7 @@ export default function demoCommands(): CommandSpec[] {
         text: String(args.text ?? ''),
         submit: !!args.submit,
       }
-      return withStateLock(base, async () => {
+      return withWorkspaceLock(base, async () => {
         const state = readState(base)
         const result = await browser(base, op)
         // A text field keeps the arrow cursor, never the hand.
@@ -770,17 +754,17 @@ export default function demoCommands(): CommandSpec[] {
             }),
           )
         }
-        await activeSlideshowServer?.close()
+        await slideshowServers.get(base)?.close()
+        slideshowServers.delete(base)
         const requestedTransition = reviewedStoryboard?.transition ?? args.transition ?? 'fade'
         const transition = requestedTransition === 'zoom' ? 'fade' : requestedTransition
-        activeSlideshowServer = await startSlideshowServer(slides, {
-          transition,
-        })
+        const server = await startSlideshowServer(slides, { transition })
+        slideshowServers.set(base, server)
         const outputPath = path.join(base, 'recording', 'slideshow.html')
-        fs.writeFileSync(outputPath, activeSlideshowServer.html)
+        fs.writeFileSync(outputPath, server.html)
         writeSlideshowProgress(base, createSlideshowProgress(slides.length))
         fs.rmSync(slideAnalysisPath(base), { force: true })
-        const url = activeSlideshowServer.url
+        const url = server.url
         return toolResult(
           JSON.stringify({
             status: 'slideshow_ready',
@@ -816,7 +800,7 @@ export default function demoCommands(): CommandSpec[] {
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(base, async () => {
+      return withWorkspaceLock(base, async () => {
         try {
           await pageEval(base, buildClearAnnotationsJs())
           return toolResult(JSON.stringify({ status: 'annotations_cleared' }))
@@ -852,7 +836,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(base, async () => {
+      return withWorkspaceLock(base, async () => {
         const progress = readSlideshowProgress(base)
         if (!progress) {
           return toolResult(
@@ -949,7 +933,7 @@ export default function demoCommands(): CommandSpec[] {
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const base = baseDir(ctx)
-      return withStateLock(base, async () => {
+      return withWorkspaceLock(base, async () => {
         const apiKey = process.env.GEMINI_API_KEY
         if (!apiKey) return toolResult(JSON.stringify({ error: 'GEMINI_API_KEY is not set' }))
         const groundingDir = path.join(base, 'recording', 'grounding')

@@ -16,12 +16,13 @@ import * as path from 'node:path'
 import * as db from '@saas/db'
 import type { Logger, VideoStoryboard } from '@saas/shared'
 import { createLogger } from '@saas/shared'
-import { downloadStorageState, uploadStorageState } from '@saas/storage'
+import { downloadStorageState } from '@saas/storage'
+import { persistBrowserState } from '../services/browser-state.js'
 import { getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type BrowserCapture, startBrowserCapture } from './utils/browser-capture.js'
 import { type BrowserDriver, createBrowserDriver } from './utils/browser-driver.js'
-import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
+import { type CloakBrowserHandle, startCloakBrowser } from './utils/cloak-browser.js'
 import { type CursorRecording, installRecordingCursor } from './utils/recording-cursor.js'
 
 const moduleLogger = createLogger('studio:render:recording')
@@ -110,27 +111,13 @@ export async function startRecording(
     signal: input.signal,
   })
   let statePersisted = false
-  const persistBrowserState = async () => {
+  const persistState = async () => {
     if (statePersisted) return
-    const state = await withTimeout(
-      'browser state capture',
-      cloakBrowser.context.storageState({ path: storageStatePath, indexedDB: true }),
-      10_000,
-    )
-    const origins = Array.from(
-      new Set([
-        ...state.origins.map(origin => origin.origin),
-        ...state.cookies.map(
-          cookie => `${cookie.secure ? 'https' : 'http'}://${cookie.domain.replace(/^\./, '')}`,
-        ),
-      ]),
-    )
-    const key = await uploadStorageState(storageStatePath, userId)
-    await db.recordLoggedInOrigins(userId, origins, { storageStateKey: key })
+    await persistBrowserState(cloakBrowser.context, userId, storageStatePath)
     statePersisted = true
   }
   const closeBrowser = async () => {
-    await persistBrowserState().catch(err =>
+    await persistState().catch(err =>
       logger.warn({ err, userId }, 'Failed to persist browser authentication state'),
     )
     await cloakBrowser.close()
