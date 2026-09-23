@@ -106,7 +106,8 @@ export function splitWords(line: string): string[] {
 
 const REF = /^(?:f\d+)?e\d+$/
 
-function ref(word: string | undefined, verb: string): string {
+/** A snapshot ref (`e53`, `f1e7`), accepting `ref=e53` / `[ref=e53]`. */
+export function parseRef(word: string | undefined, verb: string): string {
   const value = word?.replace(/^\[?ref=/, '').replace(/\]$/, '')
   if (!value || !REF.test(value))
     throw new Error(
@@ -147,22 +148,22 @@ export function parseBrowserCommand(command: string): BrowserOp {
         throw new Error(`${verb} button must be left, right or middle.`)
       return {
         op: verb,
-        ref: ref(args[0], verb),
+        ref: parseRef(args[0], verb),
         ...(button ? { button: button as MouseButton } : {}),
       }
     }
     case 'hover':
     case 'check':
     case 'uncheck':
-      return { op: verb, ref: ref(args[0], verb) }
+      return { op: verb, ref: parseRef(args[0], verb) }
     case 'fill': {
       const submit = args.includes('--submit')
       const rest = args.filter(a => a !== '--submit')
-      return { op: 'fill', ref: ref(rest[0], verb), text: rest.slice(1).join(' '), submit }
+      return { op: 'fill', ref: parseRef(rest[0], verb), text: rest.slice(1).join(' '), submit }
     }
     case 'select':
       if (args.length < 2) throw new Error('select needs a ref and at least one value.')
-      return { op: 'select', ref: ref(args[0], verb), values: args.slice(1) }
+      return { op: 'select', ref: parseRef(args[0], verb), values: args.slice(1) }
     case 'type':
       if (!args.length) throw new Error('type needs the text to type.')
       return { op: 'type', text: args.join(' ') }
@@ -187,11 +188,11 @@ export function parseBrowserCommand(command: string): BrowserOp {
         : { op: 'scroll', dy: number(a, 'dy'), dx: number(b ?? '0', 'dx') }
     }
     case 'focus':
-      return { op: 'focus', ref: ref(args[0], verb) }
+      return { op: 'focus', ref: parseRef(args[0], verb) }
     case 'eval': {
       if (!args[0]) throw new Error('eval needs a function, e.g. eval "() => document.title".')
       return args[1]
-        ? { op: 'eval', fn: args[0], ref: ref(args[1], verb) }
+        ? { op: 'eval', fn: args[0], ref: parseRef(args[1], verb) }
         : { op: 'eval', fn: args[0] }
     }
     case 'screenshot': {
@@ -199,7 +200,7 @@ export function parseBrowserCommand(command: string): BrowserOp {
       if (!file)
         throw new Error('screenshot needs --filename <workspace path>, e.g. recording/detail.png.')
       return args[0]
-        ? { op: 'screenshot', file, ref: ref(args[0], verb) }
+        ? { op: 'screenshot', file, ref: parseRef(args[0], verb) }
         : { op: 'screenshot', file }
     }
     case 'wait': {

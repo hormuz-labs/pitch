@@ -3,16 +3,17 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import demoCommands from '../.pi/cli/demo.ts'
+import { hostAction } from '../.pi/lib/studio-host.ts'
 import { collectCommands } from '../.pi/lib/testing.ts'
+
+vi.mock('../.pi/lib/studio-host.ts', () => ({ hostAction: vi.fn() }))
 
 const { 'analyze-slide': demo_analyze_slide, narrate: demo_narrate } = collectCommands(demoCommands)
 
-const originalPath = process.env.PATH
 const originalApiKey = process.env.GEMINI_API_KEY
 const originalGroundingModel = process.env.GEMINI_GROUNDING_MODEL
 
 afterEach(() => {
-  process.env.PATH = originalPath
   if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY
   else process.env.GEMINI_API_KEY = originalApiKey
   if (originalGroundingModel === undefined) delete process.env.GEMINI_GROUNDING_MODEL
@@ -24,20 +25,17 @@ describe('demo_analyze_slide', () => {
   it('analyzes the current rendered slide once and reuses its cached narration plan', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'slide-analysis-tool-'))
     const recordings = path.join(base, 'recording')
-    const bin = path.join(base, 'bin')
     fs.mkdirSync(recordings, { recursive: true })
-    fs.mkdirSync(bin, { recursive: true })
     fs.writeFileSync(
       path.join(recordings, 'slideshow-progress.json'),
       JSON.stringify({ totalSlides: 2, currentSlide: 0, visitedSlides: [0], narratedSlides: [] }),
     )
-    const playwright = path.join(bin, 'playwright-cli')
-    fs.writeFileSync(
-      playwright,
-      '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do\n  if [ "$1" = "--filename" ]; then printf image > "$2"; exit 0; fi\n  shift\ndone\nexit 1\n',
-    )
-    fs.chmodSync(playwright, 0o755)
-    process.env.PATH = `${bin}:${originalPath ?? ''}`
+    // The host's screenshot step writes the workspace file the analysis reads.
+    vi.mocked(hostAction).mockImplementation(async (cwd, _name, params: any) => {
+      if (params.kind !== 'run' || params.op.op !== 'screenshot') throw new Error('unexpected')
+      fs.writeFileSync(path.join(cwd, params.op.file), 'image')
+      return JSON.stringify({ text: 'saved', url: 'http://slides/' })
+    })
     process.env.GEMINI_API_KEY = 'test-key'
     process.env.GEMINI_GROUNDING_MODEL = 'gemini-test'
 

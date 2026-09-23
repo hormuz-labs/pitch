@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   advanceSlideshowProgress,
   assertCurrentSlideAnalyzed,
-  countForwardSlideAdvances,
   createSlideshowProgress,
   markCurrentSlideAnalyzed,
   markCurrentSlideNarrated,
@@ -47,16 +46,6 @@ describe('slideshow progress guard', () => {
     expect(() => advanceSlideshowProgress(progress, 2)).toThrow(
       'Advance exactly one slide at a time',
     )
-  })
-
-  it('counts every forward navigation embedded in a demo_bash command', () => {
-    expect(
-      countForwardSlideAdvances(
-        'playwright-cli press ArrowRight; playwright-cli press ArrowRight; sleep 1',
-      ),
-    ).toBe(2)
-    expect(countForwardSlideAdvances('playwright-cli press ArrowRight && sleep 0.5')).toBe(1)
-    expect(countForwardSlideAdvances('playwright-cli snapshot')).toBe(0)
   })
 
   it('requires every expected page before the worker renders', () => {

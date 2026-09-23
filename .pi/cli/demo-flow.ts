@@ -51,7 +51,7 @@ export default function demoFlowCommands(): CommandSpec[] {
     description:
       'Default first browser operation for a new walkthrough: start ONE continuous take, opening the browser if needed. ' +
       'Optionally navigates to `url` first. Returns the session name, the start time and, when a ' +
-      'storyboard exists, the approved recording contract. Discover the route while recording; keep the take through navigation, inspection, thinking and recoverable errors. Frozen silent gaps are trimmed later, not avoided by rehearsal or replay. narrate --action drives while speaking. Use demo bash / narrate / fill-field. Never call `playwright-cli open` yourself.',
+      'storyboard exists, the approved recording contract. Discover the route while recording; keep the take through navigation, inspection, thinking and recoverable errors. Frozen silent gaps are trimmed later, not avoided by rehearsal or replay. narrate --action drives while speaking. Drive the page with demo browser / narrate / fill-field.',
     parameters: Type.Object({
       url: Type.Optional(
         Type.String({

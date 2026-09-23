@@ -37,7 +37,7 @@ example refs with refs from the current snapshot:
 
 ```sh
 pitch demo narrate --text "Choose the report to see its breakdown." --action '{"command":"click e53"}'
-pitch demo bash --command snapshot
+pitch demo browser --command snapshot
 pitch demo narrate --text "Enter a name so the report is easy to find later." --action '{"target":"e72","text":"Weekly usage"}'
 ```
 
@@ -48,15 +48,15 @@ Snapshot after transitions. Show the export and its result rather than merely
 saying “now export.” Complete the requested workflow without substituting narration
 for missing interactions.
 
-Useful commands inside `pitch demo bash --command '…'`:
-`click e53` · `hover e4` · `select e9 "v"` ·
+Useful steps for `pitch demo browser --command '…'`:
+`click e53` · `hover e4` · `select e9 "v"` · `scroll 600` ·
 `eval "el => el.currentSrc || el.src" e53` ·
-`screenshot '<selector>' --filename recording/detail.png` ·
+`screenshot e53 --filename recording/detail.png` ·
 `tab-new <url>` / `tab-select 0`.
 
 - **Forms:** use `pitch demo fill-field --target <ref> --text <text> [--submit]`
   for visible typing, or the narration action form above (optional `"submit":true`).
-  Do not use `playwright-cli fill`. Keep fields visible and completed values readable.
+  Keep fields visible and completed values readable.
 - **Offscreen subjects:** `pitch demo narrate --text "<line>" --focus <ref>` scrolls
   the subject to center before speech; it is not a camera zoom. Omit when visible.
 - **Popups:** dismiss with a plain click.

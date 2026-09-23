@@ -18,7 +18,7 @@ targets such as `[1] scene 3 "Pricing" · emphasis 2 "annual plan"` are 1-based.
 
 For document-only capture, use `pitch demo record-start` without a URL. Then run
 `pitch demo list-assets` → `pitch demo build-slideshow --transition fade`
-and navigate to the returned HTTP URL with `pitch demo bash --command 'goto <url>'`.
+and navigate to the returned HTTP URL with `pitch demo browser --command 'goto <url>'`.
 The manual transition choices are `fade` and `slide`.
 For a mixed take, use this slideshow sequence when reaching its document portion;
 do not start another recording. Never use `file://` or create a server yourself.
@@ -72,7 +72,7 @@ editor does not duplicate them.
 
 Between points on the same page, use `pitch demo narration-wait` before
 `pitch demo clear-annotations`. After **all narration for the page** finishes,
-advance once with `pitch demo bash --command 'press ArrowRight'`. The tool waits
+advance once with `pitch demo browser --command 'press ArrowRight'`. The tool waits
 for speech and clears transient annotations automatically. Snapshot and analyze
 the new page after the transition; never batch advances. Divider pages still need
 a brief explanation, without filler. Hold the final page through its closing

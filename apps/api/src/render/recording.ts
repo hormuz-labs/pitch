@@ -1,18 +1,14 @@
 /**
  * recording — the browser recording lifecycle for demo-video projects.
  *
- * Lifted from steps 1–3 (and the stop half of step 8) of the old worker
- * (apps/worker/src/job-processor.ts): start the user's CloakBrowser profile,
- * attach playwright-cli to its local CDP endpoint, resize the
- * viewport, start the high-quality WebM capture and write demo-config.json — the handoff
- * contract the demo tools read (`{ startTime, voiceName, assetsManifestPath?,
- * storyboard? }`).
+ * Start the user's CloakBrowser profile (1920x1080, headed on its own
+ * display), hand the agent a driver for its pages, start the capture and
+ * write demo-config.json — the handoff contract the demo tools read
+ * (`{ startTime, voiceName, assetsManifestPath?, storyboard? }`).
  *
- * Every playwright-cli invocation is session-scoped (`-s=<session>`, the
- * project's workspace basename) so several projects can record concurrently,
- * and runs with `cwd: workspaceDir` so demo.mkv, snapshots and traces land in
- * the workspace rather than the studio process cwd. The demo tools use the same
- * session name (PLAYWRIGHT_CLI_SESSION) for every command they issue.
+ * The browser, the capture and the agent's driver share one Playwright
+ * context in this process. Several projects record at once; each has its own
+ * browser, so nothing is shared between them.
  */
 
 import * as fs from 'node:fs'
@@ -21,27 +17,18 @@ import * as db from '@saas/db'
 import type { Logger, VideoStoryboard } from '@saas/shared'
 import { createLogger } from '@saas/shared'
 import { downloadStorageState, uploadStorageState } from '@saas/storage'
-import { assertBrowserCommandSucceeded } from '../../../../.pi/lib/demo-timing.ts'
-import { execAsync, getMediaDurationSec } from './media.js'
+import { getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type BrowserCapture, startBrowserCapture } from './utils/browser-capture.js'
+import { type BrowserDriver, createBrowserDriver } from './utils/browser-driver.js'
 import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
 import { type CursorRecording, installRecordingCursor } from './utils/recording-cursor.js'
 
 const moduleLogger = createLogger('studio:render:recording')
 
-/** playwright-cli session names: what .pi/cli/demo.ts accepts in PLAYWRIGHT_CLI_SESSION. */
-const SESSION_NAME_RE = /^[a-zA-Z0-9_.-]+$/
-
-export function sanitizeSessionName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9_-]/g, '_')
-}
-
 export interface StartRecordingInput {
   userId: string
   workspaceDir: string
-  /** playwright-cli session name; defaults to the workspace basename. */
-  session?: string
   /** TTS voice for the demo tools (demo-config.json voiceName); default "Charon". */
   voice?: string
   /** Manifest written by prepareDemoAssets, when the project has PDFs/images. */
@@ -51,59 +38,20 @@ export interface StartRecordingInput {
   /** Stable public stream id, normally the owning project id. */
   streamId: string
   signal?: AbortSignal
-  /** Open a rehearsal browser; startCapture begins the take in this same session. */
-  deferCapture?: boolean
 }
 
 export interface RecordingHandle {
   /** The event clock anchor every demo-tools timestamp is measured against. */
   startTime: number
-  /** When capture began (for the post-run stale-chunk sweep). */
-  startedAtMs: number
-  /** Expected recording path: <workspaceDir>/recording/demo.mkv */
-  videoPath: string
-  /** Where playwright-cli writes chunks (the recording dir). */
-  videoDir: string
-  /** The playwright-cli session name used for every command. */
-  session: string
   streamId: string
-  cdpUrl: string
   recording: boolean
+  /** The agent's hands on this browser (pitch demo browser). */
+  driver: BrowserDriver
   startCapture: (
     config?: Pick<StartRecordingInput, 'voice' | 'assetsManifestPath' | 'storyboard'>,
   ) => Promise<void>
-  /** Stops the screencast, closes the playwright session and its browser. */
+  /** Stops the capture and closes the browser. */
   stop: () => Promise<void>
-}
-
-export function recoverRecordingArtifact(
-  workspaceDir: string,
-  expectedPath: string,
-  startedAtMs: number,
-): string {
-  if (fs.existsSync(expectedPath) && fs.statSync(expectedPath).size > 0) return expectedPath
-
-  const tracesDir = path.join(workspaceDir, '.playwright-cli', 'traces')
-  const candidates = fs.existsSync(tracesDir)
-    ? fs
-        .readdirSync(tracesDir)
-        .filter(name => name.endsWith('.webm'))
-        .map(name => path.join(tracesDir, name))
-        .filter(file => {
-          const stat = fs.statSync(file)
-          return stat.size > 0 && stat.mtimeMs >= startedAtMs
-        })
-        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
-    : []
-
-  if (candidates.length !== 1) {
-    throw new Error(
-      `Recording did not produce ${expectedPath}; found ${candidates.length} current trace candidate(s).`,
-    )
-  }
-  fs.copyFileSync(candidates[0]!, expectedPath)
-  if (fs.statSync(expectedPath).size <= 0) throw new Error('Recovered recording is empty.')
-  return expectedPath
 }
 
 export function assertRecordingCoversTimeline(
@@ -143,23 +91,10 @@ export async function startRecording(
   logger: Logger = moduleLogger,
 ): Promise<RecordingHandle> {
   const { userId, workspaceDir } = input
-  const rawSession = input.session ?? path.basename(workspaceDir)
-  const session = sanitizeSessionName(rawSession)
-  if (!session || !SESSION_NAME_RE.test(session)) {
-    throw new Error(`Invalid playwright-cli session name: ${rawSession}`)
-  }
-  const cli = `playwright-cli -s=${session}`
-
   const recDir = recordingDir(workspaceDir)
   fs.mkdirSync(recDir, { recursive: true })
   fs.mkdirSync(path.join(recDir, 'audio'), { recursive: true })
-
-  // Determine the directory where the video should be recorded
-  const videoDir = recDir
-  const videoPath = path.join(videoDir, 'demo.mkv')
-
-  // Close any pre-existing session under this name to ensure a fresh session
-  await execAsync(`${cli} close`, { cwd: workspaceDir }).catch(() => {})
+  const videoPath = path.join(recDir, 'demo.mkv')
 
   // Start a headed CloakBrowser on an isolated Xvfb display. Its CDP and VNC
   // ports stay on loopback; the API exposes only the authenticated RFB bridge.
@@ -209,49 +144,7 @@ export async function startRecording(
     // Capture actual input without painting into the page. Source assembly
     // composites the cursor later, on the same first-frame clock as narration.
     let cursor: CursorRecording | undefined
-    // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
-    logger.info(
-      { cdpUrl: cloakBrowser.cdpUrl, session },
-      'Attaching playwright-cli to local CloakBrowser CDP',
-    )
-    // Retry playwright-cli attach with backoff — the WS endpoint may need a moment
-    // to become fully ready even after the HTTP /json/version check passes.
-    {
-      const maxAttempts = 4
-      const retryDelayMs = 3000
-      let lastAttachError: Error | undefined
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          await execAsync(`${cli} attach --cdp ${cloakBrowser.cdpUrl}`, { cwd: workspaceDir })
-          lastAttachError = undefined
-          break
-        } catch (err) {
-          lastAttachError = err instanceof Error ? err : new Error(String(err))
-          logger.warn(
-            { attempt, maxAttempts, cdpUrl: cloakBrowser.cdpUrl, err: lastAttachError.message },
-            'playwright-cli attach failed, retrying...',
-          )
-          if (attempt < maxAttempts) {
-            await new Promise(r => setTimeout(r, retryDelayMs))
-          }
-        }
-      }
-      if (lastAttachError) {
-        throw lastAttachError
-      }
-    }
-
-    // Resize browser viewport to match recording size (fixes grey bar on production)
-    logger.info('Resizing browser viewport to 1920x1080...')
-    const resizeResult = assertBrowserCommandSucceeded(
-      await execAsync(`${cli} resize 1920 1080`, { cwd: workspaceDir }),
-    )
-    logger.info(
-      { stdout: resizeResult.stdout, stderr: resizeResult.stderr },
-      'playwright-cli resize output',
-    )
-
-    let startedAtMs = 0
+    const driver = createBrowserDriver(cloakBrowser.context, workspaceDir)
     let startTime = 0
     let recording = false
     const startCapture: RecordingHandle['startCapture'] = async config => {
@@ -276,9 +169,6 @@ export async function startRecording(
         for (const name of masters) fs.rmSync(path.join(recDir, name), { force: true })
       }
       logger.info({ videoPath }, 'Starting video recording...')
-      startedAtMs = Date.now()
-      // Install after the input client's attach/navigation. Those operations can
-      // replace document initialization scripts on older Chromium builds.
       cursor ??= await installRecordingCursor(cloakBrowser.context)
       capture = await startBrowserCapture(cloakBrowser.context, videoPath, input.signal, {
         recorder: cursor,
@@ -316,17 +206,14 @@ export async function startRecording(
       )
       logger.info(`startTime captured: ${new Date(startTime).toISOString()}`)
     }
-    if (!input.deferCapture) await startCapture()
-
-    // 8. Gracefully close browser and stop recording
     const stopRecording = async () => {
-      logger.info('Stopping video recording and playwright session...')
+      logger.info('Stopping video recording and closing the browser...')
       const stoppedAtMs = Date.now()
       try {
         if (!recording) return
         await capture!.stop()
-
-        recoverRecordingArtifact(workspaceDir, videoPath, startedAtMs)
+        if (!fs.existsSync(videoPath) || fs.statSync(videoPath).size <= 0)
+          throw new Error(`Recording did not produce ${videoPath}.`)
         assertRecordingCoversTimeline(await getMediaDurationSec(videoPath), startTime, stoppedAtMs)
         fs.writeFileSync(
           path.join(recDir, 'capture-status.json'),
@@ -345,16 +232,7 @@ export async function startRecording(
         throw error
       } finally {
         recording = false
-        try {
-          await execAsync(`${cli} close`, {
-            cwd: workspaceDir,
-            timeout: 15_000,
-            killSignal: 'SIGKILL',
-          })
-        } catch (_e) {}
-        try {
-          await closeBrowser()
-        } catch (_e) {}
+        await closeBrowser().catch(() => {})
       }
     }
 
@@ -370,30 +248,18 @@ export async function startRecording(
       get startTime() {
         return startTime
       },
-      get startedAtMs() {
-        return startedAtMs
-      },
       get recording() {
         return recording
       },
       startCapture,
-      videoPath,
-      videoDir,
-      session,
+      driver,
       streamId: cloakBrowser.streamId,
-      cdpUrl: cloakBrowser.cdpUrl,
       stop,
     }
   } catch (err) {
-    // Attach/resize/capture failed: shut down the browser connection and stop the
-    // browser process so the user's session isn't left running.
+    // Setup failed: stop the browser so the user's session isn't left running.
     await capture?.stop().catch(() => {})
-    try {
-      await execAsync(`${cli} close`, { cwd: workspaceDir })
-    } catch (_e) {}
-    try {
-      await closeBrowser()
-    } catch (_e) {}
+    await closeBrowser().catch(() => {})
     throw err
   }
 }

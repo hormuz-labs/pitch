@@ -9,15 +9,21 @@ If PDFs/images are attached, run `pitch demo prepare-assets` before browser-open
 or record-start: the host requires their manifest even when an app sequence comes
 first. Preparation does not require recording or creating a storyboard.
 
-Use `pitch demo bash --command '<playwright-cli command>'`. It runs on the host,
-already attached over CDP to the preparation/recording browser. The VM has no
-browser. Never call `playwright-cli open`, close, attach, detach or video controls
-yourself; use the demo lifecycle commands.
+Drive the page with `pitch demo browser --command '<step>'`, one step per call.
+The host runs it on the preparation/recording browser; your shell has no browser
+of its own, and this command is not a shell. The lifecycle commands open, record
+and close the browser — there is no step for that.
 
-Shared commands include `snapshot`, `goto <url>` and `press ArrowRight`.
+Steps: `snapshot [css]`, `click <ref>`, `dblclick`, `hover`, `check`/`uncheck`,
+`fill <ref> "<text>" [--submit]`, `select <ref> <value>`, `type "<text>"`,
+`press <key>`, `goto <url>`, `go-back`, `reload`, `scroll <dy>`, `focus <ref>`,
+`eval "<function>" [ref]`, `screenshot [ref] --filename <workspace path>`,
+`tab-new [url]`, `tab-list`, `tab-select <n>`, `tab-close [n]`,
+`dialog-accept [text]`/`dialog-dismiss` (for the next dialog; unhandled dialogs
+are dismissed), and `wait <ms>` (at most 10000) to let a page settle.
 Snapshot after navigation or slide advance. Refs belong to the current page
-state; never reuse them across transitions or sessions. There is no Playwright
-wait command; a short host `sleep` after navigation can allow settling when needed.
+state; never reuse them across transitions or sessions. A step that fails says
+why; a stale ref fails within seconds.
 The recorded content viewport is 1920×1080. The VNC desktop is 1960×1240 to
 include the toolbar/window frame and the bottom of that viewport. Do not resize
 the browser during a take. The host journals full-size timestamped JPEG frames to

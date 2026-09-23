@@ -16,7 +16,8 @@ beforeEach(async () => {
   vi.clearAllMocks()
   root = await mkdtemp(path.join(tmpdir(), 'demo-source-cursor-'))
   await mkdir(path.join(root, 'recording'))
-  for (const file of ['demo.webm', 'voice.mp3', 'click.mp3'])
+  await mkdir(path.join(root, 'recording', 'audio'))
+  for (const file of ['demo.webm', 'voice.mp3', 'click.mp3', 'audio/click.mp3'])
     await writeFile(path.join(root, 'recording', file), 'fixture')
   await write('demo-config.json', {
     startTime: 1000,
@@ -63,11 +64,19 @@ describe('demo source cursor handoff', () => {
         capture_start: 1000,
         clips: [
           { source: 'recording/voice.mp3', start: 1.2, duration: 0.5, text: 'Click here.' },
-          { source: 'recording/click.mp3', start: 3, text: undefined },
+          { source: 'recording/audio/click.mp3', start: 3, text: undefined },
         ],
       },
       {},
     )
+  })
+
+  it('sounds every real press even when the capture stamped no click clips', async () => {
+    await write('demo-state.json', { audioClips: [] })
+    await prepare()
+    expect(host.call.mock.calls[0]![2].clips).toEqual([
+      { source: 'recording/audio/click.mp3', start: 3, text: undefined },
+    ])
   })
 
   it('blocks failed telemetry rather than rendering a new cursorless source', async () => {

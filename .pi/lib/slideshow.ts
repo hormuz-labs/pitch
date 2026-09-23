@@ -189,7 +189,10 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     .hotspots { position: absolute; inset: 0; }
     .hotspot {
       position: absolute; background: transparent; border: 0; padding: 0;
-      pointer-events: none; /* targets for zoom/annotate, never steal nav clicks */
+      /* Hit-testable on purpose: an element that takes no pointer events gets
+         no ref in the agent's snapshot, so emphasis could not target it.
+         Slides are navigated by keyboard; there is nothing here to steal. */
+      cursor: default;
     }
     .slide-overlays { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
     .slide-overlay { position: absolute; }

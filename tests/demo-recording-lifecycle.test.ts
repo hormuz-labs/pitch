@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { startRecording } from '../apps/api/src/render/recording.ts'
 
 const mocks = vi.hoisted(() => ({
-  exec: vi.fn(),
   browser: vi.fn(),
   close: vi.fn(),
   profile: vi.fn(),
@@ -23,8 +22,10 @@ vi.mock('@saas/storage', () => ({
   uploadStorageState: vi.fn(async () => 'key'),
 }))
 vi.mock('../apps/api/src/render/media.ts', () => ({
-  execAsync: mocks.exec,
   getMediaDurationSec: vi.fn(async () => 60),
+}))
+vi.mock('../apps/api/src/render/utils/browser-driver.ts', () => ({
+  createBrowserDriver: vi.fn(() => ({})),
 }))
 vi.mock('../apps/api/src/render/utils/cloak-browser.ts', () => ({
   startCloakBrowser: mocks.browser,
@@ -57,7 +58,6 @@ beforeEach(() => {
       pages: () => [{ frames: () => [{ evaluate: mocks.evaluate }] }],
     },
   })
-  mocks.exec.mockResolvedValue({ stdout: '', stderr: '' })
   mocks.stopCapture.mockImplementation(async () => {
     fs.writeFileSync(path.join(base, 'recording/demo.mkv'), 'new take')
   })
@@ -77,7 +77,6 @@ describe('preparation and one continuous take', () => {
       userId: 'test',
       workspaceDir: base,
       streamId: 'demo-test',
-      deferCapture: true,
     })
     expect(handle.recording).toBe(false)
     expect(mocks.initScript).not.toHaveBeenCalled()
@@ -125,25 +124,24 @@ describe('preparation and one continuous take', () => {
       userId: 'test',
       workspaceDir: base,
       streamId: 'demo-test',
-      deferCapture: true,
     })
     await handle.stop()
     expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.stopCapture).not.toHaveBeenCalled()
-    expect(mocks.exec.mock.calls.some(([command]) => /video-start|video-stop/.test(command))).toBe(
-      false,
-    )
     expect(fs.readFileSync(config, 'utf8')).toBe('previous config')
     expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 
   it('does not silently record without input telemetry when installation fails', async () => {
     mocks.initScript.mockRejectedValueOnce(new Error('cursor installation failed'))
-    await expect(
-      startRecording({ userId: 'test', workspaceDir: base, streamId: 'demo-test' }),
-    ).rejects.toThrow('cursor installation failed')
+    const handle = await startRecording({
+      userId: 'test',
+      workspaceDir: base,
+      streamId: 'demo-test',
+    })
+    await expect(handle.startCapture()).rejects.toThrow('cursor installation failed')
     expect(mocks.capture).not.toHaveBeenCalled()
-    expect(mocks.close).toHaveBeenCalledTimes(1)
+    expect(handle.recording).toBe(false)
   })
 
   it('persists a failed stop so it cannot be mistaken for an idle successful recording', async () => {
@@ -153,6 +151,7 @@ describe('preparation and one continuous take', () => {
       workspaceDir: base,
       streamId: 'demo-test',
     })
+    await handle.startCapture()
     await expect(handle.stop()).rejects.toThrow('capture storage failed')
     expect(
       JSON.parse(fs.readFileSync(path.join(base, 'recording/capture-status.json'), 'utf8')),

@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import type { Page } from 'playwright'
 
 /** A private CDP binding, independent of Playwright's shared page-global binding
- * controller. The recorder and playwright-cli attach as separate clients; their
- * exposeBinding controllers cannot safely share that global across navigation. */
+ * controller, so the recorder's channel survives navigation without sharing
+ * that global with the agent's driver or the page. */
 export async function installPageBridge(
   page: Page,
   name: string,

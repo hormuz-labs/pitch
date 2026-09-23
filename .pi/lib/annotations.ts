@@ -3,12 +3,12 @@
  *
  * Pure builders for on-screen annotations (circle / box / highlighter /
  * underline / arrow / spotlight). `pitch demo narrate.emphasis` runs the JS returned
- * by `buildAnnotateEvalJs` inside the page via `playwright-cli eval`; it reads
+ * by `buildAnnotateEvalJs` inside the page (the host's `demo_browser` evaluate); it reads
  * the target element's live bounding rect (or an explicit rect) and appends an
  * animated overlay into a fixed `#annotations` layer, so the annotation is
  * captured by the recording and pans/zooms with the page.
  *
- * No @opencode-ai/plugin or Node imports — pure and unit-testable.
+ * No Node imports — pure and unit-testable.
  */
 
 export type AnnotationStyle =
@@ -123,10 +123,9 @@ export function overlayInnerHtml(style: AnnotationStyle): string {
 }
 
 /**
- * Build the JS to run via `playwright-cli eval`. For a ref target the emitted
+ * Build the page function for a callout. For a ref target the emitted
  * function takes the element (`el => {...}`); for an explicit rect it takes no
- * args and derives px from the viewport. Uses string concatenation (no template
- * literals) so it survives shell escaping cleanly.
+ * args and derives px from the viewport.
  */
 export function buildAnnotateEvalJs(opts: AnnotateOptions): string {
   const style = opts.style

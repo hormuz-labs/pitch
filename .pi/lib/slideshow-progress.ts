@@ -42,10 +42,6 @@ export function markCurrentSlideNarrated(progress: SlideshowProgress): Slideshow
   }
 }
 
-export function countForwardSlideAdvances(command: string): number {
-  return command.match(/playwright-cli\s+press\s+(?:ArrowRight|Space)\b/g)?.length ?? 0
-}
-
 export function advanceSlideshowProgress(
   progress: SlideshowProgress,
   advanceCount: number,

@@ -64,7 +64,7 @@ recording from an invalid or stale revision.
    approves its current revision and returns the exact recording contract.
 2. Run `pitch demo list-assets`, then
    `pitch demo build-slideshow --transition <approved transition>`, and open its
-   returned HTTP URL with `playwright-cli goto`. Never use `file://` or start an
+   returned HTTP URL with `pitch demo browser --command 'goto <url>'`. Never use `file://` or start an
    ad-hoc server.
 3. Visit enabled scenes in saved order. On every rendered page, call
    `pitch demo analyze-slide` before narrating. This verifies what the pixels

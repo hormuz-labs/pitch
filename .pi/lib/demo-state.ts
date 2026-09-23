@@ -18,11 +18,4 @@ export interface DemoState {
     text?: string
   }[]
   clickEvents: ClickEvent[]
-  annotationEvents: { videoTimeSec: number }[]
-  tabEvents: { tabId: number; wallSec: number }[]
-  tabCreationTimes: Record<number, number>
-  currentTabId: number
-  lastTargetCoords: { ref: string; x: number; y: number; hand?: boolean } | null
-  pageUrl?: string
-  pageUrlEvents: { videoTimeSec: number; url: string }[]
 }

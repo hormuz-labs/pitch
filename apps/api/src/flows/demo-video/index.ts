@@ -21,19 +21,12 @@ import {
   type VideoStoryboard,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
+import { type BrowserOp, parseBrowserCommand } from '../../../../../.pi/lib/browser-command.ts'
 import type { DemoState as CaptureState } from '../../../../../.pi/lib/demo-state.ts'
-import {
-  assertBrowserCommandSucceeded,
-  waitForNarration,
-} from '../../../../../.pi/lib/demo-timing.ts'
+import { waitForNarration } from '../../../../../.pi/lib/demo-timing.ts'
 import { resolveSymlinks } from '../../../../../.pi/lib/paths.ts'
-import { execFileAsync, getVideoBirthTimeMs } from '../../render/media.js'
-import {
-  prepareDemoAssets,
-  type RecordingHandle,
-  sanitizeSessionName,
-  startRecording,
-} from '../../render/recording.js'
+import { getVideoBirthTimeMs } from '../../render/media.js'
+import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
 import { buildDemoJobInput } from '../../render/utils/demo-job-input.js'
 import type { CursorEvent } from '../../render/utils/recording-cursor.js'
@@ -67,7 +60,6 @@ interface ProjectFile {
 
 interface LiveFile {
   streamId: string
-  session: string
   startedAt: number
 }
 
@@ -162,13 +154,27 @@ async function coverageProblem(ws: Workspace): Promise<string | null> {
     path.join(recordingDir(ws), 'slideshow-progress.json'),
   )
   if (!progress)
-    return 'Prepared assets were not displayed in an asset slideshow (demo_build_slideshow was never called).'
+    return 'Prepared assets were not displayed in an asset slideshow (pitch demo build-slideshow was never called).'
   try {
     validateSlideshowCoverage(progress, expected)
     return null
   } catch (err: any) {
     return err.message
   }
+}
+
+/** The click sound, copied into the workspace so the render tier can read it. */
+function clickSound(ws: Workspace): string {
+  const target = path.join(recordingDir(ws), 'audio', 'click.mp3')
+  if (existsSync(target)) return target
+  for (const dir of ['sounds', 'sfx']) {
+    const candidate = path.join(ASSETS_DIR, dir, 'click.mp3')
+    if (!existsSync(candidate)) continue
+    mkdirSync(path.dirname(target), { recursive: true })
+    copyFileSync(candidate, target)
+    break
+  }
+  return target
 }
 
 // ── recording lifecycle ──────────────────────────────────────────────────────
@@ -204,16 +210,9 @@ async function stopRecording(
     } finally {
       active.delete(ws.dir)
     }
-  } else if (live) {
-    // The studio restarted while this workspace was recording: the browser may
-    // still be up under the session name — close what we can. The name is
-    // derived from the workspace, never read back from live.json, which the
-    // agent's shell can write.
-    const session = sanitizeSessionName(path.basename(ws.dir))
-    await execFileAsync('playwright-cli', [`-s=${session}`, 'close'], { cwd: ws.dir }).catch(
-      () => {},
-    )
   }
+  // A live.json without a handle means the studio restarted mid-take: the
+  // browser went with the process, so there is nothing left to close.
   await rm(liveFile(ws), { force: true })
   await rm(path.join(recordingDir(ws), 'browser.json'), { force: true })
   const state = await readJson<DemoState>(stateFile(ws))
@@ -242,7 +241,7 @@ registerHostAction('demo_prepare_assets', async ws => {
   const { manifest } = await prepareDemoAssets(ws.dir, assets)
   if (manifest.assets.length === 0)
     throw new Error('None of the uploaded PDFs/images could be prepared for video.')
-  return `Prepared ${manifest.assets.length} asset(s) (${preparedSlideCount(manifest)} page(s)) into recording/assets/. demo_list_assets and demo_build_slideshow become available once demo_record_start has run.\n${formatAssetManifestForPrompt(manifest)}`
+  return `Prepared ${manifest.assets.length} asset(s) (${preparedSlideCount(manifest)} page(s)) into recording/assets/. pitch demo list-assets and pitch demo build-slideshow become available once pitch demo record-start has run.\n${formatAssetManifestForPrompt(manifest)}`
 })
 
 async function openDemo(
@@ -253,7 +252,7 @@ async function openDemo(
 ): Promise<string> {
   const existing = active.get(ws.dir)
   if (existing?.recording)
-    return 'The continuous take is already recording. Keep it open; use demo bash to snapshot and continue. Stop only after the final demonstrated result.'
+    return 'The continuous take is already recording. Keep it open; use pitch demo browser snapshot and continue. Stop only after the final demonstrated result.'
   if (existing && rehearse)
     return 'An unrecorded browser is already open. For a walkthrough, call record-start now and discover the route inside the take; do not rehearse and replay the workflow.'
   if (
@@ -276,7 +275,7 @@ async function openDemo(
   const assetCount = manifest?.assets.length ?? 0
   if (project.uploads.some(isAsset) && !manifest) {
     throw new Error(
-      'The project has uploaded PDFs/images but demo_prepare_assets has not run — call it first.',
+      'The project has uploaded PDFs/images but pitch demo prepare-assets has not run — call it first.',
     )
   }
 
@@ -303,14 +302,12 @@ async function openDemo(
         assetsManifestPath: manifest ? manifestFile(ws) : undefined,
         storyboard,
         signal: ctx.signal,
-        deferCapture: true,
       },
       logger,
     ))
   active.set(ws.dir, handle)
   await writeJson(path.join(recordingDir(ws), 'browser.json'), {
     streamId: handle.streamId,
-    session: handle.session,
     startedAt: Date.now(),
     startTime: Date.now(),
     voiceName: project.options.voice || 'Charon',
@@ -322,16 +319,11 @@ async function openDemo(
   let opened = ''
   if (url) {
     try {
-      assertBrowserCommandSucceeded(
-        await execFileAsync('playwright-cli', [`-s=${handle.session}`, 'goto', url], {
-          cwd: ws.dir,
-          timeout: 60_000,
-        }),
-      )
+      await handle.driver.run(parseBrowserCommand(`goto ${JSON.stringify(url)}`))
       opened = `\nOpened ${url} — take a fresh snapshot and verify the starting view.`
     } catch (err: any) {
       throw new Error(
-        `Could not open ${url}: ${err.message}. The preparation browser remains open, without recording. Recover with demo bash goto/snapshot, then record-start.`,
+        `Could not open ${url}: ${err.message}. The preparation browser remains open, without recording. Recover with pitch demo browser goto/snapshot, then record-start.`,
       )
     }
   }
@@ -344,15 +336,14 @@ async function openDemo(
   })
   await writeJson(liveFile(ws), {
     streamId: handle.streamId,
-    session: handle.session,
     startedAt: handle.startTime,
   } satisfies LiveFile)
   const lines = [
-    `Recording started. Session "${handle.session}", startTime ${handle.startTime} (${new Date(handle.startTime).toISOString()}), voice ${project.options.voice || 'Charon'}. The browser is 1920x1080, open and recording — do not call playwright-cli open.${opened}`,
+    `Recording started. startTime ${handle.startTime} (${new Date(handle.startTime).toISOString()}), voice ${project.options.voice || 'Charon'}. The browser is 1920x1080, open and recording; drive it with pitch demo browser.${opened}`,
   ]
   if (assetCount > 0)
     lines.push(
-      `${assetCount} prepared asset(s): call demo_list_assets, then demo_build_slideshow and goto the URL it returns.`,
+      `${assetCount} prepared asset(s): call pitch demo list-assets, then pitch demo build-slideshow and goto the URL it returns.`,
     )
   if (storyboard) lines.push(storyboardContract(storyboard, assetCount))
   lines.push(
@@ -370,12 +361,38 @@ registerHostAction('demo_browser_close', async ws => {
   return 'Preparation browser closed. Existing recordings were preserved.'
 })
 
+/**
+ * The agent's browser steps. `run` takes an op parsed from `pitch demo
+ * browser`; `box`, `viewport` and `evaluate` serve the demo commands'
+ * own needs (callouts, slide geometry). All of it acts on the page only.
+ */
+registerHostAction('demo_browser', async (ws, params) => {
+  const handle = active.get(ws.dir)
+  if (!handle)
+    throw new Error(
+      'No browser is open for this project. Start the take with pitch demo record-start --url <url> (or browser-open for unrecorded work).',
+    )
+  const { driver } = handle
+  switch (params.kind) {
+    case 'run':
+      return JSON.stringify(await driver.run(params.op as BrowserOp))
+    case 'box':
+      return JSON.stringify(await driver.box({ ref: params.ref, selector: params.selector }))
+    case 'viewport':
+      return JSON.stringify(await driver.viewport())
+    case 'evaluate':
+      return JSON.stringify((await driver.evaluate(String(params.fn), params.ref)) ?? null)
+    default:
+      throw new Error(`Unknown demo_browser request: ${params.kind}`)
+  }
+})
+
 registerHostAction('demo_record_stop', async (ws, _params, ctx) => {
   if (active.get(ws.dir)?.recording && !coverageWarned.has(ws.dir)) {
     const problem = await coverageProblem(ws)
     if (problem) {
       coverageWarned.add(ws.dir)
-      return `NOT stopped — the prepared pages are not fully covered: ${problem}\nThe recording is still running: continue the slideshow (analyze, narrate, advance one page at a time) and call demo_record_stop again. If that is genuinely impossible, calling demo_record_stop once more stops anyway.`
+      return `NOT stopped — the prepared pages are not fully covered: ${problem}\nThe recording is still running: continue the slideshow (analyze, narrate, advance one page at a time) and call pitch demo record-stop again. If that is genuinely impossible, calling pitch demo record-stop once more stops anyway.`
     }
   }
   coverageWarned.delete(ws.dir)
@@ -424,24 +441,8 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       path.isAbsolute(clip.filePath) && at >= 0
         ? clip.filePath.slice(at + marker.length)
         : clip.filePath
-    let absolute = path.resolve(ws.dir, relative)
-    if (!existsSync(absolute) && path.basename(absolute) === 'click.mp3') {
-      const candidates = [
-        path.join(ASSETS_DIR, 'sounds', 'click.mp3'),
-        path.join(ASSETS_DIR, 'sfx', 'click.mp3'),
-      ]
-      for (const candidate of candidates) {
-        if (existsSync(candidate)) {
-          const target = path.join(ws.dir, 'recording', 'audio', 'click.mp3')
-          mkdirSync(path.dirname(target), { recursive: true })
-          try {
-            copyFileSync(candidate, target)
-            absolute = target
-            break
-          } catch {}
-        }
-      }
-    }
+    const absolute =
+      path.basename(relative) === 'click.mp3' ? clickSound(ws) : path.resolve(ws.dir, relative)
     const real = resolveSymlinks(absolute)
     if (!real.startsWith(`${root}${path.sep}`))
       throw new Error('Recorded audio path escapes the workspace.')
@@ -477,13 +478,14 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       throw new Error(
         'Cursor telemetry missed the recorded clicks. The capture observer failed; do not publish a cursorless substitute or fabricate a mouse path.',
       )
-    // Old click SFX were stamped before multiple CLI round-trips. Align them to
-    // the actual pointer press too, rather than letting sound lead the new cursor.
-    const sound = clips.find(clip => path.basename(clip.source) === 'click.mp3')
+    // A click is heard where the pointer actually pressed, from the cursor
+    // telemetry — not from anything the capture tools stamped.
     clips = clips.filter(clip => path.basename(clip.source) !== 'click.mp3')
-    if (sound)
+    const sound = path.relative(ws.dir, clickSound(ws))
+    if (existsSync(path.join(ws.dir, sound)))
       for (const event of trace.events) {
-        if (event.kind === 'down' && event.buttons & 1) clips.push({ ...sound, start: event.time })
+        if (event.kind === 'down' && event.buttons & 1)
+          clips.push({ source: sound, start: event.time, text: undefined })
       }
   }
   // Resolve the clock and worker-local audio paths before remote placement.
@@ -509,7 +511,7 @@ registerHostAction('storyboard_plan', async ws => {
   const manifest = await readJson<AssetManifest>(manifestFile(ws))
   if (!manifest || manifest.assets.length === 0)
     throw new Error(
-      'Storyboard planning needs prepared PDF/image pages — call demo_prepare_assets first.',
+      'Storyboard planning needs prepared PDF/image pages — call pitch demo prepare-assets first.',
     )
   const pages = pagesOf(manifest)
   if (pages.length === 0) throw new Error('No PDF/image pages were available to plan.')
@@ -537,7 +539,7 @@ registerHostAction('storyboard_plan', async ws => {
     { script: typeof project.options.script === 'string' ? project.options.script : undefined },
   )
   await writeJson(storyboardFile(ws), storyboard)
-  return `${storyboardSummary(storyboard)}\n\nSaved to storyboard.json. Edit it and storyboard_save to revise; demo_record_start records it as the approved contract.`
+  return `${storyboardSummary(storyboard)}\n\nSaved to storyboard.json. Edit it and pitch demo storyboard-save to revise; pitch demo record-start records it as the approved contract.`
 })
 
 registerHostAction('storyboard_save', async (ws, params) => {
@@ -563,8 +565,8 @@ registerHostAction('storyboard_save', async (ws, params) => {
       scenes: draft.scenes,
     })
     await writeJson(file, saved)
-    return `saved — revision ${saved.revision}, ${saved.scenes.filter(s => s.enabled).length} enabled scene(s).${params.summary ? ` ${params.summary}` : ''} The next demo_record_start records this revision.`
+    return `saved — revision ${saved.revision}, ${saved.scenes.filter(s => s.enabled).length} enabled scene(s).${params.summary ? ` ${params.summary}` : ''} The next pitch demo record-start records this revision.`
   } catch (err: any) {
-    return `Problems: ${err.message}\nFix storyboard.json and call storyboard_save again (nothing was saved).`
+    return `Problems: ${err.message}\nFix storyboard.json and call pitch demo storyboard-save again (nothing was saved).`
   }
 })
