@@ -17,6 +17,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
+import { FetchHttpHandler } from '@smithy/fetch-http-handler'
 import { type ObjectDriver, type PutOptions, readAll } from './driver.js'
 
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024 // 5 MB
@@ -25,6 +26,15 @@ const MULTIPART_QUEUE_SIZE = 4 // concurrent part uploads
 
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes for large uploads
 const CONNECT_TIMEOUT_MS = 30 * 1000 // 30 seconds to establish connection
+/**
+ * One upload request (a whole small object, or one multipart part) that has
+ * no answer by now is dead, and fails as a TimeoutError the SDK retries — a
+ * multipart upload resends just that part.
+ */
+const UPLOAD_REQUEST_TIMEOUT_MS = Math.max(
+  1000,
+  Number(process.env.S3_UPLOAD_REQUEST_TIMEOUT_MS || 60 * 1000),
+)
 
 const notFound = (e: any) =>
   e?.name === 'NoSuchKey' ||
@@ -42,7 +52,7 @@ export async function byteExactBody(body: Readable | Buffer, size: number): Prom
 }
 
 export function s3Driver(): ObjectDriver {
-  const client = new S3Client({
+  const config = {
     endpoint: process.env.MINIO_ENDPOINT ?? 'http://localhost:9000',
     region: process.env.MINIO_REGION ?? 'us-east-1', // MinIO ignores this but the SDK requires a value
     credentials: {
@@ -50,6 +60,18 @@ export function s3Driver(): ObjectDriver {
       secretAccessKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
     },
     forcePathStyle: true, // required for MinIO
+  }
+  // Uploads send buffers (a small object, or one multipart part) and read a
+  // small answer, so they go through fetch: the node:http handler's timeouts
+  // never fire under Bun, and a part the server never answered used to hang
+  // the upload until the caller gave up. The fetch handler's timeout is a
+  // plain timer, which holds on any runtime.
+  const uploads = new S3Client({
+    ...config,
+    requestHandler: new FetchHttpHandler({ requestTimeout: UPLOAD_REQUEST_TIMEOUT_MS }),
+  })
+  const client = new S3Client({
+    ...config,
     // Milliseconds: the SDK uses the node-http handler here, not fetch.
     // (Dividing by 1000 gave every request a 600 ms budget, which only
     // warned but was wrong.)
@@ -105,7 +127,7 @@ export function s3Driver(): ObjectDriver {
           body,
           Buffer.isBuffer(body) ? body.length : opts.size!,
         )
-        await client.send(
+        await uploads.send(
           new PutObjectCommand({
             Bucket: bucket,
             Key: key,
@@ -118,7 +140,7 @@ export function s3Driver(): ObjectDriver {
         return
       }
       const upload = new Upload({
-        client,
+        client: uploads,
         params: { Bucket: bucket, Key: key, Body: body, ContentType: opts.contentType },
         queueSize: MULTIPART_QUEUE_SIZE,
         partSize: MULTIPART_PART_SIZE,

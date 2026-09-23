@@ -216,6 +216,10 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
         signal.throwIfAborted()
         logger.info({ projectId, version, file }, 'checkpoint archive finished')
       } catch (error) {
+        logger.warn(
+          { err: error, projectId, version, file, ms: Date.now() - started },
+          'checkpoint archive failed',
+        )
         controller.abort(error)
         archive.abort(error instanceof Error ? error : new Error(String(error)))
         throw error

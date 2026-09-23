@@ -22,12 +22,12 @@ configMapGenerator:
       # — sessions, not renders — so it holds many.
       - STUDIO_WORKER_SLOTS=24
       - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}
-      # Cloud Storage through its S3-compatible endpoint (an HMAC key in
-      # pitch-runtime as MINIO_ROOT_USER/MINIO_ROOT_PASSWORD): the same code
-      # path as MinIO, and the one interface that moves to another cloud
-      # unchanged. Buckets are created ahead of time; the S3 API cannot
-      # create them on GCS.
-      - STORAGE_DRIVER=s3
+      # Cloud Storage through Google's own client, authenticated by Workload
+      # Identity (service-account.yaml): resumable uploads that resend just a
+      # chunk Cloud Storage failed to answer. Buckets are created ahead of time.
+      # STORAGE_DRIVER=s3 goes back to its S3-compatible endpoint with the HMAC
+      # key in pitch-runtime (MINIO_ROOT_USER/MINIO_ROOT_PASSWORD), below.
+      - STORAGE_DRIVER=gcs
       - MINIO_ENDPOINT=https://storage.googleapis.com
       - MINIO_REGION=auto
       - STORAGE_BUCKET=${MEDIA_BUCKET}

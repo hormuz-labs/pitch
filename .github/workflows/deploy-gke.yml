@@ -52,6 +52,7 @@ jobs:
           MEDIA_BUCKET=${{ vars.GKE_MEDIA_BUCKET }}
           PROFILES_BUCKET=${{ vars.GKE_PROFILES_BUCKET }}
           WORKSPACE_BUCKET=${{ vars.GKE_WORKSPACE_BUCKET }}
+          RUNTIME_SERVICE_ACCOUNT=${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
           EOF
       - uses: google-github-actions/auth@v2
         with:

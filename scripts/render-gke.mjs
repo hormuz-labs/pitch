@@ -27,6 +27,8 @@ const values = {
   MEDIA_BUCKET: bucketName,
   PROFILES_BUCKET: bucketName,
   WORKSPACE_BUCKET: bucketName,
+  // The Google service account the pods act as (Workload Identity).
+  RUNTIME_SERVICE_ACCOUNT: /^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
   // Names the migration Job; a Job is immutable, so every release needs a new one.
   RELEASE: /^[a-z0-9][a-z0-9-]{0,39}$/,
   // Tailscale: the VPC CIDRs the cluster advertises, and one external worker node.
@@ -41,7 +43,7 @@ const standalone = {
   // Kubernetes service account along.
   migrate: {
     files: ['namespace.yaml', 'service-account.yaml', 'migrate.yaml'],
-    needs: ['API_IMAGE', 'RELEASE'],
+    needs: ['API_IMAGE', 'RELEASE', 'RUNTIME_SERVICE_ACCOUNT'],
   },
   tailscale: { file: 'tailscale/connector.yaml', needs: ['TAILSCALE_ROUTES'] },
   node: { file: 'tailscale/node.yaml', needs: ['NODE_NAME', 'NODE_TAILNET_FQDN'] },
