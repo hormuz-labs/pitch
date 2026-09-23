@@ -88,13 +88,23 @@ export default function mediaCommands(): CommandSpec[] {
       }),
       why: Type.String({ description: 'One line describing the edit, shown to the user' }),
     }),
-    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+    async execute(_id, p: any, signal, onUpdate, ctx: any) {
       return text(
-        await hostAction(workspaceOf(ctx), 'media_ffmpeg', {
-          args: p.args,
-          out: p.out,
-          why: p.why,
-        }),
+        await hostAction(
+          workspaceOf(ctx),
+          'media_ffmpeg',
+          {
+            args: p.args,
+            out: p.out,
+            why: p.why,
+          },
+          {
+            signal,
+            progress: stage => {
+              if (typeof onUpdate === 'function') onUpdate(text(stage))
+            },
+          },
+        ),
       )
     },
   })

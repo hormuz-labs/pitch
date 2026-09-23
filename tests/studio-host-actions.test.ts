@@ -53,4 +53,17 @@ describe('host action cancellation', () => {
     await expect(callHostAction(ws.dir, 'test_guarded', {})).rejects.toThrow('Insufficient credits')
     expect(ran).toBe(false)
   })
+
+  it('can abort while the affordability guard is waiting', async () => {
+    setHostActionGuard(() => new Promise<void>(() => {}))
+    registerHostAction('test_stalled_guard', async () => 'finished')
+
+    const controller = new AbortController()
+    const running = callHostAction(ws.dir, 'test_stalled_guard', {}, { signal: controller.signal })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    controller.abort()
+
+    await expect(running).rejects.toMatchObject({ name: 'AbortError' })
+    expect(peekComputeSeconds(ws.internal)).toBeGreaterThan(0)
+  })
 })

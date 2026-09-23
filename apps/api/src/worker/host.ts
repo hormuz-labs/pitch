@@ -119,6 +119,9 @@ const activatedReservations = new Set<string>()
 
 setHostActionGuard(async (ws, name) => {
   if (!BILLABLE_GENERATION_ACTIONS.has(name)) return
+  // An actionable turn reserves credits before the model runs. Once that turn
+  // has emitted a tool call, do not repeat the same database gate per action.
+  if (hasActivatedReservation(ws)) return
   const row = await db.prisma.project.findFirst({ where: { userId: ws.userId, name: ws.name } })
   if (!row) return
   const p = parseRow(row)
@@ -181,6 +184,14 @@ interface Held {
 
 const held = new Map<string, Held>()
 const opening = new Map<string, Promise<{ h: Held; row: ProjectRow }>>()
+
+function hasActivatedReservation(ws: Workspace): boolean {
+  for (const h of held.values()) {
+    if (h.ws.internal === ws.internal)
+      return activatedReservations.has(`project:${h.id}:initial-generation`)
+  }
+  return false
+}
 
 export function holds(projectId: string): boolean {
   return held.has(projectId)

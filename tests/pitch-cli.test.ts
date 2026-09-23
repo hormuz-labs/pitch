@@ -153,6 +153,38 @@ describe('the registry', () => {
     }
   })
 
+  it('forwards cancellation and progress from media ffmpeg to the host', async () => {
+    const previous = (globalThis as any).__pitchStudioHost
+    const controller = new AbortController()
+    const onUpdate = vi.fn()
+    const call = vi.fn(async (_cwd, _name, _params, context) => {
+      context.progress('checkpointing workspace', 0)
+      return 'wrote clip'
+    })
+    ;(globalThis as any).__pitchStudioHost = { call }
+    try {
+      const command = findCommand('media', 'ffmpeg')!
+      await command.execute(
+        'test',
+        { args: ['-i', 'in.mp4', 'out.mp4'], out: 'out.mp4', why: 'test' },
+        controller.signal,
+        onUpdate,
+        { cwd: process.cwd() },
+      )
+      expect(call).toHaveBeenCalledWith(
+        process.cwd(),
+        'media_ffmpeg',
+        { args: ['-i', 'in.mp4', 'out.mp4'], out: 'out.mp4', why: 'test' },
+        expect.objectContaining({ signal: controller.signal }),
+      )
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ content: [{ type: 'text', text: 'checkpointing workspace' }] }),
+      )
+    } finally {
+      ;(globalThis as any).__pitchStudioHost = previous
+    }
+  })
+
   it('keeps demo capture separate from camera work and final rendering', () => {
     const demo = commands()
       .filter(command => command.namespace === 'demo')
