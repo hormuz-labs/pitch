@@ -140,6 +140,12 @@ export const LandingChatInput = () => {
     type()
   })
   onCleanup(() => clearTimeout(timer))
+  // Grow with the prompt so earlier lines stay visible; CSS max-height caps it.
+  createEffect(() => {
+    input()
+    area.style.height = 'auto'
+    area.style.height = `${area.scrollHeight}px`
+  })
 
   const handleFiles = (selected: FileList | null) => {
     if (!selected) return

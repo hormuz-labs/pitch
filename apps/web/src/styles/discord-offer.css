@@ -1,10 +1,10 @@
 .discord-offer { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: 24px; background: rgba(19, 20, 22, .46); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); animation: discord-offer-fade 200ms ease-out both; }
-.discord-offer__card { position: relative; width: min(100%, 460px); padding: 34px; border: 1px solid var(--border-subtle, #d9d9dc); border-radius: 20px; background: var(--bg-panel, #fff); color: var(--text-primary, #17181c); box-shadow: 0 24px 80px rgba(0,0,0,.32); text-align: center; animation: discord-offer-card 240ms cubic-bezier(.22,1,.36,1) both; }
-.discord-offer__card--announcement { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .92fr); overflow: hidden; width: min(100%, 790px); min-height: 500px; padding: 0; border-color: rgba(0,0,0,.12); border-radius: 17px; background: #fff; color: #151515; text-align: left; }
+.discord-offer__card { position: relative; width: min(100%, 460px); padding: 34px; border: 1px solid var(--border-subtle, #d9d9dc); border-radius: 20px; background: var(--bg-surface, #fff); color: var(--text-primary, #17181c); box-shadow: 0 24px 80px rgba(0,0,0,.32); text-align: center; animation: discord-offer-card 240ms cubic-bezier(.22,1,.36,1) both; }
+.discord-offer__card--announcement { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .92fr); overflow: hidden; width: min(100%, 790px); min-height: 500px; padding: 0; border-color: var(--border-default); border-radius: 17px; background: var(--bg-surface); color: var(--text-primary); text-align: left; }
 .discord-offer__close { position: absolute; top: 16px; right: 16px; z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted, #73757d); cursor: pointer; }
-.discord-offer__close:hover { background: var(--bg-subtle, #f1f1f3); color: var(--text-primary, #17181c); }
-.discord-offer__card--announcement .discord-offer__close { background: rgba(255,255,255,.76); color: #29292d; box-shadow: 0 1px 4px rgba(0,0,0,.14); }
-.discord-offer__card--announcement .discord-offer__close:hover { background: #fff; color: #000; }
+.discord-offer__close:hover { background: var(--bg-raised, #f1f1f3); color: var(--text-primary, #17181c); }
+.discord-offer__card--announcement .discord-offer__close { background: color-mix(in srgb, var(--bg-surface) 76%, transparent); color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,.14); }
+.discord-offer__card--announcement .discord-offer__close:hover { background: var(--bg-surface); color: var(--text-primary); }
 .discord-offer__stage { display: flex; min-height: 500px; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #5865f2; color: #fff; }
 .discord-offer__stage span { font: 600 12px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .12em; text-transform: uppercase; }
 .discord-offer__content { position: relative; }
@@ -16,7 +16,7 @@
 .discord-offer__card--announcement h2 { max-width: 340px; font-family: var(--font-serif, Georgia, serif); font-size: 31px; font-weight: 600; line-height: 1.05; letter-spacing: -.025em; }
 .discord-offer__content > p:not(.discord-offer__eyebrow) { margin: 14px auto 0; max-width: 380px; color: var(--text-secondary, #62646c); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
 .discord-offer__benefits { display: grid; gap: 23px; margin-top: 30px; }
-.discord-offer__benefits p { display: grid; grid-template-columns: 18px 1fr; align-items: start; gap: 12px; margin: 0; color: #242426; font-size: 13px; line-height: 1.35; }
+.discord-offer__benefits p { display: grid; grid-template-columns: 18px 1fr; align-items: start; gap: 12px; margin: 0; color: var(--text-primary); font-size: 13px; line-height: 1.35; }
 .discord-offer__benefits svg { margin-top: 1px; }
 .discord-offer__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 26px; }
 .discord-offer__actions button { min-width: 142px; min-height: 44px; padding: 0 20px; border-radius: 13px; font: 600 13px/1 var(--font-sans, system-ui, sans-serif); cursor: pointer; transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
@@ -27,12 +27,12 @@
 .discord-offer__quiet { border: 0; background: transparent; color: var(--text-muted, #73757d); }
 .discord-offer__card--announcement .discord-offer__actions { flex-direction: column; gap: 9px; margin-top: auto; padding-top: 28px; }
 .discord-offer__card--announcement .discord-offer__actions button { min-height: 36px; border-radius: 7px; }
-.discord-offer__card--announcement .discord-offer__primary { width: 100%; border-color: #111; background: #111; color: #fff; box-shadow: none; }
-.discord-offer__card--announcement .discord-offer__primary:hover { border-color: #292929; background: #292929; }
-.discord-offer__card--announcement .discord-offer__quiet { width: 100%; min-height: 34px; border: 1px solid #dedede; background: #fff; color: #29292d; }
-.discord-offer__card--announcement .discord-offer__quiet:hover { border-color: #b9b9b9; background: #f8f8f8; color: #111; }
+.discord-offer__card--announcement .discord-offer__primary { width: 100%; border-color: var(--interactive-bg); background: var(--interactive-bg); color: var(--interactive-text); box-shadow: none; }
+.discord-offer__card--announcement .discord-offer__primary:hover { border-color: var(--interactive-bg-hover); background: var(--interactive-bg-hover); }
+.discord-offer__card--announcement .discord-offer__quiet { width: 100%; min-height: 34px; border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-primary); }
+.discord-offer__card--announcement .discord-offer__quiet:hover { border-color: var(--border-strong); background: var(--bg-raised); color: var(--text-primary); }
 .discord-offer__card small { display: block; margin-top: 18px; color: var(--text-muted, #858790); font-size: 11px; }
-.discord-offer__card--announcement small { margin-top: 12px; color: #79797f; text-align: center; }
+.discord-offer__card--announcement small { margin-top: 12px; color: var(--text-muted); text-align: center; }
 .discord-offer button:focus-visible { outline: 2px solid #5865f2; outline-offset: 3px; }
 [data-theme="dark"] .discord-offer__actions .discord-offer__secondary { border-color: rgba(255,255,255,.24); background: rgba(255,255,255,.07); color: #f5f5f6; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
 [data-theme="dark"] .discord-offer__actions .discord-offer__secondary:hover { border-color: #818cf8; background: rgba(129,140,248,.12); color: #c7d2fe; }

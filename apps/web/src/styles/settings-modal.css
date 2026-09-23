@@ -19,25 +19,10 @@
 }
 
 .settings-dialog {
-  --bg-page: #ffffff;
-  --bg-surface: #ffffff;
-  --bg-raised: #f0f0ed;
-  --bg-sunken: #f4f4f2;
-  --border-subtle: rgb(0 0 0 / 7%);
-  --border-default: rgb(0 0 0 / 11%);
-  --border-strong: rgb(0 0 0 / 22%);
-  --text-primary: #17181b;
-  --text-secondary: rgb(0 0 0 / 68%);
-  --text-muted: rgb(0 0 0 / 46%);
-  --text-faint: rgb(0 0 0 / 30%);
-  --interactive-bg: #252321;
-  --interactive-bg-hover: #171615;
-  --interactive-text: #ffffff;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 5%);
-  --st-nav-text: #68625e;
-  --st-nav-hover-bg: #e9e8e6;
-  --st-nav-active-bg: #e2e1de;
-  --st-switch-off: #d6d6d3;
+  --st-nav-text: var(--text-muted);
+  --st-nav-hover-bg: var(--bg-raised);
+  --st-nav-active-bg: var(--bg-selected);
+  --st-switch-off: var(--border-default);
   --st-ring: rgb(0 0 0 / 35%);
   --st-green: #17704e;
   --st-green-bright: #14704d;
@@ -68,25 +53,6 @@
 }
 
 [data-theme="dark"] .settings-dialog {
-  --bg-page: #1b1b1f;
-  --bg-surface: #202024;
-  --bg-raised: #29292e;
-  --bg-sunken: #18181b;
-  --border-subtle: rgb(255 255 255 / 7%);
-  --border-default: rgb(255 255 255 / 11%);
-  --border-strong: rgb(255 255 255 / 22%);
-  --text-primary: #f4f4f5;
-  --text-secondary: rgb(255 255 255 / 74%);
-  --text-muted: rgb(255 255 255 / 48%);
-  --text-faint: rgb(255 255 255 / 30%);
-  --interactive-bg: #f4f4f5;
-  --interactive-bg-hover: #ffffff;
-  --interactive-text: #17181b;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
-  --st-nav-text: rgb(255 255 255 / 58%);
-  --st-nav-hover-bg: rgb(255 255 255 / 5%);
-  --st-nav-active-bg: #29292e;
-  --st-switch-off: #303036;
   --st-ring: rgb(255 255 255 / 45%);
   --st-green: #46d69a;
   --st-green-bright: #4ade80;

@@ -2,6 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply the saved theme (see solid/core/theme.tsx) before first paint, so a
+      // dark-mode visitor never sees a light frame while the app boots.
+      (function () {
+        try {
+          var t = localStorage.getItem('pitch:theme')
+          if (t !== 'dark' && t !== 'light') return
+          var root = document.documentElement
+          root.dataset.theme = t
+          root.classList.toggle('dark', t === 'dark')
+          root.style.colorScheme = t
+        } catch (e) {}
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/tabLogoB.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos." />

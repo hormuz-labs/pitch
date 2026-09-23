@@ -66,30 +66,22 @@
 .app-shell-bg {
   --shell-sidebar-width: 286px;
   --shell-nav-top: 21px;
-  --shell-bg: #f3f3f1;
-  --shell-panel: #ffffff;
-  --shell-raised: #e9e9e6;
-  --shell-hover: #e4e4e1;
-  --shell-active: #ddddda;
-  --shell-border: #dededb;
-  --shell-text: #242422;
-  --shell-muted: #777773;
-  --shell-faint: #a0a09b;
+  /* Neutrals alias styles/tokens.css, which flips them with [data-theme]. */
+  --shell-bg: var(--bg-sidebar);
+  --shell-panel: var(--bg-page);
+  --shell-raised: var(--bg-page);
+  --shell-hover: var(--bg-raised);
+  --shell-active: var(--bg-selected);
+  --shell-border: var(--border-subtle);
+  --shell-text: var(--text-primary);
+  --shell-muted: var(--text-muted);
+  --shell-faint: var(--text-faint);
   background: var(--shell-bg);
   color: var(--shell-text);
   color-scheme: light;
 }
 
 [data-theme="dark"] .app-shell-bg {
-  --shell-bg: #171817;
-  --shell-panel: #101110;
-  --shell-raised: #222322;
-  --shell-hover: #272927;
-  --shell-active: #2d2f2d;
-  --shell-border: rgb(255 255 255 / 10%);
-  --shell-text: #eeeeeb;
-  --shell-muted: #aaa9a5;
-  --shell-faint: #777974;
   color-scheme: dark;
   background: var(--shell-bg) !important;
 }
@@ -508,7 +500,7 @@
 }
 
 .conversation-sidebar__social:hover {
-  background: #292c29;
+  background: var(--shell-hover);
 }
 
 .conversation-sidebar__invite {
@@ -658,10 +650,6 @@
   }
 }
 
-:root:not([data-theme="dark"]) .app-shell-bg:has(> .app-shell-panel--studio) {
-  --shell-bg: #ffffff;
-}
-
 .app-shell-main {
   background: var(--shell-panel) !important;
 }
@@ -732,8 +720,6 @@
 }
 
 /* Workspace navigation stays compact; recent work and everyday controls are separate. */
-.app-shell-bg { --shell-bg: #fbfaf9; --shell-raised: #fff; --shell-hover: #f1f0ef; --shell-active: #ecebea; --shell-border: #e2e1df; --shell-text: #191919; --shell-muted: #5f5d5a; --shell-faint: #9a9692; }
-[data-theme="dark"] .app-shell-bg { --shell-bg: var(--workspace-canvas); --shell-panel: var(--workspace-canvas); --shell-raised: var(--workspace-surface); --shell-hover: var(--workspace-raised); --shell-active: #383838; --shell-border: #3a3a3a; --shell-text: #eeeeeb; --shell-muted: #b3b3ae; --shell-faint: #92928d; }
 .conversation-sidebar__brand { height: auto; padding: var(--shell-nav-top) 12px 9px; justify-content: space-between; gap: 8px; }
 .conversation-sidebar__wordmark-svg { display: block; padding-bottom: 4px; }
 .conversation-sidebar__wordmark img { width: 28px; height: 28px; border-radius: 7px; }
