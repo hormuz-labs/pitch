@@ -42,7 +42,8 @@ const routes = [
   // on a headline string that later changed, so `/` silently stopped
   // prerendering and shipped as an empty SPA shell while every other route was
   // fine. A selector survives copy edits; marketing copy does not.
-  { path: '/', selector: '.lb-root .lb-endcap-title' },
+  { path: '/', selector: '.lb-root .lb-agenc-title' },
+  { path: '/AgenC', selector: '.lb-root .lb-agenc-page-title' },
   { path: '/pricing', expect: 'Pricing' },
   { path: '/about', expect: 'About Us' },
   { path: '/blog', expect: 'Blog' },

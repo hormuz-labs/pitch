@@ -2,31 +2,24 @@
 .new-shell-main,
 .new-project-page,
 .account-topnav {
-  --new-bg: var(--workspace-canvas, #202020);
-  --new-surface: var(--workspace-surface, #282828);
-  --new-raised: var(--workspace-raised, #303030);
-  --new-border: #383838;
-  --new-input-border: #484848;
-  --new-ink: #eeeeee;
-  --new-muted: #a0a0a0;
-  --new-faint: #797979;
-  --new-selected: #242f43;
-  --new-blue: #9abaff;
-  --new-shadow: 0 4px 18px rgb(0 0 0 / 10%);
-}
-
-[data-theme="light"] :is(.new-shell-main, .new-project-page, .account-topnav) {
-  --new-bg: #ffffff;
-  --new-surface: #ffffff;
-  --new-raised: #f6f6f6;
-  --new-border: #e9e9e9;
-  --new-input-border: #d7d7d7;
-  --new-ink: #202020;
-  --new-muted: #737373;
-  --new-faint: #8b8b8b;
+  /* Neutrals alias styles/tokens.css so /new matches the landing and app. */
+  --new-bg: var(--bg-page);
+  --new-surface: var(--bg-surface);
+  --new-raised: var(--bg-raised);
+  --new-border: var(--border-subtle);
+  --new-input-border: var(--border-default);
+  --new-ink: var(--text-primary);
+  --new-muted: var(--text-muted);
+  --new-faint: var(--text-faint);
   --new-selected: #eef3ff;
   --new-blue: #3869cc;
   --new-shadow: 0 4px 14px rgb(0 0 0 / 6%);
+}
+
+[data-theme="dark"] :is(.new-shell-main, .new-project-page, .account-topnav) {
+  --new-selected: #242f43;
+  --new-blue: #9abaff;
+  --new-shadow: 0 4px 18px rgb(0 0 0 / 10%);
 }
 
 .app-shell-main.new-shell-main { background: var(--new-bg) !important; }
@@ -137,10 +130,11 @@
 .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 190px; min-height: 34px; padding: 7px 25px 7px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--new-muted); font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
 .new-composer-wrap label:has(.model-btn) svg { right: 6px; color: var(--new-muted); width: 14px; }
 .lv-studio.new-project-page .model-btn option { background: var(--new-surface); color: var(--new-ink); }
-.lv-studio.new-project-page button.generate-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: #111; color: #fff; box-shadow: none; }
-.lv-studio.new-project-page button.generate-button:hover:not(:disabled) { background: #000; transform: none; }
+.lv-studio.new-project-page button.generate-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--interactive-bg); color: var(--interactive-text); box-shadow: none; }
+.lv-studio.new-project-page button.generate-button:hover:not(:disabled) { background: var(--interactive-bg-hover); transform: none; }
 .lv-studio.new-project-page button.generate-button[data-ready="false"] { background: #d8d8d8; color: #fff; }
-.lv-studio.new-project-page button.generate-button[data-generating="true"] { background: #111; }
+[data-theme="dark"] .lv-studio.new-project-page button.generate-button[data-ready="false"] { background: var(--bg-selected); color: var(--text-faint); }
+.lv-studio.new-project-page button.generate-button[data-generating="true"] { background: var(--interactive-bg); }
 .lv-studio.new-project-page button.generate-button svg { width: 18px; height: 18px; stroke-width: 2.35; }
 .new-prompt-tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 4px 9px; }
 .lv-studio.new-project-page .new-prompt-tokens button { min-height: 26px; padding: 4px 7px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--new-border); border-radius: 7px; background: var(--new-raised); color: var(--new-muted); font-size: 11px; line-height: 1; }
@@ -230,8 +224,8 @@
 .lv-studio.new-project-page .new-featured__video { display: block; position: relative; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; text-align: left; }
 .lv-studio.new-project-page .new-featured__video:hover:not(:disabled) { background: transparent; }
 .new-featured__image { width: 100%; aspect-ratio: 1.7; overflow: hidden; border-radius: 17px; border: 1px solid var(--new-border); background: var(--new-raised); }
-.new-featured__video video { width: 100%; height: 100%; object-fit: cover; transition: transform 400ms ease; }
-.new-featured__video:hover video { transform: scale(1.03); }
+.new-featured__video :is(video, img) { width: 100%; height: 100%; object-fit: cover; transition: transform 400ms ease; }
+.new-featured__video:hover :is(video, img) { transform: scale(1.03); }
 .new-featured__video > span { display: block; overflow: hidden; padding: 10px 8px 0; color: var(--new-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .new-featured__category { display: flex; align-items: center; gap: 8px; margin: 30px 2px 14px; color: var(--new-muted); font-size: 13px; font-weight: 400; }
 .new-featured__category svg { color: #599bea; }

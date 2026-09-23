@@ -123,14 +123,17 @@ export const LandingNav = () => {
     [mobileOpen, setMobileOpen] = createSignal(false)
   const id = createUniqueId()
   let button!: HTMLButtonElement
+  const closeMobile = () => {
+    setMobileOpen(false)
+    queueMicrotask(() => button.focus())
+  }
   createEffect(() => {
     if (!mobileOpen()) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setMobileOpen(false)
-        button.focus()
+        closeMobile()
       }
     }
     const resize = () => innerWidth > 880 && setMobileOpen(false)
@@ -176,12 +179,12 @@ export const LandingNav = () => {
             <A href="/affiliates" class="lb-nav-link">
               Affiliates
             </A>
+            <A href="/AgenC" class="lb-nav-link">
+              Need an epic launch video?
+            </A>
             <button type="button" class="lb-nav-link" onClick={() => setMcpOpen(true)}>
               API / MCP
             </button>
-            <A href="/docs" class="lb-nav-link">
-              Docs
-            </A>
           </div>
           <div class="lb-nav-r">
             <div class="lb-nav-social">
@@ -217,17 +220,21 @@ export const LandingNav = () => {
             </button>
           </div>
         </div>
-        <Show when={mobileOpen()}>
-          <div id={id} class="lb-mobile-menu">
+      </nav>
+      <Show when={mobileOpen()}>
+        <Portal>
+          <button
+            type="button"
+            class="lb-mobile-scrim lb-mobile-scrim--landing"
+            aria-label="Close navigation"
+            onClick={closeMobile}
+          />
+          <div id={id} class="lb-mobile-menu lb-mobile-menu--landing lb-chrome">
             <p class="lb-mobile-menu-label">Product</p>
             <div class="lb-mobile-products">
               <For each={PRODUCTS}>
                 {p => (
-                  <A
-                    href={`/product/${p.slug}`}
-                    class="lb-mobile-product"
-                    onClick={() => setMobileOpen(false)}
-                  >
+                  <A href={`/product/${p.slug}`} class="lb-mobile-product" onClick={closeMobile}>
                     <span class="lb-mobile-product-icon">
                       <ProductGlyph icon={p.icon} />
                     </span>
@@ -237,8 +244,15 @@ export const LandingNav = () => {
               </For>
             </div>
             <div class="lb-mobile-links">
-              <A href="/pricing">Pricing</A>
-              <A href="/affiliates">Affiliates</A>
+              <A href="/pricing" onClick={closeMobile}>
+                Pricing
+              </A>
+              <A href="/affiliates" onClick={closeMobile}>
+                Affiliates
+              </A>
+              <A href="/AgenC" onClick={closeMobile}>
+                Need an epic launch video?
+              </A>
               <button
                 onClick={() => {
                   setMobileOpen(false)
@@ -247,7 +261,6 @@ export const LandingNav = () => {
               >
                 API / MCP
               </button>
-              <A href="/docs">Docs</A>
             </div>
             <div class="lb-mobile-appearance">
               <span>Appearance</span>
@@ -269,18 +282,8 @@ export const LandingNav = () => {
               </div>
             </div>
           </div>
-        </Show>
-      </nav>
-      <Portal>
-        <button
-          type="button"
-          class="lb-mobile-scrim"
-          data-open={mobileOpen() || undefined}
-          aria-hidden={!mobileOpen()}
-          tabIndex={mobileOpen() ? 0 : -1}
-          onClick={() => setMobileOpen(false)}
-        />
-      </Portal>
+        </Portal>
+      </Show>
       <Show when={mcpOpen()}>
         <Portal>
           <div

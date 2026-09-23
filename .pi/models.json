@@ -4,7 +4,9 @@
       "baseUrl": "https://peterang-7794-apim.azure-api.net/openai/v1",
       "api": "openai-responses",
       "apiKey": "!sh -c 'if [ -n \"$AZURE_APIM_PRIMARY_KEY\" ]; then printf %s \"$AZURE_APIM_PRIMARY_KEY\"; else printf %s \"$AZURE_APIM_SECONDARY_KEY\"; fi'",
-      "headers": { "api-key": "!sh -c 'if [ -n \"$AZURE_APIM_PRIMARY_KEY\" ]; then printf %s \"$AZURE_APIM_PRIMARY_KEY\"; else printf %s \"$AZURE_APIM_SECONDARY_KEY\"; fi'" },
+      "headers": {
+        "api-key": "!sh -c 'if [ -n \"$AZURE_APIM_PRIMARY_KEY\" ]; then printf %s \"$AZURE_APIM_PRIMARY_KEY\"; else printf %s \"$AZURE_APIM_SECONDARY_KEY\"; fi'"
+      },
       "models": [
         {
           "id": "gpt-5.5",
@@ -36,6 +38,24 @@
         {
           "id": "gpt-5.6-sol",
           "name": "Sol",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 4, "output": 20, "cacheRead": 0.5, "cacheWrite": 6.25 },
+          "contextWindow": 200000,
+          "maxTokens": 65536
+        },
+        {
+          "id": "gpt-6-luna",
+          "name": "GPT-6 Luna",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 0.2, "output": 1.2, "cacheRead": 0.02, "cacheWrite": 0.25 },
+          "contextWindow": 200000,
+          "maxTokens": 65536
+        },
+        {
+          "id": "gpt-6-sol",
+          "name": "GPT-6 Sol",
           "reasoning": true,
           "input": ["text", "image"],
           "cost": { "input": 4, "output": 20, "cacheRead": 0.5, "cacheWrite": 6.25 },

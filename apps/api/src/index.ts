@@ -143,7 +143,7 @@ if (IS_API) {
 
   // MCP + public REST API: API-key auth (Clerk must never see these Bearer
   // tokens) and base64 uploads above the default JSON limit.
-  app.use('/mcp', mcpRoutes)
+  app.use('/mcp', cors({ origin: true }), mcpRoutes)
   app.use('/v1', cors({ origin: true }), v1Routes)
 
   app.use(express.json({ limit: '50mb' }))

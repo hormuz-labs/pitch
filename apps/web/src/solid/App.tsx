@@ -7,6 +7,7 @@ import { useAuth, useClerk } from './core/auth.tsx'
 import { routeComponent } from './core/routes.tsx'
 
 const Landing = routeComponent('landing')
+const AgenC = routeComponent('agenc')
 const Pricing = routeComponent('pricing')
 const About = routeComponent('about')
 const Blog = routeComponent('blog')
@@ -180,6 +181,7 @@ export default function App() {
   return (
     <Router root={AppRoot}>
       <Route path="/" component={Landing} />
+      <Route path="/AgenC" component={AgenC} />
       <Route path="/pricing" component={PricingRoute} />
       <Route path="/about" component={About} />
       <Route path="/blog" component={Blog} />

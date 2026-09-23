@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
-body{margin:0;background:#ececec;-webkit-font-smoothing:antialiased}
+body{margin:0;background:transparent;-webkit-font-smoothing:antialiased}
 a{color:#1a7fe8;text-decoration:none}
 a:hover{color:#0d1017}
 @keyframes omUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -24,13 +24,15 @@ a:hover{color:#0d1017}
 @keyframes omGrowX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes omPress{0%,100%{transform:scale(1)}45%{transform:scale(.84)}}
 @keyframes omRipple{0%{opacity:.4;transform:scale(.6)}100%{opacity:0;transform:scale(2.3)}}
+@keyframes omPanelUp{from{opacity:0;transform:translateY(42px)}to{opacity:1;transform:translateY(0)}}
+@keyframes omPanelDown{from{opacity:0;transform:translateY(-42px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </helmet>
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Helvetica,Arial,sans-serif;background:#ececec;min-height:100vh;box-sizing:border-box;padding:56px 44px;display:flex;justify-content:center">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Helvetica,Arial,sans-serif;background:transparent;min-height:100vh;box-sizing:border-box;padding:56px 44px;display:flex;justify-content:center">
 <div style="width:100%;max-width:1180px;display:grid;grid-template-columns:472px 1fr;gap:78px;align-items:start">
 
 <div style="display:flex;flex-direction:column;gap:13px">
-<div style="display:flex;align-items:center;justify-content:space-between;font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#8b9096">
+<div style="display:flex;align-items:center;justify-content:space-between;font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#4f555b">
 <div style="display:flex;align-items:center;gap:8px"><span style="width:5px;height:5px;border-radius:50%;background:#1a7fe8;animation:omPulse 2s ease-in-out infinite"></span><span>AGENT PIPELINE</span></div>
 <span>{{ counter }}</span>
 </div>
@@ -85,7 +87,7 @@ a:hover{color:#0d1017}
 <div style="{{ bubble }}">Trim the intro to two seconds</div>
 <div style="{{ badge }}">{{ badgeText }}</div>
 
-<div style="position:absolute;left:0;top:282px;display:flex;align-items:center;gap:8px;font:400 10px/1 'JetBrains Mono',monospace;color:#8b9096">
+<div style="position:absolute;left:0;top:282px;display:flex;align-items:center;gap:8px;font:400 10px/1 'JetBrains Mono',monospace;color:#4f555b">
 <span style="width:4px;height:4px;border-radius:50%;background:#1a7fe8;animation:omPulse 1.6s ease-in-out infinite"></span>
 <span>{{ status }}</span>
 </div>
@@ -102,10 +104,10 @@ a:hover{color:#0d1017}
 
 <div style="padding-top:2px">
 <sc-if value="{{ is1 }}" hint-placeholder-val="{{ true }}">
-<div>
+<div style="{{ panelEnter }}">
 <div style="display:flex;align-items:center;gap:12px;opacity:0;animation:omUp .5s ease-out .05s forwards">
 <span style="width:26px;height:26px;border-radius:50%;border:1px solid #1a7fe8;color:#1a7fe8;font:500 10px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center">01</span>
-<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#70767b">THE BRIEF</span>
+<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#42474c">THE BRIEF</span>
 </div>
 <h2 style="margin:22px 0 0;font-size:46px;line-height:1.02;letter-spacing:-.03em;font-weight:400;color:#0d1017;opacity:0;animation:omUp .55s ease-out .12s forwards">Prompt</h2>
 <p style="margin:20px 0 0;max-width:440px;font-size:17px;line-height:1.5;color:#3d4348;text-wrap:pretty;opacity:0;animation:omUp .55s ease-out .2s forwards">Describe the demo in one sentence and drop the URL. No storyboard, no script to write.</p>
@@ -114,14 +116,14 @@ a:hover{color:#0d1017}
 <span style="padding:9px 15px;border:1px solid #d7d9db;border-radius:999px;background:#fff;font:400 12px/1 'JetBrains Mono',monospace;color:#3d4348">Pick a voice</span>
 <span style="padding:9px 15px;border:1px solid #d7d9db;border-radius:999px;background:#fff;font:400 12px/1 'JetBrains Mono',monospace;color:#3d4348">Aspect &amp; length</span>
 </div>
-<div style="margin-top:26px;max-width:490px;border:1px dashed #cdd0d2;border-radius:8px;padding:14px 16px;font:400 12px/1 'JetBrains Mono',monospace;color:#8b9096;opacity:0;animation:omUp .55s ease-out .36s forwards">one sentence · accepted as the brief</div>
+<div style="margin-top:26px;max-width:490px;border:1px dashed #cdd0d2;border-radius:8px;padding:14px 16px;font:400 12px/1 'JetBrains Mono',monospace;color:#4f555b;opacity:0;animation:omUp .55s ease-out .36s forwards">one sentence · accepted as the brief</div>
 </div>
 </sc-if>
 <sc-if value="{{ is2 }}" hint-placeholder-val="{{ false }}">
-<div>
+<div style="{{ panelEnter }}">
 <div style="display:flex;align-items:center;gap:12px;opacity:0;animation:omUp .5s ease-out .05s forwards">
 <span style="width:26px;height:26px;border-radius:50%;border:1px solid #1a7fe8;color:#1a7fe8;font:500 10px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center">02</span>
-<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#70767b">UNDERSTANDING</span>
+<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#42474c">UNDERSTANDING</span>
 </div>
 <h2 style="margin:22px 0 0;font-size:46px;line-height:1.02;letter-spacing:-.03em;font-weight:400;color:#0d1017;opacity:0;animation:omUp .55s ease-out .12s forwards">Research</h2>
 <p style="margin:20px 0 0;max-width:440px;font-size:17px;line-height:1.5;color:#3d4348;text-wrap:pretty;opacity:0;animation:omUp .55s ease-out .2s forwards">The agent reads your site and brand: real colours, type and tone, plus the flows actually worth showing.</p>
@@ -130,14 +132,14 @@ a:hover{color:#0d1017}
 <span style="padding:9px 15px;border:1px solid #d7d9db;border-radius:999px;background:#fff;font:400 12px/1 'JetBrains Mono',monospace;color:#3d4348">Pulls brand</span>
 <span style="padding:9px 15px;border:1px solid #d7d9db;border-radius:999px;background:#fff;font:400 12px/1 'JetBrains Mono',monospace;color:#3d4348">Finds the flows</span>
 </div>
-<div style="margin-top:26px;max-width:490px;border:1px dashed #cdd0d2;border-radius:8px;padding:14px 16px;font:400 12px/1 'JetBrains Mono',monospace;color:#8b9096;opacity:0;animation:omUp .55s ease-out .36s forwards">signed in · walked 6 flows · 240 frames captured</div>
+<div style="margin-top:26px;max-width:490px;border:1px dashed #cdd0d2;border-radius:8px;padding:14px 16px;font:400 12px/1 'JetBrains Mono',monospace;color:#4f555b;opacity:0;animation:omUp .55s ease-out .36s forwards">signed in · walked 6 flows · 240 frames captured</div>
 </div>
 </sc-if>
 <sc-if value="{{ is3 }}" hint-placeholder-val="{{ false }}">
-<div>
+<div style="{{ panelEnter }}">
 <div style="display:flex;align-items:center;gap:12px;opacity:0;animation:omUp .5s ease-out .05s forwards">
 <span style="width:26px;height:26px;border-radius:50%;border:1px solid #1a7fe8;color:#1a7fe8;font:500 10px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center">03</span>
-<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#70767b">DIRECTION</span>
+<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#42474c">DIRECTION</span>
 </div>
 <h2 style="margin:22px 0 0;font-size:46px;line-height:1.02;letter-spacing:-.03em;font-weight:400;color:#0d1017;opacity:0;animation:omUp .55s ease-out .12s forwards">Plan</h2>
 <p style="margin:20px 0 0;max-width:440px;font-size:17px;line-height:1.5;color:#3d4348;text-wrap:pretty;opacity:0;animation:omUp .55s ease-out .2s forwards">It storyboards the cut scene by scene, with pacing, a shot list and the narration beat for each moment.</p>
@@ -153,10 +155,10 @@ a:hover{color:#0d1017}
 </div>
 </sc-if>
 <sc-if value="{{ is4 }}" hint-placeholder-val="{{ false }}">
-<div>
+<div style="{{ panelEnter }}">
 <div style="display:flex;align-items:center;gap:12px;opacity:0;animation:omUp .5s ease-out .05s forwards">
 <span style="width:26px;height:26px;border-radius:50%;border:1px solid #1a7fe8;color:#1a7fe8;font:500 10px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center">04</span>
-<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#70767b">PRODUCTION</span>
+<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#42474c">PRODUCTION</span>
 </div>
 <h2 style="margin:22px 0 0;font-size:46px;line-height:1.02;letter-spacing:-.03em;font-weight:400;color:#0d1017;opacity:0;animation:omUp .55s ease-out .12s forwards">Shoot</h2>
 <p style="margin:20px 0 0;max-width:440px;font-size:17px;line-height:1.5;color:#3d4348;text-wrap:pretty;opacity:0;animation:omUp .55s ease-out .2s forwards">It drives the real product, records every scene, then narrates, scores and colour-grades a 1080p cut.</p>
@@ -178,10 +180,10 @@ a:hover{color:#0d1017}
 </div>
 </sc-if>
 <sc-if value="{{ is5 }}" hint-placeholder-val="{{ false }}">
-<div>
+<div style="{{ panelEnter }}">
 <div style="display:flex;align-items:center;gap:12px;opacity:0;animation:omUp .5s ease-out .05s forwards">
 <span style="width:26px;height:26px;border-radius:50%;border:1px solid #1a7fe8;color:#1a7fe8;font:500 10px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center">05</span>
-<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#70767b">ITERATE</span>
+<span style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:#42474c">ITERATE</span>
 </div>
 <h2 style="margin:22px 0 0;font-size:46px;line-height:1.02;letter-spacing:-.03em;font-weight:400;color:#0d1017;opacity:0;animation:omUp .55s ease-out .12s forwards">Edit</h2>
 <p style="margin:20px 0 0;max-width:440px;font-size:17px;line-height:1.5;color:#3d4348;text-wrap:pretty;opacity:0;animation:omUp .55s ease-out .2s forwards">Every layer stays editable. Swap a voice, trim a scene, restyle a caption. No full re-render, no hallucinated frames.</p>
@@ -212,11 +214,11 @@ const SCENES = [
   { n: '05', name: 'Sign-off', d: 8, time: '0:08' }
 ];
 const SCATTER = [
-  { left: 4, top: 84, rot: -3.5 },
-  { left: 92, top: 72, rot: 2.5 },
-  { left: 180, top: 90, rot: -1.5 },
-  { left: 268, top: 70, rot: 3 },
-  { left: 356, top: 86, rot: -2.5 }
+  { left: 4, top: 102, rot: -3.5 },
+  { left: 92, top: 96, rot: 2.5 },
+  { left: 180, top: 104, rot: -1.5 },
+  { left: 268, top: 95, rot: 3 },
+  { left: 356, top: 101, rot: -2.5 }
 ];
 const HEX = ['#0d1017', '#5b5f66', '#8c9297', '#d9ccac', '#f0efec'];
 const CHIPS = ['demo', 'voice · warm', '1080p'];
@@ -228,7 +230,7 @@ function ribbon(durs, top, h) {
 }
 
 class Component extends DCLogic {
-  state = { step: 0, armed: false };
+  state = { step: 0, armed: false, direction: 1 };
 
   durs() { const sp = this.props.speed ?? 1; return [7.5, 8, 7.5, 8, 8].map(d => d / sp); }
 
@@ -237,11 +239,12 @@ class Component extends DCLogic {
 
   go(next) {
     clearTimeout(this.t);
+    const direction = next >= this.state.step ? 1 : -1;
     if (next === 0) {
-      this.setState({ step: 0, armed: false }, () => {
+      this.setState({ step: 0, armed: false, direction }, () => {
         this.r = requestAnimationFrame(() => this.setState({ armed: true }, () => this.queue()));
       });
-    } else this.setState({ step: next }, () => this.queue());
+    } else this.setState({ step: next, direction }, () => this.queue());
   }
 
   queue() {
@@ -296,7 +299,7 @@ class Component extends DCLogic {
         num: {
           position: 'absolute', left: '7px', top: '7px',
           font: "400 9px/1 'JetBrains Mono',monospace", letterSpacing: '.08em',
-          color: filled ? 'rgba(255,255,255,.7)' : '#8b9096',
+          color: filled ? 'rgba(255,255,255,.82)' : '#555b61',
           opacity: (ribbonStep && geo[i].width > 40) ? 1 : 0,
           transition: 'opacity .5s ease .4s, color .6s ease'
         },
@@ -304,13 +307,13 @@ class Component extends DCLogic {
           position: 'absolute', left: geo[i].left + 'px', top: '178px',
           width: geo[i].width + 'px', whiteSpace: 'nowrap', overflow: 'hidden',
           font: "400 9.5px/1.5 'JetBrains Mono',monospace",
-          color: active ? '#0d1017' : '#9aa0a5',
+          color: active ? '#0d1017' : '#62686e',
           opacity: ribbonStep ? 1 : 0,
           transition: 'all .8s ' + EZ + ' ' + (200 + i * 60) + 'ms'
         },
         tc: {
           display: 'block',
-          color: active ? '#1a7fe8' : '#b3b8bd',
+          color: active ? '#1a7fe8' : '#777d83',
           transition: 'color .6s ease'
         }
       };
@@ -322,14 +325,14 @@ class Component extends DCLogic {
         border: i === 4 ? '1px solid #e4e4e2' : '1px solid rgba(13,16,23,.08)',
         transition: 'all .9s ' + EZ + ' ' + (i * 55) + 'ms'
       };
-      if (s <= 0) Object.assign(box, { left: (i * 52) + 'px', top: '182px', width: '44px', height: '4px', borderRadius: '2px', opacity: 0 });
-      else if (s === 1) Object.assign(box, { left: (i * 52) + 'px', top: '168px', width: '44px', height: '26px', borderRadius: '5px', opacity: 1 });
+      if (s <= 0) Object.assign(box, { left: (i * 52) + 'px', top: '198px', width: '44px', height: '4px', borderRadius: '2px', opacity: 0 });
+      else if (s === 1) Object.assign(box, { left: (i * 52) + 'px', top: '188px', width: '44px', height: '26px', borderRadius: '5px', opacity: 1 });
       else Object.assign(box, { left: (i * (W / 5)) + 'px', top: '168px', width: (W / 5) + 'px', height: '3px', borderRadius: '0px', opacity: .9, border: 'none' });
       return {
         code: HEX[i], box,
         hex: {
           position: 'absolute', left: 0, top: '30px',
-          font: "400 8px/1 'JetBrains Mono',monospace", color: '#a8adb2',
+          font: "400 8px/1 'JetBrains Mono',monospace", color: '#5f656b',
           opacity: s === 1 ? 1 : 0, transition: 'opacity .5s ease ' + (300 + i * 55) + 'ms'
         }
       };
@@ -356,7 +359,7 @@ class Component extends DCLogic {
       left: (prompt ? 18 : 14) + 'px',
       top: (prompt ? top0 : top1) + 'px',
       fontSize: (prompt ? 15 : 9.5) + 'px',
-      color: prompt ? '#0d1017' : 'rgba(13,16,23,.42)',
+       color: prompt ? '#0d1017' : 'rgba(13,16,23,.64)',
       clipPath: intro ? 'inset(0 100% 0 0)' : 'inset(0 -2px 0 0)',
       transition: intro ? 'none'
         : 'left .9s ' + EZ + ',top .9s ' + EZ + ',font-size .9s ' + EZ + ',color .9s ' + EZ + ',clip-path 1.15s steps(26,end) ' + clipDelay
@@ -393,6 +396,9 @@ class Component extends DCLogic {
         're-cut scene 01. nothing else changes'][s],
       is1: s === 0, is2: s === 1, is3: s === 2, is4: s === 3, is5: s === 4,
       tiles, swatches, waves, bars, chips,
+      panelEnter: {
+        animation: (this.state.direction > 0 ? 'omPanelUp' : 'omPanelDown') + ' .62s ' + EZ + ' both'
+      },
       composer: {
         position: 'absolute', boxSizing: 'border-box',
         left: '0px',
@@ -436,14 +442,14 @@ class Component extends DCLogic {
         transition: 'all .7s ' + EZ + ' .25s', pointerEvents: 'none'
       },
       capLabel: {
-        position: 'absolute', left: '0px', top: '70px',
-        font: "400 9px/1 'JetBrains Mono',monospace", letterSpacing: '.18em',
-        color: '#a8adb2', opacity: s === 1 ? 1 : 0, transition: 'opacity .6s ease .3s'
+        position: 'absolute', left: '0px', top: '82px',
+        font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: '.16em',
+        color: '#4f555b', opacity: s === 1 ? 1 : 0, transition: 'opacity .6s ease .3s'
       },
       palLabel: {
-        position: 'absolute', left: '0px', top: '148px',
-        font: "400 9px/1 'JetBrains Mono',monospace", letterSpacing: '.18em',
-        color: '#a8adb2', opacity: s === 1 ? 1 : 0, transition: 'opacity .6s ease .3s'
+        position: 'absolute', left: '0px', top: '168px',
+        font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: '.16em',
+        color: '#4f555b', opacity: s === 1 ? 1 : 0, transition: 'opacity .6s ease .3s'
       },
       playhead: {
         position: 'absolute', left: '0px', top: '90px', width: '1.5px', height: '76px',

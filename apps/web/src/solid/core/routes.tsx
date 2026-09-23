@@ -18,6 +18,7 @@ const route = (path: string, exportName: string): RouteModuleContract => ({ path
 
 export const ROUTE_MODULES = {
   landing: route('../public/LandingView.tsx', 'LandingView'),
+  agenc: route('../public/AgenCView.tsx', 'AgenCView'),
   pricing: route('../public/PublicPricingView.tsx', 'PublicPricingView'),
   about: route('../public/LegalViews.tsx', 'AboutUs'),
   blog: route('../public/Blog.tsx', 'Blog'),
@@ -77,6 +78,7 @@ export const routeComponent = (id: RouteModuleId) => lazy(() => loadRouteModule(
 
 const PUBLIC_PRELOADS: ReadonlyArray<[RegExp, RouteModuleId]> = [
   [/^\/$/, 'landing'],
+  [/^\/AgenC\/?$/, 'agenc'],
   [/^\/pricing\/?$/, 'pricing'],
   [/^\/about\/?$/, 'about'],
   [/^\/blog\/?$/, 'blog'],

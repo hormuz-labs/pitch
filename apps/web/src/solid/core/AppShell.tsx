@@ -74,6 +74,8 @@ export function AppShell(props: ParentProps) {
   )
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [discordPromoOpen, setDiscordPromoOpen] = createSignal(false)
+  const [discordPromoEligible, setDiscordPromoEligible] = createSignal(false)
+  const [onboardingSettled, setOnboardingSettled] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
   const pendingProjectPins = new Map<string, string | null>()
   const selectedKey = createMemo(() => routeKey(location.pathname))
@@ -92,6 +94,7 @@ export function AppShell(props: ParentProps) {
 
   const dismissDiscordPromo = async () => {
     setDiscordPromoOpen(false)
+    setDiscordPromoEligible(false)
     try {
       const token = await auth.getToken()
       if (token) await api.patch('/users/me', token, { discordPromoSeen: true })
@@ -101,12 +104,7 @@ export function AppShell(props: ParentProps) {
   }
 
   const considerDiscordPromo = (profile: UserProfile) => {
-    if (profile.discordPromoSeenAt || selectedKey() !== 'new') return
-    window.setTimeout(() => {
-      if (!document.querySelector('.onboarding-survey') && !settingsSection()) {
-        setDiscordPromoOpen(true)
-      }
-    }, 800)
+    setDiscordPromoEligible(!profile.discordPromoSeenAt)
   }
 
   const loadProjects = async () => {
@@ -245,6 +243,13 @@ export function AppShell(props: ParentProps) {
   })
 
   createEffect(() => {
+    if (!discordPromoEligible() || !onboardingSettled() || selectedKey() !== 'new') return
+    if (settingsSection()) return
+    const timer = window.setTimeout(() => setDiscordPromoOpen(true), 800)
+    onCleanup(() => window.clearTimeout(timer))
+  })
+
+  createEffect(() => {
     const user = userAccessor()
     if (!user) return
     setIsAdmin(false)
@@ -300,7 +305,7 @@ export function AppShell(props: ParentProps) {
       <div
         class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}${selectedKey() === 'new' ? ' is-new-shell' : ''}`}
       >
-        <OnboardingSurvey />
+        <OnboardingSurvey onSettled={() => setOnboardingSettled(true)} />
         <Show when={discordPromoOpen()}>
           <DiscordOfferModal
             mode="announcement"

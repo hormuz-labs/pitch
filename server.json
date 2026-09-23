@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "co.trypitch/pitch",
   "title": "Pitch",
-  "description": "Turn any product URL into a narrated, cinematic demo video. Also generates launch videos, slide decks, and edits screen recordings.",
-  "version": "1.0.0",
+  "description": "Turn URLs, recordings, docs, assets, or ideas into launch films, demo recordings, and decks.",
+  "version": "1.0.1",
   "websiteUrl": "https://trypitch.co",
   "remotes": [
     {

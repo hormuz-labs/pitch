@@ -16,6 +16,8 @@ export const AZURE_GPT_55_SPEC = 'azure-apim/gpt-5.5'
 export const AZURE_LUNA_SPEC = 'azure-apim/gpt-5.6-luna'
 export const AZURE_TERRA_SPEC = 'azure-apim/gpt-5.6-terra'
 export const AZURE_SOL_SPEC = 'azure-apim/gpt-5.6-sol'
+export const AZURE_GPT_6_LUNA_SPEC = 'azure-apim/gpt-6-luna'
+export const AZURE_GPT_6_SOL_SPEC = 'azure-apim/gpt-6-sol'
 export const AZURE_ASTRA_SPEC = 'azure-apim/gpt-6-astra'
 
 /** Menu order. The first runnable entry is also the studio default. */
@@ -30,6 +32,8 @@ export const DEFAULT_STUDIO_MODELS = [
   AZURE_LUNA_SPEC,
   AZURE_TERRA_SPEC,
   AZURE_SOL_SPEC,
+  AZURE_GPT_6_LUNA_SPEC,
+  AZURE_GPT_6_SOL_SPEC,
   AZURE_ASTRA_SPEC,
 ] as const
 
@@ -47,6 +51,8 @@ export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
   [AZURE_LUNA_SPEC]: 0.75,
   [AZURE_TERRA_SPEC]: 1,
   [AZURE_SOL_SPEC]: 1,
+  [AZURE_GPT_6_LUNA_SPEC]: 0.75,
+  [AZURE_GPT_6_SOL_SPEC]: 1,
   [AZURE_ASTRA_SPEC]: 2,
 }
 
@@ -61,6 +67,8 @@ const LABELS: Record<string, string> = {
   [AZURE_LUNA_SPEC]: 'Luna',
   [AZURE_TERRA_SPEC]: 'Terra',
   [AZURE_SOL_SPEC]: 'Sol',
+  [AZURE_GPT_6_LUNA_SPEC]: 'GPT-6 Luna',
+  [AZURE_GPT_6_SOL_SPEC]: 'GPT-6 Sol',
   [AZURE_ASTRA_SPEC]: 'Astra',
 }
 
