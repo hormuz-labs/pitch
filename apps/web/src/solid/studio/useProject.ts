@@ -605,7 +605,8 @@ export function useProject(id: string | undefined) {
       }
     },
     stop: async () => {
-      if (id) await studio.stop(await getToken(), id).catch(() => {})
+      if (!id) return false
+      return (await studio.stop(await getToken(), id)).stopped
     },
     updateProject: async (data: { title?: string; pinnedAt?: string | null }) => {
       if (!id) return

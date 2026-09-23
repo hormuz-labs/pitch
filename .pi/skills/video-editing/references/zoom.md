@@ -1,187 +1,96 @@
-# Visually grounded zooms
+# Camera: geometry, cues and continuity
 
-## Roles
+The scenario chooses why and when to emphasize something. These shared mechanics
+make that decision reproducible; they do not choose a subject from the transcript.
 
-- **The vision-capable model chooses what matters** from actual frames, the brief
-  and narration, then proposes a target box.
-- **`pitch video focus` computes framing**: margin, aspect ratio, source bounds
-  and preview images. It does not understand the target.
-- **`pitch video render` executes** smoothstep motion from full composition or
-  `start_viewport` to the destination, holds, and optionally returns to full.
-  Equal-size endpoint viewports produce a constant-scale pan.
-- **The model reviews** whether the right button, face, object or code is framed.
-  Geometry validation alone cannot establish that.
+## Ground the composition
 
-## Coordinate contract
+Open source frames at the relevant cue and through the proposed hold. A target
+box is normalized to the full auto-rotated, square-pixel source, top-left origin:
+`x=left/width`, `y=top/height`, with similarly normalized width/height. Exclude
+contact-sheet labels, tile offsets and image borders. A transcript has no visual
+coordinates.
 
-Top-left origin, normalized to the full displayed source:
+Run `pitch video focus` for each distinct composition at final output aspect;
+open both its outlined context and actual crop. Copy the returned `viewport`,
+not the target box. Check readable text, label/context, and target centering.
+For a target center `(tx,ty)`, its position in viewport `v` is
+`((tx-v.x)/v.width,(ty-v.y)/v.height)`. Centering near `(0.5,0.5)` is useful for an
+isolated control; source edges or a needed relationship can justify another
+position. Record the reason instead of forcing a clipped crop.
 
-```text
-x      = left / displayed_frame_width
-y      = top / displayed_frame_height
-width  = target_width / displayed_frame_width
-height = target_height / displayed_frame_height
-```
+Do not crop code/diagrams so tightly that their argument disappears. Check the
+actual source crop size and upscale factor. A returned valid box proves geometry,
+not readable detail or a semantically correct target.
 
-The displayed frame is rotation/square-pixel corrected. Downscaling preserves
-normalized coordinates. A 10×10 grid spans 0.1 per cell. Exclude chat padding,
-screenshot borders, sheet labels and tile offsets.
+## Choose and encode time
 
-For `(left=640, top=180, width=320, height=180)` in a 1280×720 full-source frame:
+Use the scenario's semantic/action anchor. For narrated emphasis, `camera.cue`
+accepts `speech`, optional `action`, and `hold_until` in the clip's source time.
+After preprocessing these are prepared-source times. `speech` is the onset of
+the identifying phrase, not automatically the start of its whole sentence.
+`action` is supplied only when it is measured and belongs to the same emphasis.
+Omit it for discussion of a result that is already visible.
 
-```json
-{"x": 0.5, "y": 0.25, "width": 0.25, "height": 0.25}
-```
+The current backend settles at the earlier supplied speech/action time, rounded
+down to an output frame. `enter` is the duration of the delayed approach. It does
+not align words, understand intention, or make a delayed gesture simultaneous.
+The validator reports `camera_timing` and rejects insufficient lead-in and early
+departure. It cannot detect a missing camera decision.
 
-These also apply to a 2560×1440 source, but not to a cropped inspection image.
+Cued speech clips run at 1×. Split silent acceleration first. Retain a longer
+lead-in, shorten the approach or use an already-established static crop when
+the move cannot fit. Do not postpone the intended emphasis until after the cue
+just to accommodate a standard move duration.
 
-## Tool sequence
+For action-only/silent footage, use `camera.delay` in clip-output seconds to
+schedule the entrance, or split contiguous move/hold clips when needed. A delayed
+return from `start_viewport` to full view can retain the control until navigation
+without carrying the old crop into a blank destination. Do not fabricate speech
+for `camera.cue`; `delay` and `cue` cannot be combined.
 
-Choose times and regions from actual footage; these are illustrative:
+## Holds, pans and layout changes
 
-```sh
-pitch video frames --source uploads/demo.mp4 --times '[12,12.8,14]' --grid --contact-sheet
-```
+- `viewport` alone is a static crop. `enter` moves from full composition unless
+  `start_viewport` is supplied. `exit` returns to full before the clip ends.
+- Continue a crop over clip/speed boundaries by repeating the viewport with
+  zero enter/exit. A boundary alone is not a reason to zoom out and back in.
+- On a stable layout, pan from the preceding viewport to the next; equal endpoint
+  width/height gives constant scale. If the next target is already dominant in
+  the crop, hold rather than manufacturing movement.
+- Departure follows the required spoken/action/reading hold. A full composition
+  can be necessary for orientation or comparison; choose it from the scenario.
+- New pages/tabs and major layout changes arrive at full composition. Inspect
+  the trigger and first destination separately: finish a smooth return before the
+  first destination frame. If necessary start earlier while retaining the trigger
+  or keep the whole navigation action wider. Never reset the camera by cutting.
+  An exit at the end of a clip that already contains the destination is too late.
+  Hold the new layout for orientation before focusing again. Only stable panel
+  updates with all relevant context can hold a crop.
+- Scroll, reflow, transitions and moving subjects can invalidate a fixed crop.
+  Preserve the complete scroll, including settling; use a wider view or inspected
+  separate compositions, not a claimed tracker or a cut to the final position.
 
-Open `images[].path` with pi's `read`. For precise detail open the corresponding
-individual `frames[].path`. After viewing:
+For continuous walkthroughs, keep `output.continuous_camera: true`. Match the
+preceding rendered endpoint to the next starting view even across removed idle
+time and speed changes. The validator checks framing at these joins; separately
+review cursor position, UI/scroll state and motion so a matched crop does not hide
+a temporal jump. Prefer fewer stable holds and smooth moves over repeated in/out
+effects. A native page transition can be instantaneous; the editorial camera
+must remain stable across it.
 
-```sh
-pitch video focus --source uploads/demo.mp4 --time 12.8 --target '{"x":0.5,"y":0.25,"width":0.25,"height":0.25}' --width 1920 --height 1080 --margin 0.15
-```
+For an uncued move, settled start is `clip_start+delay+enter` (delay defaults to 0). A nonzero exit starts
+around `clip_end-exit`, with the last-frame detail supplied by the backend.
+For cued moves use returned `camera_timing`, not the uncued formula.
 
-Open both outlined context and actual crop for each new composition. Reuse
-approved framing over its established stable-layout interval. Margin adds 15%
-of target size per side before aspect fitting and may reduce near bounds, but
-the target must still fit. Use the returned **viewport**, not the target box.
-Incompatible target/aspect combinations fail instead of clipping.
+## Verify the attention, not just the effect
 
-Record concise rationale: “At 12.8s the narrator names Save; the blue control
-and confirmation panel are in the right pane. Crop includes both; checked at
-12, 12.8 and 14s.” Report uncertainty rather than uncalibrated confidence scores.
+Take the scenario's full reference/action map and inspect the rendered output
+at each required cue. Check the approach, target prominence/readability, stable
+hold, next target and departure. Include required subjects with no effect.
+Evaluate early as well as late emphasis: a crop settled many seconds before an
+unrelated phrase can be just as misleading as a late zoom.
 
-## Targets by footage type
-
-| Footage | Useful target | Context to retain |
-| --- | --- | --- |
-| UI demo | Active control and label | Parent panel, cursor approach, result |
-| Code | Relevant lines or error | Line context, command/output relationship |
-| Interview | Face/expression | Headroom, gaze, gestures |
-| Physical demo | Hands/manipulated object | Tool, workspace, motion direction |
-| Gameplay | Interaction or HUD | Spatial context and outcome |
-| Lecture | Diagram/equation | Labels, axes, related elements |
-
-Use the union of regions needed for comparison. Do not frame the cursor tightly
-when the meaningful result appears elsewhere.
-
-### Center the intended field, not the page
-
-For isolated entry, target the visible field and normally center it. The whole
-homepage, suggestion panel or pointer is not the field. Include suggestions
-only when relevant and inspect the resulting composition.
-
-For target center `(tx,ty)` and viewport `v`, its output-relative center is
-`((tx-v.x)/v.width, (ty-v.y)/v.height)`. Approximately `(0.5,0.5)`, ±0.05, is
-a review guide, not an automatic constraint. Check both axes in the crop.
-Source edges (especially address bars), aspect and context can prevent exact
-centering; widen/reframe or record the deliberate exception. Do not invent
-padding fields.
-
-## Temporal behavior
-
-- Establish action bounds and layout stability using [inspection.md](inspection.md).
-  URL/search/command/form/editor entry matters when viewers need its text;
-  it does not require a separate screenshot pass.
-- Finish the approach before **first input**, not merely before input ends.
-  Include useful cursor approach. If lead-in is short, shorten the move, keep
-  more preceding footage or use a static crop, subject to navigation rules.
-- A viewport is a fixed destination; entrance interpolates from full or
-  `start_viewport`, exit returns to full. This is not object tracking.
-- Treat moves and holds as phases. Split clips to place phases when needed,
-  neither dropping nor duplicating source time. Holds repeat the destination
-  with `enter: 0, exit: 0`; only moves from a crop need `start_viewport`.
-- Default to `exit: 0` for same-page actions. Hold through submission/click and
-  response reading. Reframe an off-crop response after its trigger and give it
-  a hold. For cross-page navigation, depart after focused work/reading, but
-  finish before the trigger. Show trigger and first destination at full
-  composition, then an orientation/read hold before refocusing. Omit a zoom
-  if there is insufficient lead time; never carry a tight crop across navigation.
-- Without an agreed preference, allow roughly 0.8–1.2 output seconds for completed
-  text/confirmation and 1–2 for settled results, longer for dense content. Do
-  not invent missing footage. If immediate submission removes a field, preserve
-  input/submission continuously and give its response a hold.
-- Choose intervals where a crop works, widen or create separate shots. Continuous
-  tracking requires an actual tracking/keyframe tool, not unreviewed jump cuts.
-- Avoid zooms during transition overlaps unless deliberate. Establish context
-  before detail and leave reading time.
-- The limit is 10× relative to the padded canvas; pixel quality limits earlier.
-  Check `upscale_factor` and final-resolution detail.
-- Changed aspect ratios make full composition letterboxed and focused composition
-  fill the output. Review whether that movement is appropriate.
-
-## Camera continuity on a stationary page or scene
-
-Review during planning and after trims/speed changes. Clip boundaries alone do
-not justify zooming out and back in.
-
-1. **Find close moves in output time.** From the validated timeline review resets
-   with 0–1 seconds of full-frame time, including bridge clips, and focus changes
-   with at most one second of settled hold (`duration-enter-exit`). Longer
-   same-page chains may also benefit. These are heuristics, not plan fields.
-2. **Confirm coordinate stability.** No scrolling/inertia, navigation, tab switch,
-   reflow, resize or camera movement that invalidates framing. Same filename/URL
-   or similar endpoints do not prove stability. Sample unresolved changes only.
-3. **Prefer hold, then pan.** If the next target/context is already readable in
-   the crop, keep it exactly. Otherwise retain width/height and change x/y.
-   Frame the action/result, not small cursor movements.
-4. **Choose common scale.** If the next target cannot fit, check a wider shared
-   viewport. For unapproved compositions use `focus` with a viewport-sized
-   target and margin 0, at final aspect; inspect both images. Equal returned
-   widths/heights are necessary for a fixed-scale pan. If readability fails,
-   choose deliberate reframing.
-5. **Encode continuity.** Preceding `exit: 0`; copy its final viewport exactly
-   to the next `start_viewport`. Keep destination width/height equal, entrance
-   generally 0.4–0.8 seconds adjusted for timing/travel, intermediate exits 0.
-   Holds and idle-removal bridge cuts repeat `viewport` with zero enter/exit.
-   Start early enough to settle before interaction. Do not link mismatched
-   source geometries or accidentally blend camera motions.
-6. **Handle layout changes.** Scrolls, anchors and expanded menus may retain
-   framing when checked; cross-page navigation follows the rule above. Revealed
-   links/submenus are new interactions, not idle time. Establish stability again.
-7. **Validate/review.** Update the log with stable intervals, targets, common
-   scale and decisions. Add unresolved handoffs to consolidated rendered review,
-   not a separate pass. Correct endpoints do not prove mid-pan readability.
-
-## Interaction coverage audit
-
-For polished screen recordings audit meaningful in-scope interactions, even
-when no individual zoom targets were named. This is a plan/log audit:
-
-1. Use logged first input, last input/click, distinct navigation trigger, first
-   useful response and reading interval. Include URL entry, search/submission,
-   results, menus/sections, nested links and final actions. Nearby actions need
-   their own bounds but can share evidence.
-2. Give every unreadable/requested target a checked viewport, or record why
-   existing framing works. Check field centering, not just inclusion.
-3. Map through validated time: with clip start `S`, end `E`, speed `r`, in `I`,
-   event time = `S+(source_time-I)/r`; settled start = `S+enter`; exit start =
-   **`E-exit`**. With no exit, the next changing cut/pan is departure; identical
-   viewport cuts continue the hold. Account for quantization and overlaps.
-4. Require `move_end <= first_input`. Same-page departure must be after required
-   hold; an off-crop response may be reframed after trigger with its own hold.
-   Cross-page departure must follow focused-work hold and finish before trigger,
-   with trigger/destination fully framed. Distinguish typing/link reading from
-   navigation trigger. A positive settled duration alone proves nothing.
-5. Calculate from conservative observed bounds. Combine unresolved visual checks
-   with the single rendered list. Arbitrary midpoints cannot prove boundaries.
-6. Fix early exits, late entrances, missing/off-center targets and missing result
-   orientation time. The validator does not perform this semantic audit.
-
-Timing trap: a clip at output 4–7s with enter/exit 0.4 is settled only from
-4.4 through 6.6 seconds. Input beginning after that happens during departure
-despite a nominal 2.2-second hold. Settle before input and keep exit 0 until a
-justified departure.
-
-Examples: pan between nearby stationary controls; hold if the next is already
-readable; carry the crop across an idle-removal cut; zoom out before a link
-changes pages; inspect intervening scroll/navigation before linking crops.
+Geometry/timing tests, waveform alignment and full decoding are separate from
+this semantic review. Report which were actually checked. Use supported playback
+or dense local samples where isolated stills cannot establish the motion.

@@ -55,6 +55,90 @@ function tts(seconds: number, generated?: () => void) {
 }
 
 describe('continuous narration and browser actions', () => {
+  it('retries a temporary provider error once with identical text and schedules just one line', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 429, headers: { get: () => '0' } })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          inlineData: {
+            mimeType: 'audio/pcm;rate=24000',
+            data: Buffer.alloc(24000).toString('base64'),
+          },
+        }),
+      })
+    vi.stubGlobal('fetch', fetch)
+    await tools.narrate.run({ text: 'Open the report.', action: { command: 'press Enter' } }, base)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch.mock.calls[0]![1].body).toBe(fetch.mock.calls[1]![1].body)
+    expect(state().audioClips).toHaveLength(1)
+    expect(state().audioClips[0].text).toBe('Open the report.')
+    expect(
+      vi.mocked(runAgentCommand).mock.calls.filter(([cmd]) => cmd.endsWith('press Enter')),
+    ).toHaveLength(1)
+  })
+
+  it('explicitly requests audio and finds it after a non-audio response part', async () => {
+    const parts = [
+      { text: 'Speech output' },
+      {
+        inlineData: {
+          mimeType: 'audio/pcm;rate=24000',
+          data: Buffer.alloc(24000).toString('base64'),
+        },
+      },
+    ]
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ candidates: [{ content: { parts } }] }),
+    }))
+    vi.stubGlobal('fetch', fetch)
+    await tools.narrate.run({ text: 'Keep the supplied narration.' }, base)
+    expect(
+      JSON.parse((fetch.mock.calls[0] as any)[1].body).generationConfig.responseModalities,
+    ).toEqual(['AUDIO'])
+    expect(state().audioClips[0].text).toBe('Keep the supplied narration.')
+  })
+
+  it('reports provider finish reasons without scheduling absent audio or its action', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          candidates: [{ finishReason: 'OTHER', content: { parts: [{ text: 'no audio' }] } }],
+        }),
+      })),
+    )
+    await expect(
+      tools.narrate.run({ text: 'Open it.', action: { command: 'press Enter' } }, base),
+    ).rejects.toThrow(/reason: OTHER; parts: text/)
+    expect(state().audioClips).toHaveLength(0)
+    expect(runAgentCommand).not.toHaveBeenCalled()
+  })
+
+  it('finishes pointer travel before timestamping the click sound', async () => {
+    let now = 2000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const calls: string[] = []
+    vi.mocked(runAgentCommand).mockImplementation(async command => {
+      calls.push(command)
+      if (command.includes('run-code')) now += 800
+      const stdout = command.includes('getBoundingClientRect')
+        ? JSON.stringify({ x: 10, y: 10, w: 40, h: 20, cx: 30, cy: 20 })
+        : ''
+      return { stdout, stderr: '' } as any
+    })
+    await tools.bash.run({ command: 'click e12' }, base)
+    expect(calls.findIndex(command => command.includes('run-code'))).toBeLessThan(
+      calls.findIndex(command => command.endsWith('click e12')),
+    )
+    expect(state().clickEvents[0].videoTimeSec).toBe(1.8)
+    expect(state().audioClips[0].absoluteTimestamp).toBe(2800)
+  })
+
   it('timestamps after synthesis and runs an action while the speech interval is active', async () => {
     let now = 2000
     vi.spyOn(Date, 'now').mockImplementation(() => now)

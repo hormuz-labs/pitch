@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
+import { connect } from 'node:net'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { ArgvError, parseArgs, tokenize } from '../.pi/cli/argv.ts'
 import { summarize } from '../.pi/cli/help.ts'
 import { commands, findCommand, namespaces } from '../.pi/cli/registry.ts'
@@ -257,6 +258,72 @@ describe('exit status', () => {
 describe('the socket the sandboxed `pitch` talks to', () => {
   const ws = process.cwd()
   afterAll(() => closePitchSocket(ws))
+
+  it('streams source progress on stderr while keeping the result JSON on stdout', async () => {
+    vi.stubGlobal('__pitchStudioHost', {
+      call: async (_cwd: string, name: string, _params: unknown, context: any) => {
+        expect(name).toBe('demo_source')
+        context.progress('checkpoint: uploading workspace.tar', 0)
+        await new Promise(resolve => setTimeout(resolve, 20))
+        return JSON.stringify({ source: 'recording/source.mp4' })
+      },
+    })
+    try {
+      const { path: socket } = await pitchSocket(ws)
+      const child = spawn('node', [join(GUEST_BIN_DIR, 'pitch'), 'demo', 'source'], {
+        env: { ...process.env, PITCH_SOCKET: socket },
+      })
+      let out = '',
+        err = ''
+      child.stdout.on('data', chunk => {
+        out += chunk
+      })
+      child.stderr.on('data', chunk => {
+        err += chunk
+      })
+      expect(await new Promise(resolve => child.on('close', resolve))).toBe(0)
+      expect(JSON.parse(out)).toEqual({ source: 'recording/source.mp4' })
+      expect(err).toContain('checkpoint: uploading workspace.tar')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('cancels source preparation when its calling socket disconnects', async () => {
+    let started!: () => void, cancelled!: () => void
+    const began = new Promise<void>(resolve => {
+      started = resolve
+    })
+    const aborted = new Promise<void>(resolve => {
+      cancelled = resolve
+    })
+    vi.stubGlobal('__pitchStudioHost', {
+      call: async (_cwd: string, _name: string, _params: unknown, context: any) => {
+        started()
+        return new Promise((_, reject) =>
+          context.signal.addEventListener(
+            'abort',
+            () => {
+              cancelled()
+              reject(new Error('cancelled'))
+            },
+            { once: true },
+          ),
+        )
+      },
+    })
+    const { path: socket } = await pitchSocket(ws)
+    const conn = connect(socket)
+    try {
+      conn.on('connect', () => conn.write(`${JSON.stringify({ argv: ['demo', 'source'] })}\n`))
+      await began
+      conn.destroy()
+      await aborted
+    } finally {
+      conn.destroy()
+      vi.unstubAllGlobals()
+    }
+  })
 
   it('keeps the socket path short enough for a unix socket', () => {
     const p = socketPathFor('/app/projects/studio--user_2abc--a-rather-long-project-name', '/tmp')

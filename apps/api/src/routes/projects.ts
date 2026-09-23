@@ -1,5 +1,5 @@
 /**
- * Projects API (docs/studio-architecture.md → Routes).
+ * Projects API.
  */
 import { createLogger } from '@saas/shared'
 import express from 'express'
@@ -156,6 +156,29 @@ router.post('/:id/deck/render', async (req, res) => {
     res.json(await withOwner(p.id, w => w.renderDeck(p.id)))
   } catch (err) {
     fail(res, err, 'render deck failed')
+  }
+})
+
+/**
+ * The asset storyboard editor writes one optimistic whole-document revision.
+ * This is a free workspace edit, like a deck autosave; recording remains a
+ * normal chat turn so there is still exactly one agent and one project path.
+ */
+router.post('/:id/storyboard', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const { revision, transition, titleCards, scenes } = req.body ?? {}
+    if (!Number.isInteger(revision) || !Array.isArray(scenes))
+      return res.status(400).json({ error: 'revision and scenes are required' })
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(
+      await withOwner(p.id, w =>
+        w.saveStoryboard(p.id, { revision, transition, titleCards, scenes }),
+      ),
+    )
+  } catch (err) {
+    fail(res, err, 'save storyboard failed')
   }
 })
 

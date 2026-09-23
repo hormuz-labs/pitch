@@ -5,7 +5,11 @@ const { pause, project } = vi.hoisted(() => ({
   pause: vi.fn(),
   project: {
     title: 'Mobile preview',
-    description: { preview: { kind: 'video', url: '/video.mp4' }, scenes: [] as any[] },
+    description: {
+      preview: { kind: 'video', url: '/video.mp4' },
+      scenes: [] as any[],
+      extra: undefined as { storyboard?: unknown } | undefined,
+    },
     outputs: [],
   },
 }))
@@ -38,6 +42,9 @@ vi.mock('../src/solid/studio/previews/DeckPreview', () => ({ DeckPreview: () => 
 vi.mock('../src/solid/studio/previews/PdfPreview', () => ({ PdfPreview: () => null }))
 vi.mock('../src/solid/studio/previews/BrowserPreview', () => ({ BrowserPreview: () => null }))
 vi.mock('../src/solid/studio/StudioProjectControls', () => ({ StudioProjectControls: () => null }))
+vi.mock('../src/solid/studio/storyboard/StoryboardEditor', () => ({
+  StoryboardEditor: () => <div aria-label="Asset storyboard editor" />,
+}))
 
 import { StudioView } from '../src/solid/studio/StudioView'
 
@@ -45,6 +52,7 @@ describe('mobile preview collapse', () => {
   beforeEach(() => {
     pause.mockClear()
     project.description.scenes = []
+    project.description.extra = undefined
     vi.stubGlobal('innerWidth', 390)
   })
 
@@ -94,5 +102,30 @@ describe('mobile preview collapse', () => {
     expect(stage.hidden).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
     expect(stage.hidden).toBe(false)
+  })
+
+  it('opens the storyboard automatically when a planned storyboard becomes available', () => {
+    project.description.extra = { storyboard: { revision: 1, scenes: [] } }
+
+    render(() => <StudioView projectId="project" />)
+
+    expect(screen.getByRole('button', { name: 'Storyboard' }).classList.contains('is-active')).toBe(
+      true,
+    )
+    expect(screen.getByLabelText('Asset storyboard editor')).not.toBeNull()
+  })
+
+  it('lets the user move between the storyboard and the existing preview', () => {
+    project.description.extra = { storyboard: { revision: 1, scenes: [] } }
+    render(() => <StudioView projectId="project" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    expect(screen.getByRole('button', { name: 'Preview' }).classList.contains('is-active')).toBe(
+      true,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Storyboard' }))
+    expect(screen.getByRole('button', { name: 'Storyboard' }).classList.contains('is-active')).toBe(
+      true,
+    )
   })
 })

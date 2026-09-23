@@ -6,6 +6,8 @@ declare module '@novnc/novnc' {
     disconnect(): void
     scaleViewport: boolean
     resizeSession: boolean
+    qualityLevel: number
+    compressionLevel: number
     showDotCursor: boolean
     viewOnly: boolean
   }

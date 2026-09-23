@@ -8,8 +8,7 @@
  * up to RENDER_ATTEMPTS times.
  *
  * This is the only queue in the studio, and it is one on purpose: a render
- * is short, stateless and retriable, which is exactly what a session is not
- * (docs/studio-architecture.md → Scaling).
+ * is short, stateless and retriable, which is exactly what a session is not.
  */
 import { prisma } from '@saas/db'
 import { RENDER_ATTEMPTS, RENDER_STALE_MS } from '../worker/config.js'

@@ -1,6 +1,5 @@
 /**
- * How this process takes part in the studio (docs/studio-architecture.md →
- * Scaling).
+ * How this process takes part in the studio.
  *
  * One image, four roles:
  *

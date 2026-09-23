@@ -18,7 +18,7 @@ configMapGenerator:
       - PROJECTS_DIR=/app/projects
       - PI_AGENT_DIR=/root/.pi/agent
       - STUDIO_SANDBOX=bwrap
-      # Placement (docs/studio-architecture.md → Scaling). A worker is light
+      # Placement. A worker is light
       # — sessions, not renders — so it holds many.
       - STUDIO_WORKER_SLOTS=24
       - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}

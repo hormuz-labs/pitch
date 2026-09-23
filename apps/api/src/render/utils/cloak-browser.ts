@@ -103,6 +103,7 @@ export async function startCloakBrowser(options: {
       headless: false,
       viewport: { width: 1920, height: 1080 },
       args: [
+        '--window-position=0,0',
         `--remote-debugging-port=${port}`,
         '--remote-debugging-address=127.0.0.1',
         `--fingerprint=${fingerprintSeed(options.fingerprintIdentity ?? options.streamId)}`,
@@ -110,6 +111,11 @@ export async function startCloakBrowser(options: {
       ],
       launchOptions: {
         timeout: START_TIMEOUT_MS,
+        // The worker owns graceful draining. Playwright's default signal
+        // handlers would close Chromium immediately while the turn is still live.
+        handleSIGTERM: false,
+        handleSIGINT: false,
+        handleSIGHUP: false,
         env: { ...process.env, DISPLAY: display.display },
       },
     })

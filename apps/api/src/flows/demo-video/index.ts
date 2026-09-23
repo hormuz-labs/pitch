@@ -5,7 +5,7 @@
  * Workspace layout
  *   project.json         { userId, options, uploads }  — what the tools read
  *   uploads/<name>       the user's PDFs/images
- *   recording/           demo-config.json, demo-state.json, demo.webm, audio/,
+ *   recording/           demo-config.json, demo-state.json, demo.mkv, audio/,
  *                        assets/assets.json (manifest), live.json while recording
  *   storyboard.json      draft/approved storyboard (asset projects, optional)
  *   recording/source-*.mp4  synchronized editing source
@@ -31,6 +31,7 @@ import { execAsync, getVideoBirthTimeMs } from '../../render/media.js'
 import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
 import { buildDemoJobInput } from '../../render/utils/demo-job-input.js'
+import type { CursorEvent } from '../../render/utils/recording-cursor.js'
 import {
   expectedSlideshowSlideCount,
   type SlideshowProgress,
@@ -167,11 +168,28 @@ async function coverageProblem(ws: Workspace): Promise<string | null> {
 
 // ── recording lifecycle ──────────────────────────────────────────────────────
 
-async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: string }> {
+async function stopRecording(
+  ws: Workspace,
+  reportPreviousFailure = false,
+): Promise<{ stopped: boolean; note: string }> {
   const handle = active.get(ws.dir)
   const live = await readJson<LiveFile>(liveFile(ws))
-  if (!handle && !live) return { stopped: false, note: 'No recording is running.' }
+  if (!handle && !live) {
+    const status = await readJson<{ state: string; error?: string }>(
+      path.join(recordingDir(ws), 'capture-status.json'),
+    )
+    if (reportPreviousFailure && status?.state === 'failed')
+      throw new Error(
+        `Previous recording failed: ${status.error}. The saved take is preserved; repeating stop does not repair it.`,
+      )
+    if (reportPreviousFailure && status?.state === 'recording')
+      throw new Error(
+        'Recording was interrupted before finalization. The saved files are preserved; no live recorder is available to finish this take.',
+      )
+    return { stopped: false, note: 'No recording is running.' }
+  }
   const wasRecording = handle?.recording || !!live
+  const stoppedAt = Date.now()
   let stopError: unknown
   if (handle) {
     try {
@@ -190,7 +208,7 @@ async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: s
   await rm(liveFile(ws), { force: true })
   await rm(path.join(recordingDir(ws), 'browser.json'), { force: true })
   const state = await readJson<DemoState>(stateFile(ws))
-  if (state && wasRecording) await writeJson(stateFile(ws), { ...state, endTime: Date.now() })
+  if (state && wasRecording) await writeJson(stateFile(ws), { ...state, endTime: stoppedAt })
   if (stopError) throw stopError
   const clips = state?.audioClips?.length ?? 0
   return {
@@ -228,10 +246,12 @@ async function openDemo(
   if (existing?.recording)
     return 'The continuous take is already recording. Keep it open; use demo bash to snapshot and continue. Stop only after the final demonstrated result.'
   if (existing && rehearse)
-    return 'Preparation browser is already open, without recording. Continue with demo bash; use goto to navigate, then record-start when ready.'
+    return 'An unrecorded browser is already open. For a walkthrough, call record-start now and discover the route inside the take; do not rehearse and replay the workflow.'
   if (
     !rehearse &&
-    existsSync(path.join(recordingDir(ws), 'demo.webm')) &&
+    ['demo.mkv', 'demo.mkv.capture.mkv', 'demo.webm'].some(name =>
+      existsSync(path.join(recordingDir(ws), name)),
+    ) &&
     !String(params.retakeReason ?? '').trim()
   ) {
     throw new Error(
@@ -280,6 +300,9 @@ async function openDemo(
     ))
   active.set(ws.dir, handle)
   await writeJson(path.join(recordingDir(ws), 'browser.json'), {
+    streamId: handle.streamId,
+    session: handle.session,
+    startedAt: Date.now(),
     startTime: Date.now(),
     voiceName: project.options.voice || 'Charon',
     assetsManifestPath: manifest ? manifestFile(ws) : undefined,
@@ -307,7 +330,7 @@ async function openDemo(
     }
   }
   if (rehearse)
-    return `Browser ready for preparation, NOT recording.${opened}\nUse demo bash to inspect the real workflow. Keep this session open, return to the starting view and call record-start once. Fresh snapshots supply refs; do not reuse refs from an earlier browser.`
+    return `Browser open, NOT recording.${opened}\nFor a walkthrough, call record-start now and discover the workflow inside the take. Do not rehearse the route or return to the homepage to replay it. Stay unrecorded only for an explicitly unrecorded task. Fresh snapshots supply refs; do not reuse refs from an earlier browser.`
   await handle.startCapture({
     voice: typeof project.options.voice === 'string' ? project.options.voice : undefined,
     assetsManifestPath: manifest ? manifestFile(ws) : undefined,
@@ -327,7 +350,7 @@ async function openDemo(
     )
   if (storyboard) lines.push(storyboardContract(storyboard, assetCount))
   lines.push(
-    'Keep this ONE take open through the complete workflow. Use narrate --action to demonstrate while speaking; verify actual results after each transition. Do not stop to inspect or debug. After the final visible result: record-stop (waits for speech), then video-editing/SKILL.md and demo source.',
+    'Discover and demonstrate the workflow in this ONE live take, including snapshots, thinking and recovery. Do not rehearse or replay completed steps; the editor removes frozen silent waiting later while preserving speech and real activity. Use narrate --action to demonstrate while speaking; verify results after transitions. The raw master has no HTML cursor: demo source composites the cursor with FFmpeg. After the final result: record-stop (waits for speech), then video-editing/SKILL.md and demo source.',
   )
   return lines.join('\n\n')
 }
@@ -352,24 +375,41 @@ registerHostAction('demo_record_stop', async (ws, _params, ctx) => {
   coverageWarned.delete(ws.dir)
   const state = await readJson<DemoState>(stateFile(ws))
   if (active.get(ws.dir)?.recording) await waitForNarration(state?.narrationEndTime, ctx.signal)
-  const { note } = await stopRecording(ws)
+  const { note } = await stopRecording(ws, true)
   return `${note} Next: read video-editing/SKILL.md, then pitch demo source. Edit the synchronized source with pitch video commands.`
 })
 
 registerHostAction('demo_source', async (ws, _params, ctx) => {
   if (active.has(ws.dir) || existsSync(liveFile(ws)))
     throw new Error('Stop the recording with pitch demo record-stop before preparing its source.')
-  const config = await readJson<{ startTime: number }>(configFile(ws))
+  const config = await readJson<{
+    startTime: number
+    videoStartTime?: number
+    videoFile?: string
+    cursor?: string
+  }>(configFile(ws))
   if (!Number.isFinite(config?.startTime)) throw new Error('No stopped recording configuration.')
   const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
-  const source = path.join(recordingDir(ws), 'demo.webm')
+  const status = await readJson<{ state: string; error?: string }>(
+    path.join(recordingDir(ws), 'capture-status.json'),
+  )
+  if (status && status.state !== 'complete')
+    throw new Error(
+      `Recording is not finalized (${status.state}): ${status.error ?? 'finish the active capture first'}`,
+    )
+  const videoFile = config?.videoFile ?? 'recording/demo.webm'
+  const source = path.resolve(ws.dir, videoFile)
   const root = resolveSymlinks(ws.dir)
   if (!resolveSymlinks(source).startsWith(`${root}${path.sep}`))
     throw new Error('Recording path escapes the workspace.')
-  const birth = await getVideoBirthTimeMs(source, logger)
+  // Host capture timestamps zero at its first frame. File creation time can
+  // precede that frame and must not shift narration on new recordings.
+  const birth = Number.isFinite(config?.videoStartTime)
+    ? config!.videoStartTime!
+    : await getVideoBirthTimeMs(source, logger)
   if (birth === null) throw new Error('Cannot determine the recording timebase.')
   const offset = Math.max(0, (config!.startTime - birth) / 1000)
-  const clips = (state.audioClips ?? []).map(clip => {
+  let clips = (state.audioClips ?? []).map(clip => {
     // Older capture tools persisted absolute paths. The internal workspace name
     // is stable across placement; rebase that prefix before checking the file.
     const marker = `${path.sep}${ws.internal}${path.sep}`
@@ -408,8 +448,49 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       text: clip.text,
     }
   })
+  if (config?.cursor) {
+    const cursorPath = resolveSymlinks(path.resolve(ws.dir, config.cursor))
+    if (!cursorPath.startsWith(`${root}${path.sep}`))
+      throw new Error('Cursor path escapes the workspace.')
+    const trace = await readJson<{
+      version: number
+      complete: boolean
+      startTime: number
+      events: CursorEvent[]
+    }>(cursorPath)
+    if (
+      trace?.version !== 2 ||
+      !trace.complete ||
+      trace.startTime !== birth ||
+      !Array.isArray(trace.events)
+    )
+      throw new Error(
+        'Missing, incomplete or mismatched cursor telemetry; recover the capture or retake.',
+      )
+    if ((state.clickEvents?.length ?? 0) > 0 && !trace.events.some(event => event.kind === 'down'))
+      throw new Error(
+        'Cursor telemetry missed the recorded clicks. The capture observer failed; do not publish a cursorless substitute or fabricate a mouse path.',
+      )
+    // Old click SFX were stamped before multiple CLI round-trips. Align them to
+    // the actual pointer press too, rather than letting sound lead the new cursor.
+    const sound = clips.find(clip => path.basename(clip.source) === 'click.mp3')
+    clips = clips.filter(clip => path.basename(clip.source) !== 'click.mp3')
+    if (sound)
+      for (const event of trace.events) {
+        if (event.kind === 'down' && event.buttons & 1) clips.push({ ...sound, start: event.time })
+      }
+  }
   // Resolve the clock and worker-local audio paths before remote placement.
-  return callHostAction(ws.dir, 'demo_source_encode', { source: 'recording/demo.webm', clips }, ctx)
+  return callHostAction(
+    ws.dir,
+    'demo_source_encode',
+    {
+      source: videoFile,
+      clips,
+      ...(config?.cursor ? { cursor: config.cursor, capture_start: birth } : {}),
+    },
+    ctx,
+  )
 })
 
 registerHostAction(

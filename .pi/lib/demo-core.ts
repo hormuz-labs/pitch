@@ -16,6 +16,19 @@ export const FRAME_H = 1080
 // Visible typing is revealed in at most this many chunks so even long text finishes fast.
 export const TYPE_MAX_STEPS = 8
 
+export function buildGeminiTtsBody(model: string, voiceName: string, text: string) {
+  return {
+    model,
+    contents: [{ role: 'user', parts: [{ text }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+      },
+    },
+  }
+}
+
 export interface ElementBox {
   x: number
   y: number

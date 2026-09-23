@@ -1,6 +1,6 @@
 /**
  * Pitch Studio server: auth, credits, projects, agent sessions, previews,
- * renders, sharing, MCP and admin (docs/studio-architecture.md).
+ * renders, sharing, MCP and admin.
  *
  * One image, four roles (worker/config.ts): `all` is the single-box layout
  * and the default; `api` replicas hold nothing and proxy to workers; `worker`

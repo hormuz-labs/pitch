@@ -7,6 +7,7 @@ const STUDIO_ASPECT_RATIOS = new Set(['16:9', '9:16', '1:1', '4:5'])
 const STUDIO_SKILLS = new Set([
   'launch-video',
   'demo-video',
+  'asset-demo',
   'slide-deck',
   'recording-edit',
   'generated-video',

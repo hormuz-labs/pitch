@@ -83,7 +83,7 @@ export interface Entry {
   id: string
   role: EntryRole
   text: string
-  tool?: { name: string; status: 'running' | 'done' | 'error' }
+  tool?: { name: string; status: 'running' | 'done' | 'error'; callId?: string; progress?: string }
   /** Present on `question` entries only: what the buttons say. */
   ask?: Ask
   at: number
@@ -599,9 +599,30 @@ function onPiEvent(s: Session, ev: any): void {
           break
         }
       }
-      addEntry(s, 'tool', toolLabel(ev.toolName, ev.args), { name: ev.toolName, status: 'running' })
+      addEntry(s, 'tool', toolLabel(ev.toolName, ev.args), {
+        name: ev.toolName,
+        status: 'running',
+        callId: ev.toolCallId,
+      })
       emit(s, { type: 'tool', name: ev.toolName, args: ev.args ?? {} })
       break
+    case 'tool_execution_update': {
+      if (typeof ev.toolCallId !== 'string') break
+      const raw = (ev.partialResult?.content ?? [])
+        .filter((part: any) => part.type === 'text')
+        .map((part: any) => String(part.text ?? ''))
+        .join('\n')
+        .slice(-8192)
+      const progress = [...raw.matchAll(/^\[pitch-progress\] (.+)$/gm)].at(-1)?.[1]?.slice(0, 180)
+      const entry = s.entries.find(
+        e => e.tool?.callId === ev.toolCallId && e.tool?.status === 'running',
+      )
+      if (progress && entry?.tool && entry.tool.progress !== progress) {
+        entry.tool.progress = progress
+        emit(s, { type: 'update', entry })
+      }
+      break
+    }
     case 'tool_execution_end': {
       const skillTurn = s.pendingSkillReads.get(ev.toolCallId)
       s.pendingSkillReads.delete(ev.toolCallId)
@@ -609,9 +630,15 @@ function onPiEvent(s: Session, ev: any): void {
         s.active.usedProvidedSkill = true
       const entry = [...s.entries]
         .reverse()
-        .find(e => e.role === 'tool' && e.tool?.status === 'running' && e.tool.name === ev.toolName)
+        .find(
+          e =>
+            e.role === 'tool' &&
+            e.tool?.status === 'running' &&
+            (e.tool.callId ? e.tool.callId === ev.toolCallId : e.tool.name === ev.toolName),
+        )
       if (entry?.tool) {
         entry.tool.status = ev.isError ? 'error' : 'done'
+        delete entry.tool.progress
         emit(s, { type: 'update', entry })
       }
       break

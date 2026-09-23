@@ -3,8 +3,7 @@
 Pitch is **one studio with one agent**. A *project* is a workspace directory,
 a resumable **pi** session, and a live preview. The user chats; the thread
 shows everything the model does; the preview reloads when the agent saves;
-things picked in the preview become numbered targets in the next prompt. Read
-`docs/studio-architecture.md` before changing anything.
+things picked in the preview become numbered targets in the next prompt.
 
 ```
 apps/api        the server (auth, usage billing, projects, sessions, previews, renders, share, MCP, admin)
@@ -92,7 +91,7 @@ Rules:
   `projects/service.ts createProject`). Never charge credits anywhere else.
 - The studio loads `.pi/extensions/*.ts` and `.pi/skills/*` when a session is
   created; restart the server after editing them (open sessions keep the old code).
-- Scaling (`apps/api/src/worker/`, docs/studio-architecture.md → Scaling):
+- Scaling (`apps/api/src/worker/`):
   a project is held by one worker under a Postgres lease; `projects/service.ts`
   is the API side (row, credits, placement) and `worker/host.ts` the worker
   side (session, workspace, checkpoints). Anything that touches a workspace or

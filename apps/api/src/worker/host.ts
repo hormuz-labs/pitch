@@ -26,7 +26,13 @@ import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  updateVideoStoryboard,
+  type VideoStoryboard,
+} from '@saas/shared'
 import * as storage from '@saas/storage'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
@@ -63,7 +69,7 @@ import {
 } from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
-import { peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
+import { type HostContext, peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
 import {
   estimatedModelCredits,
   modelCreditMultiplier,
@@ -513,7 +519,9 @@ export async function prompt(
 
 function generationKind(options: Record<string, any>): string | null {
   if (typeof options.videoType === 'string') return options.videoType
-  return ['launch-video', 'demo-video', 'generated-video', 'recording-edit'].includes(options.skill)
+  return ['launch-video', 'demo-video', 'asset-demo', 'generated-video', 'recording-edit'].includes(
+    options.skill,
+  )
     ? options.skill
     : null
 }
@@ -822,6 +830,39 @@ export async function renderDeck(projectId: string): Promise<{ ok: true }> {
   return { ok: true }
 }
 
+// ── Asset storyboard ─────────────────────────────────────────────────────────
+
+/**
+ * Persist a whole storyboard revision from Studio. The shared model owns all
+ * validation and optimistic revision checks, matching the agent's
+ * `pitch demo storyboard-save` path without starting or billing a model turn.
+ */
+export async function saveStoryboard(
+  projectId: string,
+  update: {
+    revision: number
+    transition?: VideoStoryboard['transition']
+    titleCards?: StoryboardTitleCards
+    scenes: StoryboardScene[]
+  },
+): Promise<VideoStoryboard> {
+  const { h } = await ensureOpen(projectId)
+  const file = path.join(h.ws.dir, 'storyboard.json')
+  const current = JSON.parse(await readFile(file, 'utf8')) as VideoStoryboard
+  let saved: VideoStoryboard
+  try {
+    saved = updateVideoStoryboard(current, update)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw Object.assign(error instanceof Error ? error : new Error(message), {
+      status: message.startsWith('Storyboard revision conflict:') ? 409 : 400,
+    })
+  }
+  await writeFile(file, `${JSON.stringify(saved, null, 2)}\n`, 'utf8')
+  markDirty(h)
+  return saved
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export async function startExport(
@@ -900,7 +941,7 @@ export async function workspaceDir(row: ProjectRow): Promise<string> {
 
 // ── Checkpoints, release, removal ─────────────────────────────────────────────
 
-async function checkpointNow(h: Held): Promise<void> {
+async function checkpointNow(h: Held, ctx: HostContext = {}): Promise<void> {
   if (h.checkpointing) return h.checkpointing
   h.checkpointing = (async () => {
     const at = h.dirtyAt
@@ -922,6 +963,8 @@ async function checkpointNow(h: Held): Promise<void> {
       artifactKind: await getAgent()
         .artifactKind(h.ws)
         .catch(() => null),
+      signal: ctx.signal,
+      progress: ctx.progress,
     })
     const fenced = await db.prisma.project.updateMany({
       where: {
@@ -963,6 +1006,7 @@ async function checkpointNow(h: Held): Promise<void> {
  */
 export async function checkpointForRender(
   ws: Workspace,
+  ctx: HostContext = {},
 ): Promise<{ projectId: string; version: number }> {
   const h = [...held.values()].find(x => x.ws.internal === ws.internal)
   if (!h) throw new Error(`this worker does not hold ${ws.internal}; nothing to render from`)
@@ -972,7 +1016,8 @@ export async function checkpointForRender(
   // the watcher deliberately emits no event for them. Snapshot every remote
   // call to guarantee the render tier sees the exact current workspace.
   if (h.checkpointing) await h.checkpointing
-  await checkpointNow(h)
+  ctx.signal?.throwIfAborted()
+  await checkpointNow(h, ctx)
   const row = await rowById(h.id)
   if (row.workerId !== WORKER_ID || row.workerEpoch !== h.epoch) throw new NotOwnerError(h.id)
   if (row.workspaceVersion === 0) throw new Error(`${ws.internal} could not be checkpointed`)

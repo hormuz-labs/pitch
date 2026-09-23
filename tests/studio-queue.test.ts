@@ -122,6 +122,32 @@ async function start() {
 }
 
 describe('studio queue and steering', () => {
+  it('streams marked source progress into the correct chat tool entry and clears it on completion', async () => {
+    const h = await start()
+    for (const id of ['source', 'other'])
+      h.emit({
+        type: 'tool_execution_start',
+        toolCallId: id,
+        toolName: 'bash',
+        args: { command: id === 'source' ? 'pitch demo source' : 'pwd' },
+      })
+    h.emit({
+      type: 'tool_execution_update',
+      toolCallId: 'source',
+      toolName: 'bash',
+      partialResult: {
+        content: [{ type: 'text', text: '[pitch-progress] checkpoint: uploading workspace.tar\n' }],
+      },
+    })
+    const entry = h.session.entries.find(e => e.tool?.callId === 'source')!
+    expect(entry.tool?.progress).toBe('checkpoint: uploading workspace.tar')
+    expect(h.session.entries.find(e => e.tool?.callId === 'other')?.tool?.progress).toBeUndefined()
+    h.emit({ type: 'tool_execution_end', toolCallId: 'source', toolName: 'bash', isError: false })
+    expect(entry.tool?.status).toBe('done')
+    expect(entry.tool?.progress).toBeUndefined()
+    expect(h.session.entries.find(e => e.tool?.callId === 'other')?.tool?.status).toBe('running')
+  })
+
   it('broadcasts queued state immediately and waits for the active turn to finish', async () => {
     const h = await start()
     const queued = await promptSession(h.opts, 'Then make it square')

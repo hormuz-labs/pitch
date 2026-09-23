@@ -1,13 +1,5 @@
 <div align="center">
 
-<p>
-  <a href="https://trypitch.co">
-    <img src="docs/readme/cover.svg" width="1280" alt="Pitch — Small prompt. Big production. One AI studio for launch films, browser demos, slide decks, and recording edits." />
-  </a>
-</p>
-
-<br />
-
 **An AI production studio you can actually direct.**
 
 Bring a URL, a recording, a deck, or an idea.<br />
@@ -74,14 +66,6 @@ Need original footage or another media operation? Generated video and general-pu
 
 ## 02 / “This” is a precise instruction.
 
-<p>
-  <img src="docs/readme/direction.svg" width="1280" alt="Illustrated Pitch editing interaction: select a headline as target 1, a video range as target 2, and a logo asset as target 3, then reference those numbered targets in a prompt." />
-</p>
-
-<sub>Illustrated interaction. Selections become numbered targets in your next message.</sub>
-
-<br />
-
 | Point at… | Say something like… | What the agent receives |
 | :--- | :--- | :--- |
 | **An element** in a film or slide | “Make **[1]** bigger.” | The element’s selector and scene or slide context. |
@@ -97,10 +81,6 @@ The thread streams the agent’s messages, tool calls, and results. Saving an ar
 <a id="under-the-hood"></a>
 
 ## 03 / The directory is the truth.
-
-<p>
-  <img src="docs/readme/architecture.svg" width="1280" alt="Pitch architecture: the web studio connects to one API process that hosts resumable pi agent sessions. The agent uses a Gondolin workspace sandbox and timed host tools. Workspace artifacts feed the live preview and published outputs go to object storage." />
-</p>
 
 A project’s source files, recordings, and renders live together. The database tracks ownership, session references, and published outputs. **Status and previews are derived from the work on disk.**
 
@@ -125,8 +105,6 @@ A project’s source files, recordings, and renders live together. The database 
 
 **Built with:** Bun · TypeScript · pi · Gondolin · PostgreSQL · Prisma / ZenStack · FFmpeg · GSAP · CloakBrowser · Gemini · ElevenLabs · S3 / MinIO.
 
-The [studio architecture](docs/studio-architecture.md) documents the project model, tool boundaries, routes, events, and selection contract.
-
 </details>
 
 <br />
@@ -135,7 +113,7 @@ The [studio architecture](docs/studio-architecture.md) documents the project mod
 
 ## 04 / Take the controls.
 
-For local development, have **Bun, Node.js, and Docker Compose** available. Native media tools also need FFmpeg and, for transcription/alignment, `whisper-cli` plus a model. The API’s container image provides the host binaries; see [deployment](docs/installation.md) for the server setup.
+For local development, have **Bun, Node.js, and Docker Compose** available. Native media tools also need FFmpeg and, for transcription/alignment, `whisper-cli` plus a model. The API’s container image provides the host binaries.
 
 ### Set the environment
 
@@ -179,7 +157,7 @@ make dev
 | `make sandbox-check` | Check shell confinement on the current host. |
 | `make down` | Stop the development stack. |
 
-For a containerized API, use `make dev-docker` after following the [installation guide](docs/installation.md). For an HTTPS development URL, see [dev tunnels](docs/dev-tunnel.md).
+For a containerized API, use `make dev-docker`.
 
 Changes to `.pi/extensions` or `.pi/skills` require a server restart; open sessions retain the code they loaded.
 
@@ -231,10 +209,6 @@ The server exposes `create_project`, `prompt_project`, `get_project`, `list_proj
 <br />
 
 ---
-
-### The reading room
-
-[Architecture](docs/studio-architecture.md) &nbsp; / &nbsp; [Deployment](docs/installation.md) &nbsp; / &nbsp; [GKE](docs/gke-deployment.md) &nbsp; / &nbsp; [Brand & UI](docs/brand-ui-guidelines.md)
 
 ### License
 

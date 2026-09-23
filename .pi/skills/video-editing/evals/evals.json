@@ -1,0 +1,41 @@
+{
+  "skill_name": "video-editing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Polish this narrated DeepSeek walkthrough. The last edit zoomed late and missed some items entirely. Make the zooms follow what is being explained, preserve typing and streamed responses, and shorten the waits. Before rendering, give me the editing plan and how you would check it.",
+      "expected_output": "A narrated-screen attention map covering the full spoken-reference sequence, precise phrase/action associations, continuous typing/streaming, and review derived from all required subjects. Supply the user's recording, transcript and source frames for the run.",
+      "files": [],
+      "expectations": [
+        "Accounts for initial history, Search, research entry, response/summary, source link, New chat, programming entry, code/type annotations and later saved history.",
+        "Uses identifying phrases instead of generic sentence starts, and does not pair a later explanation with an unrelated earlier state change.",
+        "Keeps both typing and response-generation sequences continuous, speech at natural speed, and justified reading holds.",
+        "Keeps unavailable complexity-analysis imagery and unverified live-search claims explicitly unresolved rather than substituting unrelated pixels.",
+        "Keeps named navigation controls emphasized through activation and chooses reset timing from actual layout changes.",
+        "Derives rendered review from required subjects, including omissions; does not report planning or technical checks as completed perceptual review."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Tighten this founder interview for our website. Keep it natural and preserve what she means. There is a four-second pause before she explains why the first launch failed; her expression changes and the interviewer nods. Other gaps are crew setup and a repeated take. The shot is already a readable medium close-up. Give me your editing plan before rendering.",
+      "expected_output": "An interview-specific edit that preserves meaningful silence/reaction, selects redundancy editorially and retains natural framing and speech. Supplied observations test planning; a real asset is needed to test recognition and execution.",
+      "files": [],
+      "expectations": [
+        "Preserves the meaningful four-second pause, facial expression and reaction.",
+        "Removes setup/redundancy editorially while retaining meaning, qualifications and natural speech speed.",
+        "Does not impose a screen prepass, blanket gap acceleration or UI-style noun-triggered zooms."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The approved demo is finished. Lower only the music by 6 dB from 40 to 46 seconds; leave the voice, timing and camera alone. The saved edit plan has separate narration and music stems. Explain the precise change and verification before rendering.",
+      "expected_output": "A targeted music-only correction over the exact final-time interval, preserving approved picture, voice and timing; no unrelated preprocessing or camera pass.",
+      "files": [],
+      "expectations": [
+        "Applies -6 dB or its correct amplitude multiplier only to music over final-output [40,46), accounting for stem offsets/retiming.",
+        "Preserves narration, picture, timing and camera; avoids a general prepass or makeover.",
+        "Checks temporal boundaries, isolation and mix-chain effects; acknowledges missing assets and does not invent plan capabilities or claim execution."
+      ]
+    }
+  ]
+}
