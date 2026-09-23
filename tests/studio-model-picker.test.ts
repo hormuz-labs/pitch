@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   AZURE_ASTRA_SPEC,
+  AZURE_GPT_6_LUNA_SPEC,
+  AZURE_GPT_6_SOL_SPEC,
   AZURE_GPT_55_SPEC,
   AZURE_LUNA_SPEC,
   AZURE_SOL_SPEC,
@@ -200,6 +202,8 @@ describe('assembleStudioPicker', () => {
       model('azure-apim', 'gpt-5.6-luna', 'Luna'),
       model('azure-apim', 'gpt-5.6-terra', 'Terra'),
       model('azure-apim', 'gpt-5.6-sol', 'Sol'),
+      model('azure-apim', 'gpt-6-luna', 'GPT-6 Luna'),
+      model('azure-apim', 'gpt-6-sol', 'GPT-6 Sol'),
       model('azure-apim', 'gpt-6-astra', 'Astra'),
     ]
     expect(
@@ -219,6 +223,8 @@ describe('assembleStudioPicker', () => {
       AZURE_LUNA_SPEC,
       AZURE_TERRA_SPEC,
       AZURE_SOL_SPEC,
+      AZURE_GPT_6_LUNA_SPEC,
+      AZURE_GPT_6_SOL_SPEC,
       AZURE_ASTRA_SPEC,
     ])
   })

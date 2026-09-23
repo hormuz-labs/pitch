@@ -1,0 +1,60 @@
+.api-keys-page { width: min(100%, 1040px); margin: 0 auto; padding: 40px 32px 72px; color: var(--text-primary); font-family: var(--font-sans); }
+.api-keys-page.is-embedded { width: 100%; margin: 0; padding: 0; }
+.api-keys-header, .api-keys-heading, .api-keys-connect-intro, .api-keys-field > div, .api-keys-config > div, .api-keys-list-head, .api-key-row, .api-key-title, .api-key-meta, .api-key-confirm { display: flex; align-items: center; }
+.api-keys-header { justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.api-keys-heading { align-items: flex-start; gap: 12px; }
+.api-keys-heading-icon, .api-keys-connect-icon, .api-keys-empty > span { display: grid; flex: none; place-items: center; border: 1px solid var(--border-subtle); background: var(--bg-raised); color: var(--text-secondary); }
+.api-keys-heading-icon { width: 34px; height: 34px; border-radius: 10px; }
+.api-keys-heading h1 { margin: 0; font-size: 20px; font-weight: 620; letter-spacing: -.025em; }
+.api-keys-heading p { max-width: 620px; margin: 4px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.api-keys-primary { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; padding: 0 15px; border: 1px solid var(--interactive-bg); border-radius: 10px; background: var(--interactive-bg); color: var(--interactive-text); font-size: 13px; font-weight: 550; cursor: pointer; }
+.api-keys-primary:hover { background: var(--interactive-bg-hover); }
+.api-keys-alert { margin-bottom: 18px; border: 1px solid var(--error); border-radius: 10px; padding: 12px 14px; color: var(--error); font-size: 13px; }
+.api-keys-connect { margin-bottom: 34px; padding: 22px; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--bg-surface); }
+.api-keys-connect-intro { align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.api-keys-connect-icon { width: 36px; height: 36px; border-radius: 10px; }
+.api-keys-connect h2 { margin: 0; font-size: 14px; font-weight: 620; }
+.api-keys-connect-intro p { margin: 4px 0 0; color: var(--text-muted); font-size: 12.5px; }
+.api-keys-field > span, .api-keys-config > div > span { color: var(--text-muted); font: 500 10px/1 var(--font-mono); letter-spacing: .09em; text-transform: uppercase; }
+.api-keys-field > div { justify-content: space-between; gap: 12px; margin-top: 8px; padding: 7px 8px 7px 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--bg-raised); }
+.api-keys-field code { min-width: 0; overflow: hidden; color: var(--text-primary); font: 12px/1.5 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.api-keys-field button { flex: none; background: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-default); }
+.api-keys-config { margin-top: 14px; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 12px; background: #11131d; }
+.api-keys-config > div { justify-content: space-between; padding: 8px 8px 8px 14px; border-bottom: 1px solid rgb(255 255 255 / 10%); }
+.api-keys-config > div > span { color: #aeb2c5; }
+.api-keys-config pre { margin: 0; overflow-x: auto; padding: 16px; color: #f3f4fa; font: 11.5px/1.65 var(--font-mono); white-space: pre; }
+.api-keys-list-head { justify-content: space-between; margin: 0 2px 10px; }
+.api-keys-list-head h2 { margin: 0; font-size: 13px; font-weight: 620; }
+.api-keys-list-head span { color: var(--text-faint); font: 10px/1 var(--font-mono); text-transform: uppercase; }
+.api-keys-list { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--bg-surface); }
+.api-key-row { min-height: 106px; justify-content: space-between; gap: 24px; padding: 20px 22px; border-top: 1px solid var(--border-subtle); }
+.api-key-row:first-child { border-top: 0; }
+.api-key-main { min-width: 0; }
+.api-key-title { gap: 9px; }
+.api-key-title b { font-size: 13.5px; font-weight: 620; }
+.api-key-status { padding: 3px 7px; border: 1px solid var(--border-subtle); border-radius: 999px; color: var(--text-muted); font-size: 9px; }
+.api-key-status.is-active { border-color: color-mix(in srgb, var(--success) 25%, transparent); background: color-mix(in srgb, var(--success) 9%, transparent); color: var(--success); }
+.api-key-main code { display: block; margin-top: 8px; color: var(--text-secondary); font: 11.5px/1.4 var(--font-mono); }
+.api-key-meta { flex-wrap: wrap; gap: 5px 18px; margin-top: 5px; color: var(--text-muted); font-size: 11px; }
+.api-key-revoke { min-height: 32px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--error) 28%, transparent); border-radius: 9px; background: transparent; color: var(--error); font-size: 11px; cursor: pointer; }
+.api-key-revoke:hover { background: color-mix(in srgb, var(--error) 7%, transparent); }
+.api-key-confirm { flex-wrap: wrap; justify-content: flex-end; gap: 8px; font-size: 11px; }
+.api-key-confirm-danger { min-height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--error); color: white; cursor: pointer; }
+.api-key-confirm-cancel { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.api-keys-empty { padding: 54px 20px; border: 1px dashed var(--border-default); border-radius: 14px; background: var(--bg-surface); text-align: center; }
+.api-keys-empty > span { width: 38px; height: 38px; margin: 0 auto; border-radius: 11px; }
+.api-keys-empty p { margin: 12px 0 0; font-size: 13px; font-weight: 550; }
+.api-keys-empty small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 11.5px; }
+.api-key-name-input { width: 100%; padding: 10px 11px; border: 1px solid var(--border-default); border-radius: 9px; background: var(--bg-sunken); color: var(--text-primary); font-size: 13px; outline: 0; }
+.api-key-name-input:focus { border-color: var(--text-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 8%, transparent); }
+.api-keys-page :is(button, input):focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+@media (max-width: 700px) {
+  .api-keys-page { padding: 26px 18px 54px; }
+  .api-keys-page.is-embedded { padding: 0; }
+  .api-keys-header { align-items: flex-start; }
+  .api-keys-heading-icon { display: none; }
+  .api-keys-primary { min-height: 36px; padding-inline: 12px; }
+  .api-keys-connect { padding: 17px; }
+  .api-key-row { align-items: flex-start; padding: 18px; }
+  .api-key-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
+}

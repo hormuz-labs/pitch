@@ -42,9 +42,10 @@ small prompt up to one credit.
 ## Model pricing
 
 The model multiplier is configured with `STUDIO_MODEL_CREDIT_MULTIPLIERS`.
-Azure APIM provides GPT-5.5, Luna, Terra, Sol, and Astra. The studio defaults
-reasoning to `medium`; reasoning tokens are already included in reported model
-usage, so there is no second reasoning-level surcharge.
+Azure APIM provides GPT-5.5, GPT-5.6 Luna/Terra/Sol, and GPT-6
+Luna/Sol/Astra. The studio defaults reasoning to `medium`; reasoning tokens are
+already included in reported model usage, so there is no second reasoning-level
+surcharge.
 
 Every runnable model is shown regardless of plan. Selecting one does not deduct
 credits. The composer warns when the balance is below the model-and-duration

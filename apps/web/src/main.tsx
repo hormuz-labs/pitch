@@ -10,7 +10,8 @@ if (!publishableKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 const container = document.getElementById('root')
 if (!container) throw new Error('Missing #root mount element')
 
-const mount = () =>
+const mount = () => {
+  if (container.firstElementChild) container.replaceChildren()
   render(
     () => (
       <ClerkProvider publishableKey={publishableKey}>
@@ -23,6 +24,7 @@ const mount = () =>
     ),
     container,
   )
+}
 
 // Prerendered public pages contain DOM mutated by their animation libraries,
 // so hydration cannot be reliable. Warm the matching route chunk before Solid
