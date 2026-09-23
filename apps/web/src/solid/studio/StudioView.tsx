@@ -23,6 +23,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
+import { AdminReviewBar } from './AdminReviewBar'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { studio } from './client'
@@ -34,6 +35,7 @@ import { animateToLatest, FeedJumpLatest, isAwayFromLatest } from './FeedJumpLat
 import { shouldReturnEmptyProjectToNew } from './helpers'
 import { MusicPicker } from './MusicPicker'
 import { BrowserPreview } from './previews/BrowserPreview'
+import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
 import { PdfPreview } from './previews/PdfPreview'
 import { VideoPreview } from './previews/VideoPreview'
@@ -62,6 +64,9 @@ function Preview(props: { store: ProjectStore; detailedTimeline?: boolean }) {
     <Switch fallback={<Build store={s} />}>
       <Match when={kind() === 'html' && !!src()}>
         <HtmlPreview store={s} src={src()!} />
+      </Match>
+      <Match when={kind() === 'deck' && !!src() && s.readOnly}>
+        <DeckPreview store={s} src={`${src()}&studio=1`} />
       </Match>
       <Match when={kind() === 'deck' && !!src()}>
         <DeckEditor store={s} src={`${src()}&studio=1&edit=1`} />
@@ -551,8 +556,8 @@ export function Actions(
     </span>
   )
 }
-export function StudioView(props: { projectId: string }) {
-  const s = useProject(props.projectId),
+export function StudioView(props: { projectId: string; admin?: boolean }) {
+  const s = useProject(props.projectId, { admin: props.admin }),
     navigate = useNavigate(),
     chatId = createUniqueId(),
     previewId = createUniqueId(),
@@ -686,7 +691,7 @@ export function StudioView(props: { projectId: string }) {
     }),
   )
   createEffect(() => {
-    if (returnToNew()) navigate('/new', { replace: true })
+    if (!s.readOnly && returnToNew()) navigate('/new', { replace: true })
   })
   createEffect(() => {
     const available = hasPreview()
@@ -743,14 +748,26 @@ export function StudioView(props: { projectId: string }) {
             <header class="job-topbar job-topbar-split">
               <div class="topbar-split-left">
                 <div class="nav-crumb">
-                  <StudioProjectControls
-                    title={s.project?.title}
-                    pinned={Boolean(s.project?.pinnedAt)}
-                    onNew={newChat}
-                    onRename={() => void renameProject()}
-                    onTogglePin={() => void togglePin()}
-                    onDelete={() => void deleteProject()}
-                  />
+                  <Show
+                    when={s.readOnly}
+                    fallback={
+                      <StudioProjectControls
+                        title={s.project?.title}
+                        pinned={Boolean(s.project?.pinnedAt)}
+                        onNew={newChat}
+                        onRename={() => void renameProject()}
+                        onTogglePin={() => void togglePin()}
+                        onDelete={() => void deleteProject()}
+                      />
+                    }
+                  >
+                    <AdminReviewBar
+                      projectId={props.projectId}
+                      title={s.project?.title}
+                      owner={s.owner}
+                      getToken={s.getToken}
+                    />
+                  </Show>
                 </div>
               </div>
               <div class="topbar-split-right">
@@ -793,7 +810,7 @@ export function StudioView(props: { projectId: string }) {
                     />
                   </Show>
                 </div>
-                <Show when={hasPreview()}>
+                <Show when={hasPreview() && !s.readOnly}>
                   <Actions store={s} view={view} setView={setView}>
                     <Show when={hasVideoSoundtrack()}>
                       <button
@@ -841,8 +858,8 @@ export function StudioView(props: { projectId: string }) {
                     <Thread
                       entries={s.entries}
                       busy={s.busy}
-                      onAnswer={s.send}
-                      onEdit={entry => void s.rollback(entry)}
+                      onAnswer={s.readOnly ? undefined : s.send}
+                      onEdit={s.readOnly ? undefined : entry => void s.rollback(entry)}
                     />
                   </Show>
                 </div>
@@ -850,7 +867,16 @@ export function StudioView(props: { projectId: string }) {
                   <Show when={showJumpToLatest()}>
                     <FeedJumpLatest onClick={jumpToLatest} />
                   </Show>
-                  <Composer store={s} />
+                  <Show
+                    when={!s.readOnly}
+                    fallback={
+                      <p class="admin-review-composer" role="note">
+                        Read-only admin view. Messages, edits and exports are disabled.
+                      </p>
+                    }
+                  >
+                    <Composer store={s} />
+                  </Show>
                 </div>
               </aside>
               <Show when={showStage()}>

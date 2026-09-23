@@ -348,7 +348,15 @@ describe('Studio UI style contract', () => {
     expect(view).toContain('import { DeckEditor }')
     // biome-ignore lint/suspicious/noTemplateCurlyInString: matching the JSX source verbatim
     expect(view).toContain('${src()}&studio=1&edit=1')
-    expect(view).not.toContain('DeckPreview')
+    // The owner always gets the editor. The plain, non-saving DeckPreview is
+    // only for read-only admin review, and its Match must come first.
+    const reviewMatch = view.indexOf("<Match when={kind() === 'deck' && !!src() && s.readOnly}>")
+    const editorMatch = view.indexOf("<Match when={kind() === 'deck' && !!src()}>")
+    expect(reviewMatch).toBeGreaterThan(-1)
+    expect(reviewMatch).toBeLessThan(editorMatch)
+    expect(view.match(/<DeckPreview /g)).toHaveLength(1)
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: matching the JSX source verbatim
+    expect(view).toContain('<DeckPreview store={s} src={`${src()}&studio=1`} />')
     // Deck projects own their slides bar; the tray must not double-render slides.
     expect(view).toContain("description?.preview?.kind === 'deck') return null")
     // The editor keeps the inspect bridge for agent targeting while editing.

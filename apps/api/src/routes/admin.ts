@@ -5,9 +5,17 @@
 import * as db from '@saas/db'
 import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
-import { Router } from 'express'
+import { type Request, type Response, Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { IDLE_EXPORT } from '../projects/export.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
+import {
+  adminAssetUrl,
+  chatMarkdown,
+  parseSessionLog,
+  type ReviewOwner,
+  reviewFilename,
+} from '../projects/review.js'
 import { parseRow } from '../projects/rows.js'
 import {
   busyProjects,
@@ -15,7 +23,12 @@ import {
   failProject,
   getEntries,
   getRow,
+  type ProjectRow,
+  projectDetail,
+  rowById,
 } from '../projects/service.js'
+import { readCover } from '../worker/checkpoint.js'
+import { currentOwner, withOwner } from '../worker/client.js'
 
 const logger = createLogger('studio:admin')
 export const router: Router = Router()
@@ -260,6 +273,253 @@ router.get('/projects/:id', async (req, res) => {
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch project details')
     res.status(500).json({ error: error.message })
+  }
+})
+
+// ── Read-only studio review ──────────────────────────────────────────────────
+// What an administrator needs to open any project exactly as its owner sees
+// it, and to download the chat and the agent's logs for review. Every route
+// here is a GET behind requireAdmin (router.use above), and none of them
+// writes. Prompting, exporting, sharing and editing stay on /projects/*,
+// where getRow() scopes every call to the owner, so an admin can look but
+// never act as the user or spend their credits.
+
+async function reviewRow(
+  req: Request,
+  res: Response,
+  action: string,
+  audit = true,
+): Promise<ProjectRow | null> {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const p = await rowById(String(req.params.id))
+    const adminId = (req as any).adminUser?.id
+    const fields = { adminId, projectId: p.id, ownerId: p.userId, action }
+    if (audit) logger.info(fields, 'admin project review')
+    else logger.debug(fields, 'admin project review')
+    return p
+  } catch (err: any) {
+    if (err?.status === 404) res.status(404).json({ error: 'Project not found' })
+    else {
+      logger.error({ err, projectId: req.params.id, action }, 'admin review lookup failed')
+      res.status(500).json({ error: 'Failed to load project' })
+    }
+    return null
+  }
+}
+
+function reviewFail(res: Response, err: any, what: string) {
+  const status = typeof err?.status === 'number' ? err.status : 500
+  if (status >= 500) logger.error({ err }, what)
+  if (!res.headersSent) res.status(status).json({ error: err?.message ?? what })
+}
+
+async function reviewOwner(userId: string): Promise<ReviewOwner | null> {
+  return db.prisma.userProfile.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, firstName: true, lastName: true },
+  })
+}
+
+router.get('/projects/:id/studio', async (req, res) => {
+  const p = await reviewRow(req, res, 'view')
+  if (!p) return
+  try {
+    const [detail, owner] = await Promise.all([projectDetail(p), reviewOwner(p.userId)])
+    res.json({ ...detail, owner })
+  } catch (err) {
+    reviewFail(res, err, 'admin studio view failed')
+  }
+})
+
+router.get('/projects/:id/messages', async (req, res) => {
+  const p = await reviewRow(req, res, 'messages', false)
+  if (!p) return
+  try {
+    res.json(await getEntries(p))
+  } catch (err) {
+    reviewFail(res, err, 'admin messages failed')
+  }
+})
+
+router.get('/projects/:id/assets', async (req, res) => {
+  const p = await reviewRow(req, res, 'assets', false)
+  if (!p) return
+  try {
+    const assets = await withOwner(p.id, w => w.listAssets(p.id))
+    res.json(assets.map(a => ({ ...a, thumbUrl: adminAssetUrl(p.id, a.thumbUrl) })))
+  } catch (err) {
+    reviewFail(res, err, 'admin assets failed')
+  }
+})
+
+router.get('/projects/:id/assets/thumb', async (req, res) => {
+  const p = await reviewRow(req, res, 'asset thumbnail', false)
+  if (!p) return
+  try {
+    const at = req.query.at === undefined ? undefined : Number(req.query.at)
+    const buf = await withOwner(p.id, w =>
+      w.assetThumbnail(p.id, {
+        path: String(req.query.path ?? ''),
+        at: Number.isFinite(at) ? at : undefined,
+      }),
+    )
+    if (!buf) return res.status(404).end()
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.end(buf)
+  } catch (err) {
+    reviewFail(res, err, 'admin asset thumbnail failed')
+  }
+})
+
+router.get('/projects/:id/thumbnail', async (req, res) => {
+  const p = await reviewRow(req, res, 'thumbnail', false)
+  if (!p) return
+  try {
+    const t = Math.max(0, Number(req.query.t ?? 0))
+    const owner = await currentOwner(p.id)
+    const buf = owner
+      ? await owner.thumbnail(p.id, Number.isFinite(t) ? t : 0)
+      : await readCover(p.id).catch(() => null)
+    if (!buf) return res.status(404).json({ error: 'no preview' })
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.send(buf)
+  } catch (err) {
+    reviewFail(res, err, 'admin thumbnail failed')
+  }
+})
+
+router.get('/projects/:id/export', async (req, res) => {
+  const p = await reviewRow(req, res, 'export status', false)
+  if (!p) return
+  try {
+    const owner = await currentOwner(p.id)
+    res.json(owner ? await owner.exportStatus(p.id) : IDLE_EXPORT)
+  } catch (err) {
+    reviewFail(res, err, 'admin export status failed')
+  }
+})
+
+/**
+ * The live event stream, so a running turn can be watched as it happens. The
+ * owner's credit balance rides this stream for their own header; it is not
+ * the admin's to display, so it is dropped here.
+ */
+router.get('/projects/:id/events', async (req, res) => {
+  const p = await reviewRow(req, res, 'events')
+  if (!p) return
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-store',
+    Connection: 'keep-alive',
+  })
+  const send = (ev: { type: string }) => {
+    if (ev.type === 'credit_balance' || ev.type === 'credit_exhausted') return
+    res.write(`data: ${JSON.stringify(ev)}\n\n`)
+  }
+  const gone = new AbortController()
+  const keepAlive = setInterval(() => res.write(': ping\n\n'), 15000)
+  req.on('close', () => {
+    clearInterval(keepAlive)
+    gone.abort()
+  })
+  try {
+    await withOwner(p.id, owner => owner.events(p.id, send, gone.signal))
+  } catch (err: any) {
+    if (gone.signal.aborted) return
+    logger.warn({ err, projectId: p.id }, 'admin could not attach to the project stream')
+    send({ type: 'error', message: err?.message ?? 'The studio is unavailable right now' } as any)
+    res.end()
+  }
+})
+
+function attachment(res: Response, filename: string, type: string) {
+  res.setHeader('Content-Type', type)
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+}
+
+/** The conversation as the user saw it: Markdown by default, `?format=json` for the raw entries. */
+router.get('/projects/:id/download/chat', async (req, res) => {
+  const p = await reviewRow(req, res, 'download chat')
+  if (!p) return
+  try {
+    const [{ entries }, owner] = await Promise.all([getEntries(p), reviewOwner(p.userId)])
+    if (req.query.format === 'json') {
+      attachment(res, reviewFilename(p.id, 'chat', 'json'), 'application/json; charset=utf-8')
+      return res.send(
+        JSON.stringify(
+          {
+            exportedAt: new Date().toISOString(),
+            project: { id: p.id, title: p.title, createdAt: p.createdAt, prompt: p.prompt },
+            owner,
+            entries,
+          },
+          null,
+          2,
+        ),
+      )
+    }
+    attachment(res, reviewFilename(p.id, 'chat', 'md'), 'text/markdown; charset=utf-8')
+    res.send(chatMarkdown(p, owner, entries))
+  } catch (err) {
+    reviewFail(res, err, 'admin chat download failed')
+  }
+})
+
+/**
+ * Everything needed to reconstruct what happened: the row, the raw agent
+ * transcript (every model message and tool call), render jobs and credit
+ * movements. Parts that cannot be read are reported, not fatal — a project
+ * whose worker is gone still has its database history.
+ */
+router.get('/projects/:id/download/logs', async (req, res) => {
+  const p = await reviewRow(req, res, 'download logs')
+  if (!p) return
+  const settle = async <T>(work: Promise<T>) =>
+    work.then(
+      value => ({ value, error: null as string | null }),
+      (err: any) => ({ value: null as T | null, error: String(err?.message ?? err) }),
+    )
+  try {
+    const [owner, chat, session, renderJobs, creditTransactions] = await Promise.all([
+      reviewOwner(p.userId),
+      settle(getEntries(p)),
+      settle(withOwner(p.id, w => w.sessionLog(p.id))),
+      db.prisma.renderJob.findMany({ where: { projectId: p.id }, orderBy: { createdAt: 'asc' } }),
+      db.prisma.creditTransaction.findMany({
+        where: { projectId: p.id },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ])
+    const admin = (req as any).adminUser
+    attachment(res, reviewFilename(p.id, 'logs', 'json'), 'application/json; charset=utf-8')
+    res.send(
+      JSON.stringify(
+        {
+          exportedAt: new Date().toISOString(),
+          exportedBy: { id: admin?.id, email: admin?.email },
+          project: p,
+          owner,
+          chat: { entries: chat.value?.entries ?? [], error: chat.error },
+          session: {
+            lines: parseSessionLog(session.value),
+            available: Boolean(session.value),
+            error: session.error,
+          },
+          renderJobs: renderJobs.map(j => ({
+            ...j,
+            params: parse(j.params, {}),
+            result: parse(j.result, null),
+          })),
+          creditTransactions,
+        },
+        null,
+        2,
+      ),
+    )
+  } catch (err) {
+    reviewFail(res, err, 'admin logs download failed')
   }
 })
 

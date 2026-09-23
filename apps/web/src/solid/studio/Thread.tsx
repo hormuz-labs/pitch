@@ -225,6 +225,7 @@ export function Thread(props: {
                             </div>
                             <Show
                               when={
+                                props.onEdit &&
                                 e.role === 'user' &&
                                 e.sessionEntryId &&
                                 e.checkpointId &&

@@ -20,6 +20,7 @@ import express from 'express'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { type Options as PinoHttpOptions, pinoHttp } from 'pino-http'
 import { checkWritableDirectory, healthRouter } from './lib/health.js'
+import { acceptsTokenQuery } from './lib/token-query.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '../../..')
@@ -156,17 +157,8 @@ if (IS_API) {
 
   // EventSource / <video> / <img> / <iframe> can't set Authorization headers, so
   // a Clerk session token may ride in ?token= for streams and files.
-  const TOKEN_QUERY_PATHS = [
-    /^\/projects\/[^/]+\/(events|thumbnail)$/,
-    /^\/projects\/[^/]+\/assets\/thumb$/,
-    /^\/files\//,
-  ]
   app.use((req, _res, next) => {
-    if (
-      req.query.token &&
-      !req.headers.authorization &&
-      TOKEN_QUERY_PATHS.some(re => re.test(req.path))
-    ) {
+    if (req.query.token && !req.headers.authorization && acceptsTokenQuery(req.path)) {
       req.headers.authorization = `Bearer ${req.query.token}`
     }
     next()

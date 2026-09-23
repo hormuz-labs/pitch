@@ -102,6 +102,10 @@ router.get(
   route('describe', async req => host.describe(req.params.id)),
 )
 router.get(
+  '/projects/:id/session-log',
+  route('session log', async req => ({ log: await host.sessionLog(req.params.id) })),
+)
+router.get(
   '/projects/:id/busy',
   route('busy', async req => ({ busy: await host.busy(req.params.id) })),
 )

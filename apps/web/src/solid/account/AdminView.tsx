@@ -27,8 +27,10 @@ import {
 } from 'lucide-solid'
 import { createMemo, createSignal, For, type JSX, onMount, Show } from 'solid-js'
 import { api } from '../../lib/api'
+import { saveBlob } from '../../lib/save-blob'
 import type { Project } from '../../lib/studio-api'
 import { useAuth } from '../core/auth'
+import { adminStudio, type ReviewDownload } from '../studio/client'
 import { Dialog, Loading, Select } from './primitives'
 import '../../styles/admin.css'
 
@@ -1049,7 +1051,7 @@ function ProjectsTab(props: {
                       Details
                     </button>
                     <a
-                      href={`/projects/${project.id}`}
+                      href={`/admin/projects/${project.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       class="admin-button admin-button--sm"
@@ -1081,8 +1083,26 @@ function ProjectDetailDialog(props: {
   onDeleteProject: (projectId: string) => Promise<void>
 }) {
   const p = () => props.detail || props.project
+  const { getToken } = useAuth()
   const [failing, setFailing] = createSignal(false)
   const [deleting, setDeleting] = createSignal(false)
+  const [downloading, setDownloading] = createSignal<ReviewDownload | null>(null)
+
+  const handleDownload = async (kind: ReviewDownload) => {
+    const proj = p()
+    if (!proj || downloading()) return
+    setDownloading(kind)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not signed in')
+      const { blob, filename } = await adminStudio.download(token, proj.id, kind)
+      saveBlob(blob, filename ?? `pitch-${proj.id}-${kind === 'logs' ? 'logs.json' : 'chat.md'}`)
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Download failed')
+    } finally {
+      setDownloading(null)
+    }
+  }
 
   const handleFail = async () => {
     const proj = p()
@@ -1181,7 +1201,7 @@ function ProjectDetailDialog(props: {
 
       <div class="admin-action-row">
         <a
-          href={`/projects/${p()?.id}`}
+          href={`/admin/projects/${p()?.id}`}
           target="_blank"
           rel="noopener noreferrer"
           class="admin-button admin-button--primary admin-button--sm"
@@ -1189,6 +1209,24 @@ function ProjectDetailDialog(props: {
           <ExternalLink size={13} />
           Open in Studio
         </a>
+        <button
+          type="button"
+          class="admin-button admin-button--sm"
+          disabled={!!downloading()}
+          onClick={() => void handleDownload('chat')}
+        >
+          <Download size={13} />
+          {downloading() === 'chat' ? 'Preparing…' : 'Download chat'}
+        </button>
+        <button
+          type="button"
+          class="admin-button admin-button--sm"
+          disabled={!!downloading()}
+          onClick={() => void handleDownload('logs')}
+        >
+          <Download size={13} />
+          {downloading() === 'logs' ? 'Preparing…' : 'Download logs'}
+        </button>
         <Show when={p()?.shareSlug}>
           <a
             href={`/share/${p()?.shareSlug}`}

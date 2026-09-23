@@ -23,7 +23,7 @@
  *              cache and is preferred by the next placement
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
 import {
@@ -948,6 +948,25 @@ export function emit(projectId: string, ev: StudioEvent): boolean {
 export async function workspaceDir(row: ProjectRow): Promise<string> {
   const { h } = await ensureOpen(row.id)
   return h.ws.dir
+}
+
+/** Cap on the raw transcript an admin can pull in one response. */
+const SESSION_LOG_MAX_BYTES = 64 * 1024 * 1024
+
+/**
+ * The raw pi transcript (JSON Lines) for review. Read-only: it never opens a
+ * session, only the file the row names — and only a `.jsonl` file, so a bad
+ * row cannot turn this into a read of anything else on the box.
+ */
+export async function sessionLog(projectId: string): Promise<string | null> {
+  const { row } = await ensureOpen(projectId)
+  const file = row.sessionFile
+  if (!file || path.extname(file) !== '.jsonl' || !existsSync(file)) return null
+  const info = await stat(file)
+  if (!info.isFile()) return null
+  if (info.size > SESSION_LOG_MAX_BYTES)
+    throw Object.assign(new Error('The session log is too large to download'), { status: 413 })
+  return readFile(file, 'utf8')
 }
 
 // ── Checkpoints, release, removal ─────────────────────────────────────────────
