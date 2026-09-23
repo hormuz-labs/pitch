@@ -21,7 +21,7 @@ const transfer = vi.hoisted(() => ({
   head: vi.fn(),
   put: vi.fn(),
   remove: vi.fn(),
-  tarCreate: vi.fn(),
+  tarToFile: vi.fn(),
   tarExtract: vi.fn(),
 }))
 vi.mock('@saas/db', () => ({
@@ -53,7 +53,7 @@ vi.mock('../apps/api/src/worker/checkpoint.js', () => ({
     put: transfer.put,
     remove: transfer.remove,
   }),
-  tarCreate: transfer.tarCreate,
+  tarToFile: transfer.tarToFile,
   tarExtract: transfer.tarExtract,
 }))
 process.env.STUDIO_RENDER_POLL_MS = '10'
@@ -199,11 +199,11 @@ describe('output walk', () => {
     ])
   })
 
-  it('finishes the tar before uploading it with its exact size', async () => {
+  it('uploads the finished tar with its exact size', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'render-upload-'))
-    transfer.tarCreate.mockReturnValue({
-      stream: Readable.from([Buffer.from('complete tar')]),
-      done: Promise.resolve(),
+    transfer.tarToFile.mockImplementation(async (_dir: string, _files: string[], file: string) => {
+      await writeFile(file, 'complete tar')
+      return 12
     })
     transfer.put.mockImplementation(async (_key, body, _type, size) => {
       const chunks: Buffer[] = []
@@ -217,9 +217,9 @@ describe('output walk', () => {
 
   it('rejects an incomplete output upload before completing the render job', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'render-upload-'))
-    transfer.tarCreate.mockReturnValue({
-      stream: Readable.from([Buffer.from('complete tar')]),
-      done: Promise.resolve(),
+    transfer.tarToFile.mockImplementation(async (_dir: string, _files: string[], file: string) => {
+      await writeFile(file, 'complete tar')
+      return 12
     })
     transfer.head.mockResolvedValue({ size: 3 })
 

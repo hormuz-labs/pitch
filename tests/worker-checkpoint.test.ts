@@ -19,6 +19,7 @@ process.env.STUDIO_WORKSPACE_BUCKET = 'test-workspaces'
 const objects = new Map<string, Buffer>()
 let stallUpload = false
 let uploadAborted = false
+let truncateUpload = false
 vi.mock('@saas/storage', () => ({
   privateBucket: () => ({
     async put(
@@ -34,7 +35,8 @@ vi.mock('@saas/storage', () => ({
       }
       const chunks: Buffer[] = []
       for await (const c of body) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
-      objects.set(key, Buffer.concat(chunks))
+      const whole = Buffer.concat(chunks)
+      objects.set(key, truncateUpload ? whole.subarray(0, 1000) : whole)
       if (stallUpload) {
         await new Promise((_, reject) => {
           const abort = () => {
@@ -85,6 +87,7 @@ beforeEach(async () => {
   objects.clear()
   stallUpload = false
   uploadAborted = false
+  truncateUpload = false
   await rm(ws.dir, { recursive: true, force: true })
   await rm(historyDir(ws.dir), { recursive: true, force: true })
 })
@@ -120,6 +123,23 @@ describe('workspace checkpoints', () => {
     stallUpload = false
     await checkpoint.uploadCheckpoint(input)
     expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(true)
+  })
+
+  it('does not publish a version whose archive did not all arrive', async () => {
+    await seed()
+    truncateUpload = true
+    await expect(
+      checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version: 1,
+        sessionFile: null,
+        artifactKind: null,
+      }),
+    ).rejects.toThrow(/workspace.tar upload is incomplete: expected \d+ bytes, got 1000/)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(projectsDir)).filter(f => f.includes('.upload-'))).toEqual([])
   })
 
   it('does not upload or publish a cancelled checkpoint', async () => {

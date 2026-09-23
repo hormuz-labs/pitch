@@ -21,10 +21,10 @@
  * and audio that gzip would spend minutes not shrinking.
  */
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { createReadStream, existsSync } from 'node:fs'
 import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { finished, pipeline } from 'node:stream/promises'
+import { pipeline } from 'node:stream/promises'
 import { createLogger } from '@saas/shared'
 import { type PrivateObjectStore, privateBucket } from '@saas/storage'
 import { historyDir } from '../studio/history.js'
@@ -81,42 +81,46 @@ export async function writeMarker(dir: string, marker: Marker): Promise<void> {
 /** Files under the workspace that are caches or scratch: rebuilt, never restored. */
 const EXCLUDES = ['.thumbs', '.editable-*', '.health-*', MARKER, '.*.restore-*', '.*.backup-*']
 
-export function tarCreate(
+/**
+ * Archive `name` under `parent` (or explicit `members`, relative to it) into
+ * `file`, and return its size. tar writes the file itself: under Bun on
+ * Linux a child's pipes drop data (the other half of tarExtract's note), and
+ * a checkpoint read from tar's stdout was sometimes stored as 0 bytes.
+ */
+export async function tarToFile(
   parent: string,
-  name: string,
-  /** Explicit members instead of `name`'s whole tree (paths relative to `parent`). */
-  members?: string[],
-): { stream: NodeJS.ReadableStream; done: Promise<void>; abort: (error: Error) => void } {
-  const args = members
-    ? ['-cf', '-', '-C', parent, '--', ...members]
-    : ['-cf', '-', ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, name]
-  const proc = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] })
-  proc.stdout.on('error', () => {})
+  what: string | string[],
+  file: string,
+  signal?: AbortSignal,
+): Promise<number> {
+  signal?.throwIfAborted()
+  const args = Array.isArray(what)
+    ? ['-cf', file, '-C', parent, '--', ...what]
+    : ['-cf', file, ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, what]
+  const proc = spawn('tar', args, { stdio: ['ignore', 'ignore', 'pipe'] })
   let err = ''
   proc.stderr.on('data', (c: Buffer) => {
     err += c.toString('utf8')
   })
-  let rejectDone!: (error: Error) => void
-  const exited = new Promise<void>((resolve, reject) => {
-    rejectDone = reject
-    proc.on('error', reject)
-    proc.on('exit', code =>
-      code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
-    )
-  })
-  // Bun can miss ChildProcess 'close', while 'exit' may arrive before the last
-  // stdout bytes. Wait for both process success and complete stream delivery.
-  const done = Promise.all([exited, finished(proc.stdout)]).then(() => undefined)
-  done.catch(() => {})
-  return {
-    stream: proc.stdout,
-    done,
-    abort: error => {
-      rejectDone(error)
-      proc.stdout.destroy(error)
-      proc.kill('SIGKILL')
-    },
+  const kill = () => proc.kill('SIGKILL')
+  signal?.addEventListener('abort', kill, { once: true })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      proc.on('error', reject)
+      proc.on('exit', code =>
+        code === 0
+          ? resolve()
+          : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
+      )
+    })
+  } finally {
+    signal?.removeEventListener('abort', kill)
   }
+  signal?.throwIfAborted()
+  const { size } = await stat(file)
+  // A tar is at least its two 512-byte end blocks; less is not an archive.
+  if (size < 1024) throw new Error(`tar wrote an empty archive (${size} bytes)`)
+  return size
 }
 
 /**
@@ -198,47 +202,42 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
   )
   try {
     signal.throwIfAborted()
+    const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     const put = async (file: string, parent: string, name: string) => {
       signal.throwIfAborted()
       logger.info({ projectId, version, file }, 'checkpoint archive started')
-      input.progress?.(`checkpoint: uploading ${file}`, 0)
-      const archive = tarCreate(parent, name)
-      const abort = () =>
-        archive.abort(
-          signal.reason instanceof Error ? signal.reason : new Error('Checkpoint cancelled'),
-        )
-      signal.addEventListener('abort', abort, { once: true })
-      if (signal.aborted) abort()
+      input.progress?.(`checkpoint: packing ${file}`, 0)
+      // Beside `name`, never inside it, so it is not archived with it.
+      const archive = path.join(parent, `.${name}.${file}.upload-${tag}`)
+      const key = keyOf(projectId, version, file)
       try {
-        await Promise.all([
-          s.put(
-            keyOf(projectId, version, file),
-            archive.stream as any,
-            'application/x-tar',
-            undefined,
-            {
-              signal,
-              onProgress: loaded =>
-                input.progress?.(
-                  `checkpoint: ${file} (${Math.floor(loaded / 1048576)} MiB uploaded)`,
-                  0,
-                ),
-            },
-          ),
-          archive.done,
-        ])
+        const size = await tarToFile(parent, name, archive, signal)
+        input.progress?.(`checkpoint: uploading ${file}`, 0)
+        await s.put(key, createReadStream(archive) as any, 'application/x-tar', size, {
+          signal,
+          onProgress: loaded =>
+            input.progress?.(
+              `checkpoint: ${file} (${Math.floor(loaded / 1048576)} MiB uploaded)`,
+              0,
+            ),
+        })
         signal.throwIfAborted()
-        logger.info({ projectId, version, file }, 'checkpoint archive finished')
+        // Never publish a version whose archive is not all there.
+        const stored = await s.head(key)
+        if (stored?.size !== size)
+          throw new Error(
+            `checkpoint ${file} upload is incomplete: expected ${size} bytes, got ${stored?.size ?? 'nothing'}`,
+          )
+        logger.info({ projectId, version, file, bytes: size }, 'checkpoint archive finished')
       } catch (error) {
         logger.warn(
           { err: error, projectId, version, file, ms: Date.now() - started },
           'checkpoint archive failed',
         )
         controller.abort(error)
-        archive.abort(error instanceof Error ? error : new Error(String(error)))
         throw error
       } finally {
-        signal.removeEventListener('abort', abort)
+        await rm(archive, { force: true })
       }
     }
     await put('workspace.tar', PROJECTS_DIR, ws.internal)

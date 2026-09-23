@@ -4,13 +4,12 @@
  * worker over its hot copy. Only what changed goes back — a workspace is
  * mostly the uploads that were already there.
  */
-import { createReadStream, createWriteStream } from 'node:fs'
+import { createReadStream } from 'node:fs'
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pipeline } from 'node:stream/promises'
 import { createLogger } from '@saas/shared'
-import { bucket, tarCreate, tarExtract } from '../worker/checkpoint.js'
+import { bucket, tarExtract, tarToFile } from '../worker/checkpoint.js'
 
 const logger = createLogger('studio:transfer')
 
@@ -50,9 +49,7 @@ export async function uploadOutput(jobId: string, dir: string, files: string[]):
   const temp = await mkdtemp(path.join(tmpdir(), 'pitch-render-output-'))
   const archive = path.join(temp, 'output.tar')
   try {
-    const { stream, done } = tarCreate(dir, '.', files)
-    await Promise.all([pipeline(stream, createWriteStream(archive)), done])
-    const { size } = await stat(archive)
+    const size = await tarToFile(dir, files, archive)
     await bucket().put(outputKey(jobId), createReadStream(archive), 'application/x-tar', size)
     const uploaded = await bucket().head(outputKey(jobId))
     if (uploaded?.size !== size)
