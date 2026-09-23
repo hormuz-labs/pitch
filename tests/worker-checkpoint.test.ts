@@ -169,6 +169,54 @@ describe('workspace checkpoints', () => {
     )
   })
 
+  it('extracts a large archive whole every time, leaving no download behind', async () => {
+    // Streamed into tar's stdin, about one in ten of these lost data under
+    // Bun and failed "Unexpected EOF in archive" (run with `bunx --bun vitest`).
+    await seed()
+    for (let i = 0; i < 6; i++)
+      await writeFile(
+        path.join(ws.dir, 'renders', `clip-${i}.mp4`),
+        Buffer.alloc(2 * 1024 * 1024, i),
+      )
+    await checkpoint.uploadCheckpoint({
+      projectId,
+      ws,
+      version: 1,
+      sessionFile: null,
+      artifactKind: null,
+    })
+    const archive = objects.get('workspaces/proj_1/1/workspace.tar')!
+    for (let n = 0; n < 15; n++) {
+      const into = path.join(root, `large-restore-${n}`)
+      const body = Readable.from(
+        Array.from({ length: Math.ceil(archive.length / 65536) }, (_, i) =>
+          archive.subarray(i * 65536, (i + 1) * 65536),
+        ),
+      )
+      await checkpoint.tarExtract(into, body)
+      expect((await stat(path.join(into, ws.internal, 'renders', 'clip-5.mp4'))).size).toBe(
+        2 * 1024 * 1024,
+      )
+      await rm(into, { recursive: true, force: true })
+    }
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(root)).filter(f => f.includes('.fetch-'))).toEqual([])
+  }, 60_000)
+
+  it('reports a download that breaks off and keeps no partial file', async () => {
+    const body = Readable.from(
+      (async function* () {
+        yield Buffer.alloc(1024)
+        throw new Error('connection reset')
+      })(),
+    )
+    await expect(checkpoint.tarExtract(path.join(root, 'broken-restore'), body)).rejects.toThrow(
+      /Checkpoint download failed: connection reset/,
+    )
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(root)).filter(f => f.includes('.fetch-'))).toEqual([])
+  })
+
   it('still rejects a corrupt archive rather than hiding extraction errors', async () => {
     await expect(
       checkpoint.tarExtract(

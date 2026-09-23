@@ -22,7 +22,7 @@
  */
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { finished, pipeline } from 'node:stream/promises'
 import { createLogger } from '@saas/shared'
@@ -119,35 +119,49 @@ export function tarCreate(
   }
 }
 
+/**
+ * Unpack an archive stream into `into`. The bytes land in a file beside it
+ * first and tar reads that file: streaming them into tar's stdin loses data
+ * under Bun — about one restore in ten failed "Unexpected EOF in archive"
+ * although every byte had arrived.
+ */
 export async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
   await mkdir(into, { recursive: true })
-  // Read through archive end markers to the transport EOF. Otherwise GNU tar
-  // can exit successfully while S3 is still delivering padding, producing EPIPE.
-  const proc = spawn('tar', ['--ignore-zeros', '-xf', '-', '-C', into], {
-    stdio: ['pipe', 'ignore', 'pipe'],
-  })
-  let err = ''
-  proc.stderr.on('data', (c: Buffer) => {
-    err += c.toString('utf8')
-  })
-  const exit = new Promise<void>((resolve, reject) => {
-    proc.on('error', reject)
-    proc.on('close', code =>
-      code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
-    )
-  })
-  exit.catch(() => {})
+  const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const archive = path.join(path.dirname(into), `.${path.basename(into)}.fetch-${tag}.tar`)
   try {
-    await pipeline(body, proc.stdin)
-  } catch (pipeErr) {
-    proc.kill('SIGKILL')
-    await exit.catch(() => {})
-    const detail = err.trim().slice(0, 500)
-    throw new Error(`Checkpoint extraction stream failed: ${detail || String(pipeErr)}`, {
-      cause: pipeErr,
+    // Opened before streaming, so the file exists by the time `finally`
+    // removes it even when the download fails at once.
+    const file = await open(archive, 'w')
+    try {
+      await pipeline(body, file.createWriteStream())
+    } catch (err) {
+      throw new Error(`Checkpoint download failed: ${String((err as Error)?.message ?? err)}`, {
+        cause: err,
+      })
+    } finally {
+      await file.close().catch(() => {})
+    }
+    const proc = spawn('tar', ['-xf', archive, '-C', into], { stdio: ['ignore', 'ignore', 'pipe'] })
+    let err = ''
+    proc.stderr.on('data', (c: Buffer) => {
+      err += c.toString('utf8')
     })
+    await new Promise<void>((resolve, reject) => {
+      proc.on('error', reject)
+      proc.on('exit', code =>
+        code === 0
+          ? resolve()
+          : reject(
+              new Error(
+                `Checkpoint extraction failed: tar exited ${code}: ${err.trim().slice(0, 500)}`,
+              ),
+            ),
+      )
+    })
+  } finally {
+    await rm(archive, { force: true })
   }
-  await exit
 }
 
 function sessionRelative(sessionFile: string | null): string | null {
