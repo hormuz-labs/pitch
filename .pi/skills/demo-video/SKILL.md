@@ -75,7 +75,8 @@ one take; switching references does not start a new recording.
 5. **Prepare the synchronized source.** `pitch demo source` creates a new uncut
    `recording/source-*.mp4` with narration/SFX and source-time narration beats.
    Raw-only requests receive that returned source and its beats, without an edit.
-   `recording/demo.webm` alone may have no narration. Otherwise continue below.
+   The raw master (`recording/demo.mkv`, or legacy `demo.webm`) alone has no
+   composited cursor or narration. Otherwise continue below.
 
 ## Editing handoff
 

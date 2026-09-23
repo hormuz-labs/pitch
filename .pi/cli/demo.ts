@@ -375,7 +375,7 @@ export function compactPlaywrightCommand(command: string): string {
 }
 
 // All playwright-cli commands must run from the workspace so that files like
-// demo.webm, snapshots, and traces are written where the render expects them,
+// demo.mkv, snapshots, and traces are written where the render expects them,
 // not from the studio process cwd — and they must be scoped to THIS project's
 // playwright-cli session (named after the workspace directory, the name
 // pitch demo record-start attached with) so concurrent projects never share a browser.

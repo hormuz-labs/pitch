@@ -20,13 +20,16 @@ state; never reuse them across transitions or sessions. There is no Playwright
 wait command; a short host `sleep` after navigation can allow settling when needed.
 The recorded content viewport is 1920×1080. The VNC desktop is 1960×1240 to
 include the toolbar/window frame and the bottom of that viewport. Do not resize
-the browser during a take. The host records full-size JPEG frames into a 30fps,
-quality-based VP9 master, then source assembly supplies the H.264/AAC editing source.
+the browser during a take. The host journals full-size timestamped JPEG frames to
+disk and makes a lightweight H.264 Matroska master (`recording/demo.mkv`). If live
+compression stalls, the complete MJPEG journal becomes that master instead; this
+is a valid capture, not a reason to retake. Source assembly accepts either codec
+and supplies the H.264/AAC editing source in its existing encode pass.
 
 The host records actual pointer positions, button states, cursor shapes and
 page changes in `recording/cursor.json`, on the raw video's first-frame clock.
 It observes existing pages and future documents/frames without painting an overlay
-into the page. `recording/demo.webm` is intentionally cursorless. `pitch demo source`
+into the page. The raw master is intentionally cursorless. `pitch demo source`
 composites the white, outlined arrow/hand/I-beam and subtle press treatment with
 FFmpeg while assembling narration; the synchronized `source-*.mp4` has the cursor.
 Click sounds use actual press timestamps. Missing/incomplete telemetry fails source
@@ -97,7 +100,12 @@ if the provider remains unavailable, report the missing beat rather than looping
 
 An encoder timeout, missing duration, truncated source or audio extending beyond
 the video is a failed capture, even if a second stop reports that nothing is running.
-Never rewrite `demo-state.json`/`demo-config.json`/`cursor.json` timestamps, shorten `endTime`,
+New captures save cursor metadata before encoder finalization, and use their
+durable frame journal if compression cannot finish. A reported journal fallback
+with `capture-status.json` state `complete` is ready for `demo source`; continue
+editing it. State `failed` remains an error on repeated stop/source calls.
+Never rewrite `demo-state.json`/`demo-config.json`/`cursor.json` timestamps or
+`capture-status.json` to bypass a failure, shorten `endTime`,
 move narration earlier, or replace the raw master to make validation accept it.
 These timestamps are capture evidence, not edit controls. Preserve the failed take;
 recover the complete artifact through the host or prepare a retake with a specific

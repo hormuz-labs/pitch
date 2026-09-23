@@ -9,7 +9,7 @@ vi.mock('../apps/api/src/studio/host-actions.ts', () => ({
   callHostAction: host.call,
 }))
 
-import '../apps/api/src/flows/demo-video/index.ts'
+import { releaseDemoRecording } from '../apps/api/src/flows/demo-video/index.ts'
 
 let root: string
 beforeEach(async () => {
@@ -81,5 +81,24 @@ describe('demo source cursor handoff', () => {
     await prepare()
     expect(host.call.mock.calls[0]![2]).not.toHaveProperty('cursor')
     expect(host.call.mock.calls[0]![2].clips[1].start).toBe(1)
+  })
+
+  it('uses the declared Matroska master and refuses incomplete finalization', async () => {
+    await writeFile(path.join(root, 'recording/demo.mkv'), 'fixture')
+    await write('demo-config.json', {
+      startTime: 1000,
+      videoStartTime: 1000,
+      videoFile: 'recording/demo.mkv',
+      cursor: 'recording/cursor.json',
+    })
+    await write('capture-status.json', { state: 'complete' })
+    await prepare()
+    expect(host.call.mock.calls[0]![2].source).toBe('recording/demo.mkv')
+    await write('capture-status.json', { state: 'failed', error: 'capture storage failed' })
+    await expect(prepare()).rejects.toThrow('not finalized')
+    await expect(host.actions.get('demo_record_stop')({ dir: root }, {}, {})).rejects.toThrow(
+      'Previous recording failed',
+    )
+    await expect(releaseDemoRecording({ dir: root } as any)).resolves.toBeUndefined()
   })
 })

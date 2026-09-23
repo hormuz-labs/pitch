@@ -1,4 +1,12 @@
 import { spawn } from 'node:child_process'
+import { close, closeSync, existsSync, fsync, openSync, write, writeSync } from 'node:fs'
+import { rename, unlink } from 'node:fs/promises'
+import { promisify } from 'node:util'
+
+const writeAsync = promisify(write)
+const closeAsync = promisify(close)
+const syncAsync = promisify(fsync)
+const durationElement = element('4489', Buffer.alloc(8))
 
 // Timestamped MJPEG in Matroska lets FFmpeg hold static frames without a timer
 // pumping duplicate JPEGs through IPC. All timestamps are on the capture clock.
@@ -56,7 +64,12 @@ function header(width: number, height: number): Buffer {
     Buffer.from('1853806701ffffffffffffff', 'hex'), // Unknown segment size (stream).
     element(
       '1549a966',
-      Buffer.concat([value('2ad7b1', 1_000_000), text('4d80', 'Pitch'), text('5741', 'Pitch')]),
+      Buffer.concat([
+        value('2ad7b1', 1_000_000),
+        durationElement,
+        text('4d80', 'Pitch'),
+        text('5741', 'Pitch'),
+      ]),
     ),
     element(
       '1654ae6b',
@@ -75,26 +88,54 @@ function header(width: number, height: number): Buffer {
   ])
 }
 
-/** A source-quality master, not the CLI's fixed 1 Mbps VP8 delivery encode. */
+/** Durable frame journal plus a lightweight H.264 master. Encoding is best-effort:
+ * if it falls behind or cannot finish, the complete MJPEG journal becomes the
+ * master. Both are Matroska; source assembly decodes either in its existing pass. */
 export class CaptureEncoder {
   private process
   private completion: Promise<Error | null>
   private last: Buffer | null = null
   private lastTime = 0
-  private pending = Promise.resolve()
+  private encodePending = Promise.resolve()
+  private journalPending = Promise.resolve()
+  private journalFd: number | null
+  private journalPath: string
+  private durationOffset: number
+  private queuedBytes = 0
+  private encoderDisabled = false
   private stopped = false
   private failure: Error | null = null
+  private stopPromise: Promise<void> | null = null
+  fallbackReason: string | null = null
 
   constructor(
-    output: string,
+    private output: string,
     private width = 1920,
     private height = 1080,
+    private limits = { finishTimeoutMs: 10_000, maxQueuedBytes: 32 * 1024 * 1024 },
   ) {
+    if (existsSync(output)) throw new Error(`Capture output already exists: ${output}`)
+    const metadata = header(width, height)
+    this.journalPath = `${output}.capture.mkv`
+    this.journalFd = openSync(this.journalPath, 'wx')
+    this.durationOffset = metadata.indexOf(durationElement) + durationElement.length - 8
+    let written = 0
+    try {
+      while (written < metadata.length) {
+        const count = writeSync(this.journalFd, metadata, written)
+        if (!count) throw new Error('Capture header write made no progress')
+        written += count
+      }
+    } catch (error) {
+      closeSync(this.journalFd)
+      this.journalFd = null
+      throw error
+    }
     const args = (
       '-hide_banner -loglevel error -nostdin -n ' +
       '-f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -an ' +
-      '-vf fps=30:round=near -fps_mode cfr -c:v libvpx-vp9 -deadline realtime -cpu-used 4 ' +
-      '-row-mt 1 -crf 18 -b:v 0 -threads 2 -pix_fmt yuv420p'
+      '-vf fps=30:round=near -fps_mode cfr -c:v libx264 -preset ultrafast -tune zerolatency ' +
+      '-crf 16 -threads 2 -pix_fmt yuv420p -f matroska'
     ).split(' ')
     this.process = spawn('ffmpeg', [...args, output], { stdio: ['pipe', 'ignore', 'pipe'] })
     let stderr = ''
@@ -102,24 +143,25 @@ export class CaptureEncoder {
       stderr = `${stderr}${chunk}`.slice(-4096)
     })
     this.process.stdin.on('error', error => {
-      this.failure = error
+      this.disableEncoder(error)
     })
     this.completion = new Promise(resolve => {
       this.process.once('error', error => {
-        this.failure = error
+        this.disableEncoder(error)
         resolve(error)
       })
       this.process.once('close', code => {
         const error = code === 0 ? null : new Error(`Capture encoder exited ${code}: ${stderr}`)
-        if (error) this.failure = error
+        if (error) this.disableEncoder(error)
         resolve(error)
       })
     })
-    this.process.stdin.write(header(width, height))
+    this.process.stdin.write(metadata)
   }
 
   write(jpeg: Buffer, timeMs: number): Promise<void> {
     if (this.stopped) return Promise.reject(new Error('Capture encoder is stopped'))
+    if (this.failure) return Promise.reject(this.failure)
     const size = jpegSize(jpeg)
     if (size.width !== this.width || size.height !== this.height) {
       return Promise.reject(
@@ -137,40 +179,141 @@ export class CaptureEncoder {
         element('a3', Buffer.concat([Buffer.from([0x81, 0, 0, 0x80]), jpeg])),
       ]),
     )
-    this.pending = this.pending.then(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          if (this.failure) {
-            reject(this.failure)
-            return
-          }
-          this.process.stdin.write(cluster, error => (error ? reject(error) : resolve()))
-        }),
-    )
-    // Surface failures from stop() too, without an unhandled rejection if a page closes.
-    void this.pending.catch(error => {
+    this.journalPending = this.journalPending.then(async () => {
+      let offset = 0
+      while (offset < cluster.length) {
+        const result = await writeAsync(
+          this.journalFd!,
+          cluster,
+          offset,
+          cluster.length - offset,
+          null,
+        )
+        if (!result.bytesWritten) throw new Error('Capture journal write made no progress')
+        offset += result.bytesWritten
+      }
+    })
+    void this.journalPending.catch(error => {
       this.failure = error
     })
-    return this.pending
+    if (!this.encoderDisabled) {
+      if (this.queuedBytes + cluster.length > this.limits.maxQueuedBytes) {
+        this.disableEncoder(new Error('Live encoder fell behind; preserving the frame journal'))
+      } else {
+        this.queuedBytes += cluster.length
+        this.encodePending = this.encodePending
+          .then(async () => {
+            if (this.encoderDisabled) return
+            await new Promise<void>((resolve, reject) => {
+              this.process.stdin.write(cluster, error => (error ? reject(error) : resolve()))
+            })
+          })
+          .catch(error => this.disableEncoder(error))
+          .finally(() => {
+            this.queuedBytes -= cluster.length
+          })
+      }
+    }
+    // Browser input is backpressured by disk durability, never by compression.
+    return this.journalPending
   }
 
-  async stop(durationMs: number): Promise<void> {
+  private disableEncoder(error: Error): void {
+    if (this.encoderDisabled) return
+    this.encoderDisabled = true
+    this.fallbackReason = error.message
+    this.process.stdin.destroy()
+    if (this.process.exitCode === null) this.process.kill('SIGKILL')
+  }
+
+  private async finishJournal(durationMs: number): Promise<void> {
+    try {
+      await this.journalPending
+    } catch (error) {
+      if (this.journalFd !== null) {
+        const fd = this.journalFd
+        this.journalFd = null
+        await closeAsync(fd).catch(() => {})
+      }
+      throw error
+    }
+    if (this.journalFd === null) return
+    const fd = this.journalFd
+    this.journalFd = null
+    try {
+      const duration = Buffer.alloc(8)
+      duration.writeDoubleBE(durationMs) // Matroska duration uses the 1ms timecode scale.
+      let offset = 0
+      while (offset < duration.length) {
+        const result = await writeAsync(
+          fd,
+          duration,
+          offset,
+          duration.length - offset,
+          this.durationOffset + offset,
+        )
+        if (!result.bytesWritten) throw new Error('Capture duration write made no progress')
+        offset += result.bytesWritten
+      }
+      await syncAsync(fd)
+    } finally {
+      await closeAsync(fd)
+    }
+  }
+
+  stop(durationMs: number): Promise<void> {
+    this.stopPromise ??= this.finish(durationMs)
+    return this.stopPromise
+  }
+
+  private async finish(durationMs: number): Promise<void> {
     try {
       if (!this.last) throw new Error('Capture produced no video frames')
       await this.write(this.last, Math.max(this.lastTime, durationMs - 1000 / 30))
       this.stopped = true
-      this.process.stdin.end()
-      const error = await this.completion
-      if (error || this.failure) throw error || this.failure
+      await this.finishJournal(durationMs)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          (async () => {
+            await this.encodePending
+            if (this.encoderDisabled) throw new Error(this.fallbackReason!)
+            this.process.stdin.end()
+            const error = await this.completion
+            if (error) throw error
+          })(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('Encoder finalization stalled; using complete frame journal')),
+              this.limits.finishTimeoutMs,
+            )
+          }),
+        ])
+        await unlink(this.journalPath).catch(error =>
+          console.warn('[Capture] Keeping frame journal:', error.message),
+        )
+      } catch (error) {
+        this.disableEncoder(error instanceof Error ? error : new Error(String(error)))
+        await this.completion
+        await rename(this.journalPath, this.output)
+        console.warn(
+          `[Capture] ${this.fallbackReason}; source assembly will encode the durable master`,
+        )
+      } finally {
+        if (timer) clearTimeout(timer)
+      }
     } catch (error) {
-      this.abort()
+      this.stopped = true
+      this.disableEncoder(error instanceof Error ? error : new Error(String(error)))
+      await this.finishJournal(this.lastTime + 1000 / 30).catch(() => {})
       throw error
     }
   }
 
   abort(): void {
+    if (this.stopped) return
     this.stopped = true
-    this.process.stdin.destroy()
-    if (this.process.exitCode === null) this.process.kill('SIGKILL')
+    this.disableEncoder(new Error('Capture interrupted'))
+    void this.finishJournal(this.lastTime + 1000 / 30).catch(() => {})
   }
 }

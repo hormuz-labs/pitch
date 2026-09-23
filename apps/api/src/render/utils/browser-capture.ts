@@ -116,10 +116,16 @@ export async function startBrowserCapture(
           const duration = Date.now() - startTime
           stopping = true
           try {
-            await withTimeout('stopping browser capture', detach(), 15_000)
+            try {
+              await withTimeout('stopping browser capture', detach(), 15_000)
+            } finally {
+              // Input timing must survive encoder failure or slow finalization.
+              cursor?.recorder.stop(startTime + duration)
+            }
             if (failure) throw failure
-            await withTimeout('finishing capture encoder', encoder.stop(duration), 60_000)
-            cursor?.recorder.stop(startTime + duration)
+            // The encoder falls back to its complete frame journal if compressed
+            // output cannot finish. Never time out and destroy the only take.
+            await encoder.stop(duration)
           } catch (error) {
             encoder.abort()
             throw error

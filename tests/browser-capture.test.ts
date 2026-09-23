@@ -84,6 +84,9 @@ describe('visible-tab capture lifecycle', () => {
     await capture.stop()
     expect(encoder.stop).toHaveBeenCalledExactlyOnceWith(3000)
     expect(recorder.stop).toHaveBeenCalledExactlyOnceWith(4000)
+    expect(recorder.stop.mock.invocationCallOrder[0]).toBeLessThan(
+      encoder.stop.mock.invocationCallOrder[0]!,
+    )
     expect(recorder.select).toHaveBeenLastCalledWith(second)
     expect(first.screencast.stop).toHaveBeenCalledTimes(1)
     expect(second.screencast.stop).toHaveBeenCalledTimes(1)
@@ -111,5 +114,21 @@ describe('visible-tab capture lifecycle', () => {
     await expect(capture.stop()).rejects.toThrow('interrupted')
     expect(encoder.abort).toHaveBeenCalled()
     expect(encoder.stop).not.toHaveBeenCalled()
+  })
+
+  it('saves cursor timing even if finalizing the master fails', async () => {
+    const b = browser()
+    b.page('first', true)
+    const recorder = { start: vi.fn(), select: vi.fn(), stop: vi.fn() }
+    const capture = await startBrowserCapture(b.context, 'capture.mkv', undefined, {
+      recorder: recorder as any,
+      file: 'cursor.json',
+    })
+    encoder.stop.mockRejectedValueOnce(new Error('capture storage failed'))
+    await expect(capture.stop()).rejects.toThrow('capture storage failed')
+    expect(recorder.stop).toHaveBeenCalledTimes(1)
+    expect(recorder.stop.mock.invocationCallOrder[0]).toBeLessThan(
+      encoder.stop.mock.invocationCallOrder[0]!,
+    )
   })
 })

@@ -10,7 +10,7 @@
  *
  * Every playwright-cli invocation is session-scoped (`-s=<session>`, the
  * project's workspace basename) so several projects can record concurrently,
- * and runs with `cwd: workspaceDir` so demo.webm, snapshots and traces land in
+ * and runs with `cwd: workspaceDir` so demo.mkv, snapshots and traces land in
  * the workspace rather than the studio process cwd. The demo tools use the same
  * session name (PLAYWRIGHT_CLI_SESSION) for every command they issue.
  */
@@ -60,8 +60,8 @@ export interface RecordingHandle {
   startTime: number
   /** When capture began (for the post-run stale-chunk sweep). */
   startedAtMs: number
-  /** Expected recording path: <workspaceDir>/recording/demo.webm */
-  webmPath: string
+  /** Expected recording path: <workspaceDir>/recording/demo.mkv */
+  videoPath: string
   /** Where playwright-cli writes chunks (the recording dir). */
   videoDir: string
   /** The playwright-cli session name used for every command. */
@@ -156,7 +156,7 @@ export async function startRecording(
 
   // Determine the directory where the video should be recorded
   const videoDir = recDir
-  const webmPath = path.join(videoDir, 'demo.webm')
+  const videoPath = path.join(videoDir, 'demo.mkv')
 
   // Close any pre-existing session under this name to ensure a fresh session
   await execAsync(`${cli} close`, { cwd: workspaceDir }).catch(() => {})
@@ -259,23 +259,34 @@ export async function startRecording(
       Object.assign(input, config)
       // Keep the previous take and its events. Audio clips have unique names and
       // stay at their original paths, so archived state still resolves them.
-      if (fs.existsSync(webmPath)) {
+      const masters = ['demo.mkv', 'demo.mkv.capture.mkv', 'demo.webm']
+      if (masters.some(name => fs.existsSync(path.join(recDir, name)))) {
         const archive = path.join(recDir, 'takes', `${Date.now()}`)
         fs.mkdirSync(archive, { recursive: true })
-        for (const name of ['demo.webm', 'demo-state.json', 'demo-config.json', 'cursor.json']) {
+        for (const name of [
+          ...masters,
+          'demo-state.json',
+          'demo-config.json',
+          'cursor.json',
+          'capture-status.json',
+        ]) {
           const file = path.join(recDir, name)
           if (fs.existsSync(file)) fs.copyFileSync(file, path.join(archive, name))
         }
-        fs.unlinkSync(webmPath)
+        for (const name of masters) fs.rmSync(path.join(recDir, name), { force: true })
       }
-      logger.info({ webmPath }, 'Starting video recording...')
+      logger.info({ videoPath }, 'Starting video recording...')
       startedAtMs = Date.now()
-      capture = await startBrowserCapture(cloakBrowser.context, webmPath, input.signal, {
+      capture = await startBrowserCapture(cloakBrowser.context, videoPath, input.signal, {
         recorder: cursor,
         file: path.join(recDir, 'cursor.json'),
       })
       startTime = capture.startTime
       recording = true
+      fs.writeFileSync(
+        path.join(recDir, 'capture-status.json'),
+        JSON.stringify({ state: 'recording', startTime }),
+      )
       for (const name of [
         'demo-state.json',
         'slideshow-progress.json',
@@ -290,6 +301,7 @@ export async function startRecording(
           {
             startTime,
             videoStartTime: startTime,
+            videoFile: 'recording/demo.mkv',
             cursor: 'recording/cursor.json',
             voiceName: (input.voice || 'Charon').toString().replace(/\.mp3$/i, ''),
             assetsManifestPath: input.assetsManifestPath,
@@ -311,8 +323,23 @@ export async function startRecording(
         if (!recording) return
         await capture!.stop()
 
-        recoverRecordingArtifact(workspaceDir, webmPath, startedAtMs)
-        assertRecordingCoversTimeline(await getMediaDurationSec(webmPath), startTime, stoppedAtMs)
+        recoverRecordingArtifact(workspaceDir, videoPath, startedAtMs)
+        assertRecordingCoversTimeline(await getMediaDurationSec(videoPath), startTime, stoppedAtMs)
+        fs.writeFileSync(
+          path.join(recDir, 'capture-status.json'),
+          JSON.stringify({ state: 'complete', startTime, endTime: stoppedAtMs }),
+        )
+      } catch (error) {
+        fs.writeFileSync(
+          path.join(recDir, 'capture-status.json'),
+          JSON.stringify({
+            state: 'failed',
+            startTime,
+            endTime: stoppedAtMs,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        )
+        throw error
       } finally {
         recording = false
         try {
@@ -347,7 +374,7 @@ export async function startRecording(
         return recording
       },
       startCapture,
-      webmPath,
+      videoPath,
       videoDir,
       session,
       streamId: cloakBrowser.streamId,

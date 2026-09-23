@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parseArgs } from '../.pi/cli/argv.ts'
 import { findCommand } from '../.pi/cli/registry.ts'
+import { CaptureEncoder } from '../apps/api/src/render/utils/capture-encoder.js'
 import { runVideoEditing } from '../apps/api/src/render/video-editing/index.js'
 import { invokeHostAction } from '../apps/api/src/studio/host-actions.js'
 import type { Workspace } from '../apps/api/src/studio/paths.js'
@@ -927,7 +928,31 @@ describe('shared pi video editor', () => {
     )
   }, 30_000)
 
-  it('composites timestamped cursor sprites in source assembly and carries them through edits', async () => {
+  it('assembles a durable fallback with cursor/audio and carries the cursor through edits', async () => {
+    const master = 'recording/cursor-source.mkv'
+    const capture = new CaptureEncoder(path.join(root, master), 320, 180, {
+      finishTimeoutMs: 1000,
+      maxQueuedBytes: 0,
+    })
+    const jpeg = await exec(
+      'ffmpeg',
+      [
+        '-v',
+        'error',
+        '-i',
+        path.join(root, 'recording/demo.webm'),
+        '-frames:v',
+        '1',
+        '-c:v',
+        'mjpeg',
+        '-f',
+        'image2pipe',
+        'pipe:1',
+      ],
+      { encoding: 'buffer' },
+    )
+    await capture.write(jpeg.stdout, 0)
+    await capture.stop(4000)
     const event = (
       time: number,
       x: number,
@@ -957,13 +982,13 @@ describe('shared pi video editor', () => {
     }
     await writeFile(path.join(root, 'recording/cursor.json'), JSON.stringify(trace))
     const args = {
-      source: 'recording/demo.webm',
+      source: master,
       cursor: 'recording/cursor.json',
       capture_start: 1000,
       clips: [{ source: 'recording/voice.wav', start: 1 }],
     }
     const result = await call('assemble_recording', args)
-    expect(result.cursor).toMatchObject({ events: 8, sprite_size: 32, fps: 10 })
+    expect(result.cursor).toMatchObject({ events: 8, sprite_size: 32, fps: 30 })
     expect(result.cursor.position_updates).toBeLessThan(10)
     expect((await call('verify', { source: result.source, expected_duration: 4 })).passed).toBe(
       true,

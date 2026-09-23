@@ -5,7 +5,7 @@
  * Workspace layout
  *   project.json         { userId, options, uploads }  — what the tools read
  *   uploads/<name>       the user's PDFs/images
- *   recording/           demo-config.json, demo-state.json, demo.webm, audio/,
+ *   recording/           demo-config.json, demo-state.json, demo.mkv, audio/,
  *                        assets/assets.json (manifest), live.json while recording
  *   storyboard.json      draft/approved storyboard (asset projects, optional)
  *   recording/source-*.mp4  synchronized editing source
@@ -168,11 +168,28 @@ async function coverageProblem(ws: Workspace): Promise<string | null> {
 
 // ── recording lifecycle ──────────────────────────────────────────────────────
 
-async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: string }> {
+async function stopRecording(
+  ws: Workspace,
+  reportPreviousFailure = false,
+): Promise<{ stopped: boolean; note: string }> {
   const handle = active.get(ws.dir)
   const live = await readJson<LiveFile>(liveFile(ws))
-  if (!handle && !live) return { stopped: false, note: 'No recording is running.' }
+  if (!handle && !live) {
+    const status = await readJson<{ state: string; error?: string }>(
+      path.join(recordingDir(ws), 'capture-status.json'),
+    )
+    if (reportPreviousFailure && status?.state === 'failed')
+      throw new Error(
+        `Previous recording failed: ${status.error}. The saved take is preserved; repeating stop does not repair it.`,
+      )
+    if (reportPreviousFailure && status?.state === 'recording')
+      throw new Error(
+        'Recording was interrupted before finalization. The saved files are preserved; no live recorder is available to finish this take.',
+      )
+    return { stopped: false, note: 'No recording is running.' }
+  }
   const wasRecording = handle?.recording || !!live
+  const stoppedAt = Date.now()
   let stopError: unknown
   if (handle) {
     try {
@@ -191,7 +208,7 @@ async function stopRecording(ws: Workspace): Promise<{ stopped: boolean; note: s
   await rm(liveFile(ws), { force: true })
   await rm(path.join(recordingDir(ws), 'browser.json'), { force: true })
   const state = await readJson<DemoState>(stateFile(ws))
-  if (state && wasRecording) await writeJson(stateFile(ws), { ...state, endTime: Date.now() })
+  if (state && wasRecording) await writeJson(stateFile(ws), { ...state, endTime: stoppedAt })
   if (stopError) throw stopError
   const clips = state?.audioClips?.length ?? 0
   return {
@@ -232,7 +249,9 @@ async function openDemo(
     return 'An unrecorded browser is already open. For a walkthrough, call record-start now and discover the route inside the take; do not rehearse and replay the workflow.'
   if (
     !rehearse &&
-    existsSync(path.join(recordingDir(ws), 'demo.webm')) &&
+    ['demo.mkv', 'demo.mkv.capture.mkv', 'demo.webm'].some(name =>
+      existsSync(path.join(recordingDir(ws), name)),
+    ) &&
     !String(params.retakeReason ?? '').trim()
   ) {
     throw new Error(
@@ -356,19 +375,30 @@ registerHostAction('demo_record_stop', async (ws, _params, ctx) => {
   coverageWarned.delete(ws.dir)
   const state = await readJson<DemoState>(stateFile(ws))
   if (active.get(ws.dir)?.recording) await waitForNarration(state?.narrationEndTime, ctx.signal)
-  const { note } = await stopRecording(ws)
+  const { note } = await stopRecording(ws, true)
   return `${note} Next: read video-editing/SKILL.md, then pitch demo source. Edit the synchronized source with pitch video commands.`
 })
 
 registerHostAction('demo_source', async (ws, _params, ctx) => {
   if (active.has(ws.dir) || existsSync(liveFile(ws)))
     throw new Error('Stop the recording with pitch demo record-stop before preparing its source.')
-  const config = await readJson<{ startTime: number; videoStartTime?: number; cursor?: string }>(
-    configFile(ws),
-  )
+  const config = await readJson<{
+    startTime: number
+    videoStartTime?: number
+    videoFile?: string
+    cursor?: string
+  }>(configFile(ws))
   if (!Number.isFinite(config?.startTime)) throw new Error('No stopped recording configuration.')
   const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
-  const source = path.join(recordingDir(ws), 'demo.webm')
+  const status = await readJson<{ state: string; error?: string }>(
+    path.join(recordingDir(ws), 'capture-status.json'),
+  )
+  if (status && status.state !== 'complete')
+    throw new Error(
+      `Recording is not finalized (${status.state}): ${status.error ?? 'finish the active capture first'}`,
+    )
+  const videoFile = config?.videoFile ?? 'recording/demo.webm'
+  const source = path.resolve(ws.dir, videoFile)
   const root = resolveSymlinks(ws.dir)
   if (!resolveSymlinks(source).startsWith(`${root}${path.sep}`))
     throw new Error('Recording path escapes the workspace.')
@@ -451,7 +481,7 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
     ws.dir,
     'demo_source_encode',
     {
-      source: 'recording/demo.webm',
+      source: videoFile,
       clips,
       ...(config?.cursor ? { cursor: config.cursor, capture_start: birth } : {}),
     },

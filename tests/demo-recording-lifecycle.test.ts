@@ -59,7 +59,7 @@ beforeEach(() => {
   })
   mocks.exec.mockResolvedValue({ stdout: '', stderr: '' })
   mocks.stopCapture.mockImplementation(async () => {
-    fs.writeFileSync(path.join(base, 'recording/demo.webm'), 'new take')
+    fs.writeFileSync(path.join(base, 'recording/demo.mkv'), 'new take')
   })
   mocks.capture.mockImplementation(async () => {
     return { startTime: Date.now(), stop: mocks.stopCapture }
@@ -108,6 +108,12 @@ describe('preparation and one continuous take', () => {
     expect(handle.recording).toBe(false)
     expect(mocks.stopCapture).toHaveBeenCalledTimes(1)
     expect(mocks.close).toHaveBeenCalledTimes(1)
+    expect(
+      JSON.parse(fs.readFileSync(path.join(base, 'recording/capture-status.json'), 'utf8')).state,
+    ).toBe('complete')
+    expect(
+      JSON.parse(fs.readFileSync(path.join(base, 'recording/demo-config.json'), 'utf8')).videoFile,
+    ).toBe('recording/demo.mkv')
   })
 
   it('closing preparation never starts or stops a capture or changes its config', async () => {
@@ -136,5 +142,18 @@ describe('preparation and one continuous take', () => {
     ).rejects.toThrow('cursor installation failed')
     expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('persists a failed stop so it cannot be mistaken for an idle successful recording', async () => {
+    mocks.stopCapture.mockRejectedValueOnce(new Error('capture storage failed'))
+    const handle = await startRecording({
+      userId: 'test',
+      workspaceDir: base,
+      streamId: 'demo-test',
+    })
+    await expect(handle.stop()).rejects.toThrow('capture storage failed')
+    expect(
+      JSON.parse(fs.readFileSync(path.join(base, 'recording/capture-status.json'), 'utf8')),
+    ).toMatchObject({ state: 'failed', error: 'capture storage failed' })
   })
 })
