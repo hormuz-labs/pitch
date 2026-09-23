@@ -26,7 +26,7 @@ import { execAsync, getMediaDurationSec } from './media.js'
 import { type AssetInput, type AssetManifest, prepareAssets } from './utils/assets.js'
 import { type BrowserCapture, startBrowserCapture } from './utils/browser-capture.js'
 import { type CloakBrowserHandle, startCloakBrowser, withTimeout } from './utils/cloak-browser.js'
-import { installRecordingCursor } from './utils/recording-cursor.js'
+import { type CursorRecording, installRecordingCursor } from './utils/recording-cursor.js'
 
 const moduleLogger = createLogger('studio:render:recording')
 
@@ -208,7 +208,7 @@ export async function startRecording(
   try {
     // Capture actual input without painting into the page. Source assembly
     // composites the cursor later, on the same first-frame clock as narration.
-    const cursor = await installRecordingCursor(cloakBrowser.context)
+    let cursor: CursorRecording | undefined
     // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
     logger.info(
       { cdpUrl: cloakBrowser.cdpUrl, session },
@@ -277,6 +277,9 @@ export async function startRecording(
       }
       logger.info({ videoPath }, 'Starting video recording...')
       startedAtMs = Date.now()
+      // Install after the input client's attach/navigation. Those operations can
+      // replace document initialization scripts on older Chromium builds.
+      cursor ??= await installRecordingCursor(cloakBrowser.context)
       capture = await startBrowserCapture(cloakBrowser.context, videoPath, input.signal, {
         recorder: cursor,
         file: path.join(recDir, 'cursor.json'),

@@ -44,6 +44,7 @@ function browser() {
       session.detach = vi.fn(async () => {})
       session.send = vi.fn(async (method: string, args: any = {}) => {
         if (method === 'Page.enable') session.pageEnabled = true
+        if (method === 'Page.getFrameTree') return { frameTree: { frame: { id: 'main' } } }
         if (method === 'Runtime.addBinding') {
           session.bindings.add(args.name)
           installNative(session, args.name)
@@ -75,6 +76,10 @@ function browser() {
     navigate: async () => {
       current++
       const world = createWorld()
+      for (const session of sessions)
+        session.emit('Runtime.executionContextCreated', {
+          context: { id: current, auxData: { isDefault: true, frameId: 'main' } },
+        })
       for (const session of sessions)
         if (session.pageEnabled)
           for (const source of session.scripts.values()) await runInContext(source, world)
@@ -111,6 +116,11 @@ describe('private capture CDP bridge', () => {
       'Runtime.evaluate',
       expect.objectContaining({ contextId: 2 }),
     )
+    // Input clients may replace startup scripts; the execution-context hook
+    // must still install the observer into the next document.
+    for (const session of b.sessions) session.scripts.clear()
+    await b.navigate()
+    expect(await b.evaluate('window.capturePointer({x: 95})')).toEqual({ x: 95 })
     await closeVisibility()
     await closeVisibility()
     expect(b.sessions[0].detach).toHaveBeenCalledTimes(1)

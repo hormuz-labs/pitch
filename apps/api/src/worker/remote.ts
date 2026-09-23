@@ -73,7 +73,11 @@ export async function awaitJob(
 
 /** The dispatcher a worker installs (studio/host-actions.ts → setRemoteDispatcher). */
 export const dispatchRemote: RemoteDispatcher = async (ws, name, params, ctx) => {
-  const { projectId, version } = await checkpointForRender(ws)
+  ctx.signal?.throwIfAborted()
+  ctx.progress?.('checkpointing workspace', 0)
+  logger.info({ workspace: ws.internal, action: name }, 'preparing render checkpoint')
+  const { projectId, version } = await checkpointForRender(ws, ctx)
+  ctx.signal?.throwIfAborted()
   const job = await queue.enqueue({ projectId, action: name, params, workspaceVersion: version })
   logger.info({ jobId: job.id, projectId, action: name, version }, 'render job queued')
   ctx.progress?.('queued', 0)

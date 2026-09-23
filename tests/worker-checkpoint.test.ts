@@ -17,9 +17,17 @@ process.env.PI_AGENT_DIR = agentDir
 process.env.STUDIO_WORKSPACE_BUCKET = 'test-workspaces'
 
 const objects = new Map<string, Buffer>()
+let stallUpload = false
+let uploadAborted = false
 vi.mock('@saas/storage', () => ({
   privateBucket: () => ({
-    async put(key: string, body: any) {
+    async put(
+      key: string,
+      body: any,
+      _type?: string,
+      _size?: number,
+      options?: { signal?: AbortSignal },
+    ) {
       if (Buffer.isBuffer(body)) {
         objects.set(key, body)
         return
@@ -27,6 +35,16 @@ vi.mock('@saas/storage', () => ({
       const chunks: Buffer[] = []
       for await (const c of body) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
       objects.set(key, Buffer.concat(chunks))
+      if (stallUpload) {
+        await new Promise((_, reject) => {
+          const abort = () => {
+            uploadAborted = true
+            reject(options?.signal?.reason)
+          }
+          if (options?.signal?.aborted) abort()
+          else options?.signal?.addEventListener('abort', abort, { once: true })
+        })
+      }
     },
     async get(key: string) {
       const b = objects.get(key)
@@ -65,6 +83,8 @@ afterAll(async () => {
 })
 beforeEach(async () => {
   objects.clear()
+  stallUpload = false
+  uploadAborted = false
   await rm(ws.dir, { recursive: true, force: true })
   await rm(historyDir(ws.dir), { recursive: true, force: true })
 })
@@ -86,6 +106,39 @@ async function seed() {
 }
 
 describe('workspace checkpoints', () => {
+  it('times out a stalled transfer, cancels it, and allows a clean retry', async () => {
+    await seed()
+    stallUpload = true
+    const progress = vi.fn()
+    const input = { projectId, ws, version: 1, sessionFile: null, artifactKind: null }
+    await expect(
+      checkpoint.uploadCheckpoint({ ...input, timeoutMs: 100, progress }),
+    ).rejects.toThrow('checkpoint timed out')
+    expect(uploadAborted).toBe(true)
+    expect(progress).toHaveBeenCalledWith('checkpoint: uploading workspace.tar', 0)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
+    stallUpload = false
+    await checkpoint.uploadCheckpoint(input)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(true)
+  })
+
+  it('does not upload or publish a cancelled checkpoint', async () => {
+    await seed()
+    const controller = new AbortController()
+    controller.abort(new Error('user cancelled'))
+    await expect(
+      checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version: 1,
+        sessionFile: null,
+        artifactKind: null,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('user cancelled')
+    expect(objects.size).toBe(0)
+  })
+
   it('consumes delayed transport padding after archive end markers without EPIPE', async () => {
     await seed()
     await checkpoint.uploadCheckpoint({

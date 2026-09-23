@@ -86,23 +86,36 @@ export function tarCreate(
   name: string,
   /** Explicit members instead of `name`'s whole tree (paths relative to `parent`). */
   members?: string[],
-): { stream: NodeJS.ReadableStream; done: Promise<void> } {
+): { stream: NodeJS.ReadableStream; done: Promise<void>; abort: (error: Error) => void } {
   const args = members
     ? ['-cf', '-', '-C', parent, '--', ...members]
     : ['-cf', '-', ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, name]
   const proc = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+  proc.stdout.on('error', () => {})
   let err = ''
   proc.stderr.on('data', (c: Buffer) => {
     err += c.toString('utf8')
   })
+  let rejectDone!: (error: Error) => void
   const done = new Promise<void>((resolve, reject) => {
+    rejectDone = reject
     proc.on('error', reject)
-    proc.on('close', code =>
+    // Upload completion already waits for stdout consumption. Waiting for the
+    // ChildProcess 'close' event as well can strand Bun after tar has exited.
+    proc.on('exit', code =>
       code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
     )
   })
   done.catch(() => {})
-  return { stream: proc.stdout, done }
+  return {
+    stream: proc.stdout,
+    done,
+    abort: error => {
+      rejectDone(error)
+      proc.stdout.destroy(error)
+      proc.kill('SIGKILL')
+    },
+  }
 }
 
 export async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
@@ -149,6 +162,9 @@ export interface CheckpointInput {
   version: number
   sessionFile: string | null
   artifactKind: string | null
+  signal?: AbortSignal
+  progress?: (stage: string, percent?: number) => void
+  timeoutMs?: number
 }
 
 /** Upload a new version. Returns the manifest; throws if anything did not land. */
@@ -156,46 +172,97 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
   const { projectId, ws, version } = input
   const s = bucket()
   const started = Date.now()
-  const put = async (file: string, parent: string, name: string) => {
-    const { stream, done } = tarCreate(parent, name)
-    await Promise.all([
-      s.put(keyOf(projectId, version, file), stream as any, 'application/x-tar'),
-      done,
-    ])
-  }
-  await put('workspace.tar', PROJECTS_DIR, ws.internal)
-  const history = historyDir(ws.dir)
-  if (existsSync(history)) await put('history.tar', path.dirname(history), path.basename(history))
-  const session = sessionRelative(input.sessionFile)
-  if (input.sessionFile && session && existsSync(input.sessionFile))
+  const controller = new AbortController()
+  const signal = input.signal
+    ? AbortSignal.any([input.signal, controller.signal])
+    : controller.signal
+  const timeoutMs = input.timeoutMs ?? 5 * 60_000
+  const timer = setTimeout(
+    () => controller.abort(new Error(`Workspace checkpoint timed out after ${timeoutMs}ms`)),
+    timeoutMs,
+  )
+  try {
+    signal.throwIfAborted()
+    const put = async (file: string, parent: string, name: string) => {
+      signal.throwIfAborted()
+      logger.info({ projectId, version, file }, 'checkpoint archive started')
+      input.progress?.(`checkpoint: uploading ${file}`, 0)
+      const archive = tarCreate(parent, name)
+      const abort = () =>
+        archive.abort(
+          signal.reason instanceof Error ? signal.reason : new Error('Checkpoint cancelled'),
+        )
+      signal.addEventListener('abort', abort, { once: true })
+      if (signal.aborted) abort()
+      try {
+        await Promise.all([
+          s.put(
+            keyOf(projectId, version, file),
+            archive.stream as any,
+            'application/x-tar',
+            undefined,
+            {
+              signal,
+              onProgress: loaded =>
+                input.progress?.(
+                  `checkpoint: ${file} (${Math.floor(loaded / 1048576)} MiB uploaded)`,
+                  0,
+                ),
+            },
+          ),
+          archive.done,
+        ])
+        signal.throwIfAborted()
+        logger.info({ projectId, version, file }, 'checkpoint archive finished')
+      } catch (error) {
+        controller.abort(error)
+        archive.abort(error instanceof Error ? error : new Error(String(error)))
+        throw error
+      } finally {
+        signal.removeEventListener('abort', abort)
+      }
+    }
+    await put('workspace.tar', PROJECTS_DIR, ws.internal)
+    const history = historyDir(ws.dir)
+    if (existsSync(history)) await put('history.tar', path.dirname(history), path.basename(history))
+    const session = sessionRelative(input.sessionFile)
+    if (input.sessionFile && session && existsSync(input.sessionFile))
+      await s.put(
+        keyOf(projectId, version, 'session.jsonl'),
+        await readFile(input.sessionFile),
+        'application/x-ndjson',
+        undefined,
+        { signal },
+      )
+    const manifest: Manifest = {
+      format: 1,
+      projectId,
+      version,
+      internal: ws.internal,
+      session: input.sessionFile && existsSync(input.sessionFile) ? session : null,
+      artifactKind: input.artifactKind,
+      createdAt: new Date().toISOString(),
+    }
     await s.put(
-      keyOf(projectId, version, 'session.jsonl'),
-      await readFile(input.sessionFile),
-      'application/x-ndjson',
+      keyOf(projectId, version, 'manifest.json'),
+      Buffer.from(JSON.stringify(manifest)),
+      'application/json',
+      undefined,
+      { signal },
     )
-  const manifest: Manifest = {
-    format: 1,
-    projectId,
-    version,
-    internal: ws.internal,
-    session: input.sessionFile && existsSync(input.sessionFile) ? session : null,
-    artifactKind: input.artifactKind,
-    createdAt: new Date().toISOString(),
+    await uploadCover(projectId, ws, signal).catch(err =>
+      logger.warn({ err, projectId }, 'cover upload failed'),
+    )
+    signal.throwIfAborted()
+    logger.info({ projectId, version, ms: Date.now() - started }, 'workspace checkpointed')
+    return manifest
+  } finally {
+    clearTimeout(timer)
   }
-  await s.put(
-    keyOf(projectId, version, 'manifest.json'),
-    Buffer.from(JSON.stringify(manifest)),
-    'application/json',
-  )
-  await uploadCover(projectId, ws).catch(err =>
-    logger.warn({ err, projectId }, 'cover upload failed'),
-  )
-  logger.info({ projectId, version, ms: Date.now() - started }, 'workspace checkpointed')
-  return manifest
 }
 
 /** The newest cached grid thumbnail (thumbnails.ts writes `<kind>_0_50.jpg` for t=0.5). */
-async function uploadCover(projectId: string, ws: Workspace): Promise<void> {
+async function uploadCover(projectId: string, ws: Workspace, signal?: AbortSignal): Promise<void> {
   const dir = path.join(ws.dir, '.thumbs')
   const names = (await readdir(dir).catch(() => [] as string[])).filter(f =>
     /^[a-z]+_0_50\.jpg$/.test(f),
@@ -207,7 +274,10 @@ async function uploadCover(projectId: string, ws: Workspace): Promise<void> {
     if (st && (!newest || st.mtimeMs > newest.mtime))
       newest = { file: path.join(dir, name), mtime: st.mtimeMs }
   }
-  if (newest) await bucket().put(coverKey(projectId), await readFile(newest.file), 'image/jpeg')
+  if (newest)
+    await bucket().put(coverKey(projectId), await readFile(newest.file), 'image/jpeg', undefined, {
+      signal,
+    })
 }
 
 /** The grid thumbnail of a project nobody holds right now. */

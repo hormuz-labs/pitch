@@ -91,8 +91,20 @@ export default function demoFlowCommands(): CommandSpec[] {
     description:
       'Prepare a stopped recording for the video-editing skill: composite the recorded cursor with FFmpeg and mux synchronized narration/SFX into a new recording/source-*.mp4 and narration timeline. The raw master is cursorless; never inject an HTML cursor. Preserves timing and composition; idle trimming and camera work happen next in video-editing. Returns the source path for pitch video probe/frames and an edit plan.',
     parameters: Type.Object({}),
-    async execute(_id, _p, _signal, _onUpdate, ctx) {
-      return text(await hostAction(workspaceOf(ctx), 'demo_source', {}))
+    async execute(_id, _p, signal, onUpdate, ctx) {
+      return text(
+        await hostAction(
+          workspaceOf(ctx),
+          'demo_source',
+          {},
+          {
+            signal,
+            progress: stage => {
+              if (typeof onUpdate === 'function') onUpdate(text(stage))
+            },
+          },
+        ),
+      )
     },
   })
 

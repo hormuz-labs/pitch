@@ -15,6 +15,7 @@ export interface PutOptions {
   /** Bytes when known; lets a driver pick single-shot vs multipart. */
   size?: number
   onProgress?: (loaded: number, total?: number) => void
+  signal?: AbortSignal
 }
 
 export interface ObjectDriver {

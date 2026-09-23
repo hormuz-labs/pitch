@@ -50,12 +50,22 @@ export async function startBrowserCapture(
     // Keep the recording client's viewport contract across full navigations and
     // popups. A resize issued by the separate input client can be reset on reload.
     await page.setViewportSize({ width: 1920, height: 1080 })
-    const closeBridge = await installPageBridge(page, binding, visibility, visible => {
-      if (stopping) return
-      if (visible) active = page
-      else if (active === page) active = null
-      cursor?.recorder.select(active)
-    })
+    const closeBridge = await installPageBridge(
+      page,
+      binding,
+      visibility,
+      visible => {
+        if (stopping) return
+        if (visible) active = page
+        else if (active === page) active = null
+        cursor?.recorder.select(active)
+      },
+      error => {
+        if (stopping) return
+        failure = error
+        ready()
+      },
+    )
     bridges.add(closeBridge)
     await page.screencast.start({
       size: { width: 1920, height: 1080 },

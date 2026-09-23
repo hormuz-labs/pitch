@@ -145,7 +145,7 @@ export interface Entry {
   id: string
   role: 'user' | 'assistant' | 'thinking' | 'tool' | 'question' | 'credit'
   text: string
-  tool?: { name: string; status: 'running' | 'done' | 'error' }
+  tool?: { name: string; status: 'running' | 'done' | 'error'; progress?: string }
   ask?: Ask
   at?: number
   sessionEntryId?: string

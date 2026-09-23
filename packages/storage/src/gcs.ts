@@ -6,6 +6,7 @@
  * missing (usually they are provisioned ahead of time) and GCS_LOCATION where.
  */
 
+import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { Storage } from '@google-cloud/storage'
 import type { ObjectDriver, PutOptions } from './driver.js'
@@ -45,8 +46,9 @@ export function gcsDriver(): ObjectDriver {
     },
 
     async put(bucket, key, body, opts: PutOptions) {
+      opts.signal?.throwIfAborted()
       const file = storage.bucket(bucket).file(key)
-      if (Buffer.isBuffer(body)) {
+      if (Buffer.isBuffer(body) && !opts.signal) {
         await file.save(body, {
           contentType: opts.contentType,
           resumable: body.length > RESUMABLE_THRESHOLD,
@@ -56,14 +58,15 @@ export function gcsDriver(): ObjectDriver {
       }
       const resumable = opts.size === undefined || opts.size > RESUMABLE_THRESHOLD
       const sink = file.createWriteStream({ contentType: opts.contentType, resumable })
+      const source = Buffer.isBuffer(body) ? Readable.from([body]) : body
       if (opts.onProgress) {
         let loaded = 0
-        body.on('data', (chunk: Buffer | string) => {
+        source.on('data', (chunk: Buffer | string) => {
           loaded += chunk.length
           opts.onProgress!(loaded, opts.size)
         })
       }
-      await pipeline(body, sink)
+      await pipeline(source, sink, { signal: opts.signal })
     },
 
     async get(bucket, key) {

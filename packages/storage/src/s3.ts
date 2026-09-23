@@ -96,6 +96,7 @@ export function s3Driver(): ObjectDriver {
     },
 
     async put(bucket, key, body, opts: PutOptions) {
+      opts.signal?.throwIfAborted()
       const small = Buffer.isBuffer(body) && body.length <= MULTIPART_THRESHOLD
       const known =
         !Buffer.isBuffer(body) && opts.size !== undefined && opts.size <= MULTIPART_THRESHOLD
@@ -112,6 +113,7 @@ export function s3Driver(): ObjectDriver {
             ContentType: opts.contentType,
             ContentLength: exactBody.length,
           }),
+          { abortSignal: opts.signal },
         )
         return
       }
@@ -123,7 +125,16 @@ export function s3Driver(): ObjectDriver {
       })
       if (opts.onProgress)
         upload.on('httpUploadProgress', p => opts.onProgress!(p.loaded ?? 0, p.total))
-      await upload.done()
+      const abort = () => {
+        void upload.abort().catch(() => {})
+      }
+      opts.signal?.addEventListener('abort', abort, { once: true })
+      if (opts.signal?.aborted) abort()
+      try {
+        await upload.done()
+      } finally {
+        opts.signal?.removeEventListener('abort', abort)
+      }
     },
 
     async get(bucket, key) {

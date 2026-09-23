@@ -217,8 +217,12 @@ export async function installRecordingCursor(context: BrowserContext): Promise<C
     if (!bridges.has(page))
       bridges.set(
         page,
-        installPageBridge(page, binding, RECORDING_CURSOR_SCRIPT, data =>
-          recorder.receive(page, data),
+        installPageBridge(
+          page,
+          binding,
+          RECORDING_CURSOR_SCRIPT,
+          data => recorder.receive(page, data),
+          error => recorder.fail(error),
         ),
       )
     return bridges.get(page)!

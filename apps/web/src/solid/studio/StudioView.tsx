@@ -73,7 +73,7 @@ function Preview(props: { store: ProjectStore; detailedTimeline?: boolean }) {
         <PdfPreview store={s} src={src()!} />
       </Match>
       <Match when={kind() === 'browser'}>
-        <BrowserPreview store={s} streamId={(preview() as { streamId: string }).streamId} />
+        <BrowserPreview streamId={(preview() as { streamId: string }).streamId} />
       </Match>
     </Switch>
   )

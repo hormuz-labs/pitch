@@ -30,7 +30,7 @@ export interface RunResult {
 }
 
 /** Whatever a command returned, as the text the agent reads. */
-function resultText(result: any): string {
+export function resultText(result: any): string {
   const content = result?.content
   if (!Array.isArray(content)) return typeof result === 'string' ? result : ''
   return content

@@ -76,6 +76,21 @@ describe('demo source cursor handoff', () => {
     expect(host.call).not.toHaveBeenCalled()
   })
 
+  it('rejects a nominally complete trace that missed the demonstrated clicks', async () => {
+    await write('demo-state.json', {
+      clickEvents: [{ videoTimeSec: 1, x: 100, y: 100 }],
+      audioClips: [],
+    })
+    await write('cursor.json', {
+      version: 2,
+      complete: true,
+      startTime: 1000,
+      events: [{ kind: 'document', time: 0 }],
+    })
+    await expect(prepare()).rejects.toThrow('missed the recorded clicks')
+    expect(host.call).not.toHaveBeenCalled()
+  })
+
   it('keeps legacy baked-cursor sources free of a second cursor', async () => {
     await write('demo-config.json', { startTime: 1000, videoStartTime: 1000 })
     await prepare()

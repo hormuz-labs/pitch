@@ -256,7 +256,10 @@ export function Thread(props: {
                           '✓'
                         )}
                       </span>
-                      <span class="log-text">{e.text}</span>
+                      <span class="log-text">
+                        {e.text}
+                        <Show when={e.tool?.progress}>{progress => <> · {progress()}</>}</Show>
+                      </span>
                     </div>
                   </Show>
                 }

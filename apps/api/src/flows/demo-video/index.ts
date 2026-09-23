@@ -467,6 +467,10 @@ registerHostAction('demo_source', async (ws, _params, ctx) => {
       throw new Error(
         'Missing, incomplete or mismatched cursor telemetry; recover the capture or retake.',
       )
+    if ((state.clickEvents?.length ?? 0) > 0 && !trace.events.some(event => event.kind === 'down'))
+      throw new Error(
+        'Cursor telemetry missed the recorded clicks. The capture observer failed; do not publish a cursorless substitute or fabricate a mouse path.',
+      )
     // Old click SFX were stamped before multiple CLI round-trips. Align them to
     // the actual pointer press too, rather than letting sound lead the new cursor.
     const sound = clips.find(clip => path.basename(clip.source) === 'click.mp3')

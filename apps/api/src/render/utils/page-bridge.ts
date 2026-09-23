@@ -9,12 +9,15 @@ export async function installPageBridge(
   name: string,
   script: string,
   receive: (data: any) => unknown | Promise<unknown>,
+  onError?: (error: Error) => void,
 ): Promise<() => Promise<void>> {
   const cdp = await page.context().newCDPSession(page)
   const native = `__pitchNative_${randomUUID().replaceAll('-', '')}`
   const state = `${native}_state`
   let closed = false
   let scriptId: string | undefined
+  let mainFrameId: string | undefined
+  let initialized = false
   const source = `(() => {
     if (window !== window.top || window[${JSON.stringify(state)}]) return;
     const pending = new Map();
@@ -84,11 +87,46 @@ export async function installPageBridge(
   const onClose = () => {
     void close()
   }
+  const onFrame = (event: { frame: { id: string; parentId?: string } }) => {
+    if (!event.frame.parentId) mainFrameId = event.frame.id
+  }
+  const onContext = (event: {
+    context: { id: number; auxData?: { isDefault?: boolean; frameId?: string } }
+  }) => {
+    if (
+      !initialized ||
+      closed ||
+      !event.context.auxData?.isDefault ||
+      event.context.auxData.frameId !== mainFrameId
+    )
+      return
+    // Another automation client can replace init scripts. Re-establish our
+    // idempotent observer in each new main-document realm as a backstop.
+    void cdp
+      .send('Runtime.evaluate', {
+        expression: source,
+        contextId: event.context.id,
+        awaitPromise: true,
+      })
+      .then(result => {
+        if (result.exceptionDetails)
+          onError?.(
+            new Error(
+              result.exceptionDetails.exception?.description ?? result.exceptionDetails.text,
+            ),
+          )
+      })
+      .catch(() => {
+        /* A rapid second navigation can destroy this realm. */
+      })
+  }
   const close = async () => {
     if (closed) return
     closed = true
     page.off('close', onClose)
     cdp.off('Runtime.bindingCalled', onBinding)
+    cdp.off('Runtime.executionContextCreated', onContext)
+    cdp.off('Page.frameNavigated', onFrame)
     await cdp
       .send('Runtime.evaluate', {
         expression: `window[${JSON.stringify(state)}]?.dispose()`,
@@ -102,9 +140,12 @@ export async function installPageBridge(
     await cdp.detach().catch(() => {})
   }
   cdp.on('Runtime.bindingCalled', onBinding)
+  cdp.on('Runtime.executionContextCreated', onContext)
+  cdp.on('Page.frameNavigated', onFrame)
   page.once('close', onClose)
   try {
     await cdp.send('Page.enable')
+    mainFrameId = (await cdp.send('Page.getFrameTree')).frameTree.frame.id
     await cdp.send('Runtime.enable')
     await cdp.send('Runtime.addBinding', { name: native })
     const registered = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source })
@@ -118,6 +159,7 @@ export async function installPageBridge(
       throw new Error(
         `Capture bridge initialization failed: ${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}`,
       )
+    initialized = true
     return close
   } catch (error) {
     await close()

@@ -69,7 +69,7 @@ import {
 } from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
-import { peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
+import { type HostContext, peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
 import {
   estimatedModelCredits,
   modelCreditMultiplier,
@@ -941,7 +941,7 @@ export async function workspaceDir(row: ProjectRow): Promise<string> {
 
 // ── Checkpoints, release, removal ─────────────────────────────────────────────
 
-async function checkpointNow(h: Held): Promise<void> {
+async function checkpointNow(h: Held, ctx: HostContext = {}): Promise<void> {
   if (h.checkpointing) return h.checkpointing
   h.checkpointing = (async () => {
     const at = h.dirtyAt
@@ -963,6 +963,8 @@ async function checkpointNow(h: Held): Promise<void> {
       artifactKind: await getAgent()
         .artifactKind(h.ws)
         .catch(() => null),
+      signal: ctx.signal,
+      progress: ctx.progress,
     })
     const fenced = await db.prisma.project.updateMany({
       where: {
@@ -1004,6 +1006,7 @@ async function checkpointNow(h: Held): Promise<void> {
  */
 export async function checkpointForRender(
   ws: Workspace,
+  ctx: HostContext = {},
 ): Promise<{ projectId: string; version: number }> {
   const h = [...held.values()].find(x => x.ws.internal === ws.internal)
   if (!h) throw new Error(`this worker does not hold ${ws.internal}; nothing to render from`)
@@ -1013,7 +1016,8 @@ export async function checkpointForRender(
   // the watcher deliberately emits no event for them. Snapshot every remote
   // call to guarantee the render tier sees the exact current workspace.
   if (h.checkpointing) await h.checkpointing
-  await checkpointNow(h)
+  ctx.signal?.throwIfAborted()
+  await checkpointNow(h, ctx)
   const row = await rowById(h.id)
   if (row.workerId !== WORKER_ID || row.workerEpoch !== h.epoch) throw new NotOwnerError(h.id)
   if (row.workspaceVersion === 0) throw new Error(`${ws.internal} could not be checkpointed`)
