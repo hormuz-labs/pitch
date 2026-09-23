@@ -11,7 +11,7 @@ vi.mock('node:child_process', async importOriginal => ({
 import { tarCreate } from '../apps/api/src/worker/checkpoint.ts'
 
 describe('checkpoint producer completion', () => {
-  it('finishes on process exit even when the runtime never emits stdio close', async () => {
+  it('finishes after process exit and complete stdout without requiring stdio close', async () => {
     const child = Object.assign(new EventEmitter(), {
       stdout: new PassThrough(),
       stderr: new PassThrough(),
@@ -19,12 +19,22 @@ describe('checkpoint producer completion', () => {
     })
     mock.spawn.mockReturnValue(child)
     const tar = tarCreate('/unused', 'workspace')
+    const chunks: Buffer[] = []
+    const consumed = (async () => {
+      for await (const chunk of tar.stream) chunks.push(chunk as Buffer)
+    })()
+    child.emit('exit', 0)
+    let completed = false
+    void tar.done.then(() => {
+      completed = true
+    })
+    await Promise.resolve()
+    expect(completed).toBe(false)
+
     child.stdout.end('archive bytes')
     child.stderr.end()
-    child.emit('exit', 0)
     await expect(tar.done).resolves.toBeUndefined()
-    const chunks = []
-    for await (const chunk of tar.stream) chunks.push(chunk)
+    await consumed
     expect(Buffer.concat(chunks).toString()).toBe('archive bytes')
   })
 })

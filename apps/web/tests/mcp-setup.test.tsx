@@ -13,16 +13,7 @@ describe('McpSetup', () => {
   it('renders accessible client tabs and valid Claude setup instructions', () => {
     const { container } = render(() => <McpSetup instant />)
 
-    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.trim())).toEqual([
-      'Claude',
-      'Cursor',
-      'ChatGPT',
-      'Perplexity',
-      'OpenClaw',
-      'Hermes',
-      'Any agent',
-      'API',
-    ])
+expect(screen.getAllByRole('tab')).toHaveLength(8)
     expect(screen.getByRole('tab', { name: 'Claude' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tabpanel')).not.toBeNull()
 

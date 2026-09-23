@@ -24,7 +24,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pipeline } from 'node:stream/promises'
+import { finished, pipeline } from 'node:stream/promises'
 import { createLogger } from '@saas/shared'
 import { type PrivateObjectStore, privateBucket } from '@saas/storage'
 import { historyDir } from '../studio/history.js'
@@ -97,15 +97,16 @@ export function tarCreate(
     err += c.toString('utf8')
   })
   let rejectDone!: (error: Error) => void
-  const done = new Promise<void>((resolve, reject) => {
+  const exited = new Promise<void>((resolve, reject) => {
     rejectDone = reject
     proc.on('error', reject)
-    // Upload completion already waits for stdout consumption. Waiting for the
-    // ChildProcess 'close' event as well can strand Bun after tar has exited.
     proc.on('exit', code =>
       code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
     )
   })
+  // Bun can miss ChildProcess 'close', while 'exit' may arrive before the last
+  // stdout bytes. Wait for both process success and complete stream delivery.
+  const done = Promise.all([exited, finished(proc.stdout)]).then(() => undefined)
   done.catch(() => {})
   return {
     stream: proc.stdout,
