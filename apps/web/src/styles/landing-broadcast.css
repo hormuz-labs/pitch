@@ -1137,9 +1137,13 @@
     box-sizing: border-box;
     padding: 16px calc((100vw - min(82vw, 420px)) / 2) 28px;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     scroll-padding-inline: calc((100vw - min(82vw, 420px)) / 2);
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
+    touch-action: pan-x pan-y;
+    pointer-events: auto;
+    cursor: auto;
   }
   .lb-spread-reel::-webkit-scrollbar { display: none; }
   .lb-spread-card {

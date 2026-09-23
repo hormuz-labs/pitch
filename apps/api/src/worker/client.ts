@@ -42,6 +42,8 @@ export interface WorkerClient {
   entries(id: string): Promise<{ entries: Entry[]; busy: boolean; activeModel: string | null }>
   describe(id: string): Promise<Description>
   busy(id: string): Promise<boolean>
+  /** The raw pi transcript (JSON Lines) for admin review; null when there is none. */
+  sessionLog(id: string): Promise<string | null>
   thumbnail(id: string, t: number): Promise<Buffer | null>
   listAssets(id: string): Promise<Asset[]>
   addAssets(id: string, uploads: UploadRef[]): Promise<Asset[]>
@@ -100,6 +102,7 @@ const local: WorkerClient = {
   entries: host.entries,
   describe: host.describe,
   busy: host.busy,
+  sessionLog: host.sessionLog,
   thumbnail: host.thumbnail,
   listAssets: host.listAssets,
   addAssets: host.addAssets,
@@ -264,6 +267,8 @@ function remote(w: WorkerRow): WorkerClient {
     entries: id => call(w, 'GET', pathOf(id, '/entries')),
     describe: id => call(w, 'GET', pathOf(id, '/describe')),
     busy: id => call<{ busy: boolean }>(w, 'GET', pathOf(id, '/busy')).then(r => r.busy),
+    sessionLog: id =>
+      call<{ log: string | null }>(w, 'GET', pathOf(id, '/session-log')).then(r => r?.log ?? null),
     thumbnail: (id, t) =>
       call<Buffer | undefined>(w, 'GET', pathOf(id, `/thumbnail?t=${encodeURIComponent(t)}`)).then(
         b => (b?.length ? b : null),

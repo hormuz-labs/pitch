@@ -1,6 +1,6 @@
 export const SITE_URL = 'https://trypitch.co'
 export const SITE_NAME = 'Pitch'
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png?v=2`
 
 export const DEFAULT_TITLE = 'Pitch — Directable AI production studio'
 export const DEFAULT_DESCRIPTION =

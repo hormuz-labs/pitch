@@ -559,6 +559,8 @@ export const ScrollSpreadFilms = () => {
               setSelected(closest)
             }}
             onPointerDown={event => {
+              // Mobile uses native swipe scrolling (scroll-snap); the 3D drag is desktop-only.
+              if (window.matchMedia('(max-width: 768px)').matches) return
               if ((event.target as Element).closest('.lb-spread-card.is-active')) return
               cancelAnimationFrame(animationFrame ?? 0)
               targetPosition = position

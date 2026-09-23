@@ -107,6 +107,55 @@ export const studio = {
       scenes: storyboard.scenes,
     }),
 }
+
+const adminPath = (id: string) => `/admin/projects/${encodeURIComponent(id)}`
+
+export interface ProjectOwner {
+  id: string
+  email?: string | null
+  firstName?: string | null
+  lastName?: string | null
+}
+
+export type ReviewDownload = 'chat' | 'chat-json' | 'logs'
+
+/**
+ * An administrator's view of ANY project. Reads only, by design: there is no
+ * prompt, export, share or edit here, and the server's owner routes refuse an
+ * admin who tries them — review never acts as the user or spends their credits.
+ */
+export const adminStudio = {
+  get: (token: string, id: string) =>
+    api.get<ProjectDetail & { owner: ProjectOwner | null }>(`${adminPath(id)}/studio`, token),
+  messages: (token: string, id: string) =>
+    api.get<{ entries: Entry[]; busy: boolean; activeModel: string | null }>(
+      `${adminPath(id)}/messages`,
+      token,
+    ),
+  assets: (token: string, id: string) => api.get<Asset[]>(`${adminPath(id)}/assets`, token),
+  getExport: (token: string, id: string) => api.get<ExportStatus>(`${adminPath(id)}/export`, token),
+  eventsUrl: (id: string, token: string) => mediaUrl(`${adminPath(id)}/events`, token) as string,
+  thumbnailUrl: (id: string, t: number, token: string, version: number) =>
+    mediaUrl(`${adminPath(id)}/thumbnail`, token, version, { t: String(t) }) as string,
+  download: (token: string, id: string, kind: ReviewDownload) =>
+    api.file(
+      kind === 'logs'
+        ? `${adminPath(id)}/download/logs`
+        : `${adminPath(id)}/download/chat${kind === 'chat-json' ? '?format=json' : ''}`,
+      token,
+    ),
+}
+
+/**
+ * Asset and page thumbnails come back addressed to the owner's routes, which
+ * answer only the owner. In the admin view the same file is read through the
+ * admin route instead.
+ */
+export function adminMediaPath(id: string, path: string): string {
+  const owner = `/projects/${encodeURIComponent(id)}/`
+  return path.startsWith(owner) ? `/admin${path}` : path
+}
+
 export type {
   Asset,
   Entry,

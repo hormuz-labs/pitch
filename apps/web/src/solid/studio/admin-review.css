@@ -1,0 +1,83 @@
+/* The studio topbar and composer slot when an admin reviews someone's project. */
+.lv-studio .admin-review-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.lv-studio .admin-review-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--ink);
+}
+.lv-studio .admin-review-back:is(:hover, :focus-visible) {
+  background: var(--panel-2);
+}
+.lv-studio .admin-review-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.lv-studio .admin-review-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  line-height: 1.2;
+}
+.lv-studio .admin-review-titles .editor-project {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.lv-studio .admin-review-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+.lv-studio .admin-review-download {
+  flex: none;
+  padding-inline: 10px;
+}
+.lv-studio .admin-review-error {
+  flex: none;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--danger);
+  font-size: 12px;
+}
+.lv-studio .admin-review-composer {
+  margin: 8px 12px 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+@media (max-width: 840px) {
+  .lv-studio .admin-review-badge span,
+  .lv-studio .admin-review-download span {
+    display: none;
+  }
+}

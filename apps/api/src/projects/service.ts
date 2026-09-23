@@ -118,7 +118,15 @@ export async function describeProject(p: ProjectRow): Promise<Description> {
 }
 
 export async function getProject(userId: string, id: string): Promise<ProjectDetail> {
-  const p = await getRow(userId, id)
+  return projectDetail(await getRow(userId, id))
+}
+
+/**
+ * The studio's view of a row the caller has ALREADY authorised: `getProject`
+ * for owners, the admin router for administrators. Never hand it a row that
+ * came from an unchecked id.
+ */
+export async function projectDetail(p: ProjectRow): Promise<ProjectDetail> {
   try {
     return await withOwner(p.id, async owner => {
       const [description, busy] = await Promise.all([owner.describe(p.id), owner.busy(p.id)])

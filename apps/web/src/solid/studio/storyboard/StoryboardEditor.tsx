@@ -133,6 +133,10 @@ export function StoryboardEditor(props: { store: ProjectStore }) {
 
   const save = async (): Promise<VideoStoryboard | null> => {
     window.clearTimeout(saveTimer)
+    if (props.store.readOnly) {
+      setSaveMessage('Read-only admin view · changes are not saved')
+      return null
+    }
     if (saveState() === 'saved') return draft()
     if (saveInFlight) {
       await saveInFlight
