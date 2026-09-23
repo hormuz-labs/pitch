@@ -38,7 +38,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
-import { workspaceOf } from '../lib/paths.ts'
+import { resolveIn, workspaceOf } from '../lib/paths.ts'
 import { hostAction } from '../lib/studio-host.ts'
 import type { CommandSpec } from './registry.ts'
 
@@ -127,8 +127,9 @@ function recordingsDir(base: string): string {
 function statePath(base: string): string {
   return path.join(recordingsDir(base), 'demo-state.json')
 }
+/** The workspace file a command names — never a path outside the project. */
 function resolveVideo(base: string, videoPath: string): string {
-  return path.isAbsolute(videoPath) ? videoPath : path.join(base, videoPath)
+  return resolveIn(base, videoPath, 'read')
 }
 
 function readState(base: string): DemoState {
