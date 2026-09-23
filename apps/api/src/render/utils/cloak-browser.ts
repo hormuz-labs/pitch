@@ -111,6 +111,11 @@ export async function startCloakBrowser(options: {
       ],
       launchOptions: {
         timeout: START_TIMEOUT_MS,
+        // The worker owns graceful draining. Playwright's default signal
+        // handlers would close Chromium immediately while the turn is still live.
+        handleSIGTERM: false,
+        handleSIGINT: false,
+        handleSIGHUP: false,
         env: { ...process.env, DISPLAY: display.display },
       },
     })

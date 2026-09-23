@@ -33,6 +33,9 @@ vi.mock('../apps/api/src/render/utils/cloak-browser.ts', () => ({
 vi.mock('../apps/api/src/render/utils/browser-capture.ts', () => ({
   startBrowserCapture: mocks.capture,
 }))
+vi.mock('../apps/api/src/render/utils/page-bridge.ts', () => ({
+  installPageBridge: vi.fn(async () => async () => {}),
+}))
 
 let base: string
 beforeEach(() => {
@@ -49,6 +52,8 @@ beforeEach(() => {
       storageState: async () => ({ cookies: [], origins: [] }),
       addInitScript: mocks.initScript,
       exposeBinding: vi.fn(),
+      on: vi.fn(),
+      once: vi.fn(),
       pages: () => [{ frames: () => [{ evaluate: mocks.evaluate }] }],
     },
   })

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { BrowserContext, Page } from 'playwright'
 import { CaptureEncoder } from './capture-encoder.js'
 import { withTimeout } from './cloak-browser.js'
+import { installPageBridge } from './page-bridge.js'
 import type { CursorRecording } from './recording-cursor.js'
 
 export interface BrowserCapture {
@@ -20,6 +21,7 @@ export async function startBrowserCapture(
   const binding = `__pitchCaptureVisibility_${randomUUID().replaceAll('-', '')}`
   const pages = new Set<Page>()
   const attaching = new Set<Promise<void>>()
+  const bridges = new Set<() => Promise<void>>()
   let active: Page | null = null
   let startTime = 0
   let failure: unknown
@@ -48,7 +50,13 @@ export async function startBrowserCapture(
     // Keep the recording client's viewport contract across full navigations and
     // popups. A resize issued by the separate input client can be reset on reload.
     await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.evaluate(visibility)
+    const closeBridge = await installPageBridge(page, binding, visibility, visible => {
+      if (stopping) return
+      if (visible) active = page
+      else if (active === page) active = null
+      cursor?.recorder.select(active)
+    })
+    bridges.add(closeBridge)
     await page.screencast.start({
       size: { width: 1920, height: 1080 },
       quality: 100,
@@ -85,16 +93,10 @@ export async function startBrowserCapture(
     context.off('page', onPage)
     await Promise.all(attaching)
     await Promise.all([...pages].map(page => page.screencast.stop().catch(() => {})))
+    await Promise.all([...bridges].map(close => close()))
   }
   try {
     if (signal?.aborted) throw new Error('Browser capture was cancelled before starting')
-    await context.exposeBinding(binding, ({ page }, visible) => {
-      if (stopping) return
-      if (visible) active = page
-      else if (active === page) active = null
-      cursor?.recorder.select(active)
-    })
-    await context.addInitScript({ content: visibility })
     context.on('page', onPage)
     await Promise.all(context.pages().map(attach))
     await withTimeout('first full-resolution capture frame', firstFrame, 15_000)

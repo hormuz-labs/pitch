@@ -76,6 +76,12 @@ visible outcome. If still blocked, inspect the specific error and report the gap
 rather than repeating the attempt or pretending it succeeded. On a hard browser
 failure, stop the damaged take and report what could not be recorded.
 
+If snapshots and unrelated actions all fail, or startup reports an internal
+binding/transport exception, this is a host/browser failure, not a stale ref.
+Stop the take and report the exact error. Do not cycle record-start/browser-open,
+try different websites, inspect the CLI installation, or generate more narration
+for a browser that cannot act. A fresh snapshot is for a functioning connection.
+
 Use individual host commands and inspect their structured results. An error,
 missing target or unchanged page is not success. Never swallow errors, guess the
 first button or replay a batch of refs through navigation. Do not wrap snapshots

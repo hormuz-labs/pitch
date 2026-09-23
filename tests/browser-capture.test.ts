@@ -10,6 +10,13 @@ vi.mock('../apps/api/src/render/utils/capture-encoder.ts', () => ({
     abort = encoder.abort
   },
 }))
+vi.mock('../apps/api/src/render/utils/page-bridge.ts', () => ({
+  installPageBridge: async (page: any, _name: string, _script: string, receive: any) => {
+    page.reportVisibility = receive
+    receive(page.visible)
+    return page.closeBridge
+  },
+}))
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -20,11 +27,6 @@ afterEach(() => vi.restoreAllMocks())
 
 function browser() {
   const context = new EventEmitter() as any
-  let visible: (source: any, visible: boolean) => void
-  context.exposeBinding = async (_name: string, fn: typeof visible) => {
-    visible = fn
-  }
-  context.addInitScript = vi.fn(async () => {})
   const pages: any[] = []
   context.pages = () => pages
   const page = (name: string, foreground: boolean) => {
@@ -32,7 +34,8 @@ function browser() {
     const p: any = {
       isClosed: () => false,
       setViewportSize: vi.fn(async () => {}),
-      evaluate: async () => visible({ page: p }, foreground),
+      visible: foreground,
+      closeBridge: vi.fn(async () => {}),
       screencast: {
         start: vi.fn(async (opts: any) => {
           options = opts
@@ -41,7 +44,7 @@ function browser() {
         stop: vi.fn(async () => {}),
       },
       frame: () => options.onFrame({ data: Buffer.from(name) }),
-      foreground: () => visible({ page: p }, true),
+      foreground: () => p.reportVisibility(true),
     }
     pages.push(p)
     return p
@@ -84,6 +87,8 @@ describe('visible-tab capture lifecycle', () => {
     expect(recorder.select).toHaveBeenLastCalledWith(second)
     expect(first.screencast.stop).toHaveBeenCalledTimes(1)
     expect(second.screencast.stop).toHaveBeenCalledTimes(1)
+    expect(first.closeBridge).toHaveBeenCalledTimes(1)
+    expect(second.closeBridge).toHaveBeenCalledTimes(1)
     expect(b.context.listenerCount('page')).toBe(0)
     expect(b.context.listenerCount('close')).toBe(0)
   })

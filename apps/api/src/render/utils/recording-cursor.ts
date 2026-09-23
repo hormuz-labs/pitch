@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import type { BrowserContext, Page } from 'playwright'
+import { installPageBridge } from './page-bridge.js'
 
 export type CursorShape = 'arrow' | 'hand' | 'text' | 'hidden'
 export interface CursorEvent {
@@ -24,6 +25,7 @@ export const RECORDING_CURSOR_SCRIPT = `(() => {
   let position = null;
   let buttons = 0;
   let shape = 'arrow';
+  const buffered = [];
   const cursorShape = target => {
     if (!(target instanceof Element)) return 'arrow';
     const cursor = getComputedStyle(target).cursor;
@@ -42,6 +44,10 @@ export const RECORDING_CURSOR_SCRIPT = `(() => {
     if (window !== window.top) {
       window.parent.postMessage({...data, channel}, '*');
       return;
+    }
+    if (typeof window.${binding} !== 'function') {
+      buffered.push(data);
+      return Promise.resolve(null);
     }
     return window.${binding}(data);
   }
@@ -98,6 +104,10 @@ export const RECORDING_CURSOR_SCRIPT = `(() => {
     });
     document.addEventListener('visibilitychange', restore);
     document.addEventListener('DOMContentLoaded', restore, {once: true});
+    window.addEventListener('${binding}:ready', () => {
+      for (const data of buffered.splice(0)) window.${binding}(data);
+      void restore();
+    });
     return restore();
   }
 })();`
@@ -112,6 +122,10 @@ export class CursorRecording {
   private startTime = 0
   private file: string | null = null
   private failure: Error | null = null
+
+  fail(error: unknown): void {
+    this.failure = error instanceof Error ? error : new Error(String(error))
+  }
 
   select(page: Page | null, time = Date.now()): void {
     if (page === this.active) return
@@ -198,11 +212,30 @@ export class CursorRecording {
 
 export async function installRecordingCursor(context: BrowserContext): Promise<CursorRecording> {
   const recorder = new CursorRecording()
-  await context.exposeBinding(binding, ({ page, frame }, data) => {
-    // Only top-level documents submit: child input has been coordinate-mapped.
-    if (frame !== page.mainFrame()) return null
-    return recorder.receive(page, data)
+  const bridges = new Map<Page, Promise<() => Promise<void>>>()
+  const attach = (page: Page) => {
+    if (!bridges.has(page))
+      bridges.set(
+        page,
+        installPageBridge(page, binding, RECORDING_CURSOR_SCRIPT, data =>
+          recorder.receive(page, data),
+        ),
+      )
+    return bridges.get(page)!
+  }
+  const onPage = (page: Page) => {
+    void attach(page).catch(error => {
+      if (!page.isClosed()) recorder.fail(error)
+    })
+  }
+  context.on('page', onPage)
+  context.once('close', () => {
+    context.off('page', onPage)
+    for (const bridge of bridges.values()) void bridge.then(close => close()).catch(() => {})
   })
+  // Child frames observe and relay coordinates; only the top document needs a
+  // host transport, including when children live in separate renderer processes.
+  await Promise.all(context.pages().map(attach))
   await context.addInitScript({ content: RECORDING_CURSOR_SCRIPT })
   await Promise.all(
     context
