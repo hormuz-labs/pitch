@@ -14,7 +14,7 @@
  *
  * Output: audio/vo-words.json — { file, duration, text, matched, words:[{w,n,s,e,src}] }
  */
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { availableParallelism, cpus, homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -105,8 +105,8 @@ const tmp = join(dirname(OUT), ".align");
 rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
 const wav16 = join(tmp, "vo16.wav");
-execSync(`ffmpeg -hide_banner -loglevel error -y -i "${VO}" -ar 16000 -ac 1 "${wav16}"`, { stdio: "pipe" });
-const duration = Number(execSync(`ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${VO}"`).toString().trim());
+execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", VO, "-ar", "16000", "-ac", "1", wav16], { stdio: "pipe" });
+const duration = Number(execFileSync("ffprobe", ["-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", VO]).toString().trim());
 
 const jsonBase = join(tmp, "words");
 const prompt = scriptText.slice(0, 600);   // biases the recogniser toward the real copy (brand names, numbers)

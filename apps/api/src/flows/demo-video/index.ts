@@ -27,8 +27,13 @@ import {
   waitForNarration,
 } from '../../../../../.pi/lib/demo-timing.ts'
 import { resolveSymlinks } from '../../../../../.pi/lib/paths.ts'
-import { execAsync, getVideoBirthTimeMs } from '../../render/media.js'
-import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
+import { execFileAsync, getVideoBirthTimeMs } from '../../render/media.js'
+import {
+  prepareDemoAssets,
+  type RecordingHandle,
+  sanitizeSessionName,
+  startRecording,
+} from '../../render/recording.js'
 import { type AssetManifest, formatAssetManifestForPrompt } from '../../render/utils/assets.js'
 import { buildDemoJobInput } from '../../render/utils/demo-job-input.js'
 import type { CursorEvent } from '../../render/utils/recording-cursor.js'
@@ -201,9 +206,13 @@ async function stopRecording(
     }
   } else if (live) {
     // The studio restarted while this workspace was recording: the browser may
-    // still be up under the session name — close what we can.
-    await execAsync(`playwright-cli -s=${live.session} video-stop`, { cwd: ws.dir }).catch(() => {})
-    await execAsync(`playwright-cli -s=${live.session} close`, { cwd: ws.dir }).catch(() => {})
+    // still be up under the session name — close what we can. The name is
+    // derived from the workspace, never read back from live.json, which the
+    // agent's shell can write.
+    const session = sanitizeSessionName(path.basename(ws.dir))
+    await execFileAsync('playwright-cli', [`-s=${session}`, 'close'], { cwd: ws.dir }).catch(
+      () => {},
+    )
   }
   await rm(liveFile(ws), { force: true })
   await rm(path.join(recordingDir(ws), 'browser.json'), { force: true })
@@ -314,13 +323,10 @@ async function openDemo(
   if (url) {
     try {
       assertBrowserCommandSucceeded(
-        await execAsync(
-          `playwright-cli -s=${handle.session} goto "${url.replace(/["\\$`]/g, '\\$&')}"`,
-          {
-            cwd: ws.dir,
-            timeout: 60_000,
-          },
-        ),
+        await execFileAsync('playwright-cli', [`-s=${handle.session}`, 'goto', url], {
+          cwd: ws.dir,
+          timeout: 60_000,
+        }),
       )
       opened = `\nOpened ${url} — take a fresh snapshot and verify the starting view.`
     } catch (err: any) {

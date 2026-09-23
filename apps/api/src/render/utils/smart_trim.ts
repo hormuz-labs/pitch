@@ -1,16 +1,19 @@
-import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { promisify } from 'util'
+import { execFileAsync, splitArgs } from '../media.js'
 import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
-
-const execAsync = promisify(exec)
 
 async function getDuration(file: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      file,
+    ])
     return parseFloat(stdout.trim())
   } catch (_e) {
     return 0
@@ -36,9 +39,17 @@ export function resolveAudioDuration(
 
 async function getAudioDuration(file: string, fallbackDuration: number): Promise<number> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -select_streams a:0 -show_entries stream=duration -of json "${file}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'a:0',
+      '-show_entries',
+      'stream=duration',
+      '-of',
+      'json',
+      file,
+    ])
     return resolveAudioDuration(JSON.parse(stdout).streams, fallbackDuration)
   } catch (_e) {
     return 0
@@ -214,8 +225,21 @@ export function findInitialBlankSegmentFromSignalStats(signalLog: string): Segme
 
 async function findInitialBlankSegment(input: string): Promise<Segment | null> {
   try {
-    const { stdout } = await execAsync(
-      `ffmpeg -hide_banner -t 90 -i "${input}" -vf fps=2,signalstats,metadata=print:file=- -an -f null -`,
+    const { stdout } = await execFileAsync(
+      'ffmpeg',
+      [
+        '-hide_banner',
+        '-t',
+        '90',
+        '-i',
+        input,
+        '-vf',
+        'fps=2,signalstats,metadata=print:file=-',
+        '-an',
+        '-f',
+        'null',
+        '-',
+      ],
       { maxBuffer: 1024 * 1024 * 100 },
     )
     return findInitialBlankSegmentFromSignalStats(stdout)
@@ -317,13 +341,24 @@ async function analyzeMotion(input: string, duration: number): Promise<Segment[]
   const ampLog = path.join(dir, `__motion_amp_${stamp}.log`)
   const areaLog = path.join(dir, `__motion_area_${stamp}.log`)
   try {
-    await execAsync(
-      `ffmpeg -hide_banner -nostats -i "${input}" ` +
-        `-filter_complex "[0:v]fps=${MOTION_SAMPLE_FPS},tblend=all_mode=difference,split=2[amp][area];` +
-        `[amp]signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=${ampLog}[ao];` +
-        `[area]lutyuv=y='if(gt(val,${MOTION_PIXEL_DELTA}),255,0)',signalstats,` +
-        `metadata=print:key=lavfi.signalstats.YAVG:file=${areaLog}[bo];` +
-        `[ao][bo]hstack" -an -f null -`,
+    await execFileAsync(
+      'ffmpeg',
+      [
+        '-hide_banner',
+        '-nostats',
+        '-i',
+        input,
+        '-filter_complex',
+        `[0:v]fps=${MOTION_SAMPLE_FPS},tblend=all_mode=difference,split=2[amp][area];` +
+          `[amp]signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=${ampLog}[ao];` +
+          `[area]lutyuv=y='if(gt(val,${MOTION_PIXEL_DELTA}),255,0)',signalstats,` +
+          `metadata=print:key=lavfi.signalstats.YAVG:file=${areaLog}[bo];` +
+          `[ao][bo]hstack`,
+        '-an',
+        '-f',
+        'null',
+        '-',
+      ],
       { maxBuffer: 1024 * 1024 * 200 },
     )
     const amp = parseMetadataYavg(fs.readFileSync(ampLog, 'utf8'))
@@ -381,10 +416,13 @@ async function detectSilences(
     )
   }
 
-  const { stdout: silenceLog } = await execAsync(
-    `ffmpeg -i "${input}" -af silencedetect=noise=-50dB:d=${SILENCE_MIN_SEC} -f null - 2>&1`,
+  // silencedetect reports on stderr; the old shell form merged it with `2>&1`.
+  const silenceRun = await execFileAsync(
+    'ffmpeg',
+    ['-i', input, '-af', `silencedetect=noise=-50dB:d=${SILENCE_MIN_SEC}`, '-f', 'null', '-'],
     { maxBuffer: 1024 * 1024 * 100 },
   )
+  const silenceLog = silenceRun.stdout + silenceRun.stderr
   const silences: Segment[] = []
   const silenceStarts = [...silenceLog.matchAll(/silence_start:\s+([\d.]+)/g)].map(m =>
     parseFloat(m[1]!),
@@ -402,10 +440,13 @@ async function detectSilences(
 // are stable so freezes are detectable. d=1.0 catches short 1s+ static pauses.
 // n=0.05 noise tolerance accounts for compression artifacts.
 async function detectFreezes(input: string): Promise<Segment[]> {
-  const { stdout: freezeLog } = await execAsync(
-    `ffmpeg -i "${input}" -vf freezedetect=n=0.05:d=1.0 -f null - 2>&1`,
+  // freezedetect reports on stderr; the old shell form merged it with `2>&1`.
+  const freezeRun = await execFileAsync(
+    'ffmpeg',
+    ['-i', input, '-vf', 'freezedetect=n=0.05:d=1.0', '-f', 'null', '-'],
     { maxBuffer: 1024 * 1024 * 100 },
   )
+  const freezeLog = freezeRun.stdout + freezeRun.stderr
   const freezes: Segment[] = []
   const freezeStarts = [...freezeLog.matchAll(/freeze_start:\s+([\d.]+)/g)].map(m =>
     parseFloat(m[1]!),
@@ -766,10 +807,21 @@ export async function processVideo(
   const encodedVideo = appendEncoderFilter(filter, '[v]', encodePlan)
   filter = encodedVideo.graph
 
-  await execAsync(
-    `ffmpeg -y ${encodePlan.inputArgs} -i "${input}" -filter_complex "${filter}" ` +
-      `-map "${encodedVideo.outputLabel}" ${hasAudio ? '-map "[a]" -c:a aac -ar 24000 -ac 1 ' : ''}` +
-      `${encodePlan.outputArgs} "${output}"`,
+  await execFileAsync(
+    'ffmpeg',
+    [
+      '-y',
+      ...splitArgs(encodePlan.inputArgs),
+      '-i',
+      input,
+      '-filter_complex',
+      filter,
+      '-map',
+      encodedVideo.outputLabel,
+      ...(hasAudio ? ['-map', '[a]', '-c:a', 'aac', '-ar', '24000', '-ac', '1'] : []),
+      ...splitArgs(encodePlan.outputArgs),
+      output,
+    ],
     { maxBuffer: 1024 * 1024 * 100 },
   )
 

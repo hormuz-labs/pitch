@@ -4,22 +4,46 @@
  * Filesystem + ffmpeg; no queue, DB or storage access.
  */
 
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import * as fs from 'node:fs'
 import { promisify } from 'node:util'
 import { createLogger, type Logger } from '@saas/shared'
 import { hostActionSignal } from '../studio/host-actions.js'
 
 const runExec = promisify(exec)
+const runExecFile = promisify(execFile)
 export const execAsync = (command: string, options: Record<string, any> = {}) =>
   runExec(command, { ...options, signal: options.signal ?? hostActionSignal() })
+/**
+ * Run a program with an argv array — no shell. Every path in the workspace is
+ * named by the agent, so a filename like `a$(cmd).mp4` must stay a filename.
+ */
+export const execFileAsync = (file: string, args: string[], options: Record<string, any> = {}) =>
+  runExecFile(file, args, {
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+    encoding: 'utf8',
+    signal: options.signal ?? hostActionSignal(),
+  }) as Promise<{ stdout: string; stderr: string }>
+/**
+ * Split a fixed, space-separated flag string (the encoder plan's inputArgs /
+ * outputArgs) into argv words. Only for strings the code builds itself —
+ * never for anything holding a path.
+ */
+export const splitArgs = (flags: string): string[] => flags.split(/\s+/).filter(Boolean)
 const moduleLogger = createLogger('studio:render:media')
 
 export async function getMediaDurationSec(file: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      file,
+    ])
     const d = parseFloat(stdout.trim())
     return Number.isFinite(d) && d > 0 ? d : 0
   } catch {
@@ -46,9 +70,17 @@ export async function getSourceFps(
   logger: Logger = moduleLogger,
 ): Promise<number> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 "${webmPath}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=r_frame_rate',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      webmPath,
+    ])
     const rate = stdout.trim()
     const [num, den] = rate.split('/').map(s => parseInt(s.trim(), 10))
     if (num && den && den !== 0) {
@@ -67,9 +99,15 @@ export async function getVideoBirthTimeMs(
 ): Promise<number | null> {
   try {
     const stat = fs.statSync(webmPath)
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${webmPath}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      webmPath,
+    ])
     const durationSec = parseFloat(stdout.trim())
     if (!Number.isFinite(durationSec)) return null
     return Math.round(stat.mtimeMs - durationSec * 1000)
@@ -82,9 +120,17 @@ export async function getVideoBirthTimeMs(
 export async function probeVideo(
   file: string,
 ): Promise<{ fps: number; width: number; height: number }> {
-  const { stdout } = await execAsync(
-    `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of json "${file}"`,
-  )
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v',
+    'error',
+    '-select_streams',
+    'v:0',
+    '-show_entries',
+    'stream=width,height,r_frame_rate',
+    '-of',
+    'json',
+    file,
+  ])
   const s = JSON.parse(stdout).streams?.[0] || {}
   const [num, den] = String(s.r_frame_rate || '30/1')
     .split('/')

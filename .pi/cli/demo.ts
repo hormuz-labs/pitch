@@ -23,9 +23,6 @@
  * storyboard? }. startTime anchors every event timestamp (wall-clock ms → video
  * seconds); voiceName selects the TTS voice; an approved storyboard supplies
  * persistent slide overlays.
- *
- * Skills are handled by pi natively. read-file is retained for older callers;
- * current sessions also have the built-in workspace read tool.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -47,6 +44,7 @@ import {
   type StoryboardOverlaySceneLike,
 } from '../lib/asset-demo.ts'
 import { projectAudioConfig } from '../lib/audio-config.ts'
+import { splitWords } from '../lib/browser-command.ts'
 import {
   buildGeminiTtsBody,
   chunkTypedText,
@@ -341,6 +339,72 @@ export function normalizePlaywrightCommand(command: string): string {
     return `playwright-cli ${trimmed}`
   }
   return trimmed
+}
+
+/**
+ * What the agent may ask playwright-cli to do: act on the page and read it.
+ * Not run code on the host (run-code), read host files into the page
+ * (upload, state-load), write host files (state-save, pdf, tracing), rewire
+ * the network, or open/close/record the browser the lifecycle owns.
+ */
+const AGENT_PLAYWRIGHT_VERBS = new Set([
+  'goto',
+  'type',
+  'click',
+  'dblclick',
+  'fill',
+  'drag',
+  'drop',
+  'hover',
+  'select',
+  'check',
+  'uncheck',
+  'snapshot',
+  'find',
+  'eval',
+  'dialog-accept',
+  'dialog-dismiss',
+  'go-back',
+  'go-forward',
+  'reload',
+  'press',
+  'keydown',
+  'keyup',
+  'mousemove',
+  'mousedown',
+  'mouseup',
+  'mousewheel',
+  'screenshot',
+  'tab-list',
+  'tab-new',
+  'tab-close',
+  'tab-select',
+  'console',
+  'generate-locator',
+  'highlight',
+])
+
+export function assertAgentBrowserCommand(command: string): void {
+  const words = splitWords(command)
+  if (words[0] !== 'playwright-cli')
+    throw new Error(
+      'pitch demo bash runs browser commands only (e.g. snapshot, click e53, press ArrowRight). It is not a shell.',
+    )
+  const verb = words.slice(1).find(word => !word.startsWith('-'))
+  if (verb && ['open', 'close', 'attach', 'detach', 'video-start', 'video-stop'].includes(verb))
+    throw new Error(
+      'Use demo record-start --url as the first browser operation for a new walkthrough. Discover the route and recover inside one take; record-stop only at its end. browser-open is for explicitly unrecorded tasks.',
+    )
+  if (!verb || !AGENT_PLAYWRIGHT_VERBS.has(verb))
+    throw new Error(
+      `"${verb ?? ''}" is not an allowed browser command. Allowed: ${[...AGENT_PLAYWRIGHT_VERBS].join(', ')}.`,
+    )
+  const filename = words.find(word => word.startsWith('--filename'))
+  const target = filename?.includes('=')
+    ? filename.slice(filename.indexOf('=') + 1)
+    : filename && words[words.indexOf(filename) + 1]
+  if (target !== undefined && (path.isAbsolute(target) || target.split(/[\\/]/).includes('..')))
+    throw new Error('--filename must be a workspace-relative path, e.g. recording/detail.png.')
 }
 
 export function scopePlaywrightCommand(sessionName: string, command: string): string {
@@ -693,15 +757,7 @@ export default function demoCommands(): CommandSpec[] {
       const base = baseDir(ctx)
       return withStateLock(base, async () => {
         const cmd = normalizePlaywrightCommand(args.command)
-        if (
-          /^playwright-cli\s+(?:(?:--raw|-s=\S+|--session=\S+)\s+)*(?:open|close|attach|detach|video-start|video-stop)\b/.test(
-            cmd,
-          )
-        ) {
-          throw new Error(
-            'Use demo record-start --url as the first browser operation for a new walkthrough. Discover the route and recover inside one take; record-stop only at its end. browser-open is for explicitly unrecorded tasks.',
-          )
-        }
+        assertAgentBrowserCommand(cmd)
         console.log(`[bash]: ${cmd}`)
 
         const state = readState(base)
@@ -1380,18 +1436,6 @@ export default function demoCommands(): CommandSpec[] {
           )
         }
       })
-    },
-  })
-
-  commands.push({
-    verb: 'read-file',
-    description: 'Read a file from the filesystem',
-    parameters: Type.Object({
-      path: Type.String({ description: 'The path to the file' }),
-    }),
-    async execute(_id, args: any) {
-      const content = await fs.promises.readFile(args.path, 'utf-8')
-      return toolResult(content)
     },
   })
   return commands

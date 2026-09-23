@@ -1,14 +1,11 @@
 import { Resvg } from '@resvg/resvg-js'
-import { exec } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
-import { promisify } from 'util'
+import { execFileAsync, splitArgs } from '../media.js'
 import { prepareBackgroundFrame } from './background.js'
 import type { BrowserHeaderMode } from './browser-chrome.js'
 import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
-
-const execAsync = promisify(exec)
 
 // Bundled Goudy Old Style revival (Sorts Mill Goudy, OFL). Resolved relative to this
 // module so it works regardless of cwd. Loaded into Resvg below so the intro brand
@@ -107,9 +104,15 @@ export function planTitleCards(
 
 async function getDuration(file: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      file,
+    ])
     return parseFloat(stdout.trim())
   } catch {
     return 0
@@ -159,7 +162,7 @@ async function prepareLogoPng(logoPath: string | undefined, dir: string): Promis
   } catch {}
 
   try {
-    await execAsync(`ffmpeg -y -v error -i "${logoPath}" -frames:v 1 "${out}"`)
+    await execFileAsync('ffmpeg', ['-y', '-v', 'error', '-i', logoPath, '-frames:v', '1', out])
     if (fs.existsSync(out) && fs.statSync(out).size > 0) return out
   } catch {}
   try {
@@ -170,9 +173,17 @@ async function prepareLogoPng(logoPath: string | undefined, dir: string): Promis
 
 async function getImageDimensions(file: string): Promise<{ width: number; height: number } | null> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${file}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=width,height',
+      '-of',
+      'csv=s=x:p=0',
+      file,
+    ])
     const [w, h] = stdout
       .trim()
       .split('x')
@@ -191,10 +202,20 @@ async function getImageDimensions(file: string): Promise<{ width: number; height
 async function detectLogoLuminance(logoPath: string, dir: string): Promise<number | null> {
   const tmp = path.join(dir, `__lum_${Date.now()}.rgba`)
   try {
-    await execAsync(
-      `ffmpeg -y -v error -i "${logoPath}" ` +
-        `-vf "scale=80:80:force_original_aspect_ratio=decrease" -f rawvideo -pix_fmt rgba "${tmp}"`,
-    )
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-v',
+      'error',
+      '-i',
+      logoPath,
+      '-vf',
+      'scale=80:80:force_original_aspect_ratio=decrease',
+      '-f',
+      'rawvideo',
+      '-pix_fmt',
+      'rgba',
+      tmp,
+    ])
     const raw = fs.readFileSync(tmp)
     let sumLum = 0
     let sumA = 0
@@ -317,13 +338,36 @@ async function renderCardClip(svg: string, output: string, config: CardConfig): 
     await svgToPng(svgPath, pngPath, width, height)
     const encodePlan = await videoEncodePlan({ quality: 20, cpuPreset: 'veryfast' })
     const uploadFilter = encodePlan.uploadFilter ? `,${encodePlan.uploadFilter}` : ''
-    await execAsync(
-      `ffmpeg -y ${encodePlan.inputArgs} -loop 1 -i "${pngPath}" ` +
-        `-f lavfi -i "anullsrc=channel_layout=mono:sample_rate=24000" ` +
-        `-vf "fade=t=in:st=0:d=0.4,fade=t=out:st=${outStart}:d=${fadeOut}${uploadFilter}" ` +
-        `${encodePlan.outputArgs} -map 0:v -map 1:a -c:a aac -ar 24000 -ac 1 ` +
-        `-t ${duration} -r ${fps} "${output}"`,
-    )
+    await execFileAsync('ffmpeg', [
+      '-y',
+      ...splitArgs(encodePlan.inputArgs),
+      '-loop',
+      '1',
+      '-i',
+      pngPath,
+      '-f',
+      'lavfi',
+      '-i',
+      'anullsrc=channel_layout=mono:sample_rate=24000',
+      '-vf',
+      `fade=t=in:st=0:d=0.4,fade=t=out:st=${outStart}:d=${fadeOut}${uploadFilter}`,
+      ...splitArgs(encodePlan.outputArgs),
+      '-map',
+      '0:v',
+      '-map',
+      '1:a',
+      '-c:a',
+      'aac',
+      '-ar',
+      '24000',
+      '-ac',
+      '1',
+      '-t',
+      `${duration}`,
+      '-r',
+      `${fps}`,
+      output,
+    ])
   } finally {
     try {
       fs.unlinkSync(svgPath)
@@ -489,16 +533,16 @@ export async function addIntroOutro(
 
     // Input indices vary with optional cards. Keep the complete index plan here so
     // disabling a card removes it from both the concat and every downstream input.
-    let inputs = ''
+    const inputs: string[] = []
     let nextInputIdx = 0
     const introIdx = cardPlan.intro.enabled ? nextInputIdx++ : null
-    if (introIdx !== null) inputs += ` -i "${introPath}"`
+    if (introIdx !== null) inputs.push('-i', introPath)
     const contentIdx = nextInputIdx++
-    inputs += ` -i "${contentPath}"`
+    inputs.push('-i', contentPath)
     const outroIdx = cardPlan.outro.enabled ? nextInputIdx++ : null
-    if (outroIdx !== null) inputs += ` -i "${outroPath}"`
+    if (outroIdx !== null) inputs.push('-i', outroPath)
     const watermarkIdx = config.watermark !== false ? nextInputIdx++ : null
-    if (watermarkIdx !== null) inputs += ` -loop 1 -i "${watermarkPng}"`
+    if (watermarkIdx !== null) inputs.push('-loop', '1', '-i', watermarkPng)
     const chromeStartIdx = chromeSegments.length ? nextInputIdx : null
     nextInputIdx += chromeSegments.length
     const bgIdx = background ? nextInputIdx++ : null
@@ -506,7 +550,7 @@ export async function addIntroOutro(
     const shadowIdx = background ? nextInputIdx++ : null
 
     for (const seg of chromeSegments) {
-      inputs += ` -loop 1 -i "${seg.png}"`
+      inputs.push('-loop', '1', '-i', seg.png)
     }
     const contentFades: string[] = []
     if (cardPlan.intro.enabled) contentFades.push(`fade=t=in:st=0:d=${crossfadeSec}`)
@@ -536,11 +580,22 @@ export async function addIntroOutro(
       // Bound every looped input to the assembled length so ffmpeg terminates
       // (infinite -loop/-stream_loop inputs would otherwise hang the encode).
       const totalDur = contentDur + cardPlan.totalCardDurationSec
-      const tArg = `-t ${totalDur.toFixed(3)}`
-      inputs += background.asset.isVideo
-        ? ` -stream_loop -1 ${tArg} -i "${background.asset.path}"`
-        : ` -loop 1 ${tArg} -i "${background.asset.path}"`
-      inputs += ` -loop 1 ${tArg} -i "${frame.maskPng}" -loop 1 ${tArg} -i "${frame.shadowPng}"`
+      const tArg = ['-t', totalDur.toFixed(3)]
+      if (background.asset.isVideo) inputs.push('-stream_loop', '-1', ...tArg)
+      else inputs.push('-loop', '1', ...tArg)
+      inputs.push('-i', background.asset.path)
+      inputs.push(
+        '-loop',
+        '1',
+        ...tArg,
+        '-i',
+        frame.maskPng,
+        '-loop',
+        '1',
+        ...tArg,
+        '-i',
+        frame.shadowPng,
+      )
 
       graph +=
         `[${bgIdx}:v]scale=${config.width}:${config.height},setsar=1,fps=${config.fps}[bg];` +
@@ -604,14 +659,25 @@ export async function addIntroOutro(
     const encodePlan = await videoEncodePlan({ quality: 19, cpuPreset: 'veryfast' })
     const encodedVideo = appendEncoderFilter(graph, '[v]', encodePlan)
     graph = encodedVideo.graph
-    await execAsync(
-      `ffmpeg -y ${encodePlan.inputArgs} ${inputs} ` +
-        `-filter_complex "${graph}" ` +
-        `-map "${encodedVideo.outputLabel}" -map "[a]" ` +
-        `${encodePlan.outputArgs} ` +
-        `-c:a aac -ar 24000 -ac 1 ` +
-        `"${outputPath}"`,
-    )
+    await execFileAsync('ffmpeg', [
+      '-y',
+      ...splitArgs(encodePlan.inputArgs),
+      ...inputs,
+      '-filter_complex',
+      graph,
+      '-map',
+      encodedVideo.outputLabel,
+      '-map',
+      '[a]',
+      ...splitArgs(encodePlan.outputArgs),
+      '-c:a',
+      'aac',
+      '-ar',
+      '24000',
+      '-ac',
+      '1',
+      outputPath,
+    ])
 
     const finalDur = await getDuration(outputPath)
     console.log(`Final assembly done. Duration: ${finalDur.toFixed(2)}s`)

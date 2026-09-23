@@ -28,7 +28,7 @@ import {
 import { resolveSymlinks } from '../../../../.pi/lib/paths.ts'
 import { transcribeWav } from '../../../../.pi/lib/whisper.ts'
 import { addOutput, projectRowFor } from '../projects/service.js'
-import { execAsync, getMediaDurationSec } from '../render/media.js'
+import { execFileAsync, getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
 import { fileUrl, type Workspace } from '../studio/paths.js'
 
@@ -82,10 +82,15 @@ function rejectUnsafeArgs(args: string[]): void {
 registerHostAction('media_probe', async (ws, params) => {
   const file = insideWorkspace(ws, String(params.file ?? ''))
   if (!existsSync(file)) throw new Error(`no such file in the workspace: ${params.file}`)
-  const { stdout } = await execAsync(
-    `ffprobe -v error -show_format -show_streams -of json "${file}"`,
-    { maxBuffer: 8 * 1024 * 1024 },
-  )
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v',
+    'error',
+    '-show_format',
+    '-show_streams',
+    '-of',
+    'json',
+    file,
+  ])
   const probe = JSON.parse(stdout) as {
     format?: { duration?: string; format_name?: string; bit_rate?: string }
     streams?: Array<Record<string, any>>
@@ -104,10 +109,19 @@ registerHostAction('media_probe', async (ws, params) => {
   for (const s of probe.streams ?? []) {
     if (s.codec_type !== 'audio') continue
     try {
-      const { stderr } = await execAsync(
-        `ffmpeg -hide_banner -nostats -i "${file}" -map 0:${s.index} -af volumedetect -f null - 2>&1`,
-        { maxBuffer: 8 * 1024 * 1024 },
-      )
+      const { stderr } = await execFileAsync('ffmpeg', [
+        '-hide_banner',
+        '-nostats',
+        '-i',
+        file,
+        '-map',
+        `0:${s.index}`,
+        '-af',
+        'volumedetect',
+        '-f',
+        'null',
+        '-',
+      ])
       const mean = stderr.match(/mean_volume:\s*(-?[\d.]+) dB/)?.[1]
       const peak = stderr.match(/max_volume:\s*(-?[\d.]+) dB/)?.[1]
       if (mean || peak) levels.push(`#${s.index}: mean ${mean ?? '?'} dB, peak ${peak ?? '?'} dB`)
@@ -216,14 +230,13 @@ registerHostAction(
       const abs = path.resolve(ws.dir, arg)
       return existsSync(abs) || abs === out ? abs : arg
     })
-    const cmd = `ffmpeg -y -hide_banner ${resolved.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`
-    logger.info({ workspace: ws.internal, out: outRel }, 'media_ffmpeg')
+    // The agent's args are logged so a failed edit can be read back.
+    logger.info({ workspace: ws.internal, out: outRel, args }, 'media_ffmpeg')
 
     const started = Date.now()
     try {
-      await execAsync(cmd, {
+      await execFileAsync('ffmpeg', ['-y', '-hide_banner', ...resolved], {
         cwd: ws.dir,
-        maxBuffer: 64 * 1024 * 1024,
         timeout: 30 * 60_000,
         signal: ctx.signal,
       })
