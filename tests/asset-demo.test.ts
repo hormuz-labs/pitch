@@ -3,7 +3,6 @@ import {
   applyStoryboardToSlides,
   pageRectToViewportRect,
   resolveManifestSlides,
-  zoomEventForViewportRect,
 } from '../.pi/lib/asset-demo'
 
 describe('resolveManifestSlides', () => {
@@ -75,25 +74,6 @@ describe('resolveManifestSlides', () => {
     ])
 
     expect(rendered.map(slide => slide.image)).toEqual(['page-1.png', 'page-3.png'])
-  })
-})
-
-describe('zoomEventForViewportRect', () => {
-  it('emits the x/y event shape consumed by the renderer', () => {
-    const event = zoomEventForViewportRect(
-      { leftPct: 25, topPct: 25, widthPct: 20, heightPct: 20 },
-      3.5,
-    )
-
-    expect(event).toMatchObject({
-      type: 'in',
-      videoTimeSec: 3.5,
-      x: expect.any(Number),
-      y: expect.any(Number),
-      zoom: expect.any(Number),
-    })
-    expect(event).not.toHaveProperty('cx')
-    expect(event).not.toHaveProperty('cy')
   })
 })
 

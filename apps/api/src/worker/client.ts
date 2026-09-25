@@ -10,7 +10,12 @@
  */
 
 import { Readable } from 'node:stream'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  type VideoStoryboard,
+} from '@saas/shared'
 import type express from 'express'
 import type { Description, UploadRef } from '../flows/types.js'
 import type { Asset, ThumbRequest } from '../projects/assets.js'
@@ -37,16 +42,28 @@ export interface WorkerClient {
   entries(id: string): Promise<{ entries: Entry[]; busy: boolean; activeModel: string | null }>
   describe(id: string): Promise<Description>
   busy(id: string): Promise<boolean>
+  /** The raw pi transcript (JSON Lines) for admin review; null when there is none. */
+  sessionLog(id: string): Promise<string | null>
   thumbnail(id: string, t: number): Promise<Buffer | null>
   listAssets(id: string): Promise<Asset[]>
   addAssets(id: string, uploads: UploadRef[]): Promise<Asset[]>
   saveDeck(id: string, html: string): Promise<{ ok: true; slides: number }>
   renderDeck(id: string): Promise<{ ok: true }>
+  saveStoryboard(
+    id: string,
+    update: {
+      revision: number
+      transition?: VideoStoryboard['transition']
+      titleCards?: StoryboardTitleCards
+      scenes: StoryboardScene[]
+    },
+  ): Promise<VideoStoryboard>
   deleteAsset(id: string, rel: string): Promise<boolean>
   assetThumbnail(id: string, req: ThumbRequest): Promise<Buffer | null>
   startExport(id: string, body: Record<string, any>): Promise<ExportStatus>
   exportStatus(id: string): Promise<ExportStatus>
   cancelExport(id: string): Promise<boolean>
+  publishArtifact(id: string): Promise<void>
   /** Attach to the project's event stream; `send` gets `hello` first. */
   events(id: string, send: (ev: StudioEvent) => void, signal: AbortSignal): Promise<void>
   emit(id: string, ev: StudioEvent): Promise<void>
@@ -85,16 +102,19 @@ const local: WorkerClient = {
   entries: host.entries,
   describe: host.describe,
   busy: host.busy,
+  sessionLog: host.sessionLog,
   thumbnail: host.thumbnail,
   listAssets: host.listAssets,
   addAssets: host.addAssets,
   saveDeck: host.saveDeck,
   renderDeck: host.renderDeck,
+  saveStoryboard: host.saveStoryboard,
   deleteAsset: host.deleteAsset,
   assetThumbnail: host.assetThumbnail,
   startExport: host.startExport,
   exportStatus: host.exportStatus,
   cancelExport: host.stopExport,
+  publishArtifact: host.publishArtifact,
   async events(id, send, signal) {
     const off = await host.subscribe(id, send)
     if (signal.aborted) off()
@@ -247,6 +267,8 @@ function remote(w: WorkerRow): WorkerClient {
     entries: id => call(w, 'GET', pathOf(id, '/entries')),
     describe: id => call(w, 'GET', pathOf(id, '/describe')),
     busy: id => call<{ busy: boolean }>(w, 'GET', pathOf(id, '/busy')).then(r => r.busy),
+    sessionLog: id =>
+      call<{ log: string | null }>(w, 'GET', pathOf(id, '/session-log')).then(r => r?.log ?? null),
     thumbnail: (id, t) =>
       call<Buffer | undefined>(w, 'GET', pathOf(id, `/thumbnail?t=${encodeURIComponent(t)}`)).then(
         b => (b?.length ? b : null),
@@ -256,6 +278,7 @@ function remote(w: WorkerRow): WorkerClient {
     addAssets: (id, uploads) => call(w, 'POST', pathOf(id, '/assets'), { uploads }),
     saveDeck: (id, html) => call(w, 'POST', pathOf(id, '/deck'), { html }),
     renderDeck: id => call(w, 'POST', pathOf(id, '/deck/render')),
+    saveStoryboard: (id, update) => call(w, 'POST', pathOf(id, '/storyboard'), update),
     deleteAsset: (id, rel) =>
       call<{ removed: boolean }>(
         w,
@@ -275,6 +298,7 @@ function remote(w: WorkerRow): WorkerClient {
     exportStatus: id => call(w, 'GET', pathOf(id, '/export')),
     cancelExport: id =>
       call<{ cancelled: boolean }>(w, 'POST', pathOf(id, '/export/cancel')).then(r => r.cancelled),
+    publishArtifact: id => call(w, 'POST', pathOf(id, '/publish')).then(() => undefined),
     async events(id, send, signal) {
       if (!WORKER_TOKEN) throw new WorkerError('STUDIO_WORKER_TOKEN is not set', 500)
       const res = await fetch(`${w.url}/internal/worker${pathOf(id, '/events')}`, {

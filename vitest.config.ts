@@ -29,7 +29,7 @@ const dedupedAliases = {
 
 // Two test tiers in ONE config, via vitest projects:
 //   • unit        — fast, pure, no browser (everything except tests/integration/)
-//   • integration — browser-driven (playwright-cli), slow, serial
+//   • integration — browser-driven (real Chromium), slow, serial
 // Select with `vitest --project unit` / `--project integration` (see package.json
 // scripts). Running bare `vitest` runs both.
 export default defineConfig({

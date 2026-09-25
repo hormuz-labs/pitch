@@ -3,8 +3,7 @@
  *
  * The user uploads a narrated screen recording; the recording-editor agent
  * reconstructs demo-state.json from it (zoom + click events), and this renders
- * the result through the SAME ffmpeg chain the live demo flow uses
- * (zoom/pan → smart trim → intro/outro), with two differences:
+ * the result with zoom/pan, smart trim and intro/outro:
  *
  *   1. No trimSec — agent events are already in the uploaded video's own timeline.
  *   2. The source audio (the user's narration) is kept and re-encoded to the house
@@ -18,9 +17,9 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Logger } from '@saas/shared'
-import { execAsync, getMediaDurationSec, outputFps, probeVideo } from './media.js'
+import type { ClickEvent } from '../../../../.pi/lib/demo-state.ts'
+import { execFileAsync, getMediaDurationSec, outputFps, probeVideo, splitArgs } from './media.js'
 import type { Beat } from './utils/beats.js'
-import type { ClickEvent } from './utils/cursor-fx.js'
 import { appendEncoderFilter, videoEncodePlan } from './utils/encoder.js'
 import { addIntroOutro, planTitleCards } from './utils/intro-outro.js'
 import { mapThroughKeptSegments, processVideo, type Segment } from './utils/smart_trim.js'
@@ -86,7 +85,7 @@ export async function renderRecordingEdit(
   // user's real cursor — so we do NOT overlay a synthetic gliding cursor here
   // (that would double the pointer). clickEvents are still used downstream for
   // zoom targeting and to protect action moments from the smart trimmer.
-  const videoInputs = `-i "${uploadPath}"`
+  const videoInputs = ['-i', uploadPath]
   let filterComplex = ''
   let currentVLabel = '[0:v]'
 
@@ -110,19 +109,31 @@ export async function renderRecordingEdit(
   const encodePlan = await videoEncodePlan({ quality: 18, cpuPreset: 'veryfast' })
   const encodedVideo = appendEncoderFilter(filterComplex, finalVLabel, encodePlan)
   filterComplex = encodedVideo.graph
-  const ffmpegCmd =
-    `ffmpeg -y ${encodePlan.inputArgs} ${videoInputs} ` +
-    (filterComplex
-      ? `-filter_complex "${filterComplex}" -map "${encodedVideo.outputLabel}" `
-      : `-map 0:v `) +
-    `-map 0:a? ${encodePlan.outputArgs} -c:a aac -ar 24000 -ac 1 "${rawVideo}"`
+  const ffmpegArgs = [
+    '-y',
+    ...splitArgs(encodePlan.inputArgs),
+    ...videoInputs,
+    ...(filterComplex
+      ? ['-filter_complex', filterComplex, '-map', encodedVideo.outputLabel]
+      : ['-map', '0:v']),
+    '-map',
+    '0:a?',
+    ...splitArgs(encodePlan.outputArgs),
+    '-c:a',
+    'aac',
+    '-ar',
+    '24000',
+    '-ac',
+    '1',
+    rawVideo,
+  ]
 
   logger.info(
     { encoder: encodePlan.label },
     'Rendering camera moves + cursor over uploaded recording',
   )
   const renderT0 = Date.now()
-  await execAsync(ffmpegCmd)
+  await execFileAsync('ffmpeg', ffmpegArgs)
   logger.info({ sec: ((Date.now() - renderT0) / 1000).toFixed(1) }, 'TIMING: edit render done')
 
   // ── 5. Smart trim (silencedetect fallback — no analytic narration spans) ───

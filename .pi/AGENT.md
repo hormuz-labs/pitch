@@ -130,11 +130,19 @@ skill before you start**. Do not work from memory of these formats.
 | an ad (Reels, TikTok, Shorts, paid social), a promo, a brand anthem or manifesto film, a cinematic editorial montage | `promo-video` |
 | a product-led launch film, teaser, feature announcement | `launch-video` |
 | a narrated walkthrough of a live site or an uploaded PDF/deck | `demo-video` |
+| a launch film, promo, teaser, feature announcement | `launch-video` |
+| a narrated walkthrough of a live site | `demo-video` |
+| a narrated video that presents uploaded PDF/image pages or is built primarily from their content | `asset-demo` |
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |
 | editing or post-processing any existing video, including uploads, recordings and rendered/generated clips | `video-editing` |
 | footage that does not exist — an establishing shot, a texture, a metaphor, B-roll | `generated-video` |
 | recognizable brand marks or general-purpose SVG icons | `icon-library` |
 | understanding an unfamiliar product and following its website/docs | `product-research` |
+
+Route by the requested outcome, not merely by which files are attached. A PDF or
+image used only as reference material does not select `asset-demo`; keep the skill
+for the requested live demo, launch film, deck or other outcome and use the file as
+supporting material.
 
 `video-editing` is the shared post-processing skill. Other skills hand it source
 files and the current brief whenever footage needs editing. `demo-video` owns

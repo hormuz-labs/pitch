@@ -114,4 +114,32 @@ describe('subscription.active', () => {
       expect.objectContaining({ planKey: 'pro_annual', creditsPerCycle: 30_000 }),
     )
   })
+
+  it('uses deterministic initial idempotency key to prevent double-grants with polling fallback', async () => {
+    mocks.verify.mockReturnValue(event('subscription.active', 'pro', '2500', 'sub_test_123'))
+
+    await post()
+
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dodoSubscriptionId: 'sub_test_123',
+        idempotencyKey: 'sub_grant:sub_test_123:initial',
+      }),
+    )
+  })
+
+  it('uses date-based idempotency key for renewals so retries on the same date deduplicate', async () => {
+    const e = event('subscription.renewed', 'pro', '2500', 'sub_renew_123')
+    e.data.previous_billing_date = '2026-10-15T12:00:00.000Z'
+    mocks.verify.mockReturnValue(e)
+
+    await post()
+
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dodoSubscriptionId: 'sub_renew_123',
+        idempotencyKey: 'sub_grant:sub_renew_123:2026-10-15',
+      }),
+    )
+  })
 })

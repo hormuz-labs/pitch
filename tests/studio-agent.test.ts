@@ -55,6 +55,12 @@ describe('describeWorkspace', () => {
     expect((await describeWorkspace(ws)).preview).toEqual({ kind: 'browser', streamId: 'p1' })
   })
 
+  it('shows the live browser while the agent prepares the workflow before recording', async () => {
+    const ws = workspace()
+    write(ws, 'recording/browser.json', JSON.stringify({ streamId: 'prep-1' }))
+    expect((await describeWorkspace(ws)).preview).toEqual({ kind: 'browser', streamId: 'prep-1' })
+  })
+
   it('ignores render intermediates', async () => {
     const ws = workspace()
     write(ws, 'renders/raw.mp4')
@@ -72,6 +78,7 @@ describe('RELEVANT', () => {
       'renders/demo-1.mp4',
       'recording/upload.mp4',
       'recording/live.json',
+      'recording/browser.json',
       'build/output.pdf',
       'quieter.mp4',
     ])

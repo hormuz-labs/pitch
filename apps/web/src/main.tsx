@@ -1,8 +1,13 @@
 import { render } from 'solid-js/web'
 import './index.css'
+import { installStaleBuildRecovery } from './lib/stale-build.ts'
 import App from './solid/App.tsx'
 import { ClerkProvider, PostHogProvider, ThemeProvider } from './solid/core/index.ts'
 import { preloadPrerenderedRoute } from './solid/core/routes.tsx'
+
+// A tab opened before a deploy asks for chunks that no longer exist; reload
+// onto the new build instead of showing a broken page.
+installStaleBuildRecovery()
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 if (!publishableKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
@@ -10,7 +15,8 @@ if (!publishableKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 const container = document.getElementById('root')
 if (!container) throw new Error('Missing #root mount element')
 
-const mount = () =>
+const mount = () => {
+  if (container.firstElementChild) container.replaceChildren()
   render(
     () => (
       <ClerkProvider publishableKey={publishableKey}>
@@ -23,6 +29,7 @@ const mount = () =>
     ),
     container,
   )
+}
 
 // Prerendered public pages contain DOM mutated by their animation libraries,
 // so hydration cannot be reliable. Warm the matching route chunk before Solid

@@ -19,7 +19,7 @@ import { mkdirSync, realpathSync, rmSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { run } from './run.ts'
+import { resultText, run } from './run.ts'
 
 export interface PitchSocket {
   /** The socket file, at its real path (the seatbelt matches real paths). */
@@ -45,6 +45,8 @@ function listen(workspace: string): Promise<PitchSocket> {
   rmSync(file, { force: true })
 
   const server: Server = createServer(conn => {
+    const controller = new AbortController()
+    conn.on('close', () => controller.abort())
     let head = ''
     let started = false
     conn.setEncoding('utf8')
@@ -63,7 +65,18 @@ function listen(workspace: string): Promise<PitchSocket> {
         conn.end(`${JSON.stringify({ err: 'pitch: bad request\n', exit: 2 })}\n`)
         return
       }
-      const result = await run(argv, { cwd: workspace })
+      const result = await run(argv, {
+        cwd: workspace,
+        signal: controller.signal,
+        onUpdate: (update: unknown) => {
+          const progress = resultText(update)
+          // Progress is stderr: stdout remains a single parseable result for
+          // scripts that consume a command's JSON output.
+          if (progress && !conn.destroyed)
+            conn.write(`${JSON.stringify({ err: `[pitch-progress] ${progress}\n` })}\n`)
+        },
+      })
+      if (conn.destroyed) return
       const text = result.text.endsWith('\n') ? result.text : `${result.text}\n`
       conn.write(`${JSON.stringify({ out: text })}\n`)
       conn.end(`${JSON.stringify({ exit: result.ok ? 0 : 1 })}\n`)

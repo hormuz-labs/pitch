@@ -1,15 +1,11 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { mkdir, rm } from 'node:fs/promises'
 import { createServer, Socket } from 'node:net'
-import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import type { WebSocket } from 'ws'
 
 const logger = createLogger('studio:browser-vnc')
 const START_TIMEOUT_MS = Math.max(1_000, Number(process.env.VNC_START_TIMEOUT_MS || 20_000))
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024
-const displaysRoot = path.join(process.env.TMPDIR || '/tmp', 'pitch-x11')
 
 interface VncEndpoint {
   port: number
@@ -41,7 +37,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-async function freePort(): Promise<number> {
+export async function freePort(): Promise<number> {
   const server = createServer()
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
@@ -50,26 +46,17 @@ async function freePort(): Promise<number> {
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : 0
   await new Promise<void>(resolve => server.close(() => resolve()))
-  if (!port) throw new Error('Could not allocate a VNC port')
+  if (!port) throw new Error('Could not allocate a loopback port')
   return port
-}
-
-async function reserveDisplay(): Promise<{ number: number; lock: string }> {
-  await mkdir(displaysRoot, { recursive: true })
-  for (let number = 100; number < 1000; number++) {
-    const lock = path.join(displaysRoot, String(number))
-    try {
-      await mkdir(lock)
-      return { number, lock }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-    }
-  }
-  throw new Error('No isolated X11 display is available')
 }
 
 function startProcess(command: string, args: string[], env: NodeJS.ProcessEnv): ChildProcess {
   const child = spawn(command, args, { env, stdio: ['ignore', 'ignore', 'pipe'], detached: true })
+  captureProcessStderr(child, command)
+  return child
+}
+
+function captureProcessStderr(child: ChildProcess, command: string): void {
   let stderr = ''
   child.stderr?.on('data', chunk => {
     stderr = `${stderr}${chunk}`.slice(-4096)
@@ -78,7 +65,88 @@ function startProcess(command: string, args: string[], env: NodeJS.ProcessEnv): 
     logger.warn({ error, command }, 'browser display process failed to start')
   })
   Object.assign(child, { pitchStderr: () => stderr })
-  return child
+}
+
+/**
+ * Xvfb's `-displayfd` protocol writes the allocated display number only after
+ * its listening sockets are ready. This is more reliable than checking
+ * `/tmp/.X11-unix`: Linux may use an abstract X11 socket with no filesystem
+ * entry, and a manual display-number lock cannot see other X servers.
+ */
+export function waitForXvfbDisplay(
+  child: ChildProcess,
+  output: NodeJS.ReadableStream,
+  signal?: AbortSignal,
+  timeoutMs = START_TIMEOUT_MS,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let buffer = ''
+    let settled = false
+    const stderr = () =>
+      (child as ChildProcess & { pitchStderr?: () => string }).pitchStderr?.().trim() ?? ''
+    const cleanup = () => {
+      clearTimeout(timer)
+      output.removeListener('data', onData)
+      output.removeListener('end', onEnd)
+      child.removeListener('error', onError)
+      child.removeListener('exit', onExit)
+      signal?.removeEventListener('abort', onAbort)
+    }
+    const succeed = (number: number) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(number)
+    }
+    const fail = (error: Error) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(error)
+    }
+    const parse = () => {
+      const value = buffer.trim()
+      const number = Number(value)
+      if (!/^\d+$/.test(value) || !Number.isInteger(number) || number < 0) {
+        fail(new Error(`Xvfb returned an invalid display number: ${value || '(empty)'}`))
+        return
+      }
+      succeed(number)
+    }
+    const onData = (chunk: string | Buffer) => {
+      buffer = `${buffer}${chunk.toString()}`.slice(-128)
+      if (buffer.includes('\n')) parse()
+    }
+    const onEnd = () => parse()
+    const onError = (error: Error) =>
+      fail(new Error(`Xvfb failed to start: ${error.message}${stderr() ? `: ${stderr()}` : ''}`))
+    const onExit = (code: number | null, childSignal: NodeJS.Signals | null) =>
+      fail(
+        new Error(
+          `Xvfb exited before becoming ready (${code ?? childSignal ?? 'unknown'})${stderr() ? `: ${stderr()}` : ''}`,
+        ),
+      )
+    const onAbort = () => fail(new DOMException('Xvfb startup aborted', 'AbortError'))
+    const timer = setTimeout(
+      () =>
+        fail(
+          new Error(
+            `Xvfb did not report a ready display within ${timeoutMs}ms${stderr() ? `: ${stderr()}` : ''}`,
+          ),
+        ),
+      timeoutMs,
+    )
+
+    output.on('data', onData)
+    output.once('end', onEnd)
+    child.once('error', onError)
+    child.once('exit', onExit)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) onAbort()
+    else if (child.exitCode !== null || child.signalCode !== null) {
+      onExit(child.exitCode, child.signalCode)
+    }
+  })
 }
 
 async function waitFor(
@@ -139,16 +207,7 @@ export interface VncDisplay {
 export async function startVncDisplay(id: string, signal?: AbortSignal): Promise<VncDisplay> {
   if (process.platform !== 'linux')
     throw new Error('Interactive browser sessions require Linux/Xvfb')
-  const reserved = await reserveDisplay()
-  const display = `:${reserved.number}`
-  let port: number
-  try {
-    port = await freePort()
-  } catch (error) {
-    await rm(reserved.lock, { recursive: true, force: true })
-    throw error
-  }
-  const env = { ...process.env, DISPLAY: display }
+  const port = await freePort()
   const children: ChildProcess[] = []
   const failureHandlers = new Set<(error: Error) => void>()
   let closing = false
@@ -160,25 +219,34 @@ export async function startVncDisplay(id: string, signal?: AbortSignal): Promise
       closePromise = (async () => {
         unregisterVncEndpoint(id)
         await Promise.all(children.reverse().map(stopProcess))
-        await rm(reserved.lock, { recursive: true, force: true })
       })()
     }
     return closePromise
   }
 
   try {
-    const xvfb = startProcess(
+    const xvfb = spawn(
       'Xvfb',
-      [display, '-screen', '0', '1920x1080x24', '-nolisten', 'tcp', '-ac'],
-      env,
+      // Leave room for browser chrome around the 1920x1080 content viewport.
+      ['-displayfd', '3', '-screen', '0', '1960x1240x24', '-nolisten', 'tcp', '-ac'],
+      {
+        env: process.env,
+        stdio: ['ignore', 'ignore', 'pipe', 'pipe'],
+        detached: true,
+      },
     )
+    captureProcessStderr(xvfb, 'Xvfb')
     children.push(xvfb)
-    await waitFor(
-      'Xvfb',
-      async () => existsSync(`/tmp/.X11-unix/X${reserved.number}`),
-      children,
+    const displayOutput = xvfb.stdio[3]
+    if (!displayOutput || typeof displayOutput === 'number')
+      throw new Error('Xvfb displayfd pipe was not created')
+    const displayNumber = await waitForXvfbDisplay(
+      xvfb,
+      displayOutput as NodeJS.ReadableStream,
       signal,
     )
+    const display = `:${displayNumber}`
+    const env = { ...process.env, DISPLAY: display }
 
     children.push(startProcess('openbox', [], env))
     const x11vnc = startProcess(

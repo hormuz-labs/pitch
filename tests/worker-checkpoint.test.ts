@@ -17,16 +17,36 @@ process.env.PI_AGENT_DIR = agentDir
 process.env.STUDIO_WORKSPACE_BUCKET = 'test-workspaces'
 
 const objects = new Map<string, Buffer>()
+let stallUpload = false
+let uploadAborted = false
+let truncateUpload = false
 vi.mock('@saas/storage', () => ({
   privateBucket: () => ({
-    async put(key: string, body: any) {
+    async put(
+      key: string,
+      body: any,
+      _type?: string,
+      _size?: number,
+      options?: { signal?: AbortSignal },
+    ) {
       if (Buffer.isBuffer(body)) {
         objects.set(key, body)
         return
       }
       const chunks: Buffer[] = []
       for await (const c of body) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
-      objects.set(key, Buffer.concat(chunks))
+      const whole = Buffer.concat(chunks)
+      objects.set(key, truncateUpload ? whole.subarray(0, 1000) : whole)
+      if (stallUpload) {
+        await new Promise((_, reject) => {
+          const abort = () => {
+            uploadAborted = true
+            reject(options?.signal?.reason)
+          }
+          if (options?.signal?.aborted) abort()
+          else options?.signal?.addEventListener('abort', abort, { once: true })
+        })
+      }
     },
     async get(key: string) {
       const b = objects.get(key)
@@ -65,6 +85,9 @@ afterAll(async () => {
 })
 beforeEach(async () => {
   objects.clear()
+  stallUpload = false
+  uploadAborted = false
+  truncateUpload = false
   await rm(ws.dir, { recursive: true, force: true })
   await rm(historyDir(ws.dir), { recursive: true, force: true })
 })
@@ -86,6 +109,143 @@ async function seed() {
 }
 
 describe('workspace checkpoints', () => {
+  it('times out a stalled transfer, cancels it, and allows a clean retry', async () => {
+    await seed()
+    stallUpload = true
+    const progress = vi.fn()
+    const input = { projectId, ws, version: 1, sessionFile: null, artifactKind: null }
+    await expect(
+      checkpoint.uploadCheckpoint({ ...input, timeoutMs: 100, progress }),
+    ).rejects.toThrow('checkpoint timed out')
+    expect(uploadAborted).toBe(true)
+    expect(progress).toHaveBeenCalledWith('checkpoint: uploading workspace.tar', 0)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
+    stallUpload = false
+    await checkpoint.uploadCheckpoint(input)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(true)
+  })
+
+  it('does not publish a version whose archive did not all arrive', async () => {
+    await seed()
+    truncateUpload = true
+    await expect(
+      checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version: 1,
+        sessionFile: null,
+        artifactKind: null,
+      }),
+    ).rejects.toThrow(/workspace.tar upload is incomplete: expected \d+ bytes, got 1000/)
+    expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(projectsDir)).filter(f => f.includes('.upload-'))).toEqual([])
+  })
+
+  it('does not upload or publish a cancelled checkpoint', async () => {
+    await seed()
+    const controller = new AbortController()
+    controller.abort(new Error('user cancelled'))
+    await expect(
+      checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version: 1,
+        sessionFile: null,
+        artifactKind: null,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('user cancelled')
+    expect(objects.size).toBe(0)
+  })
+
+  it('consumes delayed transport padding after archive end markers without EPIPE', async () => {
+    await seed()
+    await checkpoint.uploadCheckpoint({
+      projectId,
+      ws,
+      version: 1,
+      sessionFile: null,
+      artifactKind: null,
+    })
+    const archive = objects.get('workspaces/proj_1/1/workspace.tar')!
+    let chunks = 0
+    const body = Readable.from(
+      (async function* () {
+        yield archive
+        // tar can finish the archive before the network delivers its final chunks.
+        await new Promise(resolve => setTimeout(resolve, 30))
+        for (let i = 0; i < 4; i++) {
+          yield Buffer.alloc(64 * 1024)
+          chunks++
+        }
+      })(),
+    )
+    const into = path.join(root, 'padded-restore')
+    await checkpoint.tarExtract(into, body)
+    expect(chunks).toBe(4)
+    expect(await readFile(path.join(into, ws.internal, 'shots.js'), 'utf8')).toBe(
+      'export default []',
+    )
+  })
+
+  it('extracts a large archive whole every time, leaving no download behind', async () => {
+    // Streamed into tar's stdin, about one in ten of these lost data under
+    // Bun and failed "Unexpected EOF in archive" (run with `bunx --bun vitest`).
+    await seed()
+    for (let i = 0; i < 6; i++)
+      await writeFile(
+        path.join(ws.dir, 'renders', `clip-${i}.mp4`),
+        Buffer.alloc(2 * 1024 * 1024, i),
+      )
+    await checkpoint.uploadCheckpoint({
+      projectId,
+      ws,
+      version: 1,
+      sessionFile: null,
+      artifactKind: null,
+    })
+    const archive = objects.get('workspaces/proj_1/1/workspace.tar')!
+    for (let n = 0; n < 15; n++) {
+      const into = path.join(root, `large-restore-${n}`)
+      const body = Readable.from(
+        Array.from({ length: Math.ceil(archive.length / 65536) }, (_, i) =>
+          archive.subarray(i * 65536, (i + 1) * 65536),
+        ),
+      )
+      await checkpoint.tarExtract(into, body)
+      expect((await stat(path.join(into, ws.internal, 'renders', 'clip-5.mp4'))).size).toBe(
+        2 * 1024 * 1024,
+      )
+      await rm(into, { recursive: true, force: true })
+    }
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(root)).filter(f => f.includes('.fetch-'))).toEqual([])
+  }, 60_000)
+
+  it('reports a download that breaks off and keeps no partial file', async () => {
+    const body = Readable.from(
+      (async function* () {
+        yield Buffer.alloc(1024)
+        throw new Error('connection reset')
+      })(),
+    )
+    await expect(checkpoint.tarExtract(path.join(root, 'broken-restore'), body)).rejects.toThrow(
+      /Checkpoint download failed: connection reset/,
+    )
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(root)).filter(f => f.includes('.fetch-'))).toEqual([])
+  })
+
+  it('still rejects a corrupt archive rather than hiding extraction errors', async () => {
+    await expect(
+      checkpoint.tarExtract(
+        path.join(root, 'corrupt-restore'),
+        Readable.from([Buffer.from('not an archive')]),
+      ),
+    ).rejects.toThrow(/tar|archive|extraction/i)
+  })
+
   it('round-trips the workspace, its history and the transcript, minus caches', async () => {
     const session = await seed()
     const manifest = await checkpoint.uploadCheckpoint({
@@ -139,6 +299,23 @@ describe('workspace checkpoints', () => {
     expect([...versions].sort()).toEqual(['2', '3'])
     await checkpoint.deleteCheckpoints(projectId)
     expect(objects.size).toBe(0)
+  })
+
+  it('keeps an older version while a render job still references it', async () => {
+    await seed()
+    for (const version of [1, 2, 3, 4])
+      await checkpoint.uploadCheckpoint({
+        projectId,
+        ws,
+        version,
+        sessionFile: null,
+        artifactKind: null,
+      })
+    await checkpoint.pruneCheckpoints(projectId, 2, [1])
+    const versions = new Set(
+      [...objects.keys()].map(k => k.match(/\/(\d+)\//)?.[1]).filter(Boolean),
+    )
+    expect([...versions].sort()).toEqual(['1', '3', '4'])
   })
 
   it('leaves the local copy alone when the download fails', async () => {

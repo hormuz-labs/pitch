@@ -1,6 +1,6 @@
 /**
  * Pitch Studio server: auth, credits, projects, agent sessions, previews,
- * renders, sharing, MCP and admin (docs/studio-architecture.md).
+ * renders, sharing, MCP and admin.
  *
  * One image, four roles (worker/config.ts): `all` is the single-box layout
  * and the default; `api` replicas hold nothing and proxy to workers; `worker`
@@ -20,6 +20,7 @@ import express from 'express'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { type Options as PinoHttpOptions, pinoHttp } from 'pino-http'
 import { checkWritableDirectory, healthRouter } from './lib/health.js'
+import { acceptsTokenQuery } from './lib/token-query.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '../../..')
@@ -71,6 +72,7 @@ const { router: mcpRoutes } = await import('./routes/mcp.js')
 const { router: musicRoutes } = await import('./routes/music.js')
 const { router: voiceRoutes } = await import('./routes/voices.js')
 const { router: newsletterRoutes } = await import('./routes/newsletter.js')
+const { router: pricingRoutes } = await import('./routes/pricing.js')
 const { router: promoRoutes } = await import('./routes/promo.js')
 const { router: projectRoutes, publicRouter: publicProjectRoutes } = await import(
   './routes/projects.js'
@@ -143,7 +145,7 @@ if (IS_API) {
 
   // MCP + public REST API: API-key auth (Clerk must never see these Bearer
   // tokens) and base64 uploads above the default JSON limit.
-  app.use('/mcp', mcpRoutes)
+  app.use('/mcp', cors({ origin: true }), mcpRoutes)
   app.use('/v1', cors({ origin: true }), v1Routes)
 
   app.use(express.json({ limit: '50mb' }))
@@ -156,17 +158,8 @@ if (IS_API) {
 
   // EventSource / <video> / <img> / <iframe> can't set Authorization headers, so
   // a Clerk session token may ride in ?token= for streams and files.
-  const TOKEN_QUERY_PATHS = [
-    /^\/projects\/[^/]+\/(events|thumbnail)$/,
-    /^\/projects\/[^/]+\/assets\/thumb$/,
-    /^\/files\//,
-  ]
   app.use((req, _res, next) => {
-    if (
-      req.query.token &&
-      !req.headers.authorization &&
-      TOKEN_QUERY_PATHS.some(re => re.test(req.path))
-    ) {
+    if (req.query.token && !req.headers.authorization && acceptsTokenQuery(req.path)) {
       req.headers.authorization = `Bearer ${req.query.token}`
     }
     next()
@@ -204,6 +197,7 @@ if (IS_API) {
   app.use('/credits', creditRoutes)
   app.use('/users', userRoutes)
   app.use('/checkout', checkoutRoutes)
+  app.use('/pricing', pricingRoutes)
   app.use('/promo', promoRoutes)
   app.use(redirectRouter)
   app.use(shareRouter)

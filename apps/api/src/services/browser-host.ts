@@ -3,7 +3,7 @@ import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
-import { downloadStorageState, uploadStorageState } from '@saas/storage'
+import { downloadStorageState } from '@saas/storage'
 import {
   type CloakBrowserHandle,
   startCloakBrowser,
@@ -12,6 +12,7 @@ import {
 import { IS_WORKER, WORKER_TOKEN } from '../worker/config.js'
 import { liveWorkers } from '../worker/lease.js'
 import { browserHostUrl } from './browser-routing.js'
+import { persistBrowserState } from './browser-state.js'
 
 const logger = createLogger('api:browser-host')
 const SESSION_TTL_MS = 30 * 60 * 1000
@@ -169,36 +170,17 @@ export async function closeOwnedSession(sessionId: string): Promise<string[]> {
   let origins: string[] = []
   try {
     if (stateFile) {
-      try {
-        const state = await withTimeout(
-          'browser state capture',
-          owned.browser.context.storageState({ path: stateFile, indexedDB: true }),
-          10_000,
-        )
-        origins = Array.from(
-          new Set([
-            ...state.origins.map(origin => origin.origin),
-            ...state.cookies.map(
-              cookie => `${cookie.secure ? 'https' : 'http'}://${cookie.domain.replace(/^\./, '')}`,
-            ),
-          ]),
-        ).sort()
-      } catch (err) {
-        logger.warn({ err, sessionId }, 'could not capture browser storage state')
-      }
+      origins = await persistBrowserState(owned.browser.context, owned.userId, stateFile).catch(
+        err => {
+          logger.warn({ err, sessionId }, 'could not persist browser storage state')
+          return []
+        },
+      )
     }
   } finally {
     await owned.browser.close()
     if (profile)
       await rm(path.join(profile.profileDir, sessionId), { recursive: true, force: true })
-  }
-  if (stateFile && existsSync(stateFile)) {
-    try {
-      const key = await uploadStorageState(stateFile, owned.userId)
-      await db.recordLoggedInOrigins(owned.userId, origins, { storageStateKey: key })
-    } catch (err) {
-      logger.warn({ err, sessionId }, 'could not upload browser storage state')
-    }
   }
   await db.updateBrowserSession(sessionId, { status: 'CLOSED', closedAt: new Date() })
   return origins
@@ -249,8 +231,18 @@ export async function shutdownAllSessions(): Promise<void> {
   await Promise.allSettled([...sessions.keys()].map(closeOwnedSession))
 }
 
-export async function drainBrowserSessions(_timeoutMs: number): Promise<void> {
-  await shutdownAllSessions()
+// Every session closes in parallel; each is bounded by the state capture (10s)
+// and the browser close (15s), but upload and database writes are not, so the
+// drain window is enforced here rather than trusting the sum.
+export async function drainBrowserSessions(timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<'timeout'>(resolve => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs)
+  })
+  const outcome = await Promise.race([shutdownAllSessions(), expired])
+  clearTimeout(timer)
+  if (outcome === 'timeout')
+    logger.warn({ timeoutMs }, 'browser sessions still closing after the drain window')
 }
 
 export class HostError extends Error {

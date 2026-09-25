@@ -67,10 +67,17 @@ describe('storage drivers', () => {
   it('keeps checkpoints in a private bucket ensured once', async () => {
     calls.length = 0
     const store = storage.privateBucket('pitch-workspaces')
-    await store.put('w/1/a', Buffer.from('a'))
+    await store.put('w/1/a', Buffer.from('a'), 'application/x-tar', 1)
     await store.put('w/1/b', Buffer.from('b'))
     expect(calls.filter(c => c[0] === 'ensureBucket')).toEqual([
       ['ensureBucket', 'pitch-workspaces', false],
+    ])
+    expect(calls.find(c => c[0] === 'put')).toEqual([
+      'put',
+      'pitch-workspaces',
+      'w/1/a',
+      'application/x-tar',
+      1,
     ])
     expect(await store.get('w/1/a')).toBeNull()
   })

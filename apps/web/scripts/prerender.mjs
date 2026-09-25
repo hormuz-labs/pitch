@@ -12,44 +12,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'dist')
 
-// ── Route list ────────────────────────────────────────────────────────────────
-// Blog slugs/titles are parsed out of the BLOG_POSTS source so the prerender
-// set always matches what the app renders.
-const blogSrc = fs.readFileSync(path.join(root, 'src/solid/public/Blog.tsx'), 'utf8')
-const blogPosts = blogSrc
-  .slice(blogSrc.indexOf('export const BLOG_POSTS'), blogSrc.indexOf('].map'))
-  .split(/\n  \[\n/)
-  .slice(1)
-  .map(block => {
-    const fields = [...block.matchAll(/^\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),?$/gm)].map(
-      match => match[1] ?? match[2],
-    )
-    return { slug: fields[0], title: fields[4] }
-  })
-  .filter(p => p.slug && p.title)
-
-if (blogPosts.length === 0) {
-  console.error('prerender: could not parse any blog posts from solid/public/Blog.tsx')
-  process.exit(1)
-}
-
-const routes = [
-  // The landing page is verified structurally, not by copy. It previously waited
-  // on a headline string that later changed, so `/` silently stopped
-  // prerendering and shipped as an empty SPA shell while every other route was
-  // fine. A selector survives copy edits; marketing copy does not.
-  { path: '/', selector: '.lb-root .lb-endcap-title' },
-  { path: '/pricing', expect: 'Pricing' },
-  { path: '/about', expect: 'About Us' },
-  { path: '/blog', expect: 'Blog' },
-  ...blogPosts.map(p => ({ path: `/blog/${p.slug}`, expect: p.title.slice(0, 40) })),
-  { path: '/privacy', expect: 'Privacy Policy' },
-  { path: '/terms', expect: 'Terms of Service' },
-]
+import { blogPosts, routes } from './site-routes.mjs'
 
 // ── Tiny static server with SPA fallback ─────────────────────────────────────
 const MIME = {
@@ -146,6 +112,34 @@ for (const route of routes) {
     failures.push(`${route.path}: ${err.message}`)
   }
 }
+
+// ── Per-post share cards ─────────────────────────────────────────────────────
+// One 1200x630 card per blog post, rendered in the same headless browser, so a
+// shared link shows the post's own title instead of the site-wide image.
+const escapeHtml = t =>
+  t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+// Written to public/og/blog too and committed: production runs only `vite build`
+// (no browser), which copies public/ into dist/, so the cards ship from there.
+const ogDir = path.join(dist, 'og', 'blog')
+const ogPublic = path.join(root, 'public', 'og', 'blog')
+fs.mkdirSync(ogDir, { recursive: true })
+fs.mkdirSync(ogPublic, { recursive: true })
+const card = await browser.newPage({ viewport: { width: 1200, height: 630 } })
+for (const post of blogPosts) {
+  await card.setContent(`<!doctype html><html><body style="margin:0">
+<div style="box-sizing:border-box;width:1200px;height:630px;padding:72px 80px;display:flex;flex-direction:column;justify-content:space-between;background:#f4f4f2;color:#141414;font-family:Georgia,'Times New Roman',serif">
+  <div style="font:500 20px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#6f6f6b;display:flex;align-items:center;gap:14px">
+    <span style="width:10px;height:10px;border-radius:50%;background:#1385d6;display:inline-block"></span>${escapeHtml(post.category)}
+  </div>
+  <div style="font-size:${post.title.length > 60 ? 64 : 76}px;line-height:1.05;letter-spacing:-.02em;max-width:1000px">${escapeHtml(post.title)}</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;font:400 24px/1.2 system-ui,sans-serif;color:#46464a">
+    <span>trypitch.co/blog</span><strong style="font:700 30px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em;color:#141414">PITCH</strong>
+  </div>
+</div></body></html>`)
+  const png = await card.screenshot({ path: path.join(ogDir, `${post.slug}.png`) })
+  fs.writeFileSync(path.join(ogPublic, `${post.slug}.png`), png)
+}
+console.log(`wrote ${blogPosts.length} blog share cards -> dist/og/blog/ and public/og/blog/`)
 
 await browser.close()
 server.close()

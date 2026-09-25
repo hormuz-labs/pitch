@@ -1,5 +1,5 @@
-# A worker node anywhere: a machine that joins the GKE fleet over Tailscale
-# (docs/gke-deployment.md → Tailscale). Nothing else runs here — the
+# A worker node anywhere: a machine that joins the GKE fleet over Tailscale.
+# Nothing else runs here — the
 # database is Cloud SQL, storage is Cloud Storage, the API is in the
 # cluster. This file is standalone:
 #

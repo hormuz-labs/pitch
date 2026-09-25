@@ -15,13 +15,14 @@ const clients = [
   { id: 'claude', label: 'Claude', icon: claudeIcon },
   { id: 'cursor', label: 'Cursor', icon: cursorIcon, tile: true },
   { id: 'chatgpt', label: 'ChatGPT', icon: chatgptIcon, invertOnDark: true },
-  { id: 'perplexity', label: 'Perplexity', icon: perplexityIcon, tile: true },
+  { id: 'perplexity', label: 'Perplexity', icon: perplexityIcon, class: 'mcp-icon--perplexity' },
   { id: 'other', label: 'Any agent', icon: null },
 ] as const
 const iconClass = (item: (typeof clients)[number]) =>
   [
     'tile' in item && item.tile ? 'mcp-icon--tile' : '',
     'invertOnDark' in item && item.invertOnDark ? 'mcp-icon--invert' : '',
+    'class' in item ? item.class : '',
   ]
     .join(' ')
     .trim() || undefined

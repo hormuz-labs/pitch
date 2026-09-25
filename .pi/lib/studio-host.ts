@@ -8,11 +8,12 @@ export async function hostAction(
   cwd: string,
   name: string,
   params: Record<string, unknown>,
+  context?: { signal?: AbortSignal; progress?: (stage: string, percent?: number) => void },
 ): Promise<string> {
   const g = globalThis as any
   const host = g.__pitchStudioHost
   if (!host) throw new Error('This tool only works inside the studio (no host registered).')
-  return host.call(cwd, name, params)
+  return context ? host.call(cwd, name, params, context) : host.call(cwd, name, params)
 }
 
 export function text(out: string) {

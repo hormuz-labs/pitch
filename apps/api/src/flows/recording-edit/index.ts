@@ -14,8 +14,7 @@
 import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
-import { createLogger, sendDiscordMessage } from '@saas/shared'
+import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { addOutput } from '../../projects/service.js'
 import { shouldWatermarkVideo } from '../../projects/watermark.js'
@@ -128,40 +127,10 @@ export async function download(url: string, dest: string): Promise<void> {
   await storage.downloadFile(url, dest)
 }
 
-/** The first-turn brief — the old worker's buildEditPrompt, with edit_render as the last step. */
-function buildEditPrompt(params: {
-  videoFile: string
-  productName?: string
-  productUrl?: string
-  instructions?: string
-}): string {
-  return [
-    'Edit the uploaded screen recording into a cinematic product demo.',
-    '',
-    `Video file: \`${params.videoFile}\` (relative to the working directory)`,
-    params.productName ? `Product name: "${params.productName}"` : null,
-    params.productUrl ? `Product URL: ${params.productUrl}` : null,
-    params.instructions ? `User instructions: "${params.instructions}"` : null,
-    '',
-    'Run your standard workflow end to end:',
-    '1. probe_video, then transcribe_video (narration is your primary prior) and detect_key_moments (visual prior).',
-    '2. Correlate narration with the footage into padded action windows.',
-    '3. inspect_frames each window to verify the action, its on-screen region, and its exact time.',
-    '4. Emit the camera plan with record_zoom_in / record_zoom_out / record_click into recording/demo-state.json.',
-    '5. edit_render — render and publish the edited video, then reply with the event summary and the video URL.',
-    '',
-    'The user wants results, not questions: do not interview them or wait for confirmations.',
-  ]
-    .filter(l => l !== null)
-    .join('\n')
-}
-
 export function optionStr(options: Record<string, any>, key: string): string | undefined {
   const v = options[key]
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
 }
-
-// ── the flow ──────────────────────────────────────────────────────────────────
 
 // ── host action: edit_render ──────────────────────────────────────────────────
 
@@ -177,7 +146,7 @@ registerHostAction(
     const state = await readState(ws.dir)
     if (!state)
       throw new Error(
-        'recording/demo-state.json not found — run probe_video and record the events first',
+        'recording/demo-state.json not found — run pitch recording probe-video and record the events first',
       )
     const upload = await findUpload(ws.dir)
     if (!upload) throw new Error('no uploaded recording found under recording/')
@@ -239,19 +208,6 @@ registerHostAction(
         createdAt,
       })
     else log.warn('no project row for workspace — output not recorded')
-
-    // Notify once, when the first render lands (iterations are watched live in the studio).
-    if (published && firstRender && row) {
-      const videoTitle = options.productName || (project?.uploads?.[0]?.name ?? ws.name)
-      void (async () => {
-        const email = await getClerkUserEmail(ws.userId)
-        if (email)
-          await sendJobCompleteEmail({ to: email, jobId: row.id, videoUrl: url, videoTitle })
-        await sendDiscordMessage(
-          `✅ **Recording Edit Completed**\nProject: \`${row.id}\`\nUser: ${email ?? ws.userId}\nTitle: ${row.title}\nOutput Video: ${url}`,
-        )
-      })().catch(err => log.warn({ err }, 'completion notification failed'))
-    }
 
     log.info({ url, durationSec: result.durationSec }, 'edit_render done')
     return (

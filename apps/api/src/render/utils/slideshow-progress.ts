@@ -1,10 +1,7 @@
-export interface SlideshowProgress {
-  totalSlides: number
-  currentSlide: number
-  visitedSlides: number[]
-  analyzedSlides: number[]
-  narratedSlides: number[]
-}
+import type { SlideshowProgress } from '../../../../../.pi/lib/slideshow-progress.ts'
+
+// flows/demo-video imports the type from here.
+export type { SlideshowProgress }
 
 interface StoryboardCoverageLike {
   status: string

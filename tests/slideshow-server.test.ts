@@ -1,8 +1,10 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import demoCommands from '../.pi/cli/demo.ts'
 import { selectBrowserReachableHost, startSlideshowServer } from '../.pi/lib/slideshow-server'
+import { collectCommands } from '../.pi/lib/testing.ts'
 
 describe('startSlideshowServer', () => {
   const cleanup: Array<() => Promise<void>> = []
@@ -61,5 +63,55 @@ describe('startSlideshowServer', () => {
         wlo1: [{ address: '10.234.208.200', family: 'IPv4', internal: false }],
       }),
     ).toBe('10.234.208.200')
+  })
+})
+
+describe('pitch demo build-slideshow', () => {
+  const { 'build-slideshow': build } = collectCommands(demoCommands)
+  const dirs: string[] = []
+
+  afterEach(async () => {
+    vi.unstubAllEnvs()
+    await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
+  })
+
+  async function workspace(): Promise<string> {
+    const base = await mkdtemp(path.join(tmpdir(), 'pitch-slideshow-ws-'))
+    dirs.push(base)
+    await mkdir(path.join(base, 'recording'))
+    const image = path.join(base, 'page-01.png')
+    await writeFile(image, 'fixture-image-bytes')
+    const manifest = path.join(base, 'recording', 'assets.json')
+    await writeFile(manifest, JSON.stringify({ assets: [{ kind: 'image', localPath: image }] }))
+    await writeFile(
+      path.join(base, 'recording', 'demo-config.json'),
+      JSON.stringify({ startTime: Date.now(), assetsManifestPath: manifest }),
+    )
+    return base
+  }
+
+  const urlOf = async (base: string) => JSON.parse(await build.run({}, base)).url as string
+  const serves = (url: string) =>
+    fetch(url).then(
+      response => response.ok,
+      () => false,
+    )
+
+  it('keeps one server per workspace and replaces only its own on rebuild', async () => {
+    vi.stubEnv('SLIDESHOW_BROWSER_HOST', '127.0.0.1')
+    const a = await workspace()
+    const b = await workspace()
+
+    const firstA = await urlOf(a)
+    const firstB = await urlOf(b)
+    expect(await serves(firstA)).toBe(true)
+    expect(await serves(firstB)).toBe(true)
+
+    const secondA = await urlOf(a)
+    expect(secondA).not.toBe(firstA)
+    expect(await serves(firstA)).toBe(false)
+    expect(await serves(secondA)).toBe(true)
+    // Another project's rebuild never closes this one's slideshow.
+    expect(await serves(firstB)).toBe(true)
   })
 })

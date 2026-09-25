@@ -8,6 +8,7 @@ import { createLogger } from '@saas/shared'
 import type { Output } from '../flows/types.js'
 import { publishProjectEvent } from '../studio/events.js'
 import { type FlowId, type Workspace, workspaceFor } from '../studio/paths.js'
+import { notifyProjectCompleted, notifyVideoRenderReady } from './notifications.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from './output-urls.js'
 import { replaceLegacyUrlTitle } from './title.js'
 
@@ -163,6 +164,21 @@ export async function addOutput(userId: string, id: string, output: Output): Pro
   const updated = parseRow(row)
   publishProjectEvent(id, { type: 'project', project: updated })
   void dispatchProjectWebhooks(updated)
+
+  if (output.kind === 'video') {
+    void notifyVideoRenderReady(updated, output.url, {
+      resolution: output.res,
+      label: output.label,
+    }).catch(err => logger.warn({ err, projectId: id }, 'video ready notification failed'))
+    void notifyProjectCompleted(updated, { resultUrl: output.url, output }).catch(err =>
+      logger.warn({ err, projectId: id }, 'project completed notification failed'),
+    )
+  } else if (output.kind === 'pdf' || output.kind === 'html') {
+    void notifyProjectCompleted(updated, { resultUrl: output.url, output }).catch(err =>
+      logger.warn({ err, projectId: id }, 'project completed notification failed'),
+    )
+  }
+
   return updated
 }
 

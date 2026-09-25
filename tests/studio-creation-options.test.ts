@@ -41,6 +41,11 @@ describe('normalizeCreationOptions', () => {
     })
   })
 
+  it('preserves the asset-demo outcome hint and rejects unknown skill names', () => {
+    expect(normalizeCreationOptions({ skill: 'asset-demo' })).toEqual({ skill: 'asset-demo' })
+    expect(normalizeCreationOptions({ skill: 'invented-flow' })).toEqual({})
+  })
+
   it('drops invalid constrained preferences without discarding other options', () => {
     expect(
       normalizeCreationOptions({

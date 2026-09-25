@@ -7,9 +7,9 @@
  * down". A project is a workspace and a conversation, not a category, so the
  * agent gets everything and decides what the request needs.
  *
- * The skills carry the instructions for the named outcomes (launch film, demo
- * recording, deck, recording edit); the agent reads the one it needs instead
- * of being born knowing exactly one of them.
+ * The skills carry the instructions for the named outcomes (launch film, live
+ * demo, asset demo, deck, recording edit); the agent reads the one it needs
+ * instead of being born knowing exactly one of them.
  *
  * There is nothing to choose between any more. Every host capability is a
  * subcommand of `pitch`, a program the sandboxed shell runs like any other

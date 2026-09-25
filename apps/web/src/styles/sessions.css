@@ -1,26 +1,16 @@
 .sessions-page {
-  --sessions-bg: #f3f3f1;
-  --sessions-surface: #fafaf8;
-  --sessions-raised: #eeeeeb;
-  --sessions-border: #dededb;
-  --sessions-ink: #242422;
-  --sessions-muted: #71716d;
-  --sessions-faint: #969690;
+  --sessions-bg: var(--bg-page);
+  --sessions-surface: var(--bg-surface);
+  --sessions-raised: var(--bg-raised);
+  --sessions-border: var(--border-subtle);
+  --sessions-ink: var(--text-primary);
+  --sessions-muted: var(--text-muted);
+  --sessions-faint: var(--text-faint);
   min-height: 100%;
   background: var(--sessions-bg);
   color: var(--sessions-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-}
-
-[data-theme="dark"] .sessions-page {
-  --sessions-bg: #171817;
-  --sessions-surface: #1c1d1c;
-  --sessions-raised: #252625;
-  --sessions-border: #30322f;
-  --sessions-ink: #eeeeeb;
-  --sessions-muted: #aaa9a5;
-  --sessions-faint: #797b75;
 }
 
 .sessions-topbar { display: flex; align-items: center; gap: 9px; min-height: 60px; padding: 0 24px; color: var(--sessions-muted); font-size: 13px; }

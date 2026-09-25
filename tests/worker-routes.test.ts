@@ -37,6 +37,13 @@ vi.mock('../apps/api/src/worker/host.js', () => ({
       throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
     return { ok: true }
   }),
+  saveStoryboard: vi.fn(async (id: string, update: any) => {
+    if (id === 'gone')
+      throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
+    if (id === 'stale')
+      throw Object.assign(new Error('Storyboard revision conflict'), { status: 409 })
+    return { ...update, revision: update.revision + 1, status: 'draft' }
+  }),
 }))
 vi.mock('../apps/api/src/worker/registry.js', () => ({ currentEpoch: () => 7 }))
 
@@ -104,5 +111,22 @@ describe('worker contract auth', () => {
       .set('Authorization', 'Bearer secret-token')
     expect(gone.status).toBe(409)
     expect(gone.body).toEqual({ error: 'not held', code: 'NOT_OWNER' })
+  })
+
+  it('saves storyboard revisions and preserves conflict status across the worker boundary', async () => {
+    const update = { revision: 4, transition: 'fade', titleCards: {}, scenes: [] }
+    const ok = await request(app)
+      .post('/internal/worker/projects/p1/storyboard')
+      .set('Authorization', 'Bearer secret-token')
+      .send(update)
+    expect(ok.status).toBe(200)
+    expect(ok.body).toMatchObject({ revision: 5, status: 'draft', transition: 'fade' })
+
+    const stale = await request(app)
+      .post('/internal/worker/projects/stale/storyboard')
+      .set('Authorization', 'Bearer secret-token')
+      .send(update)
+    expect(stale.status).toBe(409)
+    expect(stale.body).toEqual({ error: 'Storyboard revision conflict' })
   })
 })

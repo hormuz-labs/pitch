@@ -23,10 +23,17 @@
  *              cache and is preferred by the next placement
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import {
+  createLogger,
+  type StoryboardScene,
+  type StoryboardTitleCards,
+  updateVideoStoryboard,
+  type VideoStoryboard,
+} from '@saas/shared'
+import * as storage from '@saas/storage'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
 import type { Description, UploadRef } from '../flows/types.js'
@@ -40,6 +47,7 @@ import {
 } from '../projects/assets.js'
 import { durationOptionFromText, videoTypeOptionFromText } from '../projects/creation-options.js'
 import { cancelExport, type ExportStatus, exportProject, getExport } from '../projects/export.js'
+import { notifyProjectCompleted } from '../projects/notifications.js'
 import {
   addOutput,
   failProject,
@@ -50,6 +58,7 @@ import {
   syncOutputs,
   workspaceOf,
 } from '../projects/rows.js'
+import { publishShareArtifact } from '../projects/share-artifact.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import {
   chargeTurn,
@@ -60,7 +69,7 @@ import {
 } from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
-import { peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
+import { type HostContext, peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
 import {
   estimatedModelCredits,
   modelCreditMultiplier,
@@ -102,7 +111,6 @@ const BILLABLE_GENERATION_ACTIONS = new Set([
   'elevenlabs_music',
   'elevenlabs_sound',
   'demo_record_start',
-  'demo_render',
   'edit_render',
   'media_ffmpeg',
   'video_generate',
@@ -111,6 +119,9 @@ const activatedReservations = new Set<string>()
 
 setHostActionGuard(async (ws, name) => {
   if (!BILLABLE_GENERATION_ACTIONS.has(name)) return
+  // An actionable turn reserves credits before the model runs. Once that turn
+  // has emitted a tool call, do not repeat the same database gate per action.
+  if (hasActivatedReservation(ws)) return
   const row = await db.prisma.project.findFirst({ where: { userId: ws.userId, name: ws.name } })
   if (!row) return
   const p = parseRow(row)
@@ -173,6 +184,14 @@ interface Held {
 
 const held = new Map<string, Held>()
 const opening = new Map<string, Promise<{ h: Held; row: ProjectRow }>>()
+
+function hasActivatedReservation(ws: Workspace): boolean {
+  for (const h of held.values()) {
+    if (h.ws.internal === ws.internal)
+      return activatedReservations.has(`project:${h.id}:initial-generation`)
+  }
+  return false
+}
 
 export function holds(projectId: string): boolean {
   return held.has(projectId)
@@ -511,7 +530,9 @@ export async function prompt(
 
 function generationKind(options: Record<string, any>): string | null {
   if (typeof options.videoType === 'string') return options.videoType
-  return ['launch-video', 'demo-video', 'generated-video', 'recording-edit'].includes(options.skill)
+  return ['launch-video', 'demo-video', 'asset-demo', 'generated-video', 'recording-edit'].includes(
+    options.skill,
+  )
     ? options.skill
     : null
 }
@@ -667,6 +688,10 @@ export function followFirstTurn(p: ProjectRow, turn: number): void {
       const ok = await agent.hasResult(workspaceOf(p)).catch(() => false)
       if (ok) {
         await syncOutputs(p.userId, p.id).catch(() => {})
+        const updated = await getRow(p.userId, p.id).catch(() => p)
+        void notifyProjectCompleted(updated).catch(err =>
+          logger.warn({ err, projectId: p.id }, 'completion notification failed'),
+        )
         return
       }
       // A greeting, explanation or question card can finish successfully with
@@ -816,6 +841,39 @@ export async function renderDeck(projectId: string): Promise<{ ok: true }> {
   return { ok: true }
 }
 
+// ── Asset storyboard ─────────────────────────────────────────────────────────
+
+/**
+ * Persist a whole storyboard revision from Studio. The shared model owns all
+ * validation and optimistic revision checks, matching the agent's
+ * `pitch demo storyboard-save` path without starting or billing a model turn.
+ */
+export async function saveStoryboard(
+  projectId: string,
+  update: {
+    revision: number
+    transition?: VideoStoryboard['transition']
+    titleCards?: StoryboardTitleCards
+    scenes: StoryboardScene[]
+  },
+): Promise<VideoStoryboard> {
+  const { h } = await ensureOpen(projectId)
+  const file = path.join(h.ws.dir, 'storyboard.json')
+  const current = JSON.parse(await readFile(file, 'utf8')) as VideoStoryboard
+  let saved: VideoStoryboard
+  try {
+    saved = updateVideoStoryboard(current, update)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw Object.assign(error instanceof Error ? error : new Error(message), {
+      status: message.startsWith('Storyboard revision conflict:') ? 409 : 400,
+    })
+  }
+  await writeFile(file, `${JSON.stringify(saved, null, 2)}\n`, 'utf8')
+  markDirty(h)
+  return saved
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export async function startExport(
@@ -836,6 +894,19 @@ export async function exportStatus(projectId: string): Promise<ExportStatus> {
 export async function stopExport(projectId: string): Promise<boolean> {
   await ensureOpen(projectId)
   return cancelExport(projectId)
+}
+
+/** Make the current workspace artifact readable by an unauthenticated share page. */
+export async function publishArtifact(projectId: string): Promise<void> {
+  const { h, row } = await ensureOpen(projectId)
+  const description = await describeWorkspace(h.ws, projectId)
+  await publishShareArtifact(
+    row,
+    h.ws,
+    description,
+    (file, prefix) => storage.uploadFile(file, undefined, prefix),
+    output => addOutput(row.userId, row.id, output).then(() => undefined),
+  )
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -879,9 +950,28 @@ export async function workspaceDir(row: ProjectRow): Promise<string> {
   return h.ws.dir
 }
 
+/** Cap on the raw transcript an admin can pull in one response. */
+const SESSION_LOG_MAX_BYTES = 64 * 1024 * 1024
+
+/**
+ * The raw pi transcript (JSON Lines) for review. Read-only: it never opens a
+ * session, only the file the row names — and only a `.jsonl` file, so a bad
+ * row cannot turn this into a read of anything else on the box.
+ */
+export async function sessionLog(projectId: string): Promise<string | null> {
+  const { row } = await ensureOpen(projectId)
+  const file = row.sessionFile
+  if (!file || path.extname(file) !== '.jsonl' || !existsSync(file)) return null
+  const info = await stat(file)
+  if (!info.isFile()) return null
+  if (info.size > SESSION_LOG_MAX_BYTES)
+    throw Object.assign(new Error('The session log is too large to download'), { status: 413 })
+  return readFile(file, 'utf8')
+}
+
 // ── Checkpoints, release, removal ─────────────────────────────────────────────
 
-async function checkpointNow(h: Held): Promise<void> {
+async function checkpointNow(h: Held, ctx: HostContext = {}): Promise<void> {
   if (h.checkpointing) return h.checkpointing
   h.checkpointing = (async () => {
     const at = h.dirtyAt
@@ -903,6 +993,8 @@ async function checkpointNow(h: Held): Promise<void> {
       artifactKind: await getAgent()
         .artifactKind(h.ws)
         .catch(() => null),
+      signal: ctx.signal,
+      progress: ctx.progress,
     })
     const fenced = await db.prisma.project.updateMany({
       where: {
@@ -920,9 +1012,17 @@ async function checkpointNow(h: Held): Promise<void> {
     }
     await writeMarker(h.ws.dir, { projectId: h.id, version })
     if (h.dirtyAt === at) h.dirtyAt = 0
-    void pruneCheckpoints(h.id).catch(err =>
-      logger.warn({ err, projectId: h.id }, 'could not prune old checkpoints'),
-    )
+    void (async () => {
+      const activeRenders = await db.prisma.renderJob.findMany({
+        where: { projectId: h.id, status: { in: ['queued', 'running'] } },
+        select: { workspaceVersion: true },
+      })
+      await pruneCheckpoints(
+        h.id,
+        2,
+        activeRenders.map(job => job.workspaceVersion),
+      )
+    })().catch(err => logger.warn({ err, projectId: h.id }, 'could not prune old checkpoints'))
   })().finally(() => {
     h.checkpointing = null
   })
@@ -936,14 +1036,18 @@ async function checkpointNow(h: Held): Promise<void> {
  */
 export async function checkpointForRender(
   ws: Workspace,
+  ctx: HostContext = {},
 ): Promise<{ projectId: string; version: number }> {
   const h = [...held.values()].find(x => x.ws.internal === ws.internal)
   if (!h) throw new Error(`this worker does not hold ${ws.internal}; nothing to render from`)
   if (!CHECKPOINTS_ENABLED)
     throw new Error('remote renders need workspace checkpoints (STUDIO_WORKSPACE_BUCKET)')
-  // Dirty, or never checkpointed (a workspace adopted from before
-  // checkpoints existed): either way the bucket must hold what is on disk.
-  if (h.dirtyAt || (await rowById(h.id)).workspaceVersion === 0) await checkpointNow(h)
+  // Tool calls can create files that are neither preview nor shelf assets, so
+  // the watcher deliberately emits no event for them. Snapshot every remote
+  // call to guarantee the render tier sees the exact current workspace.
+  if (h.checkpointing) await h.checkpointing
+  ctx.signal?.throwIfAborted()
+  await checkpointNow(h, ctx)
   const row = await rowById(h.id)
   if (row.workerId !== WORKER_ID || row.workerEpoch !== h.epoch) throw new NotOwnerError(h.id)
   if (row.workspaceVersion === 0) throw new Error(`${ws.internal} could not be checkpointed`)
@@ -1069,13 +1173,18 @@ export async function drain(settleMs = 0): Promise<void> {
   const deadline = Date.now() + settleMs
   const letGo = (id: string) =>
     release(id).catch(err => logger.error({ err, projectId: id }, 'release failed on drain'))
+  let reported = 0
   while (held.size && Date.now() < deadline) {
     for (const h of [...held.values()]) {
       if (isBusy(h.id) || exportRunning(h.id)) continue
       await letGo(h.id)
     }
     if (!held.size) break
-    logger.info({ waiting: held.size }, 'draining: waiting for turns to finish')
+    // Say it when the count changes, not on every two-second poll.
+    if (held.size !== reported) {
+      reported = held.size
+      logger.info({ waiting: held.size }, 'draining: waiting for turns to finish')
+    }
     await sleep(Math.max(0, Math.min(2000, deadline - Date.now())))
   }
   if (held.size && settleMs > 0)

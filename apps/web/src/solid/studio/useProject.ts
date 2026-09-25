@@ -1,6 +1,12 @@
 import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { useAuth } from '../core/auth'
-import { mediaUrl as buildMediaUrl, studio } from './client'
+import {
+  adminMediaPath,
+  adminStudio,
+  mediaUrl as buildMediaUrl,
+  type ProjectOwner,
+  studio,
+} from './client'
 import { createExportRequest, exportFilename } from './editable-export'
 import { buildStatus, withTargetLegend } from './helpers'
 import { createPreviewCredential, createPreviewRefresh } from './preview-refresh'
@@ -17,8 +23,17 @@ import type {
 } from './types'
 
 let localId = 0
-export function useProject(id: string | undefined) {
+export const READ_ONLY_MESSAGE = 'This is a read-only admin view of someone else’s project.'
+export function useProject(id: string | undefined, opts: { admin?: boolean } = {}) {
   const auth = useAuth()
+  // Admin review reads through /admin/projects/* and never writes. Every
+  // mutation below refuses before it reaches the network; the server refuses
+  // too, since the owner routes scope to the owner and an admin is not one.
+  const readOnly = opts.admin === true
+  const reader = readOnly ? adminStudio : studio
+  const writable = () => {
+    if (readOnly) throw new Error(READ_ONLY_MESSAGE)
+  }
   const getToken = async () => {
     const token = await auth.getToken()
     if (!token) throw new Error('Not signed in')
@@ -47,7 +62,8 @@ export function useProject(id: string | undefined) {
     [exportStatus, setExportStatus] = createSignal<ExportStatus | null>(null)
   const [mediaToken, setMediaToken] = createSignal<string | null>(null),
     [assets, setAssets] = createSignal<Asset[]>([]),
-    [modelPick, setModel] = createSignal<string | null>(null)
+    [modelPick, setModel] = createSignal<string | null>(null),
+    [owner, setOwner] = createSignal<ProjectOwner | null>(null)
   const composerRef: { current: HTMLTextAreaElement | null } = { current: null },
     player: { current: PlayerCtrl | null } = { current: null }
   let nextRef = 1,
@@ -65,7 +81,7 @@ export function useProject(id: string | undefined) {
   const setDraft = (v: string | ((d: string) => string)) =>
     setDraftValue(d => (typeof v === 'function' ? v(d) : v))
   const mediaUrl = (path: string | null | undefined, version?: number) =>
-    buildMediaUrl(path, mediaToken(), version)
+    buildMediaUrl(readOnly && id && path ? adminMediaPath(id, path) : path, mediaToken(), version)
   // Token rotation must not navigate a loaded iframe or restart an audio/video
   // resource. Capture the latest credential only when the artifact changes.
   const captureCredential = createPreviewCredential()
@@ -73,9 +89,9 @@ export function useProject(id: string | undefined) {
   const previewUrl = (path: string | null | undefined) =>
     buildMediaUrl(path, previewToken(), videoVersion())
   const thumbnailUrl = (t: number) =>
-    id && mediaToken() ? studio.thumbnailUrl(id, t, mediaToken()!, videoVersion()) : null
+    id && mediaToken() ? reader.thumbnailUrl(id, t, mediaToken()!, videoVersion()) : null
   const previewRefresh = createPreviewRefresh({
-    read: async () => studio.get(await getToken(), id!),
+    read: async () => reader.get(await getToken(), id!),
     held: () => playingNow,
     pending: setPreviewPending,
     error: reason =>
@@ -105,10 +121,11 @@ export function useProject(id: string | undefined) {
   const refreshAssets = async () => {
     if (!id) return
     try {
-      setAssets(await studio.assets(await getToken(), id))
+      setAssets(await reader.assets(await getToken(), id))
     } catch {}
   }
   const addAssets = async (files: FileList | File[]) => {
+    writable()
     if (!id || !files.length) return
     const form = new FormData()
     for (const f of Array.from(files)) form.append('files', f)
@@ -117,6 +134,7 @@ export function useProject(id: string | undefined) {
     await refreshAssets()
   }
   const deleteAsset = async (path: string) => {
+    writable()
     if (!id) return
     await studio.deleteAsset(await getToken(), id, path)
     setTargets(v => v.filter(t => t.asset !== path))
@@ -209,11 +227,14 @@ export function useProject(id: string | undefined) {
         ])
         break
       case 'credit_exhausted':
+        // The owner's credits are not the admin's header to update.
+        if (readOnly) break
         entryRevision++
         setEntries(v => [...v, { id: `credit-${Date.now()}`, role: 'credit', text: ev.message }])
         window.dispatchEvent(new Event('credits-changed'))
         break
       case 'credit_balance':
+        if (readOnly) break
         window.dispatchEvent(
           new CustomEvent('credits-changed', {
             detail: { balance: ev.balance, pending: ev.pending === true },
@@ -236,7 +257,7 @@ export function useProject(id: string | undefined) {
       return
     }
     if (mine !== generation || disposed) return
-    const es = new EventSource(studio.eventsUrl(id, token))
+    const es = new EventSource(reader.eventsUrl(id, token))
     es.onmessage = e => {
       try {
         handle(JSON.parse(e.data))
@@ -265,7 +286,7 @@ export function useProject(id: string | undefined) {
     if (!id || disposed || pollInFlight) return
     pollInFlight = true
     try {
-      const st = await studio.getExport(await getToken(), id)
+      const st = await reader.getExport(await getToken(), id)
       if (disposed) return
       setExportStatus(st)
       if (!st.running) {
@@ -301,15 +322,25 @@ export function useProject(id: string | undefined) {
         const initialProjectRevision = projectRevision
         const t = await getToken().catch(() => null)
         if (!t) return
+        let refused: number | undefined
         const [d, m, e, a] = await Promise.all([
-          studio.get(t, id).catch(() => null),
-          studio.messages(t, id).catch(() => null),
-          studio.getExport(t, id).catch(() => null),
-          studio.assets(t, id).catch(() => null),
+          reader.get(t, id).catch(err => {
+            refused = err?.status
+            return null
+          }),
+          reader.messages(t, id).catch(() => null),
+          reader.getExport(t, id).catch(() => null),
+          reader.assets(t, id).catch(() => null),
         ])
         if (!live) return
         if (!d) {
-          setLoadError('Could not load this project. Refresh to try again.')
+          setLoadError(
+            readOnly && (refused === 401 || refused === 403)
+              ? 'Only administrators can open this view.'
+              : readOnly && refused === 404
+                ? 'No project with this id.'
+                : 'Could not load this project. Refresh to try again.',
+          )
           return
         }
         if (!m) {
@@ -321,6 +352,7 @@ export function useProject(id: string | undefined) {
           return
         }
         setLoadError(null)
+        if (readOnly && 'owner' in d) setOwner((d.owner as ProjectOwner | null) ?? null)
         if (d && projectRevision === initialProjectRevision) setProject(d)
         if (initialEntryRevision === entryRevision) setEntries(m.entries)
         else
@@ -353,6 +385,7 @@ export function useProject(id: string | undefined) {
     })
   })
   const upload = async (files: File[]) => {
+    writable()
     const form = new FormData()
     for (const f of files) form.append('files', f)
     return studio.upload(await getToken(), form)
@@ -366,7 +399,7 @@ export function useProject(id: string | undefined) {
       delivery?: 'queue' | 'steer'
     } = {},
   ) => {
-    if (!id || !text.trim()) return
+    if (readOnly || !id || !text.trim()) return
     const list = targets(),
       scenes = new Set(list.map(t => t.sceneId).filter(Boolean) as string[]),
       slides = new Set(list.map(t => t.slide).filter((x): x is number => typeof x === 'number'))
@@ -440,7 +473,7 @@ export function useProject(id: string | undefined) {
   }
   const exportVideo = createExportRequest(
     async body => {
-      if (!id) return
+      if (readOnly || !id) return
       try {
         const st = await studio.startExport(await getToken(), id, body)
         if (disposed) return
@@ -475,6 +508,10 @@ export function useProject(id: string | undefined) {
     model = () => modelPick() ?? projectModel()
   return {
     id,
+    readOnly,
+    get owner() {
+      return owner()
+    },
     get project() {
       return project()
     },
@@ -567,11 +604,12 @@ export function useProject(id: string | undefined) {
     },
     exportVideo,
     cancelExport: async () => {
-      if (id) await studio.cancelExport(await getToken(), id).catch(() => {})
+      if (!readOnly && id) await studio.cancelExport(await getToken(), id).catch(() => {})
     },
     download,
     send,
     steerQueued: async (entryId: string) => {
+      writable()
       if (!id) return
       await studio.steerQueued(await getToken(), id, entryId)
       setEntries(current =>
@@ -583,7 +621,7 @@ export function useProject(id: string | undefined) {
       )
     },
     rollback: async (entry: Entry) => {
-      if (!id || busy() || !entry.sessionEntryId || !entry.checkpointId) return
+      if (readOnly || !id || busy() || !entry.sessionEntryId || !entry.checkpointId) return
       try {
         const result = await studio.rollback(await getToken(), id, entry.sessionEntryId)
         setEntries(result.entries)
@@ -611,9 +649,11 @@ export function useProject(id: string | undefined) {
       }
     },
     stop: async () => {
-      if (id) await studio.stop(await getToken(), id).catch(() => {})
+      if (readOnly || !id) return false
+      return (await studio.stop(await getToken(), id)).stopped
     },
     updateProject: async (data: { title?: string; pinnedAt?: string | null }) => {
+      writable()
       if (!id) return
       const next = await studio.patch(await getToken(), id, data)
       setProject(current =>
@@ -622,15 +662,18 @@ export function useProject(id: string | undefined) {
       window.dispatchEvent(new Event('pitch:projects-changed'))
     },
     remove: async () => {
+      writable()
       if (id) await studio.remove(await getToken(), id)
     },
     share: async () => {
+      writable()
       if (!id) return null
       const p = await studio.share(await getToken(), id)
       setProject(v => (v ? { ...v, ...p, description: v.description } : v))
       return p.shareSlug ? `${location.origin}/d/${p.shareSlug}` : null
     },
     unshare: async () => {
+      writable()
       if (!id) return
       const next = await studio.unshare(await getToken(), id)
       setProject(current =>

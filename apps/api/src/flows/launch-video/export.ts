@@ -16,7 +16,7 @@
  */
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
@@ -24,6 +24,7 @@ import { ensureMix } from '../../lib/mix.js'
 import { nodeBinary } from '../../lib/node.js'
 import type { Exporter, ExportStatus } from '../../projects/export.js'
 import { type ProjectRow, workspaceOf } from '../../projects/service.js'
+import { shouldWatermarkVideo } from '../../projects/watermark.js'
 import {
   type HostContext,
   invokeHostAction,
@@ -34,6 +35,14 @@ import { newestMtime, RENDER_RESES, type RenderRes, renderFile, sourceTargets } 
 
 const logger = createLogger('studio:launch-export')
 const CAPTURE = path.join(MOTION_SCRIPTS_DIR, 'capture.mjs')
+/**
+ * Sits beside a render made without the free-plan watermark. No marker means
+ * stamped, which is also true of every launch render made before this existed.
+ * A render whose stamp no longer matches the account is redone, both ways: an
+ * upgrade gets a clean cut, and a cancelled plan that has run out gets the
+ * watermark back instead of the clean file handed over again.
+ */
+const cleanMarker = (outFile: string) => `${outFile}.clean`
 
 interface Job extends ExportStatus {
   controller: AbortController | null
@@ -79,11 +88,24 @@ export function errorFromTail(tail: string[], code: number | null): string {
   return line?.slice(0, 200) ?? `renderer exited with code ${code}`
 }
 
-function capture(cwd: string, outFile: string, res: RenderRes, ctx: HostContext): Promise<void> {
+function capture(
+  cwd: string,
+  outFile: string,
+  res: RenderRes,
+  watermark: boolean,
+  ctx: HostContext,
+): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const proc = spawn(
       nodeBinary(),
-      [CAPTURE, 'index.html', `--out=${outFile}`, `--out-res=${res}`, '--fps=60'],
+      [
+        CAPTURE,
+        'index.html',
+        `--out=${outFile}`,
+        `--out-res=${res}`,
+        '--fps=60',
+        ...(watermark ? [] : ['--no-watermark']),
+      ],
       { cwd, stdio: ['ignore', 'pipe', 'pipe'] },
     )
     const tail: string[] = []
@@ -139,7 +161,11 @@ registerHostAction(
     await ensureMix(ws.dir)
     if (ctx.signal?.aborted) throw new Error('cancelled')
     ctx.progress?.('starting')
-    await capture(ws.dir, outFile, res, ctx)
+    const watermark = await shouldWatermarkVideo(ws.userId)
+    await capture(ws.dir, outFile, res, watermark, ctx)
+    const marker = path.join(ws.dir, cleanMarker(outFile))
+    if (watermark) await rm(marker, { force: true })
+    else await writeFile(marker, '')
     ctx.progress?.('uploading', 100)
     try {
       const { addOutput, projectRowFor } = await import('../../projects/service.js')
@@ -192,7 +218,10 @@ export const launchExporter: Exporter = {
     if (!existsSync(path.join(ws.dir, 'index.html')))
       throw Object.assign(new Error('nothing to render yet'), { status: 409 })
     const outFile = renderFile(res)
-    if (!opts.force && (await isFresh(ws.dir, outFile))) {
+    // A render stamped the wrong way for the account is stale, however fresh its sources.
+    const renderedClean = existsSync(path.join(ws.dir, cleanMarker(outFile)))
+    const force = opts.force || renderedClean === (await shouldWatermarkVideo(ws.userId))
+    if (!force && (await isFresh(ws.dir, outFile))) {
       const done: Job = {
         ...IDLE,
         res,
@@ -210,7 +239,7 @@ export const launchExporter: Exporter = {
       o => o.kind === 'video' && o.res === res && Number.isFinite(Date.parse(o.createdAt)),
     )
     if (
-      !opts.force &&
+      !force &&
       published &&
       (await newestMtime(sourceTargets(ws.dir))) <= Date.parse(published.createdAt)
     ) {

@@ -117,7 +117,6 @@ function registry(): Registry {
       async invoke(ws, name, params, ctx = {}) {
         const entry = actions.get(name)
         if (!entry) throw new Error(`studio host action not available: ${name}`)
-        await beforeCall?.(ws, name)
         const nested = (depth.get(ws.internal) ?? 0) > 0
         depth.set(ws.internal, (depth.get(ws.internal) ?? 0) + 1)
         const started = Date.now()
@@ -134,6 +133,20 @@ function registry(): Registry {
         const effective = { ...ctx, signal: controller.signal }
         try {
           return await signalContext.run(controller.signal, async () => {
+            controller.signal.throwIfAborted()
+            if (beforeCall) {
+              let onGuardAbort: (() => void) | undefined
+              const aborted = new Promise<never>((_resolve, reject) => {
+                onGuardAbort = () => reject(controller.signal.reason)
+                controller.signal.addEventListener('abort', onGuardAbort, { once: true })
+              })
+              try {
+                await Promise.race([beforeCall(ws, name), aborted])
+              } finally {
+                if (onGuardAbort) controller.signal.removeEventListener('abort', onGuardAbort)
+              }
+            }
+            controller.signal.throwIfAborted()
             if (entry.remote && reg.dispatcher)
               return reg.dispatcher(ws, name, params ?? {}, effective)
             return entry.fn(ws, params ?? {}, effective)

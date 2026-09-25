@@ -32,15 +32,16 @@ describe('new project composer visual contract', () => {
     )
   })
 
-  it('positions the mobile composer group lower with a balanced logo and outcome grid', () => {
+  it('positions the mobile composer group lower with a balanced logo and a swipeable outcome row', () => {
     expect(css).toMatch(
       /@media \(max-width: 760px\)[\s\S]*\.new-create-hero > :is\([^}]+transform:\s*translateY\(20px\)/,
     )
     expect(css).toMatch(
       /@media \(max-width: 760px\)[\s\S]*\.new-project-wordmark\s*\{\s*width:\s*192px/,
     )
+    // One row that scrolls sideways, bled to the hero's 12px gutters.
     expect(css).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*\.new-skills\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
+      /@media \(max-width: 760px\)[\s\S]*\.new-skills\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto/s,
     )
   })
 

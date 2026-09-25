@@ -1,12 +1,10 @@
-import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { promisify } from 'node:util'
 import { createLogger } from '@saas/shared'
+import { execFileAsync } from '../media.js'
 import { groupWordsIntoRegions, parsePdfBbox, parseTesseractTsv, type Region } from './regions.js'
 
 const logger = createLogger('worker:assets')
-const execAsync = promisify(exec)
 
 export interface AssetInput {
   url: string
@@ -64,7 +62,7 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 async function convertPdfToImages(pdfPath: string, outDir: string): Promise<string[]> {
-  await execAsync(`pdftoppm -png -r 150 "${pdfPath}" page`, { cwd: outDir })
+  await execFileAsync('pdftoppm', ['-png', '-r', '150', pdfPath, 'page'], { cwd: outDir })
   const files = fs
     .readdirSync(outDir)
     .filter(f => f.startsWith('page-') && f.endsWith('.png'))
@@ -74,7 +72,7 @@ async function convertPdfToImages(pdfPath: string, outDir: string): Promise<stri
 
 async function extractPdfText(pdfPath: string): Promise<string> {
   try {
-    const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`)
+    const { stdout } = await execFileAsync('pdftotext', [pdfPath, '-'])
     return stdout.slice(0, MAX_PDF_TEXT_BYTES)
   } catch (err: any) {
     logger.warn({ err, pdfPath }, 'Failed to extract PDF text')
@@ -89,7 +87,7 @@ async function extractPdfText(pdfPath: string): Promise<string> {
  */
 async function extractPdfRegions(pdfPath: string): Promise<Region[][]> {
   try {
-    const { stdout } = await execAsync(`pdftotext -bbox "${pdfPath}" -`, {
+    const { stdout } = await execFileAsync('pdftotext', ['-bbox', pdfPath, '-'], {
       maxBuffer: 32 * 1024 * 1024,
     })
     const pages = parsePdfBbox(stdout)
@@ -112,7 +110,7 @@ async function extractImageRegions(
 ): Promise<Region[]> {
   if (!width || !height) return []
   try {
-    const { stdout } = await execAsync(`tesseract "${imagePath}" stdout tsv`, {
+    const { stdout } = await execFileAsync('tesseract', [imagePath, 'stdout', 'tsv'], {
       maxBuffer: 32 * 1024 * 1024,
     })
     const words = parseTesseractTsv(stdout)
@@ -125,7 +123,7 @@ async function extractImageRegions(
 
 async function getPdfPageCount(pdfPath: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(`pdfinfo "${pdfPath}"`)
+    const { stdout } = await execFileAsync('pdfinfo', [pdfPath])
     const match = stdout.match(/Pages:\s*(\d+)/)
     if (match) return parseInt(match[1], 10)
   } catch (err: any) {
@@ -136,9 +134,17 @@ async function getPdfPageCount(pdfPath: string): Promise<number> {
 
 async function probeImageDimensions(imagePath: string): Promise<{ width: number; height: number }> {
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${imagePath}"`,
-    )
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=width,height',
+      '-of',
+      'csv=s=x:p=0',
+      imagePath,
+    ])
     const [width, height] = stdout
       .trim()
       .split('x')

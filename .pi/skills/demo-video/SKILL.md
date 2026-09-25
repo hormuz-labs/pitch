@@ -1,142 +1,121 @@
 ---
 name: demo-video
-description: Record a real product walkthrough in the user's browser, including narrated PDF/image slideshows. Prepare assets, start capture, drive the page, narrate and stop. Recording only; reference the shared video-editing skill for all post-recording editing, rendering and publication.
+description: Record one continuous real product walkthrough, discovering the workflow and demonstrating actions while narrating in the same live take. Use this for a live-site walkthrough even when uploaded PDFs or images are reference or supporting material. If the requested video presents those files or is built primarily from their content, read asset-demo instead. Also supports narrated PDF/image slideshows. Hands stopped footage to video-editing for post-processing.
 ---
 
 # Demo recording
 
-Record a real walkthrough. This skill owns capture; the shared
-[video-editing](../video-editing/SKILL.md) skill owns post-processing.
+Choose from the requested video's subject, not merely from which files are attached.
+Use this skill when a live product is the main subject. An uploaded PDF or image may
+still supply facts, a script, brand guidance, requirements, or supporting visuals.
+If the video should present those files themselves or be built chiefly from their
+content, stop and read `asset-demo` instead.
 
-The studio context supplies the URL, instructions, voice, uploads and sometimes
-a voiceover script. A script is the narration's source of truth: split at
-complete thoughts, preserve content, order and tone, and arrange demonstrated
-actions around its explanation. Write connective words only where needed.
+Capture a truthful **intent → visible action → verified result**. Each specific
+claim needs visible evidence; tool success alone does not prove the intended
+state. Generated code proves generation, not correctness or production readiness.
+Report contradictions between the script and actual source; never manufacture
+supporting footage. Camera moves and final editing belong to the shared editor.
+Capture complete gestures, scrolling and native page transitions so the final
+walkthrough can remain continuous. Verify cursor visibility in the synchronized
+source (the raw master is cursorless); a jump to a scrolled destination is
+incomplete visual evidence.
 
-Capture runs in **real time** from `pitch demo record-start` to
-`pitch demo record-stop`, including while you think. Plan before starting;
-never end a turn with capture running.
+For a live-site walkthrough, **start recording before exploring the workflow**.
+Discovery, snapshots, thinking and recoverable mistakes happen inside that one
+take. The editor removes frozen, silent waiting afterward while preserving speech,
+input, scrolling and useful progress. Do not rehearse the route off-camera or
+return to the homepage to repeat completed steps for a cleaner take.
 
-## Choose the recording scope
+## Choose the instructions
 
-On the first actionable request, ask which workflow/depth only if the brief
-leaves consequential choices open: quick tour, one complete workflow, setup
-and first run. Use `ask_user`, offer the product's own workflows when known,
-then end the turn and wait. Skip choices already settled or delegated. Do not
-ask about voice, pacing, zooms or look, or ask once recording starts.
+Route from the current request, not a permanent project category. Load only the
+references needed for this sequence; carry forward the supplied brief and decisions.
 
-Choose the audience takeaway and the smallest real workflow proving it:
-starting context → meaningful action → visible result. Draft connected spoken
-thoughts before recording. Explain intent and consequence rather than every
-click. Runtime is approximate unless explicitly exact/capped. Preserve required
-coverage and approved storyboard content; let results register.
+| Request | Read / do next |
+| --- | --- |
+| Edit an existing video: length, pacing, camera, audio or look | Go straight to the [video-editing scenario router](../video-editing/SKILL.md); reuse the selected source or saved plan |
+| Capture a real app workflow | [Browser workflow](references/browser-workflow.md) |
+| Capture prepared PDFs/images, with or without a reviewed storyboard | [Documents and storyboards](references/documents-storyboards.md) |
+| Mixed app/document walkthrough | Read the relevant capture references by sequence; lead with the app when documents support its workflow, or documents when they are the main content |
+| Raw-only capture | Use the applicable capture branch, then return the synchronized source in step 5 below |
 
-## Record, then hand off
+For any new or resumed capture, also read [shared capture mechanics](references/capture-mechanics.md).
+A document-only recording does not need the app workflow. Mixed sequences share
+one take; switching references does not start a new recording.
 
-1. **Prepare assets** when PDFs/images are attached: `pitch demo prepare-assets`.
-2. **Storyboard** only if the user asked to review one before recording:
-   `pitch demo storyboard-plan`, present it and end the turn. Later revisions
-   use `pitch demo storyboard-save` with complete JSON. Every `emphasis.phrase`
-   must appear in its narration; rects are within 0–100%, zoom 1–3, at least
-   one scene enabled, all scenes narrated. Preserve `id`, `pageIndex` and
-   `previewUrl`. Record only after the requested review is complete.
-3. **Start** with `pitch demo record-start --url <url>` for a site. For assets,
-   start without a URL, then `pitch demo list-assets` and
-   `pitch demo build-slideshow`; navigate to its returned HTTP URL through
-   `pitch demo bash`. Never use `file://` or create a server yourself.
-4. **Drive and narrate** complete thoughts: establish context, demonstrate an
-   action and allow the result to read. Keep useful lead-in and reading holds
-   for the editor. Missing footage cannot be recovered by a crop.
-5. **Stop** with `pitch demo record-stop`. Check it actually stopped: a first
-   missing-page warning can leave capture live. Complete missing pages when
-   possible; if genuinely impossible, call stop again and report the gap.
-6. **Post-process** by reading [video-editing](../video-editing/SKILL.md).
-   `pitch demo source` prepares a new uncut MP4 with synchronized narration/SFX
-   and source-time narration beats. Carry forward this source, the brief,
-   approved storyboard and recording notes into that shared workflow. It owns
-   cuts, camera, audio, graphics, captions, rendering, verification and publication.
-   The raw `recording/demo.webm` alone may have no narration. If the user asked
-   only for raw capture, deliver the synchronized source without adding an edit.
+## Capture lifecycle
 
-Fix recoverable capture failures and continue. For hard failures, stop capture
-before reporting what could not be recorded.
+1. **Set scope before recording.** Ask with `ask_user` only if consequential
+   workflow/depth choices remain open: quick tour, one complete workflow, or setup
+   and first run. Offer the product's own workflows when known, then end the turn
+   and wait. Skip settled/delegated choices. Do not ask about voice, pacing, zooms
+   or look, or ask once recording starts. Choose one audience takeaway and the
+   smallest sequence that proves it. Runtime follows coverage unless explicitly
+   exact or capped; preserve required content and useful reading holds.
+2. **Use the supplied brief.** The context supplies URL, voice, uploads
+   and sometimes a script. Preserve a supplied script's content, order and tone;
+   split at complete thoughts and add connective words only where needed. Approved
+   storyboard narration has the stricter verbatim rules in the document reference.
+   Keep a short ledger as the work progresses; do not explore the site to fill it
+   before recording. Document uploads still need their asset preparation, and
+   explicitly requested storyboard review happens before capture.
+3. **Start once, discover, demonstrate, verify.** For a live site, use
+   `pitch demo record-start --url <url>` as the first browser operation once the
+   brief is actionable. If a browser is already open, start in its current view.
+   The branch explains initial navigation. Capture runs in real
+   time, including while you think. Keep one continuous take through navigation,
+   inspection and recoverable errors. Follow the branch's speech/action or page
+   rhythm; update the ledger with observed results and gaps.
+4. **Stop once at the end.** After the final visible result and closing narration,
+   call `pitch demo record-stop`; it waits for the last speech. Check that capture
+   actually stopped: a first missing-page warning can leave it live. Complete
+   missing pages when possible; if genuinely impossible, call stop again and report
+   the gap. Never end a turn with capture running.
+5. **Prepare the synchronized source.** `pitch demo source` creates a new uncut
+   `recording/source-*.mp4` with narration/SFX and source-time narration beats.
+   Raw-only requests receive that returned source and its beats, without an edit.
+   The raw master (`recording/demo.mkv`, or legacy `demo.webm`) alone has no
+   composited cursor or narration. Otherwise continue below.
 
-## Driving the page
+## Editing handoff
 
-Use `pitch demo bash --command '<playwright-cli command>'`. It runs on the host,
-already attached to the recording browser over CDP. The VM has no browser.
-Never call `playwright-cli open`.
+Read the [video-editing scenario router](../video-editing/SKILL.md) before making
+cut or camera decisions. Narrated app sequences use its
+[narrated-screen branch](../video-editing/references/narrated-screen.md); narrated
+documents use its [presentation branch](../video-editing/references/presentation.md).
+Mixed footage uses each policy for its sequence. The selected branch owns
+preprocessing and pacing: do not apply screen dead-time cuts unconditionally to
+static slides, whose silent reading/comparison holds may be required content.
 
-Useful commands inside that host tool:
-`goto <url>` · `snapshot` · `click e53` · `press ArrowRight` · `hover e4` ·
-`select e9 "v"` · `eval "el => el.currentSrc || el.src" e53` ·
-`screenshot '<selector>' --filename recording/detail.png` ·
-`tab-new <url>` / `tab-select 0`.
+Carry the brief, source path/beats, approved storyboard where present, and ledger
+into the editor's notes. For each distinct subject or intended emphasis, include:
 
-Refs come from snapshots and are per page state. Snapshot after navigation
-or slide advance; never reuse stale refs. There is no Playwright wait command;
-use a short host `sleep` after navigation if needed. Browser size is 1920×1080.
+- The **exact identifying phrase or action intent**, visible target and evidence.
+  Split notes when a sentence changes subjects; a whole-sentence start is not a
+  universal cue. In “Our workspace keeps past conversations in the sidebar,”
+  identify “past conversations,” not automatically “Our workspace.”
+- Related action times **only when known from evidence**, with their timebase and
+  uncertainty; otherwise mark unknown for source inspection. Do not substitute a
+  tool return time or invent an action for an already-visible result.
+- Required completion, narration, reading/comparison holds; known input/response
+  boundaries; complete scroll intervals; navigation trigger and observed arrival
+  separately; cursor visibility on each page; baked-in callouts; missing or
+  contradictory results. Separate actual speech/action spans from idle gaps.
 
-- **Forms:** `pitch demo fill-field --target <ref> --text <text> [--submit]`
-  visibly types with keyboard sound; do not use `playwright-cli fill`.
-  Keep fields visible and allow completed values to read. Camera moves belong
-  to post-processing, not this capture procedure.
-- **Popups:** dismiss with a plain click.
-- **Narration:** `pitch demo narrate --text "<complete thought>"`. When explaining
-  an offscreen element, `--focus <ref>` scrolls it to center before the line.
-  Explain what the viewer can actually see; broad context need not have a label.
+These are capture facts and intentions, not camera commands. The editor measures
+phrase timing from the synchronized source, resolves any action timing, maps
+through retiming and chooses framing/holds under its scenario rules. Preserve real
+speech/action gaps in the notes; a zoom cannot make a late gesture simultaneous.
+The shared editor owns rendering, review and publication.
 
-Think on a stable, complete view rather than an open menu or half-filled form.
-Brief actions/transitions can be silent. The shared editor can shorten idle
-holds; recording itself does not automatically remove them. Do not narrate
-production choices or fill every movement with speech.
+## Resume or replace
 
-## Prepared PDF/image recordings
-
-`pitch demo list-assets` → `pitch demo build-slideshow --transition fade|slide|zoom`
-→ navigate to its returned URL. Show every prepared page in manifest order,
-including cover, dividers and closing, unless an approved storyboard specifies
-enabled scenes. Let runtime follow required coverage rather than rushing speech.
-PDF text may be empty or wrong. OCR region IDs such as `p0r1` are manifest IDs,
-not DOM refs.
-
-**Gemini-first, from rendered pixels.** On every page, before narrating, call
-`pitch demo analyze-slide`. Use its factual summary and confidence-gated points,
-even when text/OCR is empty. Do not invent facts beyond it. For a live callout,
-use `pitch demo narrate --text "<line>" --emphasis '<JSON>'`, with its rectangle,
-`coordinateSpace: "viewport"` and style. Put the highlighted statistic near the **start**
-of the line so its callout and speech coincide. `pitch demo ground-region`
-can retry a box/find a target: use only `found=true`; successful grounding is
-automatically consumed by the next narration. OCR with `coordinateSpace: "page"`
-is the fallback. If neither is reliable, narrate the cautious summary without
-a guessed box.
-
-Styles: `highlighter`/`underline` for text, `circle` for compact items, `box`
-for blocks, `bracket` for groups, `pulse` for payoff/warning, `arrow` for direction,
-`spotlight` sparingly. One callout per beat. These live annotations can be baked
-into the capture; do not duplicate them during post-processing. Camera events
-in state are not automatically applied by the shared editor.
-
-After a line: `pitch demo clear-annotations`, reset any staged camera with
-`pitch demo zoom-out`, then exactly one host `playwright-cli press ArrowRight`.
-Wait for the transition, snapshot and analyze the new page. Never batch advances.
-Divider pages still need a brief explanation; no filler narration is required.
-
-An `APPROVED STORYBOARD REVISION` from record-start overrides narration planning.
-Follow enabled scenes in page order and speak narration verbatim, splitting only
-at emphasis boundaries so each chunk carries its approved emphasis. Use approved
-rectangles, styles and coordinate spaces; pass `slideshowTransition` to
-build-slideshow. Still analyze each page to check the source; do not silently
-replace reviewed narration/boxes. Carry approved zoom intentions to `video-editing`
-for grounded post-processing.
-
-For mixed projects, use the URL first when files support the workflow; start
-with slides when they are the main content, then navigate to the live app.
-
-## Later turns
-
-If context says capture is LIVE, stop it first. For any existing-video edit,
-read `video-editing` and reuse the selected source or saved plan. Length, pacing,
-camera, audio and look changes are editing work. Record a new take only when
-required actions/content are missing from the footage. A storyboard target
-such as `[1] scene 3 "Pricing" · emphasis 2 "annual plan"` is 1-based.
+If context says capture is LIVE and the request is to finish, inspect the current
+state and continue that take. Stop when complete, when the user asks, or on an
+irrecoverable browser failure; use the shared mechanics for recoverable errors.
+For a replacement, inspect the saved footage first: record again only when required
+actions/content are missing or capture failed. Identify the specific correction, then use
+`pitch demo record-start --retake-reason "<specific missing step or failed capture>"`.
+Previous raw footage/state is archived under `recording/takes/`; do not repeat an
+unchanged failing approach or use a new take for inspection.

@@ -3,6 +3,8 @@ import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from
 import chatgptIco from '../../assets/chatgpt.png'
 import claudeIco from '../../assets/claude.svg'
 import cursorIco from '../../assets/cursor.png'
+import hermesIco from '../../assets/hermes-64.png'
+import openclawIco from '../../assets/openclaw.svg'
 import perplexityIco from '../../assets/perplexity.png'
 
 export const MCP_URL = 'https://api.trypitch.co/mcp'
@@ -14,6 +16,8 @@ const BRAND: Record<string, string> = {
   cursor: cursorIco,
   chatgpt: chatgptIco,
   perplexity: perplexityIco,
+  openclaw: openclawIco,
+  hermes: hermesIco,
 }
 
 export const Glyph = (props: { id: string }) => (
@@ -24,7 +28,7 @@ export const Glyph = (props: { id: string }) => (
     <img
       src={BRAND[props.id]}
       alt=""
-      class={`mcp-tab-ico${props.id === 'chatgpt' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' || props.id === 'perplexity' ? ' mcp-icon--tile' : ''}`}
+      class={`mcp-tab-ico${props.id === 'chatgpt' || props.id === 'hermes' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' ? ' mcp-icon--tile' : ''}${props.id === 'perplexity' ? ' mcp-icon--perplexity' : ''}`}
       width="16"
       height="16"
     />
@@ -43,6 +47,8 @@ const TABS = [
   { id: 'cursor', label: 'Cursor' },
   { id: 'chatgpt', label: 'ChatGPT' },
   { id: 'perplexity', label: 'Perplexity' },
+  { id: 'openclaw', label: 'OpenClaw' },
+  { id: 'hermes', label: 'Hermes' },
   { id: 'any', label: 'Any agent' },
   { id: 'api', label: 'API' },
 ]
@@ -109,6 +115,24 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
       { kind: 'url' },
       { kind: 'step', n: 3, text: 'Set Authorization to Bearer pk_your_key.' },
       { kind: 'ok', text: 'The same setup works in Comet and the Perplexity API.' },
+    ],
+  },
+  openclaw: {
+    cmd: 'connect openclaw',
+    lines: [
+      { kind: 'step', n: 1, text: 'Add a remote MCP server to your OpenClaw configuration.' },
+      { kind: 'step', n: 2, text: 'Use this Streamable HTTP endpoint:' },
+      { kind: 'url' },
+      { kind: 'step', n: 3, text: 'Send your Pitch API key as a Bearer authorization header.' },
+    ],
+  },
+  hermes: {
+    cmd: 'connect hermes',
+    lines: [
+      { kind: 'step', n: 1, text: 'Add Pitch as a remote MCP server in Hermes.' },
+      { kind: 'step', n: 2, text: 'Use this Streamable HTTP endpoint:' },
+      { kind: 'url' },
+      { kind: 'step', n: 3, text: 'Send your Pitch API key as a Bearer authorization header.' },
     ],
   },
   any: {

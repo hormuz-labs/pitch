@@ -11,77 +11,15 @@
 /** Credits a typical demo video consumes, used for the "about N videos" copy. */
 export const CREDITS_PER_DEMO_VIDEO = 120
 
-export const MODEL_CREDIT_RATES = [
-  {
-    name: 'Gemini 3.8 Flash',
-    detail: 'Fast multimodal production',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemini 3.1 Pro',
-    detail: 'Complex multimodal projects',
-    credits: 250,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemma 4 26B',
-    detail: 'Efficient open-weight model',
-    credits: 94,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemma 4 31B',
-    detail: 'Creative open-weight model',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.4 mini',
-    detail: 'Fast everyday production',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.4',
-    detail: 'Complex planning and execution',
-    credits: 250,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Luna',
-    detail: 'Fast drafts and lightweight edits',
-    credits: 94,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Terra',
-    detail: 'Everyday production work',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.5',
-    detail: 'Deep planning and complex production',
-    credits: 188,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Sol',
-    detail: 'Advanced video generation',
-    credits: 1250,
-    unit: 'up to 30 seconds',
-  },
-  {
-    name: 'Astra',
-    detail: 'Highest-capability video generation',
-    credits: 2500,
-    unit: 'up to 30 seconds',
-  },
-] as const
-
-export const generationsFor = (credits: number | null, rate: number): number | null =>
-  credits === null ? null : Math.floor(credits / rate)
+/** One row of the pricing page's model table, served by GET /pricing/models. */
+export interface ModelRate {
+  spec: string
+  name: string
+  detail: string
+  credits: number
+  unit: 'typical generation' | 'up to 30 seconds'
+  access: 'all' | 'request'
+}
 
 export const nonCreditFeatures = (plan: Plan): string[] =>
   plan.features.filter(feature => !/^[\d,]+ credits per (month|year)$/.test(feature))
@@ -155,12 +93,12 @@ export const PLANS: readonly Plan[] = [
     kind: 'topup',
     priceUsd: 20,
     credits: 800,
-    description: 'Best for occasional videos without a recurring plan.',
+    description: 'Add-on credits for Pro and Max, for when a project needs more runway.',
     features: [
       '800 credits',
-      'No subscription required',
-      'Watermark-free exports',
-      'Up to 1080p exports',
+      'Requires an active Pro or Max plan',
+      'One-time purchase',
+      'Credits stay yours until used',
     ],
   },
   {
@@ -169,12 +107,12 @@ export const PLANS: readonly Plan[] = [
     kind: 'subscription',
     priceUsd: 45,
     credits: 2500,
-    description: 'Regular creation, with the tools that make repeat work faster.',
+    description: 'Regular launches and demos, with a fresh credit allowance every month.',
     features: [
       '2,500 credits per month',
-      'Custom agent instructions',
       'Watermark-free exports',
       'Up to 4K exports',
+      'Flex add-on credits when you need more',
     ],
     popular: true,
     annual: { key: 'pro_annual', priceUsd: 432, credits: 30_000 },
@@ -188,10 +126,9 @@ export const PLANS: readonly Plan[] = [
     description: 'Higher monthly volume for teams and solo creators publishing often.',
     features: [
       '5,000 credits per month',
-      'Custom agent instructions',
       'Watermark-free exports',
       'Up to 4K exports',
-      'Priority queue access',
+      'Lowest price per credit',
     ],
     annual: { key: 'max_annual', priceUsd: 768, credits: 60_000 },
   },
@@ -205,7 +142,7 @@ export const PLANS: readonly Plan[] = [
     features: [
       'Custom credit volume',
       'Volume pricing',
-      'Custom agent fine-tuning',
+      'Custom workflow setup',
       'Dedicated account manager',
     ],
   },

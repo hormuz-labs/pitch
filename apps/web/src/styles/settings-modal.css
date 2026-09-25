@@ -11,33 +11,31 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(0 0 0 / 72%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  isolation: isolate;
   font-family: var(--font-sans);
   animation: settings-fade 160ms ease both;
 }
+/* The dim + blur live on their own composited layer behind the dialog. On the
+   overlay itself, every content change inside the dialog (switching sections)
+   re-rasterised the full-viewport blur, which read as the whole screen
+   flickering. Split out, only the dialog repaints. */
+.settings-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgb(0 0 0 / 72%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transform: translateZ(0);
+  pointer-events: none;
+}
 
 .settings-dialog {
-  --bg-page: #ffffff;
-  --bg-surface: #ffffff;
-  --bg-raised: #f0f0ed;
-  --bg-sunken: #f4f4f2;
-  --border-subtle: rgb(0 0 0 / 7%);
-  --border-default: rgb(0 0 0 / 11%);
-  --border-strong: rgb(0 0 0 / 22%);
-  --text-primary: #17181b;
-  --text-secondary: rgb(0 0 0 / 68%);
-  --text-muted: rgb(0 0 0 / 46%);
-  --text-faint: rgb(0 0 0 / 30%);
-  --interactive-bg: #252321;
-  --interactive-bg-hover: #171615;
-  --interactive-text: #ffffff;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 5%);
-  --st-nav-text: #68625e;
-  --st-nav-hover-bg: #e9e8e6;
-  --st-nav-active-bg: #e2e1de;
-  --st-switch-off: #d6d6d3;
+  --st-nav-text: var(--text-muted);
+  --st-nav-hover-bg: var(--bg-raised);
+  --st-nav-active-bg: var(--bg-selected);
+  --st-switch-off: var(--border-default);
   --st-ring: rgb(0 0 0 / 35%);
   --st-green: #17704e;
   --st-green-bright: #14704d;
@@ -50,9 +48,11 @@
   --st-danger-text: #a4241a;
   --st-danger-muted: #9c5c54;
   --st-error: #b42318;
-  --st-accent: #2563eb;
-  --st-accent-soft: rgb(37 99 235 / 10%);
-  --st-accent-border: rgb(37 99 235 / 32%);
+  --st-accent: #1385d6;
+  --st-accent-soft: rgb(19 133 214 / 8%);
+  --st-accent-border: rgb(19 133 214 / 30%);
+  --st-mono: 'Geist Mono Variable', ui-monospace, 'JetBrains Mono', monospace;
+  --st-chart-studio: var(--text-primary);
   width: min(1024px, calc(100vw - 48px));
   height: min(800px, calc(100vh - 64px));
   display: flex;
@@ -65,28 +65,13 @@
   color-scheme: light;
   box-shadow: 0 28px 80px rgb(25 22 18 / 22%), 0 3px 12px rgb(25 22 18 / 8%);
   animation: settings-enter 220ms cubic-bezier(.2,.8,.2,1) both;
+  /* its own layer, so section changes repaint the dialog and nothing behind it */
+  position: relative;
+  will-change: transform;
+  contain: layout paint;
 }
 
 [data-theme="dark"] .settings-dialog {
-  --bg-page: #1b1b1f;
-  --bg-surface: #202024;
-  --bg-raised: #29292e;
-  --bg-sunken: #18181b;
-  --border-subtle: rgb(255 255 255 / 7%);
-  --border-default: rgb(255 255 255 / 11%);
-  --border-strong: rgb(255 255 255 / 22%);
-  --text-primary: #f4f4f5;
-  --text-secondary: rgb(255 255 255 / 74%);
-  --text-muted: rgb(255 255 255 / 48%);
-  --text-faint: rgb(255 255 255 / 30%);
-  --interactive-bg: #f4f4f5;
-  --interactive-bg-hover: #ffffff;
-  --interactive-text: #17181b;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
-  --st-nav-text: rgb(255 255 255 / 58%);
-  --st-nav-hover-bg: rgb(255 255 255 / 5%);
-  --st-nav-active-bg: #29292e;
-  --st-switch-off: #303036;
   --st-ring: rgb(255 255 255 / 45%);
   --st-green: #46d69a;
   --st-green-bright: #4ade80;
@@ -99,9 +84,9 @@
   --st-danger-text: #f87171;
   --st-danger-muted: rgb(248 113 113 / 75%);
   --st-error: #f87171;
-  --st-accent: #60a5fa;
-  --st-accent-soft: rgb(96 165 250 / 12%);
-  --st-accent-border: rgb(96 165 250 / 38%);
+  --st-accent: #3db4f5;
+  --st-accent-soft: rgb(61 180 245 / 10%);
+  --st-accent-border: rgb(61 180 245 / 32%);
   color-scheme: dark;
   box-shadow: 0 28px 80px rgb(0 0 0 / 55%), 0 3px 12px rgb(0 0 0 / 30%);
 }
@@ -323,6 +308,7 @@
 .mcp-clients button:hover { border-color: var(--border-strong); background: var(--bg-raised); color: var(--text-primary); }
 .mcp-clients button.is-active { border-color: var(--border-strong); background: var(--bg-raised); color: var(--text-primary); font-weight: 580; }
 .mcp-clients button img { width: 15px; height: 15px; flex: none; object-fit: contain; border-radius: 3px; }
+.mcp-clients button img.mcp-icon--perplexity { background: #000; padding: 2px; }
 .mcp-clients button svg { flex: none; color: var(--text-muted); }
 .mcp-clients button:focus-visible, .mcp-autonomous-trigger:focus-visible, .mcp-back:focus-visible, .mcp-copy-prompt:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
 .mcp-steps { padding: 3px 16px; border: 1px solid var(--border-default); border-radius: 13px; background: var(--bg-surface); box-shadow: var(--shadow-sm); }
@@ -414,15 +400,13 @@
 .settings-chart-summary small { color: var(--text-muted); font-size: 10.5px; }
 .settings-chart-summary__totals { display: flex; gap: 14px; }
 .settings-chart-summary__totals b { font-size: 10.5px; font-weight: 540; }
-.settings-chart-summary__totals b:first-child { color: #c084fc; }
-.settings-chart-summary__totals b:last-child { color: #22d3ee; }
 .settings-chart-frame { margin-top: 12px; padding: 14px 12px 8px; border: 1px solid var(--border-subtle); border-radius: 11px; background: var(--bg-sunken); }
 .settings-chart { position: relative; height: 190px; padding: 0 4px; display: flex; align-items: flex-end; gap: 3px; background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 1px), var(--border-subtle) 25%); }
 .settings-chart__col { flex: 1; min-width: 2px; height: 100%; display: flex; align-items: flex-end; }
 .settings-chart__bar { position: relative; width: 100%; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; }
 .settings-chart__segment { display: block; width: 100%; }
-.settings-chart__segment--studio { background: #8b5cf6; }
-.settings-chart__segment--api { background: #22d3ee; }
+.settings-chart__segment--studio { background: var(--st-chart-studio); opacity: .82; }
+.settings-chart__segment--api { background: var(--st-accent); }
 .settings-chart-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-muted); font-size: 10.5px; }
 .settings-chart__dates { margin-top: 8px; display: flex; justify-content: space-between; color: var(--text-faint); font-size: 9px; }
 .settings-chart__footer { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
@@ -430,8 +414,8 @@
 .settings-chart__legend { display: flex; gap: 16px; }
 .settings-chart__legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; }
 .settings-chart__legend i { width: 8px; height: 8px; border-radius: 50%; }
-.settings-chart__legend i.is-studio { background: #8b5cf6; }
-.settings-chart__legend i.is-api { background: #22d3ee; }
+.settings-chart__legend i.is-studio, .settings-chart-summary__totals i.is-studio { background: var(--st-chart-studio); }
+.settings-chart__legend i.is-api, .settings-chart-summary__totals i.is-api { background: var(--st-accent); }
 
 .settings-credit-purchase__header { display: flex; align-items: flex-start; justify-content: space-between; }
 .settings-credit-purchase__header > small { padding: 2px 9px; border: 1px solid var(--border-strong); border-radius: 99px; color: var(--text-secondary); font-size: 10px; }
@@ -558,3 +542,166 @@
    tiles that need a faint edge on dark pills. */
 [data-theme="dark"] .mcp-icon--invert { filter: invert(1); }
 [data-theme="dark"] .mcp-icon--tile { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%); }
+
+/* ── Billing, usage and rewards: the quieter pass ──────────────────────
+   Same grammar as the marketing pages — hairline surfaces, monospace
+   labels, one accent kept for data and marks, ink pill buttons. */
+.settings-dialog .settings-card { border-color: var(--border-subtle); border-radius: 12px; padding: 20px 22px; }
+.settings-card > p { margin: 0; font-size: 12.5px; line-height: 1.6; }
+.settings-card > p strong { color: var(--text-primary); font-weight: 560; }
+.settings-card__title { margin-bottom: 8px; font-weight: 560; }
+.settings-card__title svg { color: var(--text-secondary); }
+
+/* labels read as labels */
+.settings-balance span,
+.settings-buy-heading,
+.settings-subscriptions-heading > span,
+.settings-credit-usage-card__header span,
+.settings-credit-stats span,
+.settings-usage-summary span,
+.settings-usage-daterange label,
+.settings-stat-grid span {
+  font-family: var(--st-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.settings-credit-usage-card__header span { color: var(--text-primary); }
+
+/* numbers */
+.settings-balance strong { font-size: 28px; font-weight: 500; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.settings-balance > small,
+.settings-credit-purchase__header > small {
+  padding: 4px 10px; border-color: var(--border-default); color: var(--text-secondary);
+  font-family: var(--st-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+}
+.settings-credit-stats strong,
+.settings-usage-summary strong,
+.settings-stat-grid strong { font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+/* inputs and buttons */
+.settings-inline-form { gap: 8px; }
+.settings-inline-form input,
+.settings-usage-daterange input {
+  min-height: 40px; border-color: var(--border-default); border-radius: 10px; background: var(--bg-page);
+  transition: border-color 140ms ease;
+}
+.settings-inline-form input:focus-visible,
+.settings-usage-daterange input:focus-visible { outline: none; border-color: var(--st-accent); box-shadow: 0 0 0 3px var(--st-accent-soft); }
+.settings-inline-form button { min-height: 40px; padding: 0 18px; border-radius: 999px; background: var(--bg-surface); }
+.settings-inline-form button.is-primary,
+.settings-buy-row button {
+  border: 1px solid var(--interactive-bg); border-radius: 999px;
+  background: var(--interactive-bg); color: var(--interactive-text);
+  font-weight: 500;
+}
+.settings-inline-form button.is-primary:hover:not(:disabled),
+.settings-buy-row button:hover:not(:disabled) { background: var(--interactive-bg-hover); filter: none; }
+.settings-buy-row button:disabled { opacity: .45; cursor: not-allowed; }
+.settings-secondary { border-radius: 999px; padding: 0 14px; }
+
+/* buy row: a plain surface, the price in ink */
+.settings-buy-row { border-color: var(--border-default); border-radius: 12px; background: var(--bg-page); padding: 16px 18px; }
+.settings-buy-row__amount strong { font-weight: 560; }
+.settings-buy-row__amount b { color: var(--text-primary); font-weight: 500; }
+.settings-buy-detail { border: 0; border-radius: 0; background: none; padding: 10px 2px 0; }
+.settings-purchase-final { text-align: left; padding-left: 2px; }
+
+/* sunken wells: lighter, hairline */
+.settings-credit-usage-row,
+.settings-credit-stats > div,
+.settings-chart-summary,
+.settings-chart-frame { border-color: var(--border-subtle); background: var(--bg-page); }
+.settings-credit-usage-row i { height: 4px; opacity: .9; }
+.settings-chart-summary__totals b { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-weight: 500; font-variant-numeric: tabular-nums; }
+.settings-chart-summary__totals i { width: 7px; height: 7px; border-radius: 50%; }
+.settings-chart__bar { border-radius: 2px 2px 0 0; }
+.settings-billing-cycle { border-radius: 999px; background: var(--bg-page); }
+.settings-billing-cycle button { border-radius: 999px; font-family: var(--st-mono); letter-spacing: .04em; }
+
+/* current plan: an outline, not a tinted slab */
+.settings-plans .is-current { background: var(--bg-surface); border-color: var(--st-accent-border); box-shadow: 0 0 0 1px var(--st-accent-soft); }
+.settings-plan-name em { font-family: var(--st-mono); font-weight: 400; letter-spacing: .08em; text-transform: uppercase; }
+
+/* rewards */
+.settings-referral__link {
+  margin-top: 14px; display: flex; align-items: center; gap: 8px;
+}
+.settings-referral__link code {
+  min-width: 0; flex: 1; overflow: hidden; padding: 11px 14px;
+  border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-page);
+  color: var(--text-secondary); font-family: var(--st-mono); font-size: 11.5px;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.settings-referral__link > button { min-height: 40px; padding: 0 16px; border-radius: 999px; }
+.settings-referral__more {
+  margin-top: 14px; display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text-secondary); font-size: 11.5px; text-decoration: none;
+}
+.settings-referral__more:hover { color: var(--text-primary); }
+.settings-referral__retry { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+.settings-empty--inline { padding: 14px 0 0; text-align: left; }
+.settings-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--border-subtle); }
+.settings-stat-grid > div { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--bg-page); }
+.settings-stat-grid strong { font-size: 20px; color: var(--text-primary); }
+.settings-stat-grid strong.is-positive { color: var(--st-green-bright); }
+@media (max-width: 640px) { .settings-stat-grid { grid-template-columns: 1fr; } }
+
+/* plans: cards line up (the stacked-card margin must not apply inside the grid) */
+.settings-plans .settings-card + .settings-card { margin-top: 0; }
+.settings-plans p { min-height: 0; margin: 14px 0 16px; padding: 0; border: 0; background: none; font-size: 12px; }
+.settings-plans .settings-card > span { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.settings-plans-header > span,
+.settings-eyebrow { font-family: var(--st-mono); font-weight: 400; letter-spacing: .12em; color: var(--text-muted); }
+.settings-current-plan__value { display: flex; align-items: baseline; gap: 10px; font-weight: 500; }
+.settings-current-plan__value span {
+  padding: 3px 8px; border: 1px solid var(--border-default); border-radius: 999px;
+  color: var(--text-secondary); font-family: var(--st-mono); font-size: 9.5px; font-weight: 400;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.settings-billing-portal .settings-manage-subscription,
+.settings-billing-portal .settings-secondary { flex: none; white-space: nowrap; }
+.settings-plans button.settings-plan-manage { border-radius: 999px; }
+.settings-plans button, .settings-plans a { border-radius: 999px; }
+
+/* ── MCP setup steps ───────────────────────────────────────────────────
+   The landing page's MCP modal uses the same .mcp-step / .mcp-code names and
+   loads later, so its padding leaked in here. Scoped to the dialog, these win. */
+.settings-dialog .mcp-steps { padding: 4px 20px; border-color: var(--border-subtle); border-radius: 12px; box-shadow: none; }
+.settings-dialog .mcp-step {
+  margin: 0; padding: 18px 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 14px;
+  border-top: 1px solid var(--border-subtle); color: var(--text-primary);
+}
+.settings-dialog .mcp-step:first-child { border-top: 0; }
+.settings-dialog .mcp-step > span {
+  width: 22px; height: 22px; margin-top: -1px; border-color: var(--border-default);
+  color: var(--text-muted); font: 400 9.5px/1 var(--st-mono);
+}
+.settings-dialog .mcp-step strong { font-size: 12.5px; font-weight: 560; letter-spacing: -.01em; }
+.settings-dialog .mcp-step p { margin-top: 4px; font-size: 11.5px; }
+.settings-dialog .mcp-inline-action {
+  margin-top: 10px; padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px;
+  color: var(--text-primary); font-weight: 500;
+}
+.settings-dialog .mcp-inline-action:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+
+.settings-dialog .mcp-code {
+  min-height: 0; margin-top: 10px; padding: 5px 5px 5px 14px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border-default); border-radius: 10px;
+  background: var(--bg-page); box-shadow: none; white-space: normal; overflow: hidden;
+}
+.settings-dialog .mcp-code code {
+  min-width: 0; flex: 1; overflow-x: auto; padding: 6px 0;
+  color: var(--text-primary); font: 400 11.5px/1.5 var(--st-mono); white-space: pre; scrollbar-width: none;
+}
+.settings-dialog .mcp-code code::-webkit-scrollbar { display: none; }
+/* the shared CopyButton ships fixed grays; follow the theme here */
+.settings-dialog .mcp-code > button {
+  flex: none; height: 30px; padding: 0 12px; border: 1px solid var(--border-default); border-radius: 999px;
+  background: var(--bg-surface); color: var(--text-secondary); font: 500 11px/1 var(--font-sans);
+  transition: border-color 140ms ease, color 140ms ease;
+}
+.settings-dialog .mcp-code > button:hover { border-color: var(--border-strong); background: var(--bg-surface); color: var(--text-primary); }

@@ -48,12 +48,11 @@ jobs:
           API_EXTRA_HOSTS=${{ vars.GKE_API_EXTRA_HOSTS }}
           APP_URL=${{ vars.GKE_APP_URL }}
           MEDIA_PUBLIC_URL=${{ vars.GKE_MEDIA_PUBLIC_URL }}
-          GCP_SERVICE_ACCOUNT=${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
-          CLOUD_SQL_CONNECTION_NAME=${{ vars.CLOUD_SQL_CONNECTION_NAME }}
           GKE_STATIC_IP_NAME=${{ vars.GKE_STATIC_IP_NAME }}
           MEDIA_BUCKET=${{ vars.GKE_MEDIA_BUCKET }}
           PROFILES_BUCKET=${{ vars.GKE_PROFILES_BUCKET }}
           WORKSPACE_BUCKET=${{ vars.GKE_WORKSPACE_BUCKET }}
+          RUNTIME_SERVICE_ACCOUNT=${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
           EOF
       - uses: google-github-actions/auth@v2
         with:

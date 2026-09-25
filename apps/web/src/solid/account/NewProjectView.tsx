@@ -55,6 +55,7 @@ const FLOW_TO_SKILL: Record<string, Skill> = {
   deck: 'slide-deck',
   'launch-video': 'launch-video',
   'demo-video': 'demo-video',
+  'asset-demo': 'asset-demo',
   'recording-edit': 'recording-edit',
 }
 

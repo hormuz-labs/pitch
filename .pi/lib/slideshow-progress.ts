@@ -42,10 +42,6 @@ export function markCurrentSlideNarrated(progress: SlideshowProgress): Slideshow
   }
 }
 
-export function countForwardSlideAdvances(command: string): number {
-  return command.match(/playwright-cli\s+press\s+(?:ArrowRight|Space)\b/g)?.length ?? 0
-}
-
 export function advanceSlideshowProgress(
   progress: SlideshowProgress,
   advanceCount: number,
@@ -68,26 +64,4 @@ export function advanceSlideshowProgress(
     currentSlide,
     visitedSlides: addUnique(progress.visitedSlides, currentSlide),
   }
-}
-
-export interface ZoomEventLike {
-  type: 'in' | 'out'
-  videoTimeSec: number
-}
-
-/**
- * Keep the camera from getting stuck zoomed in across slideshow pages. When the
- * agent advances a slide while the last zoom event is still `in`, append an
- * automatic `out` event at the current time so the next page is shown full-view.
- */
-export function appendAutoZoomOut<T extends ZoomEventLike>(
-  events: T[],
-  videoTimeSec: number,
-  buildOut: (videoTimeSec: number) => T,
-): T[] {
-  const last = events[events.length - 1]
-  if (last?.type === 'in') {
-    return [...events, buildOut(videoTimeSec)]
-  }
-  return events
 }

@@ -1,38 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { type Browser, type BrowserContext, chromium, type Page } from 'playwright'
+import { contentTypeFor } from '../../../../../.pi/lib/mime.ts'
 
 export const STUDIO_LOCAL_ORIGIN = 'http://studio.local'
 
-const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.htm': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.txt': 'text/plain; charset=utf-8',
-}
-
-export function contentTypeFor(filePath: string): string {
-  return MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream'
-}
+export { contentTypeFor }
 
 export function localPageUrl(filePath: string, query = ''): string {
   const abs = path.resolve(filePath)

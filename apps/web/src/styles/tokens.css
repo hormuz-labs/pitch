@@ -6,23 +6,32 @@
 
 /* ── Light theme (default) ────────────────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg-page:        #FDFDFD;
+  /* Neutrals. The single source for every page's black, white and greys:
+     the landing (--lb-*), /new (--new-*), the app shell (--shell-*), the
+     studio and settings all alias these, so a shade changes in one place. */
+  --bg-page:        #FFFFFF;
+  --bg-sidebar:     #FBFAF9;
   --bg-surface:     #FFFFFF;
-  --bg-raised:      #F9FAFB;
-  --bg-sunken:      #F3F4F6;
+  --bg-raised:      #F6F6F6;
+  --bg-selected:    #ECECEC;
+  --bg-sunken:      #F1F1F1;
   --bg-overlay:     rgba(0, 0, 0, 0.5);
 
+  /* Shared workspace surfaces keep the shell, chat and preview on one canvas. */
+  --workspace-canvas:  var(--bg-page);
+  --workspace-surface: var(--bg-surface);
+  --workspace-raised:  var(--bg-raised);
+
   /* Borders */
-  --border-subtle:  #E5E7EB;
-  --border-default: #D1D5DB;
-  --border-strong:  #9CA3AF;
+  --border-subtle:  #E9E9E9;
+  --border-default: #D7D7D7;
+  --border-strong:  #A3A3A3;
 
   /* Text */
-  --text-primary:   #111827;
-  --text-secondary: #374151;
-  --text-muted:     #6B7280;
-  --text-faint:     #9CA3AF;
+  --text-primary:   #202020;
+  --text-secondary: #3F3F3F;
+  --text-muted:     #666666;
+  --text-faint:     #8B8B8B;
   --text-inverse:   #FFFFFF;
 
   /* Accent — charcoal */
@@ -38,9 +47,9 @@
   --error:          #DC2626;
   --error-subtle:   #FEE2E2;
 
-  /* Interactive */
-  --interactive-bg:       #111827;
-  --interactive-bg-hover: #374151;
+  /* Interactive — the solid primary button, inverted per theme */
+  --interactive-bg:       #202020;
+  --interactive-bg-hover: #000000;
   --interactive-text:     #FFFFFF;
 
   /* Shadows */
@@ -91,29 +100,25 @@
 
 /* ── Dark theme ───────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  /* Shared workspace surfaces keep the shell, chat and preview on one canvas. */
-  --workspace-canvas: #202020;
-  --workspace-surface: #282828;
-  --workspace-raised: #303030;
-
-  /* Backgrounds */
-  --bg-page:        #070709;
-  --bg-surface:     #111113;
-  --bg-raised:      #18181B;
-  --bg-sunken:      #0E0E10;
-  --bg-overlay:     rgba(0, 0, 0, 0.7);
+  /* Neutrals — pure black, matching the landing's agent-pipeline panel */
+  --bg-page:        #000000;
+  --bg-sidebar:     #0A0A0A;
+  --bg-surface:     #0A0A0A;
+  --bg-raised:      #121212;
+  --bg-selected:    #1C1C1C;
+  --bg-sunken:      #000000;
 
   /* Borders */
-  --border-subtle:  #1F2025;
-  --border-default: #2A2A30;
-  --border-strong:  #3D3D45;
+  --border-subtle:  #1C1C1C;
+  --border-default: #2A2A2A;
+  --border-strong:  #444444;
 
   /* Text */
-  --text-primary:   #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.72);
-  --text-muted:     rgba(255, 255, 255, 0.45);
-  --text-faint:     rgba(255, 255, 255, 0.25);
-  --text-inverse:   #111827;
+  --text-primary:   #F4F4F3;
+  --text-secondary: #B2AEAA;
+  --text-muted:     #8F8B87;
+  --text-faint:     #6C6864;
+  --text-inverse:   #000000;
 
   /* Accent — light grey in dark mode */
   --accent:         #a3a3a3;
@@ -129,9 +134,9 @@
   --error-subtle:   rgba(248, 113, 113, 0.12);
 
   /* Interactive */
-  --interactive-bg:       rgba(255, 255, 255, 0.1);
-  --interactive-bg-hover: rgba(255, 255, 255, 0.16);
-  --interactive-text:     #FFFFFF;
+  --interactive-bg:       #F4F4F3;
+  --interactive-bg-hover: #FFFFFF;
+  --interactive-text:     #000000;
 
   /* Shadows */
   --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);

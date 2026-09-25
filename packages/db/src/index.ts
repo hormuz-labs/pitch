@@ -229,19 +229,32 @@ export async function addCredits(
     }
   }
 
-  await client.creditTransaction.create({
-    data: {
-      userId,
-      delta: amount,
-      type,
-      description,
-      projectId: opts?.projectId,
-      subscriptionId: opts?.subscriptionId,
-      topUpId: opts?.topUpId,
-      idempotencyKey: opts?.idempotencyKey,
-      channel: opts?.channel ?? 'product',
-    },
-  })
+  try {
+    await client.creditTransaction.create({
+      data: {
+        userId,
+        delta: amount,
+        type,
+        description,
+        projectId: opts?.projectId,
+        subscriptionId: opts?.subscriptionId,
+        topUpId: opts?.topUpId,
+        idempotencyKey: opts?.idempotencyKey,
+        channel: opts?.channel ?? 'product',
+      },
+    })
+  } catch (err: any) {
+    if (
+      opts?.idempotencyKey &&
+      (err?.code === 'P2002' || err?.message?.includes('Unique constraint failed'))
+    ) {
+      console.log(`[Credits] Skipped duplicate grant race condition (key: ${opts.idempotencyKey})`)
+      return opts?.channel === 'discord'
+        ? await getDiscordCreditBalance(userId, client)
+        : await getCreditBalance(userId, client)
+    }
+    throw err
+  }
 
   const newBalance =
     opts?.channel === 'discord'
@@ -415,39 +428,62 @@ export async function upsertSubscription(data: {
   creditsPerCycle: number
   currentPeriodStart: Date
   currentPeriodEnd: Date
-  idempotencyKey: string // e.g. "sub_grant:<subscriptionId>:<periodStart.toISOString()>"
+  idempotencyKey: string // e.g. "sub_grant:<subscriptionId>:initial" or "sub_grant:<subscriptionId>:<YYYY-MM-DD>"
 }) {
-  // Upsert the subscription row
-  const subscription = await prisma.subscription.upsert({
-    where: { dodoSubscriptionId: data.dodoSubscriptionId },
-    create: {
-      userId: data.userId,
-      dodoSubscriptionId: data.dodoSubscriptionId,
-      planKey: data.planKey,
-      status: data.status,
-      creditsPerCycle: data.creditsPerCycle,
-      currentPeriodStart: data.currentPeriodStart,
-      currentPeriodEnd: data.currentPeriodEnd,
-    },
-    update: {
-      status: data.status,
-      planKey: data.planKey,
-      creditsPerCycle: data.creditsPerCycle,
-      currentPeriodStart: data.currentPeriodStart,
-      currentPeriodEnd: data.currentPeriodEnd,
-    },
+  return prisma.$transaction(async tx => {
+    // Upsert the subscription row
+    const subscription = await tx.subscription.upsert({
+      where: { dodoSubscriptionId: data.dodoSubscriptionId },
+      create: {
+        userId: data.userId,
+        dodoSubscriptionId: data.dodoSubscriptionId,
+        planKey: data.planKey,
+        status: data.status,
+        creditsPerCycle: data.creditsPerCycle,
+        currentPeriodStart: data.currentPeriodStart,
+        currentPeriodEnd: data.currentPeriodEnd,
+      },
+      update: {
+        status: data.status,
+        planKey: data.planKey,
+        creditsPerCycle: data.creditsPerCycle,
+        currentPeriodStart: data.currentPeriodStart,
+        currentPeriodEnd: data.currentPeriodEnd,
+      },
+    })
+
+    // If this is an initial grant request, guard against duplicate initial grants
+    // even if an existing grant was written under an older or differing key format.
+    if (data.idempotencyKey.endsWith(':initial')) {
+      const existingGrant = await tx.creditTransaction.findFirst({
+        where: {
+          subscriptionId: subscription.id,
+          type: 'subscription_grant',
+        },
+      })
+      if (existingGrant) {
+        console.log(
+          `[Credits] Skipped duplicate initial subscription grant for sub ${data.dodoSubscriptionId}`,
+        )
+        return subscription
+      }
+    }
+
+    // Grant credits (idempotent — safe to call multiple times)
+    await addCredits(
+      data.userId,
+      data.creditsPerCycle,
+      'subscription_grant',
+      `${data.planKey} plan — ${data.creditsPerCycle} credits for cycle starting ${data.currentPeriodStart.toISOString().slice(0, 10)}`,
+      {
+        subscriptionId: subscription.id,
+        idempotencyKey: data.idempotencyKey,
+        tx,
+      },
+    )
+
+    return subscription
   })
-
-  // Grant credits (idempotent — safe to call multiple times)
-  await addCredits(
-    data.userId,
-    data.creditsPerCycle,
-    'subscription_grant',
-    `${data.planKey} plan — ${data.creditsPerCycle} credits for cycle starting ${data.currentPeriodStart.toISOString().slice(0, 10)}`,
-    { subscriptionId: subscription.id, idempotencyKey: data.idempotencyKey },
-  )
-
-  return subscription
 }
 
 /**
@@ -799,9 +835,15 @@ export async function getAffiliateStats(affiliateId: string) {
     signups,
     conversions,
     creditsEarned,
-    videosEarned: Math.floor(creditsEarned / 3),
+    videosEarned: Math.floor(creditsEarned / CREDITS_PER_VIDEO),
   }
 }
+
+/**
+ * Roughly what a narrated demo video costs in credits (see
+ * tests/credit-pricing.test.ts). Used to show earned credits as videos.
+ */
+export const CREDITS_PER_VIDEO = 120
 
 export * from './browser-profiles.js'
 

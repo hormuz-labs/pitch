@@ -1,4 +1,4 @@
-# The cluster on the tailnet (docs/gke-deployment.md → Tailscale).
+# The cluster on the tailnet.
 #
 # A subnet router advertising the VPC ranges the fleet lives on, so any
 # machine on the tailnet — a laptop, a GPU box in a rack, a worker on

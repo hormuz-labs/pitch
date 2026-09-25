@@ -19,6 +19,60 @@ export interface Slide {
   index: number
   title?: string | null
 }
+export type StoryboardTransition = 'fade' | 'slide' | 'zoom'
+export type StoryboardAnnotationStyle =
+  | 'box'
+  | 'circle'
+  | 'underline'
+  | 'highlighter'
+  | 'arrow'
+  | 'spotlight'
+  | 'pulse'
+  | 'bracket'
+export interface StoryboardRect {
+  leftPct: number
+  topPct: number
+  widthPct: number
+  heightPct: number
+}
+export interface StoryboardEmphasis {
+  phrase: string
+  rect: StoryboardRect
+  coordinateSpace: 'page' | 'viewport'
+  style: StoryboardAnnotationStyle
+  zoom: number
+  layer?: number
+}
+export interface StoryboardOverlay {
+  kind: 'blur' | 'media' | 'callout'
+  rect: StoryboardRect
+  [key: string]: unknown
+}
+export interface StoryboardScene {
+  id: string
+  pageIndex: number
+  previewUrl: string
+  enabled: boolean
+  title: string
+  screenText: string[]
+  narration: string
+  emphasis: StoryboardEmphasis[]
+  overlays: StoryboardOverlay[]
+  estimatedDurationSec: number
+}
+export interface StoryboardTitleCard {
+  enabled: boolean
+  title: string
+  subtitle: string
+}
+export interface VideoStoryboard {
+  revision: number
+  approvedRevision?: number
+  status: 'draft' | 'approved'
+  transition: StoryboardTransition
+  titleCards: { intro: StoryboardTitleCard; outro: StoryboardTitleCard }
+  scenes: StoryboardScene[]
+}
 export type Preview =
   | { kind: 'html' | 'deck' | 'video'; url: string }
   | { kind: 'pdf'; url: string; path: string; pages: number }
@@ -32,7 +86,7 @@ export interface Description {
   duration?: number
   outputs: Output[]
   error?: string | null
-  extra?: Record<string, unknown>
+  extra?: Record<string, unknown> & { storyboard?: VideoStoryboard }
 }
 export interface ProjectSummary {
   id: string
@@ -91,7 +145,7 @@ export interface Entry {
   id: string
   role: 'user' | 'assistant' | 'thinking' | 'tool' | 'question' | 'credit'
   text: string
-  tool?: { name: string; status: 'running' | 'done' | 'error' }
+  tool?: { name: string; status: 'running' | 'done' | 'error'; progress?: string }
   ask?: Ask
   at?: number
   sessionEntryId?: string

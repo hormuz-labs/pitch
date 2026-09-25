@@ -21,8 +21,8 @@
  * and audio that gzip would spend minutes not shrinking.
  */
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { createReadStream, existsSync } from 'node:fs'
+import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { createLogger } from '@saas/shared'
@@ -81,51 +81,91 @@ export async function writeMarker(dir: string, marker: Marker): Promise<void> {
 /** Files under the workspace that are caches or scratch: rebuilt, never restored. */
 const EXCLUDES = ['.thumbs', '.editable-*', '.health-*', MARKER, '.*.restore-*', '.*.backup-*']
 
-export function tarCreate(
+/**
+ * Archive `name` under `parent` (or explicit `members`, relative to it) into
+ * `file`, and return its size. tar writes the file itself: under Bun on
+ * Linux a child's pipes drop data (the other half of tarExtract's note), and
+ * a checkpoint read from tar's stdout was sometimes stored as 0 bytes.
+ */
+export async function tarToFile(
   parent: string,
-  name: string,
-  /** Explicit members instead of `name`'s whole tree (paths relative to `parent`). */
-  members?: string[],
-): { stream: NodeJS.ReadableStream; done: Promise<void> } {
-  const args = members
-    ? ['-cf', '-', '-C', parent, '--', ...members]
-    : ['-cf', '-', ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, name]
-  const proc = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+  what: string | string[],
+  file: string,
+  signal?: AbortSignal,
+): Promise<number> {
+  signal?.throwIfAborted()
+  const args = Array.isArray(what)
+    ? ['-cf', file, '-C', parent, '--', ...what]
+    : ['-cf', file, ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, what]
+  const proc = spawn('tar', args, { stdio: ['ignore', 'ignore', 'pipe'] })
   let err = ''
   proc.stderr.on('data', (c: Buffer) => {
     err += c.toString('utf8')
   })
-  const done = new Promise<void>((resolve, reject) => {
-    proc.on('error', reject)
-    proc.on('close', code =>
-      code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
-    )
-  })
-  done.catch(() => {})
-  return { stream: proc.stdout, done }
+  const kill = () => proc.kill('SIGKILL')
+  signal?.addEventListener('abort', kill, { once: true })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      proc.on('error', reject)
+      proc.on('exit', code =>
+        code === 0
+          ? resolve()
+          : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
+      )
+    })
+  } finally {
+    signal?.removeEventListener('abort', kill)
+  }
+  signal?.throwIfAborted()
+  const { size } = await stat(file)
+  // A tar is at least its two 512-byte end blocks; less is not an archive.
+  if (size < 1024) throw new Error(`tar wrote an empty archive (${size} bytes)`)
+  return size
 }
 
+/**
+ * Unpack an archive stream into `into`. The bytes land in a file beside it
+ * first and tar reads that file: streaming them into tar's stdin loses data
+ * under Bun — about one restore in ten failed "Unexpected EOF in archive"
+ * although every byte had arrived.
+ */
 export async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
   await mkdir(into, { recursive: true })
-  const proc = spawn('tar', ['-xf', '-', '-C', into], { stdio: ['pipe', 'ignore', 'pipe'] })
-  let err = ''
-  proc.stderr.on('data', (c: Buffer) => {
-    err += c.toString('utf8')
-  })
-  const exit = new Promise<void>((resolve, reject) => {
-    proc.on('error', reject)
-    proc.on('close', code =>
-      code === 0 ? resolve() : reject(new Error(`tar exited ${code}: ${err.trim().slice(0, 500)}`)),
-    )
-  })
-  exit.catch(() => {})
+  const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const archive = path.join(path.dirname(into), `.${path.basename(into)}.fetch-${tag}.tar`)
   try {
-    await pipeline(body, proc.stdin)
-  } catch (pipeErr) {
-    proc.kill('SIGKILL')
-    throw pipeErr
+    // Opened before streaming, so the file exists by the time `finally`
+    // removes it even when the download fails at once.
+    const file = await open(archive, 'w')
+    try {
+      await pipeline(body, file.createWriteStream())
+    } catch (err) {
+      throw new Error(`Checkpoint download failed: ${String((err as Error)?.message ?? err)}`, {
+        cause: err,
+      })
+    } finally {
+      await file.close().catch(() => {})
+    }
+    const proc = spawn('tar', ['-xf', archive, '-C', into], { stdio: ['ignore', 'ignore', 'pipe'] })
+    let err = ''
+    proc.stderr.on('data', (c: Buffer) => {
+      err += c.toString('utf8')
+    })
+    await new Promise<void>((resolve, reject) => {
+      proc.on('error', reject)
+      proc.on('exit', code =>
+        code === 0
+          ? resolve()
+          : reject(
+              new Error(
+                `Checkpoint extraction failed: tar exited ${code}: ${err.trim().slice(0, 500)}`,
+              ),
+            ),
+      )
+    })
+  } finally {
+    await rm(archive, { force: true })
   }
-  await exit
 }
 
 function sessionRelative(sessionFile: string | null): string | null {
@@ -141,6 +181,9 @@ export interface CheckpointInput {
   version: number
   sessionFile: string | null
   artifactKind: string | null
+  signal?: AbortSignal
+  progress?: (stage: string, percent?: number) => void
+  timeoutMs?: number
 }
 
 /** Upload a new version. Returns the manifest; throws if anything did not land. */
@@ -148,46 +191,96 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
   const { projectId, ws, version } = input
   const s = bucket()
   const started = Date.now()
-  const put = async (file: string, parent: string, name: string) => {
-    const { stream, done } = tarCreate(parent, name)
-    await Promise.all([
-      s.put(keyOf(projectId, version, file), stream as any, 'application/x-tar'),
-      done,
-    ])
-  }
-  await put('workspace.tar', PROJECTS_DIR, ws.internal)
-  const history = historyDir(ws.dir)
-  if (existsSync(history)) await put('history.tar', path.dirname(history), path.basename(history))
-  const session = sessionRelative(input.sessionFile)
-  if (input.sessionFile && session && existsSync(input.sessionFile))
+  const controller = new AbortController()
+  const signal = input.signal
+    ? AbortSignal.any([input.signal, controller.signal])
+    : controller.signal
+  const timeoutMs = input.timeoutMs ?? 5 * 60_000
+  const timer = setTimeout(
+    () => controller.abort(new Error(`Workspace checkpoint timed out after ${timeoutMs}ms`)),
+    timeoutMs,
+  )
+  try {
+    signal.throwIfAborted()
+    const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+    const put = async (file: string, parent: string, name: string) => {
+      signal.throwIfAborted()
+      logger.info({ projectId, version, file }, 'checkpoint archive started')
+      input.progress?.(`checkpoint: packing ${file}`, 0)
+      // Beside `name`, never inside it, so it is not archived with it.
+      const archive = path.join(parent, `.${name}.${file}.upload-${tag}`)
+      const key = keyOf(projectId, version, file)
+      try {
+        const size = await tarToFile(parent, name, archive, signal)
+        input.progress?.(`checkpoint: uploading ${file}`, 0)
+        await s.put(key, createReadStream(archive) as any, 'application/x-tar', size, {
+          signal,
+          onProgress: loaded =>
+            input.progress?.(
+              `checkpoint: ${file} (${Math.floor(loaded / 1048576)} MiB uploaded)`,
+              0,
+            ),
+        })
+        signal.throwIfAborted()
+        // Never publish a version whose archive is not all there.
+        const stored = await s.head(key)
+        if (stored?.size !== size)
+          throw new Error(
+            `checkpoint ${file} upload is incomplete: expected ${size} bytes, got ${stored?.size ?? 'nothing'}`,
+          )
+        logger.info({ projectId, version, file, bytes: size }, 'checkpoint archive finished')
+      } catch (error) {
+        logger.warn(
+          { err: error, projectId, version, file, ms: Date.now() - started },
+          'checkpoint archive failed',
+        )
+        controller.abort(error)
+        throw error
+      } finally {
+        await rm(archive, { force: true })
+      }
+    }
+    await put('workspace.tar', PROJECTS_DIR, ws.internal)
+    const history = historyDir(ws.dir)
+    if (existsSync(history)) await put('history.tar', path.dirname(history), path.basename(history))
+    const session = sessionRelative(input.sessionFile)
+    if (input.sessionFile && session && existsSync(input.sessionFile))
+      await s.put(
+        keyOf(projectId, version, 'session.jsonl'),
+        await readFile(input.sessionFile),
+        'application/x-ndjson',
+        undefined,
+        { signal },
+      )
+    const manifest: Manifest = {
+      format: 1,
+      projectId,
+      version,
+      internal: ws.internal,
+      session: input.sessionFile && existsSync(input.sessionFile) ? session : null,
+      artifactKind: input.artifactKind,
+      createdAt: new Date().toISOString(),
+    }
     await s.put(
-      keyOf(projectId, version, 'session.jsonl'),
-      await readFile(input.sessionFile),
-      'application/x-ndjson',
+      keyOf(projectId, version, 'manifest.json'),
+      Buffer.from(JSON.stringify(manifest)),
+      'application/json',
+      undefined,
+      { signal },
     )
-  const manifest: Manifest = {
-    format: 1,
-    projectId,
-    version,
-    internal: ws.internal,
-    session: input.sessionFile && existsSync(input.sessionFile) ? session : null,
-    artifactKind: input.artifactKind,
-    createdAt: new Date().toISOString(),
+    await uploadCover(projectId, ws, signal).catch(err =>
+      logger.warn({ err, projectId }, 'cover upload failed'),
+    )
+    signal.throwIfAborted()
+    logger.info({ projectId, version, ms: Date.now() - started }, 'workspace checkpointed')
+    return manifest
+  } finally {
+    clearTimeout(timer)
   }
-  await s.put(
-    keyOf(projectId, version, 'manifest.json'),
-    Buffer.from(JSON.stringify(manifest)),
-    'application/json',
-  )
-  await uploadCover(projectId, ws).catch(err =>
-    logger.warn({ err, projectId }, 'cover upload failed'),
-  )
-  logger.info({ projectId, version, ms: Date.now() - started }, 'workspace checkpointed')
-  return manifest
 }
 
 /** The newest cached grid thumbnail (thumbnails.ts writes `<kind>_0_50.jpg` for t=0.5). */
-async function uploadCover(projectId: string, ws: Workspace): Promise<void> {
+async function uploadCover(projectId: string, ws: Workspace, signal?: AbortSignal): Promise<void> {
   const dir = path.join(ws.dir, '.thumbs')
   const names = (await readdir(dir).catch(() => [] as string[])).filter(f =>
     /^[a-z]+_0_50\.jpg$/.test(f),
@@ -199,7 +292,10 @@ async function uploadCover(projectId: string, ws: Workspace): Promise<void> {
     if (st && (!newest || st.mtimeMs > newest.mtime))
       newest = { file: path.join(dir, name), mtime: st.mtimeMs }
   }
-  if (newest) await bucket().put(coverKey(projectId), await readFile(newest.file), 'image/jpeg')
+  if (newest)
+    await bucket().put(coverKey(projectId), await readFile(newest.file), 'image/jpeg', undefined, {
+      signal,
+    })
 }
 
 /** The grid thumbnail of a project nobody holds right now. */
@@ -277,8 +373,12 @@ export async function restoreCheckpoint(
   }
 }
 
-/** Drop every stored version except the newest `keep`. */
-export async function pruneCheckpoints(projectId: string, keep = 2): Promise<void> {
+/** Drop stored versions except the newest `keep` and versions a render job still needs. */
+export async function pruneCheckpoints(
+  projectId: string,
+  keep = 2,
+  protectedVersions: Iterable<number> = [],
+): Promise<void> {
   const s = bucket()
   const keys = await s.list(`workspaces/${projectId}/`)
   const versions = new Set<number>()
@@ -286,7 +386,11 @@ export async function pruneCheckpoints(projectId: string, keep = 2): Promise<voi
     const m = k.match(/^workspaces\/[^/]+\/(\d+)\//)
     if (m) versions.add(Number(m[1]))
   }
-  const stale = [...versions].sort((a, b) => b - a).slice(keep)
+  const protectedSet = new Set(protectedVersions)
+  const stale = [...versions]
+    .sort((a, b) => b - a)
+    .slice(keep)
+    .filter(version => !protectedSet.has(version))
   for (const k of keys) {
     const m = k.match(/^workspaces\/[^/]+\/(\d+)\//)
     if (m && stale.includes(Number(m[1]))) await s.remove(k).catch(() => {})

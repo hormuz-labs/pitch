@@ -102,6 +102,10 @@ router.get(
   route('describe', async req => host.describe(req.params.id)),
 )
 router.get(
+  '/projects/:id/session-log',
+  route('session log', async req => ({ log: await host.sessionLog(req.params.id) })),
+)
+router.get(
   '/projects/:id/busy',
   route('busy', async req => ({ busy: await host.busy(req.params.id) })),
 )
@@ -136,6 +140,10 @@ router.post(
 router.post(
   '/projects/:id/deck/render',
   route('render deck', async req => host.renderDeck(req.params.id)),
+)
+router.post(
+  '/projects/:id/storyboard',
+  route('save storyboard', async req => host.saveStoryboard(req.params.id, req.body)),
 )
 router.delete(
   '/projects/:id/assets',
@@ -172,6 +180,13 @@ router.post(
   route('export cancel', async req => ({
     cancelled: await host.stopExport(req.params.id),
   })),
+)
+router.post(
+  '/projects/:id/publish',
+  route('publish artifact', async req => {
+    await host.publishArtifact(req.params.id)
+    return { ok: true }
+  }),
 )
 
 router.get('/projects/:id/events', async (req, res) => {

@@ -1,9 +1,10 @@
-import { Check, Key, Plus, RefreshCw, TriangleAlert } from 'lucide-solid'
+import { Check, Key, Plus, RefreshCw, Server, TriangleAlert } from 'lucide-solid'
 import { createSignal, For, onMount, Show } from 'solid-js'
 import { API_URL } from '../../config'
 import { api } from '../../lib/api'
 import { useAuth } from '../core/auth'
 import { CopyButton, Dialog, Loading } from './primitives'
+import '../../styles/api-keys.css'
 
 interface ApiKey {
   id: string
@@ -73,17 +74,20 @@ export function ApiKeysView(props: { embedded?: boolean }) {
     }
   }
   return (
-    <div class={props.embedded ? 'settings-api-keys' : 'mx-auto w-full max-w-5xl p-6 md:p-8'}>
-      <header class="settings-api-header mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold">API keys</h1>
-          <p class="mt-1 text-sm text-gray-500">
-            API keys let MCP clients and integrations create Pitch projects programmatically.
-          </p>
+    <div class={`api-keys-page${props.embedded ? ' settings-api-keys is-embedded' : ''}`}>
+      <header class="api-keys-header">
+        <div class="api-keys-heading">
+          <span class="api-keys-heading-icon" aria-hidden="true">
+            <Key size={17} />
+          </span>
+          <div>
+            <h1>API keys</h1>
+            <p>Let MCP clients and integrations create Pitch projects programmatically.</p>
+          </div>
         </div>
         <button
           id="create-api-key-btn"
-          class="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+          class="api-keys-primary"
           onClick={() => setCreateOpen(true)}
         >
           <Plus size={14} />
@@ -91,71 +95,87 @@ export function ApiKeysView(props: { embedded?: boolean }) {
         </button>
       </header>
       <Show when={error()}>
-        <div
-          role="alert"
-          class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-        >
+        <div role="alert" class="api-keys-alert">
           {error()}
         </div>
       </Show>
       <Show when={!props.embedded}>
-        <section class="mb-8 rounded-2xl border bg-white p-6 shadow-sm">
-          <h2 class="text-sm font-bold">Connect your MCP client</h2>
-          <div class="mt-3 flex items-center gap-2">
-            <code class="rounded bg-gray-50 p-2 text-xs">{endpoint}</code>
-            <CopyButton value={endpoint} />
+        <section class="api-keys-connect" aria-labelledby="mcp-connect-heading">
+          <div class="api-keys-connect-intro">
+            <span class="api-keys-connect-icon" aria-hidden="true">
+              <Server size={18} />
+            </span>
+            <div>
+              <h2 id="mcp-connect-heading">Connect your MCP client</h2>
+              <p>Use the server URL directly, or copy the complete configuration.</p>
+            </div>
           </div>
-          <div class="mt-3 flex items-start gap-2 rounded-lg bg-gray-900 p-3 text-gray-100">
-            <pre class="min-w-0 flex-1 overflow-auto text-xs">{config}</pre>
-            <CopyButton value={config} label="Copy config" />
+          <div class="api-keys-field">
+            <span>Server URL</span>
+            <div>
+              <code>{endpoint}</code>
+              <CopyButton value={endpoint} />
+            </div>
+          </div>
+          <div class="api-keys-config">
+            <div>
+              <span>JSON configuration</span>
+              <CopyButton value={config} label="Copy config" />
+            </div>
+            <pre>{config}</pre>
           </div>
         </section>
       </Show>
       <Show when={!loading()} fallback={<Loading label="Loading..." />}>
+        <div class="api-keys-list-head">
+          <h2>Your keys</h2>
+          <span>{keys().length} total</span>
+        </div>
         <Show
           when={keys().length}
           fallback={
-            <div class="settings-api-empty rounded-xl border border-dashed py-16 text-center">
-              <Key class="mx-auto text-gray-300" />
-              <p class="mt-3 text-sm text-gray-500">No API keys yet</p>
+            <div class="api-keys-empty settings-api-empty">
+              <span aria-hidden="true">
+                <Key size={20} />
+              </span>
+              <p>No API keys yet</p>
+              <small>Create a dedicated key for each client or integration.</small>
             </div>
           }
         >
-          <div class="divide-y rounded-2xl border bg-white">
+          <div class="api-keys-list">
             <For each={keys()}>
               {key => (
-                <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-3">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <b class="text-sm">{key.name}</b>
-                      <span
-                        class={`rounded-full border px-2 py-0.5 text-[10px] ${key.revokedAt ? 'bg-gray-100' : 'bg-emerald-50 text-emerald-700'}`}
-                      >
+                <article class="api-key-row">
+                  <div class="api-key-main">
+                    <div class="api-key-title">
+                      <b>{key.name}</b>
+                      <span class={`api-key-status${key.revokedAt ? ' is-revoked' : ' is-active'}`}>
                         {key.revokedAt ? 'Revoked' : 'Active'}
                       </span>
                     </div>
-                    <code class="text-xs text-gray-400">{key.prefix}...</code>
-                    <p class="text-xs text-gray-400">
-                      Created {new Date(key.createdAt).toLocaleDateString()} · Last used{' '}
-                      {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'}
-                    </p>
+                    <code>{key.prefix}••••••••••••••••</code>
+                    <div class="api-key-meta">
+                      <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
+                      <span>
+                        Last used{' '}
+                        {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'}
+                      </span>
+                    </div>
                   </div>
                   <Show when={!key.revokedAt}>
                     <Show
                       when={confirming() === key.id}
                       fallback={
-                        <button
-                          class="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600"
-                          onClick={() => setConfirming(key.id)}
-                        >
+                        <button class="api-key-revoke" onClick={() => setConfirming(key.id)}>
                           Revoke
                         </button>
                       }
                     >
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs">Revoke this key?</span>
+                      <div class="api-key-confirm">
+                        <span>Revoke this key?</span>
                         <button
-                          class="rounded-lg bg-red-600 px-3 py-1.5 text-xs text-white"
+                          class="api-key-confirm-danger"
                           disabled={revoking() === key.id}
                           onClick={() => void revoke(key.id)}
                         >
@@ -165,13 +185,13 @@ export function ApiKeysView(props: { embedded?: boolean }) {
                             'Revoke'
                           )}
                         </button>
-                        <button class="text-xs" onClick={() => setConfirming('')}>
+                        <button class="api-key-confirm-cancel" onClick={() => setConfirming('')}>
                           Cancel
                         </button>
                       </div>
                     </Show>
                   </Show>
-                </div>
+                </article>
               )}
             </For>
           </div>
@@ -185,7 +205,7 @@ export function ApiKeysView(props: { embedded?: boolean }) {
         <p class="my-3 text-sm text-gray-500">Name the client or machine that will use this key.</p>
         <input
           autofocus
-          class="w-full rounded-lg border p-2 text-sm"
+          class="api-key-name-input"
           placeholder="e.g. Claude Desktop"
           value={name()}
           onInput={event => setName(event.currentTarget.value)}

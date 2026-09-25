@@ -25,7 +25,7 @@ help:
 	@echo "  $(GREEN)make migrate$(RESET)    — generate from ZenStack, then apply pending database migrations"
 	@echo "  $(GREEN)make unittest$(RESET)   — run fast pure unit tests (no browser)"
 	@echo "  $(GREEN)make webtest$(RESET)    — run the Solid frontend test suite"
-	@echo "  $(GREEN)make integration$(RESET)— run browser-driven integration tests (playwright-cli)"
+	@echo "  $(GREEN)make integration$(RESET)— run browser-driven integration tests (real Chromium)"
 	@echo "  $(GREEN)make test$(RESET)       — run unit/API, frontend, and integration tests"
 	@echo "  $(GREEN)make test-watch$(RESET) — run unit tests in watch mode (vitest)"
 	@echo "  $(GREEN)make sandbox-check$(RESET)— verify the agent's shell is confined on this host"
@@ -140,7 +140,7 @@ test: unittest webtest integration
 
 integration:
 	@echo ""
-	@echo "  $(BOLD)$(CYAN)Running browser integration tests (playwright-cli)...$(RESET)"
+	@echo "  $(BOLD)$(CYAN)Running browser integration tests (real Chromium)...$(RESET)"
 	@echo ""
 	bun run test:integration
 	@echo ""

@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
-import { execAsync } from '../render/media.js'
+import { execFileAsync } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
 import type { Workspace } from '../studio/paths.js'
 import { insideWorkspace } from './media.js'
@@ -114,8 +114,21 @@ async function download(uri: string, dest: string, signal: AbortSignal): Promise
 async function describeFile(file: string, rel: string): Promise<string> {
   const { size } = await stat(file)
   try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -select_streams v:0 -show_entries format=duration -show_entries stream=width,height -of json "${file}"`,
+    const { stdout } = await execFileAsync(
+      'ffprobe',
+      [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'format=duration',
+        '-show_entries',
+        'stream=width,height',
+        '-of',
+        'json',
+        file,
+      ],
       { maxBuffer: 4 * 1024 * 1024 },
     )
     const probe = JSON.parse(stdout)

@@ -22,7 +22,7 @@ import { pipeline } from 'node:stream/promises'
 import fs from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
-import { type ObjectDriver, readAll } from './driver.js'
+import { type ObjectDriver, type PutOptions, readAll } from './driver.js'
 import { gcsDriver } from './gcs.js'
 import { s3Driver } from './s3.js'
 
@@ -294,7 +294,13 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
 // ---------------------------------------------------------------------------
 
 export interface PrivateObjectStore {
-  put(key: string, body: Readable | Buffer, contentType?: string): Promise<void>
+  put(
+    key: string,
+    body: Readable | Buffer,
+    contentType?: string,
+    size?: number,
+    options?: Pick<PutOptions, 'signal' | 'onProgress'>,
+  ): Promise<void>
   get(key: string): Promise<Readable | null>
   head(key: string): Promise<{ size: number } | null>
   remove(key: string): Promise<void>
@@ -312,9 +318,11 @@ export function privateBucket(bucketName: string): PrivateObjectStore {
     return ensured
   }
   return {
-    async put(key, body, contentType = 'application/octet-stream') {
+    async put(key, body, contentType = 'application/octet-stream', size, options) {
+      options?.signal?.throwIfAborted()
       await ensure()
-      await driver.put(bucketName, key, body, { contentType })
+      options?.signal?.throwIfAborted()
+      await driver.put(bucketName, key, body, { contentType, size, ...options })
     },
     get: key => driver.get(bucketName, key),
     head: key => driver.head(bucketName, key),

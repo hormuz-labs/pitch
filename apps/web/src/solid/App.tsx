@@ -7,6 +7,7 @@ import { useAuth, useClerk } from './core/auth.tsx'
 import { routeComponent } from './core/routes.tsx'
 
 const Landing = routeComponent('landing')
+const AgenC = routeComponent('agenc')
 const Pricing = routeComponent('pricing')
 const About = routeComponent('about')
 const Blog = routeComponent('blog')
@@ -25,7 +26,6 @@ const Settings = routeComponent('settings')
 const ApiKeys = routeComponent('apiKeys')
 const Sessions = routeComponent('sessions')
 const ChatHistory = routeComponent('chats')
-const Affiliate = routeComponent('affiliate')
 const Admin = routeComponent('admin')
 const CheckoutReturn = routeComponent('checkoutReturn')
 const Studio = routeComponent('studio')
@@ -139,6 +139,31 @@ function StudioRoute() {
   )
 }
 
+/**
+ * Any project, read-only, for administrators. The server decides who is one:
+ * every read behind this page is an /admin route that answers 403 otherwise.
+ */
+function AdminStudioRoute() {
+  const params = useParams()
+  return (
+    <Show keyed when={params.id}>
+      {projectId => (
+        <Dynamic
+          component={Studio as Component<{ projectId: string; admin?: boolean }>}
+          projectId={projectId}
+          admin
+        />
+      )}
+    </Show>
+  )
+}
+
+/** The admin dashboard used to link here; keep those links working. */
+function LegacyProjectRedirect() {
+  const params = useParams()
+  return <Navigate href={`/admin/projects/${encodeURIComponent(params.id ?? '')}`} />
+}
+
 const protectedRoute =
   (component: Component, shellProps = false) =>
   () => <Protected component={component} shellProps={shellProps} />
@@ -180,6 +205,7 @@ export default function App() {
   return (
     <Router root={AppRoot}>
       <Route path="/" component={Landing} />
+      <Route path="/AgenC" component={AgenC} />
       <Route path="/pricing" component={PricingRoute} />
       <Route path="/about" component={About} />
       <Route path="/blog" component={Blog} />
@@ -197,6 +223,7 @@ export default function App() {
       <Route path="/sso-callback" component={SsoCallback} />
 
       <Route path="/projects" component={redirect('/chats/history')} />
+      <Route path="/projects/:id" component={LegacyProjectRedirect} />
       <Route path="/new" component={protectedRoute(NewProject, true)} />
       <Route path="/p/:id" component={protectedRoute(StudioRoute)} />
       <Route path="/account/pricing" component={protectedRoute(AccountPricing)} />
@@ -205,8 +232,9 @@ export default function App() {
       <Route path="/sessions" component={protectedRoute(Sessions)} />
       <Route path="/chats" component={redirect('/chats/history')} />
       <Route path="/chats/history" component={protectedRoute(ChatHistory)} />
-      <Route path="/affiliate" component={protectedRoute(Affiliate, true)} />
+      <Route path="/affiliate" component={redirect('/affiliates')} />
       <Route path="/admin" component={protectedRoute(Admin)} />
+      <Route path="/admin/projects/:id" component={protectedRoute(AdminStudioRoute)} />
       <Route path="/checkout/return" component={protectedRoute(CheckoutReturn)} />
 
       <Route path="/dashboard" component={redirect('/new')} />

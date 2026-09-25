@@ -98,7 +98,7 @@ const optionValues: Record<string, string> = {
   Other: 'other',
 }
 
-export function OnboardingSurvey(props: { enabled?: boolean }) {
+export function OnboardingSurvey(props: { enabled?: boolean; onSettled?: () => void }) {
   const { getToken } = useAuth()
   const [required, setRequired] = createSignal(false)
   const [step, setStep] = createSignal(0)
@@ -108,6 +108,7 @@ export function OnboardingSurvey(props: { enabled?: boolean }) {
   const skip = async () => {
     localStorage.setItem('pitch:onboarding-skipped', '1')
     setRequired(false)
+    props.onSettled?.()
     try {
       const token = await getToken()
       if (token) await api.post('/users/onboarding/skip', token, {})
@@ -116,18 +117,27 @@ export function OnboardingSurvey(props: { enabled?: boolean }) {
     }
   }
   onMount(() => {
-    if (props.enabled === false || localStorage.getItem('pitch:onboarding-skipped') === '1') return
+    if (props.enabled === false || localStorage.getItem('pitch:onboarding-skipped') === '1') {
+      props.onSettled?.()
+      return
+    }
     void (async () => {
       try {
         const token = await getToken()
-        if (!token) return
+        if (!token) {
+          props.onSettled?.()
+          return
+        }
         const status = await api.get<{ completed: boolean; skipped: boolean }>(
           '/users/onboarding',
           token,
         )
-        setRequired(!status.completed && !status.skipped)
+        const required = !status.completed && !status.skipped
+        setRequired(required)
+        if (!required) props.onSettled?.()
       } catch {
         /* never gate on status failure */
+        props.onSettled?.()
       }
     })()
     const key = (event: KeyboardEvent) => event.key === 'Escape' && void skip()
@@ -147,6 +157,7 @@ export function OnboardingSurvey(props: { enabled?: boolean }) {
       if (!token) throw new Error()
       await api.post('/users/onboarding', token, answers())
       setRequired(false)
+      props.onSettled?.()
     } catch {
       setError('We could not save your answers. Please try again.')
     } finally {

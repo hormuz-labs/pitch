@@ -43,6 +43,7 @@ const columns: Footer15Column[] = [
       { label: 'Pricing', href: '/pricing' },
       { label: 'Docs', href: '/docs' },
       { label: 'API Reference', href: '/docs/api' },
+      { label: 'AgenC', href: '/AgenC' },
     ],
   },
   { title: 'Social', links: SOCIALS },
@@ -106,7 +107,7 @@ export function Footer15(props: Footer15Props) {
             </div>
             <p class="text-xs leading-relaxed font-light tracking-wide sm:whitespace-nowrap text-zinc-400">
               {props.description ??
-                'The AI agent that turns your product URL into a cinematic pitch video in minutes.'}
+                'The AI production studio for launch films, product demos, slide decks, and video edits.'}
             </p>
           </div>
           <nav

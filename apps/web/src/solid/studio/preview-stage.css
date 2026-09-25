@@ -292,6 +292,9 @@
   .app-shell-panel--studio .lv-studio .job-topbar .topbar-split-right { gap: 4px; }
   .app-shell-panel--studio .lv-studio .job-topbar :is(.preview-pane-tab, .topbar-more) { width: 36px; min-width: 36px; height: 36px; padding: 0; gap: 0; justify-content: center; }
   .app-shell-panel--studio .lv-studio .job-topbar :is(.preview-pane-tab__label, .preview-pane-tab__count, .topbar-more .export-label) { display: none; }
+  /* Icon-only on phones, so it matches the borderless opener and new-chat icons. */
+  .app-shell-panel--studio .lv-studio .job-topbar .topbar-more { border-color: transparent; background: transparent; box-shadow: none; }
+  .app-shell-panel--studio .lv-studio .job-topbar .topbar-more:is(:hover, :focus-visible, [aria-expanded='true']) { background: var(--shell-hover); }
 }
 @media (prefers-reduced-motion: reduce) {
   .lv-studio .build-process__stage > img { animation: none; }

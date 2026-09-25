@@ -53,6 +53,8 @@ export function BrowserViewer(props: {
         rfb = new RFB(container, browserStreamUrl(id, token), { wsProtocols: ['binary'] })
         rfb.scaleViewport = true
         rfb.resizeSession = false
+        rfb.qualityLevel = 9
+        rfb.compressionLevel = 2
         rfb.viewOnly = !!props.viewOnly
         rfb.showDotCursor = true
         rfb.addEventListener('connect', () => {

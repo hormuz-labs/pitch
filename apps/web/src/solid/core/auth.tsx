@@ -34,6 +34,13 @@ export function ClerkProvider(props: ClerkProviderProps) {
   const [user, setUser] = createSignal<Clerk['user']>()
 
   onMount(() => {
+    // The build-time prerender renders public pages as a signed-out visitor, which
+    // is what crawlers are. It serves from 127.0.0.1, where a production Clerk key
+    // never finishes loading, so skip Clerk there instead of waiting on it.
+    if ((window as { __PITCH_PRERENDER__?: boolean }).__PITCH_PRERENDER__) {
+      setIsLoaded(true)
+      return
+    }
     let unsubscribe: (() => void) | undefined
     let disposed = false
 

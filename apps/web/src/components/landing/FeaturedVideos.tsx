@@ -2,36 +2,73 @@ import { MonitorPlay, X } from 'lucide-solid'
 import { createSignal, For, Show } from 'solid-js'
 import { Dialog } from '../../solid/account/primitives'
 import { carouselAsset } from './carouselAssets'
-import { filmPoster } from './filmPoster'
+import { carouselPoster } from './carouselPoster'
 
 interface FeaturedSlide {
+  file: string
   src: string
   title: string
   category: string
 }
 
 const FEATURED_SLIDES: FeaturedSlide[] = [
-  { src: carouselAsset('graphify.mp4'), title: 'Graphify', category: 'Explainers' },
-  { src: carouselAsset('gtmcofounder.mp4'), title: 'GTM Cofounder', category: 'Launch & promo' },
-  { src: carouselAsset('supermemory.mp4'), title: 'Supermemory', category: 'Launch & promo' },
-  { src: carouselAsset('unsloth-launch.mp4'), title: 'Unsloth AI', category: 'Launch & promo' },
-  { src: carouselAsset('demo.mp4'), title: 'Shadcn', category: 'Product demos' },
-  { src: carouselAsset('sio.mp4'), title: 'Students Islamic Organization', category: 'Explainers' },
-  { src: carouselAsset('agentcard.mp4'), title: 'AgentCard', category: 'Launch & promo' },
-  { src: carouselAsset('replit.mp4'), title: 'Replit', category: 'Product demos' },
+  {
+    file: 'graphify.mp4',
+    src: carouselAsset('graphify.mp4'),
+    title: 'Graphify',
+    category: 'Explainers',
+  },
+  {
+    file: 'gtmcofounder.mp4',
+    src: carouselAsset('gtmcofounder.mp4'),
+    title: 'GTM Cofounder',
+    category: 'Launch & promo',
+  },
+  {
+    file: 'supermemory.mp4',
+    src: carouselAsset('supermemory.mp4'),
+    title: 'Supermemory',
+    category: 'Launch & promo',
+  },
+  {
+    file: 'unsloth-launch.mp4',
+    src: carouselAsset('unsloth-launch.mp4'),
+    title: 'Unsloth AI',
+    category: 'Launch & promo',
+  },
+  { file: 'demo.mp4', src: carouselAsset('demo.mp4'), title: 'Shadcn', category: 'Product demos' },
+  {
+    file: 'agentcard.mp4',
+    src: carouselAsset('agentcard.mp4'),
+    title: 'AgentCard',
+    category: 'Launch & promo',
+  },
+  {
+    file: 'replit.mp4',
+    src: carouselAsset('replit.mp4'),
+    title: 'Replit',
+    category: 'Product demos',
+  },
+  {
+    file: 'Thomas.mp4',
+    src: carouselAsset('Thomas.mp4'),
+    title: 'Thomas',
+    category: 'Launch & promo',
+  },
+  { file: 'leeter.mp4', src: carouselAsset('leeter.mp4'), title: 'Leeter', category: 'Explainers' },
+  {
+    file: 'productHunt.mp4',
+    src: carouselAsset('productHunt.mp4'),
+    title: 'Product Hunt',
+    category: 'Launch & promo',
+  },
+  {
+    file: 'quippy.mp4',
+    src: carouselAsset('quippy.mp4'),
+    title: 'Quippy',
+    category: 'Launch & promo',
+  },
 ]
-
-const playPreview = (event: { currentTarget: HTMLElement }) => {
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    void event.currentTarget
-      .querySelector('video')
-      ?.play()
-      .catch(() => {})
-}
-
-const pausePreview = (event: { currentTarget: HTMLElement }) => {
-  event.currentTarget.querySelector('video')?.pause()
-}
 
 export function FeaturedVideos() {
   const [selected, setSelected] = createSignal<FeaturedSlide | null>(null)
@@ -39,24 +76,11 @@ export function FeaturedVideos() {
     <button
       type="button"
       class="new-featured__video"
-      onMouseEnter={playPreview}
-      onMouseLeave={pausePreview}
-      onFocus={playPreview}
-      onBlur={pausePreview}
-      onClick={event => {
-        pausePreview(event)
-        setSelected(slide)
-      }}
+      aria-label={`Play ${slide.title}`}
+      onClick={() => setSelected(slide)}
     >
       <div class="new-featured__image">
-        <video
-          src={`${slide.src}#t=${slide.title === 'Unsloth AI' ? 20 : 8}`}
-          poster={filmPoster(slide.title)}
-          muted
-          loop
-          playsinline
-          preload="metadata"
-        />
+        <img src={carouselPoster(slide.file)} alt="" loading="lazy" />
       </div>
       <span>{slide.title}</span>
     </button>

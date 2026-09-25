@@ -33,25 +33,30 @@ const Page = (props: {
 export const AboutUs = () => (
   <Page
     title="About Us"
-    description="Pitch is building the autonomous way to make product demo videos."
+    description="Who builds Pitch, the AI production studio for launch films, product demos, slide decks and video edits, and how its agent does the work."
     path="/about"
   >
-    <section class="mb-8">
-      <h2 class="text-xl font-semibold mb-4">Our Mission</h2>
-      <p class="text-gray-600 leading-relaxed">
-        At Pitch, we believe that demonstrating your product's true value should be effortless and
-        beautifully executed. We are dedicated to transforming how businesses showcase their
-        software.
+    <section class="mb-8 space-y-6 text-gray-600 leading-relaxed text-base">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-900">Directable AI Production Studio</h2>
+      <p>
+        Pitch is a directable AI production studio that turns a URL, recording, document, asset, or
+        rough idea into polished launch films, product demos, demo recordings, slide decks, and
+        edited videos. Its agent can research your product, write the story, design visuals, record
+        real browser workflows, generate narration and music, edit footage, and render the final
+        result.
       </p>
-      <h2 class="text-xl font-semibold my-4">What We Do</h2>
-      <p class="text-gray-600 leading-relaxed">
-        Our platform uses advanced automation to turn any website URL into a cinematic product demo,
-        interactive walkthrough, or tutorial video.
+      <h2 class="text-2xl font-semibold my-4 text-gray-900">Live, Interactive Workflow</h2>
+      <p>
+        What makes Pitch different is its live, interactive workflow. Instead of accepting a
+        one-shot AI output, you can watch the work take shape, select any visual element, timestamp,
+        or asset, and request precise changes in plain language. The same project can evolve from a
+        deck into a demo recording or launch video without starting over or switching tools.
       </p>
-      <h2 class="text-xl font-semibold my-4">Our Vision</h2>
-      <p class="text-gray-600 leading-relaxed">
-        We envision a world where every piece of software can be understood instantly through
-        high-quality visual storytelling.
+      <h2 class="text-2xl font-semibold my-4 text-gray-900">Complete Control</h2>
+      <p>
+        Pitch helps founders, marketers, and product teams move from an unfinished idea to
+        presentation-ready creative work faster, with fewer handoffs, less production overhead, and
+        complete control over every revision.
       </p>
     </section>
   </Page>

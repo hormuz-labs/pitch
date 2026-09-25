@@ -139,6 +139,26 @@ async function formRequest<T>(
   return res.json() as Promise<T>
 }
 
+/**
+ * A file the server sends as an attachment, fetched with the Authorization
+ * header rather than a ?token= URL so the credential never lands in history,
+ * logs or a copied link.
+ */
+async function fileRequest(
+  path: string,
+  token: string,
+): Promise<{ blob: Blob; filename: string | null }> {
+  const res = await send(`${API_URL}${path}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+  })
+  if (!res.ok) await throwFor(res)
+  const disposition = res.headers.get('content-disposition') ?? ''
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? null
+  return { blob: await res.blob(), filename }
+}
+
 export const api = {
   get: <T>(path: string, token: string) => request<T>('GET', path, token),
   post: <T>(path: string, token: string, body?: unknown) => request<T>('POST', path, token, body),
@@ -146,4 +166,5 @@ export const api = {
   postForm: <T>(path: string, token: string, body: FormData) =>
     formRequest<T>('POST', path, token, body),
   delete: <T>(path: string, token: string) => request<T>('DELETE', path, token),
+  file: (path: string, token: string) => fileRequest(path, token),
 }

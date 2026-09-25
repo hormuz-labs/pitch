@@ -1,8 +1,8 @@
 import { A } from '@solidjs/router'
-import { createEffect, createSignal, Match, onCleanup, Switch } from 'solid-js'
+import { ExternalLink, FileText, Play } from 'lucide-solid'
+import { createEffect, createSignal, Match, onCleanup, Show, Switch } from 'solid-js'
 import { PitchWordmark } from './brand'
-import { LandingFooter } from './LandingFooter'
-import { LandingNav } from './LandingNav'
+import '../../styles/public-share.css'
 
 interface PublicProject {
   title: string
@@ -12,27 +12,146 @@ interface PublicProject {
   pdfUrl?: string | null
   thumbnailUrl?: string | null
 }
+
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 const KICKER: Record<string, string> = {
-  'launch-video': 'Pitch launch video',
-  'demo-video': 'Pitch demo',
+  'launch-video': 'Launch video',
+  'demo-video': 'Product demo',
   deck: 'Pitch deck',
-  'recording-edit': 'Pitch edit',
+  'recording-edit': 'Edited video',
 }
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
+
+function ShareHeader() {
+  return (
+    <header class="share-header">
+      <A href="/" class="share-brand" aria-label="Pitch home">
+        <PitchWordmark />
+      </A>
+      <A href="/sign-up" class="share-header-cta">
+        Create with Pitch
+      </A>
+    </header>
+  )
+}
+
+function ProjectActions(props: { project: PublicProject; kind: 'video' | 'pdf' }) {
+  return (
+    <div class="share-actions">
+      <Show when={props.kind === 'pdf' && props.project.pdfUrl}>
+        {url => (
+          <a class="share-secondary-action" href={url()} target="_blank" rel="noopener noreferrer">
+            Open PDF
+            <ExternalLink size={15} />
+          </a>
+        )}
+      </Show>
+      <A href="/sign-up" class="share-primary-action">
+        Create your own
+      </A>
+      <span>Made with Pitch</span>
+    </div>
+  )
+}
+
+function ProjectDetails(props: {
+  project: PublicProject
+  kind: 'video' | 'pdf'
+  actions?: boolean
+}) {
+  return (
+    <div class="share-details">
+      <div class="share-copy">
+        <p class="share-kicker">
+          {props.kind === 'pdf' ? <FileText size={13} /> : <Play size={12} fill="currentColor" />}
+          {KICKER[props.project.flow] ?? (props.kind === 'pdf' ? 'Pitch document' : 'Pitch video')}
+        </p>
+        <h1 id="shared-project-title">{props.project.title}</h1>
+        <p class="share-date">Published {formatDate(props.project.createdAt)}</p>
+      </div>
+      <Show when={props.actions !== false}>
+        <ProjectActions project={props.project} kind={props.kind} />
+      </Show>
+    </div>
+  )
+}
+
+function VideoProject(props: { project: PublicProject }) {
+  return (
+    <main class="share-main share-video-main">
+      <section class="share-video-project" aria-labelledby="shared-project-title">
+        <div class="share-video-stage">
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            poster={props.project.thumbnailUrl ?? undefined}
+            src={props.project.videoUrl!}
+            aria-label={`${props.project.title} video`}
+          />
+        </div>
+        <ProjectDetails project={props.project} kind="video" />
+      </section>
+    </main>
+  )
+}
+
+function PdfProject(props: { project: PublicProject }) {
+  return (
+    <main class="share-main share-pdf-main">
+      <section class="share-pdf-project" aria-labelledby="shared-project-title">
+        <ProjectDetails project={props.project} kind="pdf" actions={false} />
+        <div class="share-pdf-stage">
+          <iframe src={props.project.pdfUrl!} title={`${props.project.title} PDF`} />
+          <noscript>
+            <a href={props.project.pdfUrl!}>Open {props.project.title}</a>
+          </noscript>
+        </div>
+        <ProjectActions project={props.project} kind="pdf" />
+      </section>
+    </main>
+  )
+}
+
+function ThumbnailProject(props: { project: PublicProject }) {
+  return (
+    <main class="share-main share-video-main">
+      <section class="share-video-project">
+        <div class="share-video-stage share-thumbnail-stage">
+          <img
+            src={props.project.thumbnailUrl!}
+            alt={props.project.title}
+            width="1600"
+            height="900"
+          />
+        </div>
+        <ProjectDetails project={props.project} kind="video" />
+      </section>
+    </main>
+  )
+}
+
 export const PublicDemoView = (props: { slug: string }) => {
-  const [project, setProject] = createSignal<PublicProject | null>(null),
-    [status, setStatus] = createSignal<'loading' | 'ready' | 'not-found'>('loading')
+  const [project, setProject] = createSignal<PublicProject | null>(null)
+  const [status, setStatus] = createSignal<'loading' | 'ready' | 'not-found'>('loading')
+
   createEffect(() => {
-    const slug = props.slug,
-      controller = new AbortController()
+    const slug = props.slug
+    const controller = new AbortController()
     setStatus('loading')
     fetch(`${API_URL}/projects/public/${encodeURIComponent(slug)}`, { signal: controller.signal })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        const p = data?.project ?? data
-        if (!p) setStatus('not-found')
+        const nextProject = data?.project ?? data
+        if (!nextProject) setStatus('not-found')
         else {
-          setProject(p)
+          setProject(nextProject)
           setStatus('ready')
         }
       })
@@ -41,83 +160,53 @@ export const PublicDemoView = (props: { slug: string }) => {
       })
     onCleanup(() => controller.abort())
   })
+
   return (
-    <div
-      class="min-h-screen text-gray-900 font-sans flex flex-col overflow-x-hidden"
-      style={{
-        background: 'radial-gradient(120% 70% at 50% -10%,#F3EFE7 0%,#FAF9F6 45%,#F5F4F1 100%)',
-      }}
-    >
-      <LandingNav />
-      <main class="flex-1 flex flex-col items-center px-4 sm:px-6 py-10 sm:py-20">
-        <Switch>
-          <Match when={status() === 'loading'}>
-            <div class="w-full max-w-4xl">
-              <div class="w-full aspect-video rounded-2xl bg-gray-200/70 animate-pulse" />
-            </div>
-          </Match>
-          <Match when={status() === 'not-found'}>
-            <div class="text-center max-w-sm py-20">
-              <PitchWordmark class="h-6 mx-auto mb-8 text-gray-300" />
-              <h1 class="font-serif text-3xl">This project isn't available</h1>
-              <p class="text-gray-500 my-6">
-                It may have been unshared by its owner, or the link is incorrect.
-              </p>
-              <A class="inline-flex px-6 py-3 rounded-full bg-gray-900 text-white" href="/">
-                Go to trypitch.co
-              </A>
-            </div>
-          </Match>
-          <Match when={project()}>
-            {p => (
-              <div class="w-full max-w-4xl">
-                <div class="w-full aspect-video rounded-2xl sm:rounded-[28px] overflow-hidden bg-gray-950 shadow-xl">
-                  {p().videoUrl ? (
-                    <video
-                      controls
-                      poster={p().thumbnailUrl ?? undefined}
-                      src={p().videoUrl!}
-                      class="w-full h-full object-contain"
-                    />
-                  ) : p().pdfUrl ? (
-                    <iframe src={p().pdfUrl!} title={p().title} class="w-full h-full bg-white" />
-                  ) : p().thumbnailUrl ? (
-                    <img
-                      src={p().thumbnailUrl!}
-                      alt={p().title}
-                      class="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div class="text-gray-500">Nothing published yet</div>
-                  )}
-                </div>
-                <div class="mt-7 flex justify-between gap-6">
-                  <div>
-                    <div class="text-[11px] font-bold uppercase text-gray-400">
-                      {KICKER[p().flow] ?? 'Pitch project'}
-                    </div>
-                    <h1 class="font-serif text-3xl">{p().title}</h1>
-                    <div class="text-[13px] text-gray-400">
-                      {new Date(p().createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </div>
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <A href="/" class="px-6 py-3 rounded-full bg-gray-900 text-white">
-                      Create your own
-                    </A>
-                    <span class="text-xs text-gray-400">Powered by Pitch</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </Match>
-        </Switch>
-      </main>
-      <LandingFooter />
+    <div class="share-page">
+      <ShareHeader />
+      <Switch>
+        <Match when={status() === 'loading'}>
+          <main class="share-main share-loading" aria-live="polite" aria-label="Loading project">
+            <div class="share-loading-stage" />
+            <div class="share-loading-copy" />
+          </main>
+        </Match>
+        <Match when={status() === 'not-found'}>
+          <main class="share-unavailable">
+            <PitchWordmark class="share-unavailable-wordmark" />
+            <p class="share-kicker">Public project</p>
+            <h1>This project isn’t available</h1>
+            <p>It may have been unshared by its owner, or the link may be incorrect.</p>
+            <A class="share-primary-action" href="/">
+              Go to trypitch.co
+            </A>
+          </main>
+        </Match>
+        <Match when={project()}>
+          {current => (
+            <Switch
+              fallback={
+                current().thumbnailUrl ? (
+                  <ThumbnailProject project={current()} />
+                ) : (
+                  <main class="share-unavailable">
+                    <p class="share-kicker">Public project</p>
+                    <h1>Nothing has been published yet</h1>
+                    <p>This link is active, but its owner hasn’t published an artifact.</p>
+                  </main>
+                )
+              }
+            >
+              <Match when={current().videoUrl}>
+                <VideoProject project={current()} />
+              </Match>
+              <Match when={current().pdfUrl}>
+                <PdfProject project={current()} />
+              </Match>
+            </Switch>
+          )}
+        </Match>
+      </Switch>
     </div>
   )
 }

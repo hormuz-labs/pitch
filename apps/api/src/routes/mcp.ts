@@ -1,5 +1,6 @@
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { createLogger } from '@saas/shared'
+import cors from 'cors'
 import express, { Router } from 'express'
 import { buildMcpServer } from '../mcp/server.js'
 import { requireApiKey } from '../middleware/auth.js'
@@ -7,6 +8,7 @@ import { requireApiKey } from '../middleware/auth.js'
 const logger = createLogger('studio:mcp')
 
 export const router = Router()
+router.use(cors({ origin: true }))
 router.use(express.json({ limit: '750mb' }))
 
 // Stateless Streamable HTTP: a fresh McpServer + transport per request, closed

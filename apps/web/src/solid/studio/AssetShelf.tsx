@@ -304,9 +304,11 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
               </Show>
             </div>
             <div class="asset-viewer-foot">
-              <button class="viewer-btn primary" onClick={reference}>
-                Use in chat
-              </button>
+              <Show when={!props.store.readOnly}>
+                <button class="viewer-btn primary" onClick={reference}>
+                  Use in chat
+                </button>
+              </Show>
               <Show when={src()}>
                 {u => (
                   <a class="viewer-btn" href={u()} download={props.asset.name}>
@@ -317,9 +319,11 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
               <Show when={error()}>
                 <span class="asset-viewer-error">{error()}</span>
               </Show>
-              <button class="viewer-btn danger" disabled={busy()} onClick={() => void remove()}>
-                {busy() ? 'Deleting…' : 'Delete'}
-              </button>
+              <Show when={!props.store.readOnly}>
+                <button class="viewer-btn danger" disabled={busy()} onClick={() => void remove()}>
+                  {busy() ? 'Deleting…' : 'Delete'}
+                </button>
+              </Show>
             </div>
           </div>
         </div>
@@ -364,13 +368,15 @@ function Card(props: { store: ProjectStore; asset: Asset; picked: boolean; open:
           <span class="asset-meta">{ORIGIN[props.asset.origin] ?? props.asset.origin}</span>
         </span>
       </button>
-      <button
-        class="asset-ref"
-        title={props.picked ? 'Already referenced' : 'Reference this file in your next message'}
-        onClick={reference}
-      >
-        {props.picked ? '✓' : '+'}
-      </button>
+      <Show when={!props.store.readOnly}>
+        <button
+          class="asset-ref"
+          title={props.picked ? 'Already referenced' : 'Reference this file in your next message'}
+          onClick={reference}
+        >
+          {props.picked ? '✓' : '+'}
+        </button>
+      </Show>
     </div>
   )
 }
@@ -409,7 +415,7 @@ export function AssetShelf(props: { store: ProjectStore }) {
         if (!depth) setDragging(false)
       }}
       onDrop={e => {
-        if (!e.dataTransfer?.files.length) return
+        if (props.store.readOnly || !e.dataTransfer?.files.length) return
         e.preventDefault()
         depth = 0
         setDragging(false)
@@ -431,9 +437,11 @@ export function AssetShelf(props: { store: ProjectStore }) {
           accept={ACCEPT}
           onChange={e => void add(e.currentTarget.files)}
         />
-        <button class="asset-add" disabled={adding()} onClick={() => input?.click()}>
-          {adding() ? 'Adding…' : '+ Add'}
-        </button>
+        <Show when={!props.store.readOnly}>
+          <button class="asset-add" disabled={adding()} onClick={() => input?.click()}>
+            {adding() ? 'Adding…' : '+ Add'}
+          </button>
+        </Show>
       </div>
       <Show when={error()}>
         <div class="timeline-empty asset-error">{error()}</div>

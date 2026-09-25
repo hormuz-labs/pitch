@@ -13,7 +13,16 @@ describe('McpSetup', () => {
   it('renders accessible client tabs and valid Claude setup instructions', () => {
     const { container } = render(() => <McpSetup instant />)
 
-    expect(screen.getAllByRole('tab')).toHaveLength(6)
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.trim())).toEqual([
+      'Claude',
+      'Cursor',
+      'ChatGPT',
+      'Perplexity',
+      'OpenClaw',
+      'Hermes',
+      'Any agent',
+      'API',
+    ])
     expect(screen.getByRole('tab', { name: 'Claude' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tabpanel')).not.toBeNull()
 
@@ -21,6 +30,17 @@ describe('McpSetup', () => {
     expect(command).toContain(`  ${MCP_URL} \\`)
     expect(command).toContain('Authorization: Bearer pk_your_key')
     expect(command).not.toContain('\n+')
+  })
+
+  it.each([
+    ['OpenClaw', 'Add a remote MCP server to your OpenClaw configuration.'],
+    ['Hermes', 'Add Pitch as a remote MCP server in Hermes.'],
+  ])('gives %s its own remote-MCP setup steps', (name, firstStep) => {
+    render(() => <McpSetup instant />)
+    fireEvent.click(screen.getByRole('tab', { name }))
+    expect(screen.getByRole('tab', { name }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText(firstStep)).not.toBeNull()
+    expect(screen.getByRole('tabpanel').textContent).toContain(MCP_URL)
   })
 
   it('shows the current one-studio REST contract without legacy flow guidance', () => {

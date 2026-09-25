@@ -73,30 +73,6 @@ spec:
           volumeMounts:
             - name: state
               mountPath: /state
-        # Native sidecar: up before the renderer, down after it has finished.
-        - name: cloud-sql-proxy
-          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
-          restartPolicy: Always
-          args:
-            - --structured-logs
-            - --private-ip
-            - --port=5432
-            - --health-check
-            - --http-address=0.0.0.0
-            - --http-port=9090
-            - ${CLOUD_SQL_CONNECTION_NAME}
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-          startupProbe:
-            httpGet: { path: /startup, port: 9090 }
-            failureThreshold: 30
-            periodSeconds: 2
-          readinessProbe:
-            httpGet: { path: /readiness, port: 9090 }
-          resources:
-            requests: { cpu: 100m, memory: 128Mi }
-            limits: { cpu: '1', memory: 512Mi }
       containers:
         - name: render
           image: pitch-api

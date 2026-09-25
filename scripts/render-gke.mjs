@@ -22,13 +22,13 @@ const values = {
   API_EXTRA_HOSTS: /^(?:[a-z0-9]+(?:[.-][a-z0-9]+)+(?:,[a-z0-9]+(?:[.-][a-z0-9]+)+)*)?$/,
   APP_URL: /^https:\/\/[a-z0-9]+(?:[.-][a-z0-9]+)+(?:\/)?$/,
   MEDIA_PUBLIC_URL: /^https:\/\/[a-z0-9]+(?:[.-][a-z0-9]+)+(?:\/[a-zA-Z0-9._/-]*)?$/,
-  GCP_SERVICE_ACCOUNT: /^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
-  CLOUD_SQL_CONNECTION_NAME: /^[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/,
   GKE_STATIC_IP_NAME: /^[a-z][a-z0-9-]*$/,
   // Cloud Storage bucket names are global; each deployment names its own.
   MEDIA_BUCKET: bucketName,
   PROFILES_BUCKET: bucketName,
   WORKSPACE_BUCKET: bucketName,
+  // The Google service account the pods act as (Workload Identity).
+  RUNTIME_SERVICE_ACCOUNT: /^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
   // Names the migration Job; a Job is immutable, so every release needs a new one.
   RELEASE: /^[a-z0-9][a-z0-9-]{0,39}$/,
   // Tailscale: the VPC CIDRs the cluster advertises, and one external worker node.
@@ -40,10 +40,10 @@ const values = {
 // kustomization; the others are single files applied on their own.
 const standalone = {
   // The Job runs before the app is applied, so it brings the namespace and
-  // the service account (Workload Identity to Cloud SQL) along.
+  // Kubernetes service account along.
   migrate: {
     files: ['namespace.yaml', 'service-account.yaml', 'migrate.yaml'],
-    needs: ['API_IMAGE', 'CLOUD_SQL_CONNECTION_NAME', 'GCP_SERVICE_ACCOUNT', 'RELEASE'],
+    needs: ['API_IMAGE', 'RELEASE', 'RUNTIME_SERVICE_ACCOUNT'],
   },
   tailscale: { file: 'tailscale/connector.yaml', needs: ['TAILSCALE_ROUTES'] },
   node: { file: 'tailscale/node.yaml', needs: ['NODE_NAME', 'NODE_TAILNET_FQDN'] },

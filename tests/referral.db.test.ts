@@ -228,7 +228,7 @@ describe('getAffiliateStats', () => {
     prisma.affiliateLead.count.mockResolvedValue(4)
     prisma.affiliateConversion.count.mockResolvedValue(2)
     // Referral credits earned by the referrer's wallet.
-    prisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 7 } })
+    prisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 400 } })
 
     const stats = await getAffiliateStats('aff_1')
 
@@ -236,8 +236,8 @@ describe('getAffiliateStats', () => {
       clicks: 10,
       signups: 4,
       conversions: 2,
-      creditsEarned: 7,
-      videosEarned: 2, // floor(7 / 3)
+      creditsEarned: 400,
+      videosEarned: 3, // floor(400 / 120): a demo video is about 120 credits
     })
   })
 })

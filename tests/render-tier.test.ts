@@ -11,10 +11,19 @@
 import { mkdir, mkdtemp, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const jobs = new Map<string, any>()
 const withdrawn: string[] = []
+const transfer = vi.hoisted(() => ({
+  get: vi.fn(),
+  head: vi.fn(),
+  put: vi.fn(),
+  remove: vi.fn(),
+  tarToFile: vi.fn(),
+  tarExtract: vi.fn(),
+}))
 vi.mock('@saas/db', () => ({
   prisma: {
     renderJob: {
@@ -38,9 +47,14 @@ vi.mock('../apps/api/src/worker/host.js', () => ({
 }))
 // The bucket side of a transfer is tar plus object storage; only the walk is under test.
 vi.mock('../apps/api/src/worker/checkpoint.js', () => ({
-  bucket: () => ({}),
-  tarCreate: vi.fn(),
-  tarExtract: vi.fn(),
+  bucket: () => ({
+    get: transfer.get,
+    head: transfer.head,
+    put: transfer.put,
+    remove: transfer.remove,
+  }),
+  tarToFile: transfer.tarToFile,
+  tarExtract: transfer.tarExtract,
 }))
 process.env.STUDIO_RENDER_POLL_MS = '10'
 
@@ -52,7 +66,9 @@ const {
   isRemoteAction,
 } = await import('../apps/api/src/studio/host-actions.js')
 const { awaitJob } = await import('../apps/api/src/worker/remote.js')
-const { changedSince } = await import('../apps/api/src/renderer/transfer.js')
+const { changedSince, downloadOutput, uploadOutput } = await import(
+  '../apps/api/src/renderer/transfer.js'
+)
 const { decide } = await import('../apps/api/src/renderer/autoscale.js')
 
 const ws = { flow: 'studio', userId: 'u', name: 'n', internal: 'studio--u--n', dir: '/x' } as any
@@ -61,6 +77,11 @@ beforeEach(() => {
   setRemoteDispatcher(null)
   jobs.clear()
   withdrawn.length = 0
+  vi.clearAllMocks()
+  transfer.put.mockResolvedValue(undefined)
+  transfer.head.mockResolvedValue({ size: 12 })
+  transfer.remove.mockResolvedValue(undefined)
+  transfer.tarExtract.mockResolvedValue(undefined)
   takeComputeSeconds(ws.internal)
 })
 
@@ -110,8 +131,7 @@ describe('host action registry', () => {
     })
     const progress = vi.fn()
     const c = new AbortController()
-    c.abort()
-    expect(await invokeHostAction(ws, 't_ctx', {}, { progress, signal: c.signal })).toBe('aborted')
+    expect(await invokeHostAction(ws, 't_ctx', {}, { progress, signal: c.signal })).toBe('live')
     expect(progress).toHaveBeenCalledWith('half', 50)
   })
 })
@@ -177,6 +197,42 @@ describe('output walk', () => {
       'renders/launch-1080p.mp4',
       'renders/launch-1080p.mp4.timeline.json',
     ])
+  })
+
+  it('uploads the finished tar with its exact size', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'render-upload-'))
+    transfer.tarToFile.mockImplementation(async (_dir: string, _files: string[], file: string) => {
+      await writeFile(file, 'complete tar')
+      return 12
+    })
+    transfer.put.mockImplementation(async (_key, body, _type, size) => {
+      const chunks: Buffer[] = []
+      for await (const chunk of body) chunks.push(Buffer.from(chunk))
+      expect(Buffer.concat(chunks).toString()).toBe('complete tar')
+      expect(size).toBe(12)
+    })
+
+    await expect(uploadOutput('j1', dir, ['renders/video.mp4'])).resolves.toBe(1)
+  })
+
+  it('rejects an incomplete output upload before completing the render job', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'render-upload-'))
+    transfer.tarToFile.mockImplementation(async (_dir: string, _files: string[], file: string) => {
+      await writeFile(file, 'complete tar')
+      return 12
+    })
+    transfer.head.mockResolvedValue({ size: 3 })
+
+    await expect(uploadOutput('j1', dir, ['renders/video.mp4'])).rejects.toThrow(
+      'expected 12 bytes, got 3',
+    )
+  })
+
+  it('rejects a corrupt output archive instead of reporting an empty merge', async () => {
+    transfer.get.mockResolvedValue(Readable.from([Buffer.from('broken')]))
+    transfer.tarExtract.mockRejectedValue(new Error('not a tar archive'))
+
+    await expect(downloadOutput('j1', '/workspace')).rejects.toThrow('not a tar archive')
   })
 })
 

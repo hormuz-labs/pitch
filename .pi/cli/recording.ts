@@ -1,15 +1,13 @@
 /**
  * recording-editor — `pitch recording` commands.
  *
- * Runs on the worker host (cwd = repo root). Given an UPLOADED narrated screen
- * recording, these tools reconstruct the same recording/demo-state.json that
- * the live demo-generator agent emits — so the existing render engine
- * (zoom-filter, cursor-fx, smart_trim, intro/outro) consumes it unchanged. Only
- * the EVENT SOURCE differs:
+ * Runs in the studio process with the session's workspace as authority.
+ * Given an UPLOADED narrated screen recording, these tools build a
+ * recording/demo-state.json of camera and click events for the edit render
+ * (zoom-filter, smart_trim, intro/outro):
  *
- *   live flow:   playwright agent drives browser ──────────────→ demo-state.json
- *   upload flow: whisper transcript + ffmpeg scene cuts ──→ agent proposes windows
- *                     ──→ Agentic Vision verifies ──→ demo-state.json   (these tools)
+ *   whisper transcript + ffmpeg scene cuts ──→ agent proposes windows
+ *       ──→ Agentic Vision verifies ──→ demo-state.json
  *
  * Tools:
  *   pitch recording probe-video        duration / resolution / fps / has-audio
@@ -33,20 +31,21 @@
  * timeline. Nothing here trims; the render stage owns trimming.
  */
 
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
-import { workspaceOf } from '../lib/paths.ts'
-import { hostAction } from '../lib/studio-host.ts'
+import { FRAME_H, FRAME_W } from '../lib/demo-core.ts'
+import type { ClickEvent } from '../lib/demo-state.ts'
+import { resolveIn, workspaceOf } from '../lib/paths.ts'
+import { hostAction, text } from '../lib/studio-host.ts'
+import { withWorkspaceLock } from '../lib/workspace-lock.ts'
 import type { CommandSpec } from './registry.ts'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 // ── constants ────────────────────────────────────────────────────────────────
-const FRAME_W = 1920
-const FRAME_H = 1080
 // Agentic Vision requires a Gemini 3 Flash variant with code execution enabled.
 const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'
 const SCENE_THRESHOLD = 0.3
@@ -54,18 +53,13 @@ const DEDUPE_WINDOW_SEC = 1.0
 const MAX_KEY_MOMENTS = 80
 const BIG_BUFFER = 64 * 1024 * 1024
 
-// ── demo-state (same shape as demo-generator.ts) ────────────────────────────
+// ── demo-state: the camera and click events the edit render reads ───────────
 interface ZoomEvent {
   type: 'in' | 'out'
   videoTimeSec: number
   x?: number
   y?: number
   zoom?: number
-}
-interface ClickEvent {
-  videoTimeSec: number
-  x: number
-  y: number
 }
 interface DemoState {
   startTime: number
@@ -74,12 +68,6 @@ interface DemoState {
   audioClips: { filePath: string; absoluteTimestamp: number; durationSec?: number }[]
   zoomEvents: ZoomEvent[]
   clickEvents: ClickEvent[]
-  tabEvents: { tabId: number; wallSec: number }[]
-  tabCreationTimes: Record<number, number>
-  currentTabId: number
-  lastTargetCoords: { ref: string; x: number; y: number } | null
-  pageUrl?: string
-  pageUrlEvents: { videoTimeSec: number; url: string }[]
 }
 
 function initialState(): DemoState {
@@ -89,32 +77,7 @@ function initialState(): DemoState {
     audioClips: [],
     zoomEvents: [],
     clickEvents: [],
-    tabEvents: [{ tabId: 0, wallSec: 0 }],
-    tabCreationTimes: { 0: 0 },
-    currentTabId: 0,
-    lastTargetCoords: null,
-    pageUrlEvents: [],
   }
-}
-
-// Simple mutex to serialize state reads/writes across concurrent tool calls.
-let stateLock = Promise.resolve()
-async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
-  const release = await new Promise<() => void>(resolve => {
-    const prev = stateLock
-    stateLock = prev.then(() => new Promise<void>(done => resolve(done)))
-    prev.then(() => {})
-  })
-  try {
-    return await fn()
-  } finally {
-    release()
-  }
-}
-
-// ── tool result plumbing ─────────────────────────────────────────────────────
-function text(out: string) {
-  return { content: [{ type: 'text' as const, text: out }], details: {} }
 }
 
 // ── path helpers ─────────────────────────────────────────────────────────────
@@ -127,8 +90,9 @@ function recordingsDir(base: string): string {
 function statePath(base: string): string {
   return path.join(recordingsDir(base), 'demo-state.json')
 }
+/** The workspace file a command names — never a path outside the project. */
 function resolveVideo(base: string, videoPath: string): string {
-  return path.isAbsolute(videoPath) ? videoPath : path.join(base, videoPath)
+  return resolveIn(base, videoPath, 'read')
 }
 
 function readState(base: string): DemoState {
@@ -160,7 +124,6 @@ function ensureSessionForVideo(base: string, videoPath: string) {
 
 // ── small utilities ──────────────────────────────────────────────────────────
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-const q = (p: string) => `"${p.replace(/"/g, '\\"')}"`
 
 function linspace(a: number, b: number, n: number): number[] {
   if (n <= 1) return [Math.max(0, +a.toFixed(3))]
@@ -182,12 +145,21 @@ async function extractFrames(
     try {
       // Letterbox-scale to the same 1920x1080 space the render uses, so a box
       // normalized to this frame maps 1:1 onto the final camera coordinates.
-      await execAsync(
-        `ffmpeg -y -ss ${t} -i ${q(video)} -frames:v 1 ` +
-          `-vf "scale=${FRAME_W}:${FRAME_H}:force_original_aspect_ratio=decrease,` +
-          `pad=${FRAME_W}:${FRAME_H}:(ow-iw)/2:(oh-ih)/2,setsar=1" ` +
-          `-q:v 2 ${q(filePath)}`,
-      )
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-ss',
+        String(t),
+        '-i',
+        video,
+        '-frames:v',
+        '1',
+        '-vf',
+        `scale=${FRAME_W}:${FRAME_H}:force_original_aspect_ratio=decrease,` +
+          `pad=${FRAME_W}:${FRAME_H}:(ow-iw)/2:(oh-ih)/2,setsar=1`,
+        '-q:v',
+        '2',
+        filePath,
+      ])
       if (fs.existsSync(filePath)) out.push({ timeSec: t, filePath })
     } catch {}
   }
@@ -246,9 +218,15 @@ export default function recordingCommands(): CommandSpec[] {
         const video = resolveVideo(base, args.videoPath)
         if (!fs.existsSync(video)) return text(`ERROR: video not found: ${video}`)
         ensureSessionForVideo(base, video)
-        const { stdout } = await execAsync(
-          `ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of json ${q(video)}`,
-        )
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v',
+          'error',
+          '-show_entries',
+          'format=duration:stream=codec_type,codec_name,width,height,r_frame_rate',
+          '-of',
+          'json',
+          video,
+        ])
         const info = JSON.parse(stdout)
         const v = (info.streams || []).find((s: any) => s.codec_type === 'video')
         const a = (info.streams || []).find((s: any) => s.codec_type === 'audio')
@@ -339,12 +317,27 @@ export default function recordingCommands(): CommandSpec[] {
         const video = resolveVideo(base, args.videoPath)
         if (!fs.existsSync(video)) return text(`ERROR: video not found: ${video}`)
         ensureSessionForVideo(base, video)
-        const threshold = args.threshold ?? SCENE_THRESHOLD
-        // 2>&1 merges showinfo output into stdout, so parse stdout (stderr too on failure).
-        const { stdout } = await execAsync(
-          `ffmpeg -i ${q(video)} -vf "select='gt(scene,${threshold})',showinfo" -vsync vfr -an -f null - 2>&1`,
+        const threshold = Number(args.threshold ?? SCENE_THRESHOLD)
+        if (!Number.isFinite(threshold)) return text('ERROR: threshold must be a number')
+        // showinfo writes to stderr; parse it (and whatever a failure left behind).
+        const { stdout } = await execFileAsync(
+          'ffmpeg',
+          [
+            '-i',
+            video,
+            '-vf',
+            `select='gt(scene,${threshold})',showinfo`,
+            '-vsync',
+            'vfr',
+            '-an',
+            '-f',
+            'null',
+            '-',
+          ],
           { maxBuffer: BIG_BUFFER },
-        ).catch(e => ({ stdout: `${e.stdout || ''}\n${e.stderr || e.message}` }))
+        )
+          .then(r => ({ stdout: `${r.stdout}\n${r.stderr}` }))
+          .catch(e => ({ stdout: `${e.stdout || ''}\n${e.stderr || e.message}` }))
         const lines = stdout.split('\n').filter(l => l.includes('pts_time:'))
         const raw = lines
           .map(l => {
@@ -618,7 +611,7 @@ export default function recordingCommands(): CommandSpec[] {
       ),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)
@@ -684,7 +677,7 @@ export default function recordingCommands(): CommandSpec[] {
       }),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)
@@ -712,7 +705,7 @@ export default function recordingCommands(): CommandSpec[] {
       y: Type.Number({ description: 'Click pixel y (bbox centre).' }),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      return withStateLock(async () => {
+      return withWorkspaceLock(baseDir(ctx), async () => {
         try {
           const base = baseDir(ctx)
           const state = readState(base)

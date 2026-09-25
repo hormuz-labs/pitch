@@ -1,6 +1,7 @@
-import { exec, execSync } from 'node:child_process'
-import { promisify } from 'node:util'
-import { type BrowserServer, chromium } from 'playwright'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { type Browser, type BrowserContext, chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildAnnotateEvalJs } from '../../.pi/lib/annotations'
 import {
@@ -8,23 +9,26 @@ import {
   pageRectToViewportRect,
   resolveManifestSlides,
 } from '../../.pi/lib/asset-demo'
-import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.pi/lib/demo-core'
 import { buildSlideshowHtml } from '../../.pi/lib/slideshow'
+import {
+  type BrowserDriver,
+  createBrowserDriver,
+} from '../../apps/api/src/render/utils/browser-driver'
 
-const execAsync = promisify(exec)
-const PLAYWRIGHT_SESSION = 'asset-slideshow-integration'
-const hasCli = (() => {
+const chromiumLaunches = await (async () => {
   try {
-    execSync('command -v playwright-cli', { stdio: 'ignore' })
+    const b = await chromium.launch()
+    await b.close()
     return true
   } catch {
     return false
   }
 })()
-const pw = (args: string) =>
-  execAsync(`playwright-cli -s=${PLAYWRIGHT_SESSION} ${args}`, { maxBuffer: 16 * 1024 * 1024 })
-const suite = hasCli ? describe : describe.skip
-let server: BrowserServer | undefined
+const suite = chromiumLaunches ? describe : describe.skip
+let browser: Browser | undefined
+let context: BrowserContext
+let driver: BrowserDriver
+let ws: string
 
 describe('approved storyboard slideshow contract', () => {
   it('omits a deleted PDF page from the rendered slideshow HTML', () => {
@@ -92,32 +96,27 @@ const html = buildSlideshowHtml(
 )
 
 async function boxOf(selector: string) {
-  const { stdout } = await pw(`--raw eval '${ELEMENT_BOX_JS}' '${selector}'`)
-  const parsed = parseElementBoxJson(stdout)
-  if (!parsed) throw new Error(`Could not parse browser box output: ${stdout}`)
-  return parsed
+  const box = await driver.box({ selector })
+  if (!box) throw new Error(`No box for ${selector}`)
+  return box
 }
 
-async function viewportSize() {
-  const { stdout } = await pw(`--raw eval '() => ({width: innerWidth, height: innerHeight})'`)
-  return JSON.parse(stdout.trim()) as { width: number; height: number }
-}
+const snapshot = async () => (await driver.run({ op: 'snapshot' })).text
 
 suite('asset slideshow in a real browser', () => {
   beforeAll(async () => {
-    process.env.PLAYWRIGHT_CLI_SESSION = PLAYWRIGHT_SESSION
-    await pw('close').catch(() => {})
-    server = await chromium.launchServer({ headless: true })
-    await pw(`attach --endpoint ${server.wsEndpoint()}`)
-    await pw('resize 1280 720')
-    await pw(`goto "data:text/html,${encodeURIComponent(html)}"`)
+    browser = await chromium.launch()
+    context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+    const page = await context.newPage()
+    await page.goto(`data:text/html,${encodeURIComponent(html)}`)
     await new Promise(resolve => setTimeout(resolve, 600))
+    ws = fs.mkdtempSync(path.join(os.tmpdir(), 'slideshow-ws-'))
+    driver = createBrowserDriver(context, ws)
   }, 60_000)
 
   afterAll(async () => {
-    delete process.env.PLAYWRIGHT_CLI_SESSION
-    await pw('close').catch(() => {})
-    await server?.close()
+    await browser?.close()
+    if (ws) fs.rmSync(ws, { recursive: true, force: true })
   })
 
   it('maps OCR percentages onto the rendered page box', async () => {
@@ -140,10 +139,11 @@ suite('asset slideshow in a real browser', () => {
     expect((note.x - page.x) / page.w).toBeCloseTo(0.12, 2)
     expect((note.y - page.y) / page.h).toBeCloseTo(0.22, 2)
 
-    const { stdout } = await pw(
-      `--raw eval '() => ({ blur: getComputedStyle(document.querySelector(".overlay-blur")).backdropFilter, note: document.querySelector(".callout-note").textContent })'`,
-    )
-    expect(JSON.parse(stdout.trim())).toEqual({ blur: 'blur(12px)', note: 'Reviewed point' })
+    expect(
+      await driver.evaluate(
+        '() => ({ blur: getComputedStyle(document.querySelector(".overlay-blur")).backdropFilter, note: document.querySelector(".callout-note").textContent })',
+      ),
+    ).toEqual({ blur: 'blur(12px)', note: 'Reviewed point' })
   })
 
   it('fits each page to the live viewport without decorative stage chrome', async () => {
@@ -153,16 +153,17 @@ suite('asset slideshow in a real browser', () => {
     expect(page.w).toBeCloseTo(1080, 2)
     expect(page.h).toBeCloseTo(720, 2)
 
-    const { stdout } = await pw(
-      `--raw eval '() => ({ counter: getComputedStyle(document.querySelector("#counter")).display, nav: getComputedStyle(document.querySelector("#nav")).display })'`,
-    )
-    expect(JSON.parse(stdout.trim())).toEqual({ counter: 'none', nav: 'none' })
+    expect(
+      await driver.evaluate(
+        '() => ({ counter: getComputedStyle(document.querySelector("#counter")).display, nav: getComputedStyle(document.querySelector("#nav")).display })',
+      ),
+    ).toEqual({ counter: 'none', nav: 'none' })
   })
 
   it('converts a page rectangle to the same live viewport box as its hotspot', async () => {
     const page = await boxOf('.slide.active .page')
     const hotspot = await boxOf('.slide.active .hotspot')
-    const viewport = await viewportSize()
+    const viewport = await driver.viewport()
     const converted = pageRectToViewportRect(
       { leftPct: 10, topPct: 20, widthPct: 30, heightPct: 10 },
       { left: page.x, top: page.y, width: page.w, height: page.h },
@@ -174,9 +175,7 @@ suite('asset slideshow in a real browser', () => {
     expect((converted.widthPct / 100) * viewport.width).toBeCloseTo(hotspot.w, 1)
     expect((converted.heightPct / 100) * viewport.height).toBeCloseTo(hotspot.h, 1)
 
-    const annotateJs = buildAnnotateEvalJs({ style: 'underline', rect: converted })
-    const escaped = annotateJs.replace(/(["\\$`])/g, '\\$1')
-    await pw(`--raw eval "${escaped}"`)
+    await driver.evaluate(buildAnnotateEvalJs({ style: 'underline', rect: converted }))
     const annotation = await boxOf('.pitch-ann')
     expect(annotation.x).toBeCloseTo(hotspot.x, 1)
     expect(annotation.y).toBeCloseTo(hotspot.y, 1)
@@ -185,19 +184,22 @@ suite('asset slideshow in a real browser', () => {
   })
 
   it('exposes only the active page hotspot and draws a production annotation on it', async () => {
-    const firstSnapshot = (await pw('snapshot')).stdout
+    const firstSnapshot = await snapshot()
     expect(firstSnapshot).toContain('First target')
     expect(firstSnapshot).not.toContain('Second target')
 
-    const annotateJs = buildAnnotateEvalJs({ style: 'pulse', ref: 'current' })
-    const escaped = annotateJs.replace(/(["\\$`])/g, '\\$1')
-    const annotated = (await pw(`--raw eval "${escaped}" '.slide.active .hotspot'`)).stdout
-    expect(annotated).toContain('ok')
+    const ref = firstSnapshot
+      .split('\n')
+      .find(line => line.includes('First target'))
+      ?.match(/\[ref=(\w+)\]/)?.[1]
+    expect(ref).toBeTruthy()
+    const annotateJs = buildAnnotateEvalJs({ style: 'pulse', ref: ref! })
+    expect(JSON.stringify(await driver.evaluate(annotateJs, ref))).toContain('ok')
     expect((await boxOf('.pitch-ann-pulse'))?.w).toBeGreaterThan(0)
 
-    await pw('press ArrowRight')
+    await driver.run({ op: 'press', key: 'ArrowRight' })
     await new Promise(resolve => setTimeout(resolve, 600))
-    const secondSnapshot = (await pw('snapshot')).stdout
+    const secondSnapshot = await snapshot()
     expect(secondSnapshot).toContain('Second target')
     expect(secondSnapshot).not.toContain('First target')
   })

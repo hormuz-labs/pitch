@@ -410,14 +410,22 @@ router.get('/status', async (req, res) => {
           return res.status(400).json({ error: 'Subscription metadata missing clerk_user_id' })
         }
 
-        // The subscription grant is not idempotent across polls (period start is
-        // "now"), so only grant when we haven't recorded this subscription yet.
+        // The subscription grant is idempotent with the webhook handler via
+        // `sub_grant:${subscriptionId}:initial`. Only grant when not already recorded.
         const existing = await prisma.subscription.findUnique({
           where: { dodoSubscriptionId: subscriptionId },
         })
         if (!existing && credits > 0) {
-          const periodStart = new Date()
-          const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          const rawStart =
+            (subscription as any).previous_billing_date ||
+            (subscription as any).current_period_start ||
+            subscription.created_at
+          const rawEnd =
+            (subscription as any).next_billing_date || (subscription as any).current_period_end
+          const periodStart = rawStart ? new Date(rawStart) : new Date()
+          const periodEnd = rawEnd
+            ? new Date(rawEnd)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           await upsertSubscription({
             userId: subUserId,
             dodoSubscriptionId: subscriptionId,
@@ -426,7 +434,7 @@ router.get('/status', async (req, res) => {
             creditsPerCycle: credits,
             currentPeriodStart: periodStart,
             currentPeriodEnd: periodEnd,
-            idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+            idempotencyKey: `sub_grant:${subscriptionId}:initial`,
           })
           logger.info(
             { userId: subUserId, credits, subscriptionId },

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   advanceSlideshowProgress,
-  appendAutoZoomOut,
   assertCurrentSlideAnalyzed,
-  countForwardSlideAdvances,
   createSlideshowProgress,
   markCurrentSlideAnalyzed,
   markCurrentSlideNarrated,
@@ -50,16 +48,6 @@ describe('slideshow progress guard', () => {
     )
   })
 
-  it('counts every forward navigation embedded in a demo_bash command', () => {
-    expect(
-      countForwardSlideAdvances(
-        'playwright-cli press ArrowRight; playwright-cli press ArrowRight; sleep 1',
-      ),
-    ).toBe(2)
-    expect(countForwardSlideAdvances('playwright-cli press ArrowRight && sleep 0.5')).toBe(1)
-    expect(countForwardSlideAdvances('playwright-cli snapshot')).toBe(0)
-  })
-
   it('requires every expected page before the worker renders', () => {
     expect(() =>
       validateSlideshowCoverage(
@@ -100,38 +88,5 @@ describe('slideshow progress guard', () => {
         ],
       }),
     ).toBe(2)
-  })
-})
-
-describe('appendAutoZoomOut', () => {
-  const buildOut = (videoTimeSec: number) => ({ type: 'out' as const, videoTimeSec })
-
-  it('adds a zoom-out event when the camera is still zoomed in', () => {
-    const events = appendAutoZoomOut(
-      [{ type: 'in', videoTimeSec: 10, x: 100, y: 200, zoom: 2 }],
-      20,
-      buildOut,
-    )
-    expect(events).toHaveLength(2)
-    expect(events[0]).toMatchObject({ type: 'in', videoTimeSec: 10 })
-    expect(events[1]).toEqual({ type: 'out', videoTimeSec: 20 })
-  })
-
-  it('does nothing when the camera is already zoomed out', () => {
-    const events = appendAutoZoomOut(
-      [
-        { type: 'in', videoTimeSec: 10 },
-        { type: 'out', videoTimeSec: 15 },
-      ],
-      20,
-      buildOut,
-    )
-    expect(events).toHaveLength(2)
-    expect(events[events.length - 1]).toEqual({ type: 'out', videoTimeSec: 15 })
-  })
-
-  it('does nothing when there are no zoom events', () => {
-    const events = appendAutoZoomOut([], 20, buildOut)
-    expect(events).toHaveLength(0)
   })
 })
