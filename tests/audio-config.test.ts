@@ -42,7 +42,7 @@ describe('the audio config', () => {
     )
     expect(c.tts.provider).toBe('elevenlabs')
     expect(c.tts.elevenlabs).toEqual({ voice: 'abc123', model: 'eleven_v3' })
-    expect(c.tts.gemini.model).toBe('gemini-2.5-flash-preview-tts')
+    expect(c.tts.gemini.model).toBe('gemini-3.8-flash-tts')
   })
 
   it('refuses a provider it does not have rather than calling nothing', () => {

@@ -34,7 +34,7 @@ export const AUDIO_CONFIG_FILE = path.join(PI_DIR, 'audio.json')
 const DEFAULTS: AudioConfig = {
   tts: {
     provider: 'gemini',
-    gemini: { voice: 'Aoede', model: 'gemini-2.5-flash-preview-tts' },
+    gemini: { voice: 'Aoede', model: 'gemini-3.8-flash-tts' },
     elevenlabs: { voice: '', model: 'eleven_v3' },
   },
 }

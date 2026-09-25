@@ -8,11 +8,20 @@ its words: your script, pictures and sound come from your product and brief.
 
 ## The script (audio/vo.txt)
 
-> Here's the thing. Your open office steals hours of focus every single week. Chatter. Calls. Keyboards. All day. And we know, headphones make it worse. You miss your name. You miss the room. So we made something better. This is Lull. Earbuds that quiet the noise and keep the voices, with filters tuned to speech, not silence. Hear your team. Lose the din. Get your focus back.
+Voice character: "a friend who's been in your open office". Each `{turn}`
+comes from the sound score's feeling column (see ad-sound.md → Step 2).
 
-Recorded with `pitch motion tts --script audio/vo.txt --pace ad`, tightened
-with `pitch motion tighten`, aligned with `pitch motion align`. No outside figure appears, so there is no `evidence`
-shot; a film that cites one adds it after the stake (see social-ad.md).
+```
+{low and conspiratorial, speaking rapidly} Here's the thing. Your open office steals HOURS of focus every single week. Chatter. Calls. Keyboards. All day.
+{dry and sarcastic, speaking rapidly} And we know, headphones make it worse. <sigh> You miss your name. You miss the room.
+{brightening, warm and proud} So we made something better. This is Lull.
+{confident and matter-of-fact, speaking rapidly} Earbuds that quiet the noise and keep the voices, with filters tuned to speech, not silence.
+{excited, a smile in the voice} Hear your team. Lose the din. Get your focus back.
+```
+
+Recorded with Gemini (voice Achird, the commands below), tightened and
+aligned. No outside figure appears, so there is no `evidence` shot; a film
+that cites one adds it after the stake (see social-ad.md).
 
 ## direction.md — the shot table (excerpt)
 
@@ -42,6 +51,8 @@ window.SHOTS = {
   audio: {
     vo: "audio/vo.wav", voStart: 0.4, pace: "ad",
     fx: [
+      { kind: "thin", from: 0, until: "hours" },
+      { kind: "thin", cue: "headphones make it worse", until: "so we made", cutoff: 350 },
       { kind: "ring", cue: "all day", freq: 3400, level: -32 },
       { kind: "muffle", cue: "you miss your name", until: "you miss the room", cutoff: 700, voCutoff: 3000 },
     ],
@@ -91,8 +102,9 @@ The project types `signal`, `exploded` and `float` are the files in
 
 ```sh
 pitch motion scaffold --format 9:16                    # shell + starter shots.js in 9:16
-pitch motion voices --search "warm confident female"   # cast the voice (ElevenLabs)
-pitch motion tts --script audio/vo.txt --pace ad --voice <id> --stability 0.35
+pitch motion tts --script audio/hook.txt --out audio/audition-Achird.wav --pace ad \
+  --provider gemini --model gemini-3.8-flash-tts --voice Achird   # audition two voices on the plain hook, no turns
+pitch motion tts --script audio/vo.txt --pace ad --provider gemini --model gemini-3.8-flash-tts --voice Achird
 pitch motion tighten                                   # breaths out: pauses over 0.2s shortened
 pitch motion align
 pitch motion stock --mode search --query "open plan office, people at desks, overhead light" --orientation portrait
@@ -101,11 +113,11 @@ pitch motion footage --src uploads/stock/office-wide.mp4 --name office-1 --in 2 
 # … the other clips, then write shots.js with cues …
 pitch motion sync --write                              # durations from the words
 pitch motion check                                     # captions resolved, footage loaded
-pitch motion music --duration 38.05 --prompt "…0–1.8s filtered drums, no bass; 1.8s drop…; 16.5s riser ends, biggest drop…"
+pitch motion find-audio                                # a steady bed; the thin windows make the drops
                                                        # or find-audio + thin windows for the sections
-pitch motion sfx --mode query --event "glitch,subdrop,reverse,pop"
+pitch motion sfx --mode query --event "riser,impact,glitch,subdrop,pop"
 pitch motion sfx --mode build
-pitch motion mix --duration 38.05
+pitch motion mix --duration 38.05 --music audio/music.mp3 --sfx audio/sfx_bus.wav
 pitch motion review
 pitch motion audit
 ```

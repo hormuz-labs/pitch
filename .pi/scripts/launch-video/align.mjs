@@ -55,9 +55,15 @@ if (!scriptText) {
   }
   scriptText = readFileSync(scriptFile, "utf8");
 }
-// ElevenLabs v3 delivery tags ([excited], [whispers], [pause]) steer the read
-// but are never spoken; aligning them as words would shift every onset after.
-scriptText = scriptText.replace(/\[[^\]\n]{1,40}\]/g, " ").replace(/\s+/g, " ").trim();
+// Delivery directions steer the read but are never spoken — Gemini turn
+// styles ({sarcastic}), vocal tags (<sigh>, <short pause>) and ElevenLabs tags
+// ([excited]); aligning them as words would shift every onset after.
+scriptText = scriptText
+  .replace(/\{[^{}\n]{1,200}\}/g, " ")
+  .replace(/<[^<>\n]{1,40}>/g, " ")
+  .replace(/\[[^\]\n]{1,40}\]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
 
 function findModel() {
   const explicit = flag("model", process.env.WHISPER_MODEL || null);

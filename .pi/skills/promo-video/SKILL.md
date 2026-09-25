@@ -1,6 +1,6 @@
 ---
 name: promo-video
-description: Makes promotional films and ads as live shots.js previews — short-form social and performance ads (Reels, TikTok, Shorts, Stories, paid social, DTC, UGC-style, B2B) that hook in three seconds, cut in bursts under word-synced captions, keep a fast continuous voiceover and drop the music on the turn; and cinematic voice-led brand manifestos. Use it for any request to make an ad, a promo, a commercial, a product video for social, "an ad like this reference", a video from stock or uploaded footage, a brand anthem or manifesto — even when the user only says "make a video for my product/site" and the result is meant to sell. Use launch-video when the product's UI walkthrough is the subject, and video-editing to post-process an existing file.
+description: Makes promotional films and ads as live shots.js previews — short-form social and performance ads (Reels, TikTok, Shorts, Stories, paid social, DTC, UGC-style, B2B) that hook in three seconds, cut in bursts under word-synced captions, keep a fast, performed voiceover and drop the music on the turn; and cinematic voice-led brand manifestos. Use it for any request to make an ad, a promo, a commercial, a product video for social, "an ad like this reference", a video from stock or uploaded footage, a brand anthem or manifesto — even when the user only says "make a video for my product/site" and the result is meant to sell. Use launch-video when the product's UI walkthrough is the subject, and video-editing to post-process an existing file.
 ---
 
 # Promo videos and ads
@@ -36,15 +36,21 @@ has five studied ads beat by beat; read the one nearest the brief.
 2. **Script.** Write it for the ear in the arc of the treatment: a hook that
    works in 3 seconds, one number, the enemy, the turn, the name, proof, the
    close. Aim for runtime × 3 words/s. Put delivery marks in it (below).
-3. **Voice.** Cast it: `pitch motion voices --search "<tone, accent, age>"`
-   when narration is on ElevenLabs, else a Gemini voice and `--style`. Record
-   one continuous read with `pitch motion tts --pace ad`, remove the breaths
-   with `pitch motion tighten`, then `pitch motion align`. Details in
-   [ad-sound.md](references/ad-sound.md).
+3. **Sound score, then voice.** Write the sound score first: the voice's
+   character in a few words, and for every beat what the voice feels, what
+   the music section does and which sound acts it out
+   ([ad-sound.md](references/ad-sound.md) → Step 1). Then cast a Gemini voice
+   from the character, audition two on the plain hook, and record one
+   continuous, performed read: `pitch motion tts --pace ad --provider gemini
+   --model gemini-3.8-flash-tts --voice <name>`. The script is directed in
+   turns, `{dry and sarcastic, speaking rapidly}` at each change of feeling
+   from the score, with a few `<sigh>`/`<laugh>` events inline. Remove the breaths with
+   `pitch motion tighten`, then `pitch motion align`.
 4. **direction.md.** Takeaway, audience, placement, look, the script, the
    claim ledger (each fact → its source), the footage ledger (each clip →
-   file, origin, licence), the **music plan** (sections and drops in film
-   seconds, from the aligned words) and the shot table
+   file, origin, licence), the **sound score** (voice character, each beat's
+   feeling, music sections and drops on named words, the sounds) and the shot
+   table
    `id | spoken words (cue) | density (BURST / HOLD / INTERRUPT) | picture | source | caption | sound`.
    Alternate densities: a burst in the first 3 seconds, an interrupt every
    5–10, a hold on every proof.
@@ -55,9 +61,13 @@ has five studied ads beat by beat; read the one nearest the brief.
 6. **Words on screen.** The `captions` track — keywords, mixed type, and for
    long or loud ads a `subtitles` tier (`pitch motion schema --section
    captions`) — then `pitch motion sync --write` for cued shots.
-7. **Sound.** Generate or shape the bed to the music plan, add `audio.fx`
-   (thin / muffle / ring) and a few structural SFX, then `pitch motion mix`
-   ([ad-sound.md](references/ad-sound.md)).
+7. **Sound.** Perform the score: choose a library bed and cut it into
+   sections with `audio.fx` (`thin` windows that end on the drop words, a
+   `breath` before the name, one `muffle` or `ring` if a word asks for it),
+   put manifest SFX on the score's moments (a riser ending on the turn, an
+   impact on it), then `pitch motion mix` and listen against the score
+   ([ad-sound.md](references/ad-sound.md)). There is no ElevenLabs step: no
+   generated music or custom sound effects.
 8. **Finish.** [finish](../launch-video/references/finish.md): one `pitch
    motion review`, `--times` inside every burst and across the turn, one
    `pitch motion audit`. Report runtime, frame, sources and anything
@@ -73,8 +83,9 @@ has five studied ads beat by beat; read the one nearest the brief.
 | Look inside a long source | `pitch video frames --source … --times '[…]' --contact-sheet` |
 | Footage that cannot exist (abstract, metaphor) | `pitch video generate` — read [generated-video](../generated-video/SKILL.md) first |
 | A source page, read or captured | `pitch motion inspect <url>`, `pitch motion screenshot --url … --out … [--fullPage]` |
-| Cast and record the voice | `pitch motion voices --search …`, `pitch motion tts --pace ad [--voice id --stability 0.35]`, `pitch motion tighten`, `pitch motion align`, `pitch motion sync --write` |
-| Music with drops, custom SFX | `pitch motion music --duration … --prompt "<timed arrangement>"`, `pitch motion find-audio`, `pitch motion sound --prompt …`, `pitch motion sfx`, `pitch motion mix` |
+| Record the voice (Gemini) | `pitch motion tts --pace ad --provider gemini --model gemini-3.8-flash-tts --voice <name>` (script directed in `{turns}`), `pitch motion tighten`, `pitch motion align`, `pitch motion sync --write` |
+| Music bed and its sections | `pitch motion find-audio`, `pitch media review --purpose music` (optional), `audio.fx` `thin` / `muffle` / `ring`, `breath` beats |
+| Sound effects, mix | `pitch motion sfx --mode query --event "…"`, `pitch motion sfx --mode build`, `pitch motion mix` |
 | Other motion | `pitch effects search/show` (see launch-video's effects list); cite `lab` only for ported source |
 
 ## Non-negotiable
@@ -94,6 +105,10 @@ has five studied ads beat by beat; read the one nearest the brief.
 - **Health, money and safety claims** stay inside the source's own wording:
   no cures, guarantees or fear beyond what the source says. An offer
   (risk-free, a guarantee, a price) must be the brand's real offer.
+- **Sound is performed, not applied.** The voice changes feeling at least
+  three times, the bass returns on a named word, and the turn is the biggest
+  sound moment. Narration is always Gemini TTS; never call `pitch motion
+  voices`, `music` or `sound` (ElevenLabs) from this skill.
 - **Flashes are brief.** Bursts of hard cuts and one-frame flashes last under
   a second and never strobe for longer; `glitch` marks act changes only.
 - **Readable at phone size.** Keywords stay inside the safe area (middle 80%

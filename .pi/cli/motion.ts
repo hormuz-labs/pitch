@@ -235,14 +235,15 @@ export default function motionCommands(): CommandSpec[] {
       style: Type.Optional(
         Type.String({
           description:
-            'Gemini only: one delivery direction for the whole read (emotion, register, pace). Leave room for emphasis and pauses; do not rush to match picture duration. ' +
-            'On ElevenLabs v3 write delivery as audio tags in the script itself, e.g. [warmly].',
+            'Gemini only: a short situational direction (emotion, pace, pitch — e.g. "warm and enthusiastic", "speaking rapidly") for text before the first {…} turn. ' +
+            'On Gemini 3.8, direct each turn in the script instead: a line opening with {dry and sarcastic, speaking rapidly} styles the text up to the next {…}, and <sigh>, <laugh>, <short pause> are momentary vocal events; all turns are one continuous read. ' +
+            'Never put the voice identity (age, gender, accent) in a style. On ElevenLabs v3 write delivery as audio tags in the script, e.g. [warmly].',
         }),
       ),
       model: Type.Optional(
         Type.String({
           description:
-            'Gemini: gemini-2.5-flash-preview-tts (default, most continuous) or gemini-3.1-flash-tts-preview (more expressive); a rushed take is re-recorded once with the other. ' +
+            'Gemini: gemini-3.8-flash-tts (default, most expressive) or gemini-2.5-flash-preview-tts (most continuous); a rushed take is re-recorded once with the other. ' +
             'ElevenLabs: eleven_v3 (default), eleven_multilingual_v2, eleven_flash_v2_5.',
         }),
       ),
