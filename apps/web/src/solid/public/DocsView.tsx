@@ -155,8 +155,16 @@ export const DocsView = (props: { slug?: string }) => {
         return (
           <div class="lb-root docs-root">
             <Seo
-              title={`${p().title} — Pitch docs`}
-              description={p().lede}
+              title={
+                p().slug
+                  ? `${p().title} | Pitch API & MCP docs`
+                  : 'Pitch API & MCP docs: build with Pitch'
+              }
+              description={
+                p().slug
+                  ? p().lede
+                  : 'Drive Pitch from an AI agent over MCP or from your own code over REST: create projects, send prompts, export videos and decks, and check credits.'
+              }
               path={p().slug ? `/docs/${p().slug}` : '/docs'}
             />
             <header
@@ -319,7 +327,7 @@ export const DocsView = (props: { slug?: string }) => {
                 <For each={p().blocks}>{b => <BlockView block={b} />}</For>
                 <nav class="docs-pager">
                   {pages[index - 1] ? (
-                    <A href={`/docs/${pages[index - 1].slug}`}>
+                    <A href={pages[index - 1].slug ? `/docs/${pages[index - 1].slug}` : '/docs'}>
                       <span>Previous</span>
                       {pages[index - 1].title}
                     </A>

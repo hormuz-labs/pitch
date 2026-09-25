@@ -1042,7 +1042,7 @@ export const LandingView = () => {
   return (
     <>
       <Seo
-        title="Pitch: The AI production studio you can direct"
+        title="TryPitch: AI launch videos, product demos and decks"
         description="Pitch is an AI production studio you direct by chat. Turn a URL, file or idea into launch films, product demos, slide decks and edited videos."
         path="/"
         jsonLd={LANDING_JSON_LD}

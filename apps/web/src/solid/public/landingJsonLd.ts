@@ -1,8 +1,55 @@
-// Homepage-only schema.org graph: the how-to and FAQ describe the landing
-// page's own content, so they must not ride along on every route via index.html.
+import { PLANS } from '../../lib/plans'
+
+const SITE = 'https://trypitch.co'
+
+/**
+ * Pitch as a product, with offers built from the same PLANS the pricing page
+ * renders, so the prices Google shows cannot drift from the ones people pay.
+ * Used on the homepage and /pricing.
+ */
+export const SOFTWARE_APPLICATION = {
+  '@type': 'SoftwareApplication',
+  '@id': `${SITE}/#app`,
+  name: 'Pitch',
+  alternateName: 'TryPitch',
+  applicationCategory: 'MultimediaApplication',
+  operatingSystem: 'Web',
+  description:
+    'Pitch is an AI production studio you direct by chat. Turn a URL, file or idea into launch films, product demos, slide decks and edited videos.',
+  url: `${SITE}/`,
+  publisher: { '@id': `${SITE}/#org` },
+  offers: PLANS.filter(plan => plan.priceUsd !== null).map(plan => ({
+    '@type': 'Offer',
+    name: plan.name,
+    price: String(plan.priceUsd),
+    priceCurrency: 'USD',
+    description: plan.description,
+    url: `${SITE}/pricing`,
+    ...(plan.kind === 'subscription'
+      ? {
+          priceSpecification: {
+            '@type': 'UnitPriceSpecification',
+            price: String(plan.priceUsd),
+            priceCurrency: 'USD',
+            billingDuration: 'P1M',
+            unitCode: 'MON',
+          },
+        }
+      : {}),
+  })),
+}
+
+export const PRICING_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [SOFTWARE_APPLICATION],
+}
+
+// Homepage schema.org graph: the how-to and FAQ describe the landing page's own
+// content, so they must not ride along on every route via index.html.
 export const LANDING_JSON_LD = {
   '@context': 'https://schema.org',
   '@graph': [
+    SOFTWARE_APPLICATION,
     {
       '@type': 'HowTo',
       name: 'How to generate a product demo video with Pitch',

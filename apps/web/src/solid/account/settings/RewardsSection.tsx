@@ -87,6 +87,9 @@ export function RewardsSection() {
     }
   }
 
+  // Read the resource only once it has loaded: reading it earlier suspends the section.
+  const stat = () =>
+    ready() ? affiliate()!.stats : { signups: 0, conversions: 0, creditsEarned: 0 }
   const ready = () => !affiliate.loading && !affiliate.error && affiliate()?.status === 'active'
 
   return (
@@ -175,19 +178,15 @@ export function RewardsSection() {
         <div class="settings-stat-grid">
           <For
             each={[
-              ['Signups', fmt(affiliate()?.stats.signups ?? 0)],
-              ['Purchases', fmt(affiliate()?.stats.conversions ?? 0)],
-              ['Credits earned', `+${fmt(affiliate()?.stats.creditsEarned ?? 0)}`],
+              ['Signups', fmt(stat().signups ?? 0)],
+              ['Purchases', fmt(stat().conversions ?? 0)],
+              ['Credits earned', `+${fmt(stat().creditsEarned ?? 0)}`],
             ]}
           >
             {([label, value], i) => (
               <div>
                 <span>{label}</span>
-                <strong
-                  class={
-                    i() === 2 && (affiliate()?.stats.creditsEarned ?? 0) > 0 ? 'is-positive' : ''
-                  }
-                >
+                <strong class={i() === 2 && (stat().creditsEarned ?? 0) > 0 ? 'is-positive' : ''}>
                   {ready() ? value : '—'}
                 </strong>
               </div>

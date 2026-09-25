@@ -14,7 +14,14 @@ const { apiDelete, apiGet, apiPatch, apiPost, getToken, portalAssign, portalClos
   }),
 )
 
-vi.mock('@solidjs/router', () => ({ useNavigate: () => vi.fn() }))
+vi.mock('@solidjs/router', () => ({
+  useNavigate: () => vi.fn(),
+  A: (props: { href: string; class?: string; children?: unknown }) => (
+    <a href={props.href} class={props.class}>
+      {props.children as never}
+    </a>
+  ),
+}))
 vi.mock('../src/lib/api', () => ({
   api: { delete: apiDelete, get: apiGet, patch: apiPatch, post: apiPost },
   isApiError: () => false,
@@ -118,11 +125,12 @@ describe('settings modal UI', () => {
   it('renders rewards as three distinct, actionable regions', async () => {
     render(() => <ModalHarness initial="rewards" />)
 
-    expect(screen.getByText('Have a promo code?')).toBeTruthy()
-    expect(screen.getByPlaceholderText('Enter promo code')).toBeTruthy()
-    expect(screen.getByText('Send reward invite')).toBeTruthy()
+    expect(screen.getByText('Your referral link')).toBeTruthy()
+    expect(screen.getByText('Invite by email')).toBeTruthy()
     expect(screen.getByPlaceholderText('name@example.com')).toBeTruthy()
-    expect(screen.getByText('Recent reward activity')).toBeTruthy()
+    expect(screen.getByText('Your referrals')).toBeTruthy()
+    expect(screen.getByText('Promo code')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Enter promo code')).toBeTruthy()
     expect(await screen.findByText(/No referrals yet/)).toBeTruthy()
   })
 
@@ -143,14 +151,14 @@ describe('settings modal UI', () => {
     const openUsage = vi.fn()
     const { container } = render(() => <BuyCreditsSection openUsage={openUsage} />)
 
-    expect((await screen.findAllByText('4200')).length).toBe(2)
+    expect((await screen.findAllByText('4,200')).length).toBe(2)
     expect(screen.getByText('800 credits')).toBeTruthy()
     expect(screen.getByText('$20')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Buy credits' })).toBeTruthy()
     expect(screen.getByText('800 used')).toBeTruthy()
     expect(screen.getByText('Subscription options')).toBeTruthy()
     expect(
-      within(container.querySelector('.settings-credit-purchase')!).getByText('MAX'),
+      within(container.querySelector('.settings-credit-purchase')!).getByText('Max'),
     ).toBeTruthy()
     expect(container.querySelector('.settings-plans .is-current')?.textContent).toContain('Max')
     expect(container.querySelector('.settings-plans .is-popular')).toBeNull()
@@ -175,10 +183,12 @@ describe('settings modal UI', () => {
   it('makes subscription cancellation discoverable for active subscribers', async () => {
     render(() => <PlansSection />)
 
-    const manage = await screen.findByRole('button', { name: 'Manage or cancel subscription' })
-    expect(screen.getByText('Manage subscription')).toBeTruthy()
-    expect(screen.getByText(/plan features continue through 10\/14\/2026/i)).toBeTruthy()
-    expect(screen.getByText(/remaining credits stay in your balance until used/i)).toBeTruthy()
+    // the portal button renders in both states, so wait for the loaded subscription first
+    expect(await screen.findByText('Manage subscription')).toBeTruthy()
+    const manage = screen.getByRole('button', { name: 'Billing portal' })
+    expect(screen.getByText(/or cancel in the secure billing portal/i)).toBeTruthy()
+    expect(screen.getByText(/Renews Oct 1[34], 2026/)).toBeTruthy()
+    expect(screen.getByText(/credits already in your balance stay yours/i)).toBeTruthy()
 
     apiGet.mockImplementation(async (path: string) =>
       path === '/checkout/billing-portal' ? { url: 'https://billing.example.test' } : summary,
@@ -187,7 +197,7 @@ describe('settings modal UI', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/checkout/billing-portal', 'token'))
     expect(window.open).toHaveBeenCalledWith('', '_blank')
     expect(portalAssign).toHaveBeenCalledWith('https://billing.example.test')
-    expect(screen.getByRole('button', { name: 'Manage or cancel' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Manage plan' })).toBeTruthy()
   })
 
   it('does not advertise cancellation without an active subscription', async () => {
@@ -197,8 +207,9 @@ describe('settings modal UI', () => {
     })
     render(() => <PlansSection />)
 
-    expect(await screen.findByRole('button', { name: 'Open billing portal' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Manage or cancel subscription' })).toBeNull()
-    expect(screen.getByText('Billing portal')).toBeTruthy()
+    expect(await screen.findByText(/view invoices and manage payment methods/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Billing portal' })).toBeTruthy()
+    expect(screen.queryByText('Manage subscription')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Manage plan' })).toBeNull()
   })
 })

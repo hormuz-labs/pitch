@@ -39,6 +39,10 @@ export interface ProductEntry {
   sampleSrc?: string
   sampleCaption: string
   seoTitle: string
+  /** Short Q&A shown on the page and marked up as FAQPage. */
+  faq: [string, string][]
+  /** The blog guide that goes deeper on this product. */
+  guide: string
   /** What the closing line promises ("Your {endcap} is one sentence away"); defaults from the name. */
   endcap?: string
   seoDescription: string
@@ -87,9 +91,24 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('graphify.mp4'),
     sampleCaption: 'Graphify: “Make a 70-second launch video on graphify.com”',
+    guide: 'best-ai-tools-for-product-launch-videos',
+    faq: [
+      [
+        'How long is a launch video?',
+        'Usually 30 to 70 seconds. Say the length you want in your brief and the agent plans the scenes to fit.',
+      ],
+      [
+        'Do I need to write a script?',
+        'No. The agent writes it from what it learns about your product. Paste your own lines if you already have them.',
+      ],
+      [
+        'Can I change it after the first cut?',
+        'Yes. Point at a scene or a time range and describe the change; only that part is redone.',
+      ],
+    ],
     seoTitle: 'Launch videos | AI launch video maker from a URL | Pitch',
     seoDescription:
-      'Give Pitch a URL and a line of direction. An AI agent films your real product and cuts a scored, narrated 1080p launch video in minutes. No recording, no editing.',
+      'Give Pitch a URL and one line of direction. An AI agent films your real product and cuts a narrated, scored 1080p launch video in minutes.',
   },
   {
     slug: 'product-demos',
@@ -118,9 +137,24 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('demo.mp4'),
     sampleCaption: 'shadcn/ui: a narrated walkthrough of the component workflow',
+    guide: 'zero-shot-demo-video-from-url',
+    faq: [
+      [
+        'Can it demo a product behind a login?',
+        'Yes. Give it a test account in your prompt and it signs in like a user would.',
+      ],
+      [
+        'What happens when my UI changes?',
+        'Ask for the affected scene to be re-shot. The rest of the demo stays as it was.',
+      ],
+      [
+        'Can I choose the voice and language?',
+        'Yes. Voice-over is available in more than 40 languages, and you can swap the voice after the first cut.',
+      ],
+    ],
     seoTitle: 'Product demos | AI product demo video generator | Pitch',
     seoDescription:
-      'Pitch signs into your product, clicks through the real flow end to end, and narrates it as a clean demo video. Point it at onboarding or a single feature and get a shareable walkthrough.',
+      'Pitch signs into your product, walks the real flow end to end and narrates it as a clean demo video. Point it at onboarding or one feature.',
   },
   {
     slug: 'explainers',
@@ -148,9 +182,24 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('gtmcofounder.mp4'),
     sampleCaption: 'GTM Cofounder: a 40-second “what it does and why” explainer',
+    guide: 'vertical-product-teaser-videos',
+    faq: [
+      [
+        'How long is an explainer?',
+        'Between 20 and 45 seconds, short enough to post in a thread or a feed.',
+      ],
+      [
+        'Can I get a vertical version?',
+        'Yes. Ask for wide, vertical or both; captions are on by default for muted autoplay.',
+      ],
+      [
+        'Where does the wording come from?',
+        'The agent reads your site and docs first, so the explainer uses the language you already use.',
+      ],
+    ],
     seoTitle: 'Explainers | AI explainer video maker | Pitch',
     seoDescription:
-      'Pitch turns the concept that needs a whiteboard into a tight 30-second explainer covering the problem, product, and payoff. It is built from your real screens and captioned for the timeline.',
+      'Turn the idea that needs a whiteboard into a 30-second explainer: problem, product, payoff. Built from your real screens, captioned for feeds.',
   },
   {
     slug: 'pitch-decks',
@@ -177,9 +226,24 @@ export const PRODUCTS: ProductEntry[] = [
       },
     ],
     sampleCaption: 'A 10-slide seed deck created from product research and a concise brief',
+    guide: 'turn-a-pdf-or-website-into-an-investor-deck',
+    faq: [
+      [
+        'What can I start a deck from?',
+        'A brief, a URL, a PDF or an existing presentation. Attach it or paste the link.',
+      ],
+      [
+        'Can I edit the slides myself?',
+        'Yes. Every slide stays open in the editor for text and layout changes before you export.',
+      ],
+      [
+        'Does the PDF match the editor?',
+        'Yes. Export saves any pending edits first and renders from the same document.',
+      ],
+    ],
     seoTitle: 'Pitch decks | AI pitch deck generator | Pitch',
     seoDescription:
-      'Pitch researches your product and market, then writes and designs an editable investor pitch, sales one-pager, or board update as a PDF you can still edit slide by slide.',
+      'Pitch researches your product and market, then writes and designs an editable investor, sales or board deck you export as a PDF.',
   },
   {
     slug: 'video-editing',
@@ -208,9 +272,24 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleCaption: '',
     endcap: 'next edit',
-    seoTitle: 'Video editing | AI video editor you direct in plain words | Pitch',
+    guide: 'edit-a-video-by-chatting',
+    faq: [
+      [
+        'What kind of video can I upload?',
+        'Screen recordings, interviews, talks and camera footage in MP4, MOV, WEBM, MKV or AVI, up to 500 MB.',
+      ],
+      [
+        'Which edits work from a sentence?',
+        'Trims, cutting pauses and filler, captions, music level, and shorter or vertical cuts of a longer video.',
+      ],
+      [
+        'Do I lose the original?',
+        'No. Your upload stays in the project and every new render is saved beside it.',
+      ],
+    ],
+    seoTitle: 'Video editing | AI video editor you direct in words | Pitch',
     seoDescription:
-      'Upload a screen recording, interview or any video and describe the edit. Pitch transcribes it, cuts pauses, adds captions, adjusts audio and renders a new version without a timeline.',
+      'Upload a recording, interview or any video and describe the edit. Pitch cuts pauses, adds captions, fixes audio and renders a new version.',
   },
   {
     slug: 'asset-demos',
@@ -237,9 +316,21 @@ export const PRODUCTS: ProductEntry[] = [
       },
     ],
     sampleCaption: '',
-    seoTitle: 'Asset demos | Narrated demo videos from PDFs and screenshots | Pitch',
+    guide: 'best-ai-product-demo-video-tools',
+    faq: [
+      ['Which files can I use?', 'PDFs and images such as PNG, JPG and WEBP, up to 50 MB each.'],
+      [
+        'Will it make things up?',
+        'No. The narration and visuals are grounded in the pages you upload, not invented to fill gaps.',
+      ],
+      [
+        'Can I review before it renders?',
+        'Yes. You see the storyboard, shots and narration first, and can reorder or cut scenes.',
+      ],
+    ],
+    seoTitle: 'Asset demos | Demo videos from PDFs and screenshots | Pitch',
     seoDescription:
-      'Turn PDFs, mockups and screenshots into a narrated demo video. Pitch storyboards from your pages, moves the camera to the right detail and writes the narration.',
+      'Turn PDFs, mockups and screenshots into a narrated demo video. Pitch storyboards from your pages and moves the camera to the right detail.',
   },
   {
     slug: 'ai-footage',
@@ -267,9 +358,24 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleCaption: '',
     endcap: 'missing shot',
+    guide: 'best-ai-tools-for-product-launch-videos',
+    faq: [
+      [
+        'Can it generate my product interface?',
+        'No. Your interface is always filmed from the real product; generated clips cover shots with no source, like establishing shots and B-roll.',
+      ],
+      [
+        'How long are the clips?',
+        'Around ten seconds each, in 16:9 or 9:16, from quick drafts up to 4K.',
+      ],
+      [
+        'Is a clip billed if I do not use it?',
+        'Yes. Generation is billed when it runs, so the agent plans the shot before generating it.',
+      ],
+    ],
     seoTitle: 'AI footage | Generated B-roll and establishing shots | Pitch',
     seoDescription:
-      'Generate establishing shots, textures and B-roll that nobody filmed, with sound, in 16:9 or 9:16 up to 4K, and cut them into launch films beside your real product.',
+      'Generate establishing shots and B-roll nobody filmed, with sound, in 16:9 or 9:16 up to 4K, and cut them in beside your real product.',
   },
 ]
 export const productBySlug = (slug: string) => PRODUCTS.find(product => product.slug === slug)

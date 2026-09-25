@@ -2,6 +2,7 @@ import { A, Navigate } from '@solidjs/router'
 import { For, Show } from 'solid-js'
 import { useAuth } from '../core/auth'
 import { Seo } from '../core/Seo'
+import { BLOG_POSTS } from './blogPosts'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
 import { PRODUCTS, ProductGlyph, productBySlug } from './productCatalog'
@@ -21,6 +22,19 @@ export const ProductView = (props: { slug?: string }) => {
             title={p().seoTitle}
             description={p().seoDescription}
             path={`/product/${p().slug}`}
+            jsonLd={{
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'FAQPage',
+                  mainEntity: p().faq.map(([q, a]) => ({
+                    '@type': 'Question',
+                    name: q,
+                    acceptedAnswer: { '@type': 'Answer', text: a },
+                  })),
+                },
+              ],
+            }}
           />
           <LandingNav />
           <section class="lb-band lb-prod-hero">
@@ -80,6 +94,29 @@ export const ProductView = (props: { slug?: string }) => {
                   )}
                 </For>
               </div>
+            </div>
+          </section>
+          <section class="lb-band lb-prod-faq">
+            <div class="lb-wrap">
+              <p class="lb-chy">Questions</p>
+              <div class="lb-prod-faq-list">
+                <For each={p().faq}>
+                  {([q, a]) => (
+                    <div>
+                      <h3>{q}</h3>
+                      <p>{a}</p>
+                    </div>
+                  )}
+                </For>
+              </div>
+              <Show when={BLOG_POSTS.find(post => post.slug === p().guide)}>
+                {post => (
+                  <A href={`/blog/${post().slug}`} class="lb-prod-guide">
+                    <span>Guide</span>
+                    {post().title} →
+                  </A>
+                )}
+              </Show>
             </div>
           </section>
           <section class="lb-band lb-prod-more">

@@ -44,6 +44,317 @@ export const CATEGORIES = [
 
 export const BLOG_POSTS: Post[] = [
   {
+    slug: 'pitch-vs-loom',
+    title: 'Pitch vs Loom: Recorded Demo or AI-Made Demo?',
+    category: 'Comparisons',
+    date: '2026-09-25',
+    readTime: '4 min read',
+    excerpt:
+      'Loom is the fastest way to record yourself. Pitch makes the demo without you recording anything. Which one a SaaS team should reach for, and when.',
+    question: 'Should I use Loom or an AI tool like Pitch to make product demo videos?',
+    answer: [
+      'Use Loom when the point is you: a quick personal walkthrough, a reply to one prospect, or feedback on a teammate’s work.',
+      'Use Pitch when the demo gets reused: the agent signs in, walks the flow, narrates it and cuts a finished video, and re-shoots one scene when the product changes.',
+    ],
+    body: [
+      { h: 'When Pitch fits' },
+      {
+        list: [
+          'The same demo goes to many prospects, the website or a help center.',
+          'You want a finished cut: steady cursor, no dead air, captions and narration.',
+          'The flow changes often and re-recording the whole take is the bottleneck.',
+        ],
+      },
+      { h: 'When to use Loom instead' },
+      {
+        list: [
+          'Pick Loom for a one-off personal message where your face and voice are the value.',
+          'Pick Loom for async team updates and code or design reviews.',
+          'Pick Loom when you need something in two minutes and polish does not matter.',
+        ],
+      },
+      { h: 'Side by side' },
+      {
+        table: {
+          head: ['', 'Pitch', 'Loom'],
+          rows: [
+            ['Who records', 'You, live', 'An agent in a real browser'],
+            ['Narration', 'Your voice', 'Written and voiced per scene, 40+ languages'],
+            ['Editing', 'Trim after recording', 'Planned cuts, captions and music'],
+            ['When the UI changes', 'Record again', 'Re-shoot one scene'],
+            ['Best for', 'Personal, one-off videos', 'Reusable demos and launch films'],
+          ],
+        },
+      },
+      {
+        prompt:
+          'Record a narrated demo of inviting a teammate in app.acme.com. Audience: team leads. Under 90 seconds.',
+      },
+    ],
+    faq: [
+      [
+        'Can I use both?',
+        'Yes. Many teams keep Loom for personal replies and use Pitch for the demos that go on the site and in sales sequences.',
+      ],
+      [
+        'Does Pitch need a screen recorder installed?',
+        'No. It runs a real browser on its side; you give it a URL and, if needed, a test login.',
+      ],
+    ],
+    sources: [
+      { label: 'Loom', href: 'https://www.loom.com' },
+      { label: 'Pitch product demos', href: '/product/product-demos' },
+    ],
+  },
+  {
+    slug: 'pitch-vs-heygen-synthesia',
+    title: 'Pitch vs HeyGen and Synthesia: Avatars or Your Product?',
+    category: 'Comparisons',
+    date: '2026-09-24',
+    readTime: '4 min read',
+    excerpt:
+      'HeyGen and Synthesia put a presenter on screen. Pitch puts your product on screen. How to choose for launch videos, demos and explainers.',
+    question: 'Should I use HeyGen, Synthesia or Pitch for a product launch or demo video?',
+    answer: [
+      'Use HeyGen or Synthesia when the video is a person talking: training, internal updates, a founder message, or localised presenter videos.',
+      'Use Pitch when the video has to show the software itself: it films your real interface and narrates it, so viewers see the product work.',
+    ],
+    body: [
+      { h: 'When Pitch fits' },
+      {
+        list: [
+          'The subject is the product, not a presenter.',
+          'You want real screens instead of screenshots behind an avatar.',
+          'You need a launch film, demo or explainer from one brief.',
+        ],
+      },
+      { h: 'When to use HeyGen and Synthesia instead' },
+      {
+        list: [
+          'Pick an avatar tool for training and HR content led by a presenter.',
+          'Pick one for talking-head updates in many languages at scale.',
+          'Pick one when you have no product interface to show.',
+        ],
+      },
+      { h: 'Side by side' },
+      {
+        table: {
+          head: ['', 'Pitch', 'HeyGen and Synthesia'],
+          rows: [
+            ['On screen', 'An AI presenter', 'Your real product, filmed'],
+            ['Input', 'A script', 'A URL, files or a one-line brief'],
+            ['Product footage', 'You supply it', 'Recorded by the agent'],
+            ['Best for', 'Presenter-led videos', 'Launch films, demos, explainers'],
+          ],
+        },
+      },
+      {
+        prompt:
+          'Make a 45-second launch film for acme.com. Show the dashboard, the report builder and sharing. End on the logo.',
+      },
+    ],
+    faq: [
+      [
+        'Can Pitch add a presenter?',
+        'Pitch is built around showing the product. If you need a presenter, record or generate that clip elsewhere and upload it to cut in.',
+      ],
+      [
+        'Which is better for localisation?',
+        'Both do multi-language voice-over. Avatar tools also lip-sync a presenter; Pitch voices the narration over your product.',
+      ],
+    ],
+    sources: [
+      { label: 'HeyGen', href: 'https://www.heygen.com' },
+      { label: 'Synthesia', href: 'https://www.synthesia.io' },
+      { label: 'Pitch launch videos', href: '/product/launch-videos' },
+    ],
+  },
+  {
+    slug: 'pitch-vs-arcade',
+    title: 'Pitch vs Arcade: Interactive Tour or Narrated Demo Video?',
+    category: 'Comparisons',
+    date: '2026-09-23',
+    readTime: '4 min read',
+    excerpt:
+      'Arcade builds click-through product tours. Pitch makes narrated demo videos. They answer different questions, and many teams need both.',
+    question: 'Should I use Arcade or Pitch for a SaaS product demo?',
+    answer: [
+      'Use Arcade when visitors should click through the product themselves in an embedded tour on your site.',
+      'Use Pitch when you want a narrated video demo you can send, post or play on a landing page, recorded without anyone driving the screen.',
+    ],
+    body: [
+      { h: 'When Pitch fits' },
+      {
+        list: [
+          'You need a video for email, social, a launch or a sales sequence.',
+          'You want narration that explains why each step matters.',
+          'You would rather not capture every click by hand.',
+        ],
+      },
+      { h: 'When to use Arcade instead' },
+      {
+        list: [
+          'Pick Arcade for self-serve, clickable tours embedded in docs or your site.',
+          'Pick it when you want per-step analytics on an interactive tour.',
+          'Pick it when viewers should set their own pace.',
+        ],
+      },
+      { h: 'Side by side' },
+      {
+        table: {
+          head: ['', 'Pitch', 'Arcade'],
+          rows: [
+            ['Format', 'Interactive, clickable tour', 'Narrated video (MP4)'],
+            ['Capture', 'You click through the flow', 'An agent walks the flow'],
+            ['Narration', 'Optional text and voice', 'Written and voiced per scene'],
+            ['Best for', 'Embedded self-serve tours', 'Shareable demos and launch films'],
+          ],
+        },
+      },
+      {
+        prompt:
+          'Make a 60-second narrated demo of creating a first report in app.acme.com, for finance leads.',
+      },
+    ],
+    faq: [
+      [
+        'Can a Pitch demo be embedded on my site?',
+        'Yes. It exports an MP4 you can host or embed like any video.',
+      ],
+      [
+        'Do I need both?',
+        'Often. A tour lets visitors explore; a video explains the product in a minute. They cover different moments.',
+      ],
+    ],
+    sources: [
+      { label: 'Arcade', href: 'https://www.arcade.software' },
+      { label: 'Pitch product demos', href: '/product/product-demos' },
+    ],
+  },
+  {
+    slug: 'pitch-vs-gamma',
+    title: 'Pitch vs Gamma: AI Decks for Investors and Sales',
+    category: 'Comparisons',
+    date: '2026-09-22',
+    readTime: '4 min read',
+    excerpt:
+      'Gamma turns a prompt into a web-style presentation fast. Pitch builds a researched, editable deck from your own material, and can make the demo video too.',
+    question: 'Should I use Gamma or Pitch to make an AI pitch deck?',
+    answer: [
+      'Use Gamma for a fast, good-looking presentation from a prompt, especially when a card-style web deck is fine.',
+      'Use Pitch when the deck should come from your own sources, such as a memo, a site or an old deck, stay editable slide by slide, and export to PDF; the same project can make a demo video.',
+    ],
+    body: [
+      { h: 'When Pitch fits' },
+      {
+        list: [
+          'You already have material and want it structured into an investor story.',
+          'You need a fixed PDF that matches the editor exactly.',
+          'You also want a launch film or demo from the same brief.',
+        ],
+      },
+      { h: 'When to use Gamma instead' },
+      {
+        list: [
+          'Pick Gamma for quick prompt-first drafts and web-style presentations.',
+          'Pick it for docs and one-pagers that live in the browser.',
+          'Pick it when a template-driven look is exactly right.',
+        ],
+      },
+      { h: 'Side by side' },
+      {
+        table: {
+          head: ['', 'Pitch', 'Gamma'],
+          rows: [
+            ['Starts from', 'A prompt', 'Your files, a URL or a brief'],
+            ['Output', 'Web presentation, exportable', 'Editable deck, PDF export'],
+            ['Research', 'Generated from the prompt', 'Reads your sources, then researches gaps'],
+            ['Also makes video', 'Not its focus', 'Yes, in the same project'],
+          ],
+        },
+      },
+      {
+        prompt:
+          'Turn this memo into a 10-slide seed deck for B2B SaaS investors. Traction on slide 3.',
+      },
+    ],
+    faq: [
+      [
+        'Can I edit a Pitch deck after it is made?',
+        'Yes. Every slide stays open in the editor, and the PDF export always matches the latest edit.',
+      ],
+      [
+        'Which is faster for a first draft?',
+        'For a pure prompt with no source material, Gamma is very quick. Pitch spends that time reading your material first.',
+      ],
+    ],
+    sources: [
+      { label: 'Gamma', href: 'https://gamma.app' },
+      { label: 'Pitch decks', href: '/product/pitch-decks' },
+    ],
+  },
+  {
+    slug: 'pitch-vs-descript',
+    title: 'Pitch vs Descript: Edit a Video by Describing It',
+    category: 'Comparisons',
+    date: '2026-09-21',
+    readTime: '4 min read',
+    excerpt:
+      'Descript lets you edit a recording by editing its transcript. Pitch edits it for you from a sentence. Which fits your workflow.',
+    question: 'Should I use Descript or Pitch to edit a screen recording or talking video?',
+    answer: [
+      'Use Descript when you want to make the edit yourself, word by word, in a transcript-based editor.',
+      'Use Pitch when you would rather describe the edit, such as trimming the intro, cutting pauses, adding captions or lowering the music, and review a finished render.',
+    ],
+    body: [
+      { h: 'When Pitch fits' },
+      {
+        list: [
+          'You have a clear list of changes and no time for an editing session.',
+          'You want captions, pauses and music handled in one request.',
+          'You want to point at a moment in the preview and say what to change.',
+        ],
+      },
+      { h: 'When to use Descript instead' },
+      {
+        list: [
+          'Pick Descript for podcasts and long interviews you want to shape line by line.',
+          'Pick it when you want full manual control over every cut.',
+          'Pick it for multitrack audio work.',
+        ],
+      },
+      { h: 'Side by side' },
+      {
+        table: {
+          head: ['', 'Pitch', 'Descript'],
+          rows: [
+            ['How you edit', 'Edit the transcript yourself', 'Describe the edit in plain words'],
+            ['Who makes the cuts', 'You', 'The agent, then you review'],
+            ['Captions and audio', 'Manual tools', 'In the same request'],
+            ['Best for', 'Hands-on editing', 'Fast edits from a list of notes'],
+          ],
+        },
+      },
+      {
+        prompt: 'Remove the long pauses, add captions, and make the music quieter under the voice.',
+      },
+    ],
+    faq: [
+      [
+        'Does Pitch keep my original file?',
+        'Yes. The upload stays in the project and every render is saved beside it.',
+      ],
+      [
+        'Can Pitch edit any video?',
+        'Screen recordings, interviews, talks and camera footage in common formats, up to 500 MB per file.',
+      ],
+    ],
+    sources: [
+      { label: 'Descript', href: 'https://www.descript.com' },
+      { label: 'Pitch video editing', href: '/product/video-editing' },
+    ],
+  },
+  {
     slug: 'best-ai-tools-for-product-launch-videos',
     title: 'Best AI Tools for Product Launch Videos in 2026',
     category: 'Comparisons',
@@ -673,7 +984,7 @@ export const BLOG_POSTS: Post[] = [
   },
   {
     slug: 'generate-videos-from-claude-or-cursor-with-mcp',
-    title: 'How to Generate Videos from Claude, ChatGPT or Cursor with MCP',
+    title: 'How to Make Videos from Claude, ChatGPT or Cursor with MCP',
     category: 'Developers',
     date: '2026-08-26',
     readTime: '5 min read',

@@ -17,6 +17,7 @@ import { Seo } from '../core/Seo'
 import { LandingFaqAccordion } from './LandingFaqAccordion'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { PRICING_JSON_LD } from './landingJsonLd'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 import '../../styles/public-pricing.css'
@@ -84,19 +85,19 @@ export const PublicPricingView = () => {
     return [
       {
         label: 'Everyday work',
-        value: general ? `from ${general.min.toLocaleString()}` : '—',
+        value: general ? `from ${general.min.toLocaleString()}` : null,
         unit: 'credits per generation',
         copy: 'Fast models for drafts, edits and volume. Your balance stretches furthest here.',
       },
       {
         label: 'Complex projects',
-        value: general ? `up to ${general.max.toLocaleString()}` : '—',
+        value: general ? `up to ${general.max.toLocaleString()}` : null,
         unit: 'credits per generation',
         copy: 'Frontier reasoning for research-heavy films, long demos and full decks.',
       },
       {
         label: 'Video generation',
-        value: video ? `from ${video.min.toLocaleString()}` : '—',
+        value: video ? `from ${video.min.toLocaleString()}` : null,
         unit: 'credits per 30 seconds',
         copy: 'Sol and Astra, the video models, priced by length. Switched on per account on request.',
       },
@@ -158,6 +159,7 @@ export const PublicPricingView = () => {
         title="Pricing: credit-based plans for AI video and decks | Pitch"
         description="Pay for the launch videos, product demos, slide decks and edits you actually make. Monthly credit plans, add-on top-ups, and no upfront charge per project."
         path="/pricing"
+        jsonLd={PRICING_JSON_LD}
       />
       <Show when={!signed()}>
         <LandingNav />
@@ -316,15 +318,18 @@ export const PublicPricingView = () => {
               spend more when the work needs deeper reasoning or generated video.
             </p>
           </div>
-          <div class="public-pricing-tiers">
+          <div class="public-pricing-tiers" data-ready={rates() !== null ? '' : undefined}>
             <For each={tiers()}>
               {tier => (
                 <article>
                   <p class="public-pricing-tiers__label">{tier.label}</p>
-                  <p class="public-pricing-tiers__value">
-                    {tier.value}
-                    <small>{tier.unit}</small>
-                  </p>
+                  {/* no number rather than a placeholder dash when prices are unavailable */}
+                  <Show when={tier.value}>
+                    <p class="public-pricing-tiers__value">
+                      {tier.value}
+                      <small>{tier.unit}</small>
+                    </p>
+                  </Show>
                   <p class="public-pricing-tiers__copy">{tier.copy}</p>
                 </article>
               )}

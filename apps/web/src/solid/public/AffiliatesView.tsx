@@ -158,7 +158,7 @@ export const AffiliatesView = () => {
   return (
     <div class="lb-root">
       <Seo
-        title="Affiliate program: earn Pitch credits for every referral | Pitch"
+        title="Affiliate program: earn credits for referrals | Pitch"
         description={`Share Pitch and earn credits: ${SIGNUP} when a friend signs up through your link, ${PURCHASE} more on their first purchase. Credits only, no cap on referrals.`}
         path="/affiliates"
       />

@@ -151,7 +151,7 @@ const postJsonLd = (p: Post) => {
         datePublished: p.date,
         dateModified: p.date,
         articleSection: p.category,
-        image: `${SITE_URL}/og-image.png?v=2`,
+        image: `${SITE_URL}/og/blog/${p.slug}.png`,
         mainEntityOfPage: url,
         author: { '@id': `${SITE_URL}/#org` },
         publisher: { '@id': `${SITE_URL}/#org` },
@@ -223,9 +223,10 @@ export const BlogPostView = () => {
       {p => (
         <>
           <Seo
-            title={`${p().title} | Pitch`}
+            title={p().title.length > 50 ? p().title : `${p().title} | Pitch`}
             description={p().excerpt}
             path={`/blog/${p().slug}`}
+            image={`${SITE_URL}/og/blog/${p().slug}.png`}
             jsonLd={postJsonLd(p())}
           />
           <div class="blog-shell blog-post">

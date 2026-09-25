@@ -2,10 +2,24 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
+// @ts-expect-error plain ESM build script, no type declarations
+import { writeSeoFiles } from './scripts/seo-files.mjs'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [solid(), tailwindcss()],
+  plugins: [
+    solid(),
+    tailwindcss(),
+    // sitemap.xml + llms.txt from the page sources. Runs inside `vite build`,
+    // which is all the Vercel project runs, so these always ship.
+    {
+      name: 'pitch-seo-files',
+      apply: 'build',
+      closeBundle() {
+        writeSeoFiles(path.resolve(import.meta.dirname, 'dist'))
+      },
+    },
+  ],
   envDir: '../../',
   // Dashboard-only dependencies live behind lazy route imports. Pre-bundle
   // them at startup so opening /dashboard cannot trigger a second optimizer
