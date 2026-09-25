@@ -1,5 +1,6 @@
 import { createMemo, createResource, createSignal, For, Show } from 'solid-js'
 import { api } from '../../../lib/api'
+import { formatCredits, PLANS } from '../../../lib/plans'
 import { useAuth } from '../../core/auth'
 
 interface DayUsage {
@@ -87,12 +88,15 @@ export function UsageSection() {
         <div>
           <span>Plan</span>
           <strong>
-            {summary()?.activeSubscription?.planKey.toUpperCase() ?? 'No active plan'}
+            {(() => {
+              const key = summary()?.activeSubscription?.planKey.replace('_annual', '')
+              return key ? (PLANS.find(plan => plan.key === key)?.name ?? key) : 'No active plan'
+            })()}
           </strong>
         </div>
         <div>
           <span>Available</span>
-          <strong>{summary()?.balance ?? 0} credits</strong>
+          <strong>{formatCredits(summary()?.balance ?? 0)} credits</strong>
         </div>
       </section>
 
@@ -137,11 +141,17 @@ export function UsageSection() {
             <strong>
               {shortDate(from())} – {shortDate(to())}
             </strong>
-            <small>{totalUsed()} credits used in this range</small>
+            <small>{formatCredits(totalUsed())} credits used in this range</small>
           </span>
           <span class="settings-chart-summary__totals">
-            <b>Studio {rangeTotal().studio}</b>
-            <b>API {rangeTotal().api}</b>
+            <b>
+              <i class="is-studio" />
+              Studio {formatCredits(rangeTotal().studio)}
+            </b>
+            <b>
+              <i class="is-api" />
+              API {formatCredits(rangeTotal().api)}
+            </b>
           </span>
         </div>
         <div class="settings-chart-frame">
@@ -150,7 +160,10 @@ export function UsageSection() {
               {day => {
                 const total = day.studio + day.api
                 return (
-                  <div class="settings-chart__col" title={`${day.date}: ${total} credits`}>
+                  <div
+                    class="settings-chart__col"
+                    title={`${shortDate(day.date)}: ${formatCredits(total)} credits`}
+                  >
                     <div
                       class="settings-chart__bar"
                       style={{ height: `${total ? Math.max(4, (total / maxTotal()) * 100) : 0}%` }}
@@ -213,7 +226,7 @@ export function UsageSection() {
                 </span>
                 <b class={tx.delta > 0 ? 'is-positive' : ''}>
                   {tx.delta > 0 ? '+' : ''}
-                  {tx.delta}
+                  {formatCredits(tx.delta)}
                 </b>
               </div>
             )}

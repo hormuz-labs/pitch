@@ -1,7 +1,29 @@
-import { Clapperboard, Lightbulb, MonitorPlay, Presentation } from 'lucide-solid'
+import {
+  Clapperboard,
+  FileImage,
+  Lightbulb,
+  MonitorPlay,
+  Presentation,
+  Scissors,
+  Sparkles,
+} from 'lucide-solid'
 
-export type ProductSlug = 'launch-videos' | 'product-demos' | 'explainers' | 'pitch-decks'
-export type ProductIcon = 'clapperboard' | 'monitor-play' | 'lightbulb' | 'presentation'
+export type ProductSlug =
+  | 'launch-videos'
+  | 'product-demos'
+  | 'explainers'
+  | 'pitch-decks'
+  | 'video-editing'
+  | 'asset-demos'
+  | 'ai-footage'
+export type ProductIcon =
+  | 'clapperboard'
+  | 'monitor-play'
+  | 'lightbulb'
+  | 'presentation'
+  | 'scissors'
+  | 'file-image'
+  | 'sparkles'
 export interface ProductEntry {
   slug: ProductSlug
   name: string
@@ -17,6 +39,8 @@ export interface ProductEntry {
   sampleSrc?: string
   sampleCaption: string
   seoTitle: string
+  /** What the closing line promises ("Your {endcap} is one sentence away"); defaults from the name. */
+  endcap?: string
   seoDescription: string
 }
 export const carouselAsset = (name: string) =>
@@ -27,6 +51,9 @@ const ICONS = {
   'monitor-play': MonitorPlay,
   lightbulb: Lightbulb,
   presentation: Presentation,
+  scissors: Scissors,
+  'file-image': FileImage,
+  sparkles: Sparkles,
 }
 export const ProductGlyph = (props: { icon: ProductIcon; size?: number }) => {
   const Icon = ICONS[props.icon]
@@ -153,6 +180,96 @@ export const PRODUCTS: ProductEntry[] = [
     seoTitle: 'Pitch decks | AI pitch deck generator | Pitch',
     seoDescription:
       'Pitch researches your product and market, then writes and designs an editable investor pitch, sales one-pager, or board update as a PDF you can still edit slide by slide.',
+  },
+  {
+    slug: 'video-editing',
+    name: 'Video editing',
+    nav: 'Upload any video and describe the edit.',
+    badge: 'New',
+    icon: 'scissors',
+    href: '/new?flow=recording-edit',
+    ctaLabel: 'Edit a video',
+    eyebrow: 'Product · Video editing',
+    title: 'Edit a video by describing it.',
+    lede: 'Drop in a screen recording, an interview, a talk or camera footage and say what it needs. Pitch transcribes it, plans the cuts and renders a new version, so you review an edit instead of making one.',
+    points: [
+      {
+        h: 'Write the edit, skip the timeline',
+        p: 'Trim the intro, remove pauses and filler, add captions, lower the music or cut a shorter version, all in plain words.',
+      },
+      {
+        h: 'Point at the moment',
+        p: 'Select a time range in the preview and say what should change there. The rest of the video stays as it was.',
+      },
+      {
+        h: 'Every render is kept',
+        p: 'Your upload stays in the project and each new cut lands beside it, so an earlier version is always one click away.',
+      },
+    ],
+    sampleCaption: '',
+    endcap: 'next edit',
+    seoTitle: 'Video editing | AI video editor you direct in plain words | Pitch',
+    seoDescription:
+      'Upload a screen recording, interview or any video and describe the edit. Pitch transcribes it, cuts pauses, adds captions, adjusts audio and renders a new version without a timeline.',
+  },
+  {
+    slug: 'asset-demos',
+    name: 'Asset demos',
+    nav: 'Narrated demos from PDFs and screenshots.',
+    icon: 'file-image',
+    href: '/new?flow=demo-video',
+    ctaLabel: 'Make an asset demo',
+    eyebrow: 'Product · Asset demos',
+    title: 'Your screenshots, explained on camera.',
+    lede: 'No live product to film yet? Upload PDFs, mockups or screenshots. Pitch builds a storyboard from what the pages actually show, moves the camera across them and narrates the story.',
+    points: [
+      {
+        h: 'Grounded in your pages',
+        p: 'Every claim comes from the files you upload. Nothing is invented to fill a gap.',
+      },
+      {
+        h: 'A storyboard you can review',
+        p: 'See the planned shots and narration before anything renders, and reorder or cut scenes first.',
+      },
+      {
+        h: 'Camera moves with intent',
+        p: 'Pans and zooms land on the part of the page each line of narration is about.',
+      },
+    ],
+    sampleCaption: '',
+    seoTitle: 'Asset demos | Narrated demo videos from PDFs and screenshots | Pitch',
+    seoDescription:
+      'Turn PDFs, mockups and screenshots into a narrated demo video. Pitch storyboards from your pages, moves the camera to the right detail and writes the narration.',
+  },
+  {
+    slug: 'ai-footage',
+    name: 'AI footage',
+    nav: 'Generated shots for the moments nobody filmed.',
+    icon: 'sparkles',
+    href: '/new?flow=launch-video',
+    ctaLabel: 'Start a film',
+    eyebrow: 'Product · AI footage',
+    title: 'The shot you could not film.',
+    lede: 'Establishing shots, textures behind a title, a visual metaphor for a line of narration. Pitch generates short clips with their own sound and cuts them in beside the footage of your real product.',
+    points: [
+      {
+        h: 'Made to sit beside your product',
+        p: 'Generated clips fill the gaps around real screens. Your interface is always filmed, never imagined.',
+      },
+      {
+        h: 'Wide or vertical, up to 4K',
+        p: 'Clips of around ten seconds in 16:9 or 9:16, from quick drafts to 4K finals.',
+      },
+      {
+        h: 'Sound included',
+        p: 'Each clip arrives with its own audio, ready to sit under the voice-over and music.',
+      },
+    ],
+    sampleCaption: '',
+    endcap: 'missing shot',
+    seoTitle: 'AI footage | Generated B-roll and establishing shots | Pitch',
+    seoDescription:
+      'Generate establishing shots, textures and B-roll that nobody filmed, with sound, in 16:9 or 9:16 up to 4K, and cut them into launch films beside your real product.',
   },
 ]
 export const productBySlug = (slug: string) => PRODUCTS.find(product => product.slug === slug)

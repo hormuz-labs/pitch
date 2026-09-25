@@ -1,7 +1,10 @@
-import { Gift } from 'lucide-solid'
-import { createResource, createSignal, Show } from 'solid-js'
+import { A } from '@solidjs/router'
+import { ArrowUpRight, Gift, Link2, Send } from 'lucide-solid'
+import { createResource, createSignal, For, Show } from 'solid-js'
 import { api, isApiError } from '../../../lib/api'
+import { REFERRAL_REWARDS } from '../../../lib/referral'
 import { useAuth } from '../../core/auth'
+import { CopyButton } from '../primitives'
 
 interface Affiliate {
   code: string
@@ -34,6 +37,12 @@ export function RewardsSection() {
       throw err
     }
   })
+
+  const url = () =>
+    affiliate()
+      ? `${location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://trypitch.co'}/r/${affiliate()!.code}`
+      : ''
+  const fmt = (n: number) => n.toLocaleString('en-US')
 
   const redeem = async (event: SubmitEvent) => {
     event.preventDefault()
@@ -78,43 +87,60 @@ export function RewardsSection() {
     }
   }
 
+  const ready = () => !affiliate.loading && !affiliate.error && affiliate()?.status === 'active'
+
   return (
     <>
-      <section class="settings-card">
+      <section class="settings-card settings-referral">
         <div class="settings-card__title">
-          <Gift size={16} />
-          Have a promo code?
+          <Link2 size={16} />
+          Your referral link
         </div>
         <p>
-          Enter a promo code to add free credits to your account. Each code can be redeemed once per
-          account.
+          Earn <strong>{REFERRAL_REWARDS.signup} credits</strong> when someone signs up through your
+          link and <strong>{REFERRAL_REWARDS.purchase} more</strong> on their first purchase. No cap
+          on referrals.
         </p>
-        <form class="settings-inline-form" onSubmit={event => void redeem(event)}>
-          <input
-            type="text"
-            placeholder="Enter promo code"
-            value={promoCode()}
-            onInput={event => setPromoCode(event.currentTarget.value)}
-          />
-          <button type="submit" disabled={redeeming() || !promoCode().trim()}>
-            Redeem
-          </button>
-        </form>
-        <Show when={redeemMessage()}>
-          <small class="settings-field__success">{redeemMessage()}</small>
+        <Show
+          when={ready()}
+          fallback={
+            <Show
+              when={affiliate.error}
+              fallback={
+                <p class="settings-empty settings-empty--inline" role="status">
+                  {affiliate.loading
+                    ? 'Loading your link…'
+                    : 'Referral links are unavailable for this account.'}
+                </p>
+              }
+            >
+              <div class="settings-referral__retry">
+                <p class="settings-field__error" role="alert">
+                  Could not load your rewards account.
+                </p>
+                <button type="button" class="settings-secondary" onClick={() => void refetch()}>
+                  Try again
+                </button>
+              </div>
+            </Show>
+          }
+        >
+          <div class="settings-referral__link">
+            <code title={url()}>{url()}</code>
+            <CopyButton value={url()} label="Copy link" />
+          </div>
         </Show>
-        <Show when={redeemError()}>
-          <small class="settings-field__error">{redeemError()}</small>
-        </Show>
+        <A href="/affiliates" class="settings-referral__more">
+          Full stats and program details <ArrowUpRight size={13} />
+        </A>
       </section>
 
-      <p class="settings-note">
-        Invite as many people as you want — there's no limit. You earn 40 reward credits each time
-        someone you invited makes their first purchase.
-      </p>
-
       <section class="settings-card">
-        <div class="settings-card__title">Send reward invite</div>
+        <div class="settings-card__title">
+          <Send size={15} />
+          Invite by email
+        </div>
+        <p>We send them your referral link; the same rewards apply.</p>
         <form class="settings-inline-form" onSubmit={event => void sendInvite(event)}>
           <input
             type="email"
@@ -126,16 +152,10 @@ export function RewardsSection() {
           />
           <button
             type="submit"
-            disabled={
-              inviting() ||
-              affiliate.loading ||
-              !!affiliate.error ||
-              !affiliate() ||
-              affiliate()?.status !== 'active' ||
-              !inviteEmail().trim()
-            }
+            class="is-primary"
+            disabled={inviting() || !ready() || !inviteEmail().trim()}
           >
-            {inviting() ? 'Sending…' : affiliate.loading ? 'Loading…' : 'Send invite'}
+            {inviting() ? 'Sending…' : 'Send invite'}
           </button>
         </form>
         <Show when={inviteMessage()}>
@@ -148,74 +168,60 @@ export function RewardsSection() {
             {inviteError()}
           </small>
         </Show>
-        <small>
-          Each invite email contains your referral link. You earn credits once they make their first
-          purchase.
-        </small>
       </section>
 
-      <section class="settings-card settings-activity">
-        <h4>Recent reward activity</h4>
-        <Show
-          when={!affiliate.loading}
-          fallback={
-            <p class="settings-empty" role="status">
-              Loading rewards…
-            </p>
-          }
-        >
-          <Show
-            when={!affiliate.error}
-            fallback={
-              <div>
-                <p class="settings-field__error" role="alert">
-                  Could not load your rewards account.
-                </p>
-                <button type="button" class="settings-secondary" onClick={() => void refetch()}>
-                  Try again
-                </button>
-              </div>
-            }
+      <section class="settings-card">
+        <h4>Your referrals</h4>
+        <div class="settings-stat-grid">
+          <For
+            each={[
+              ['Signups', fmt(affiliate()?.stats.signups ?? 0)],
+              ['Purchases', fmt(affiliate()?.stats.conversions ?? 0)],
+              ['Credits earned', `+${fmt(affiliate()?.stats.creditsEarned ?? 0)}`],
+            ]}
           >
-            <Show
-              when={affiliate()?.status === 'active'}
-              fallback={
-                <p class="settings-empty">Reward invitations are unavailable for this account.</p>
-              }
-            >
-              <Show
-                when={
-                  affiliate() &&
-                  (affiliate()!.stats.signups > 0 || affiliate()!.stats.conversions > 0)
-                }
-                fallback={
-                  <p class="settings-empty">
-                    No referrals yet. Invite friends — you earn credits when they make their first
-                    purchase.
-                  </p>
-                }
-              >
-                <div>
-                  <span>
-                    <strong>Signups</strong>
-                  </span>
-                  <b>{affiliate()!.stats.signups}</b>
-                </div>
-                <div>
-                  <span>
-                    <strong>Purchases</strong>
-                  </span>
-                  <b>{affiliate()!.stats.conversions}</b>
-                </div>
-                <div>
-                  <span>
-                    <strong>Credits earned</strong>
-                  </span>
-                  <b class="is-positive">+{affiliate()!.stats.creditsEarned}</b>
-                </div>
-              </Show>
-            </Show>
-          </Show>
+            {([label, value], i) => (
+              <div>
+                <span>{label}</span>
+                <strong
+                  class={
+                    i() === 2 && (affiliate()?.stats.creditsEarned ?? 0) > 0 ? 'is-positive' : ''
+                  }
+                >
+                  {ready() ? value : '—'}
+                </strong>
+              </div>
+            )}
+          </For>
+        </div>
+        <Show when={ready() && !affiliate()!.stats.signups && !affiliate()!.stats.conversions}>
+          <p class="settings-note">No referrals yet. Share your link to start earning.</p>
+        </Show>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-card__title">
+          <Gift size={16} />
+          Promo code
+        </div>
+        <p>Have a code? Redeem it for credits. Each code works once per account.</p>
+        <form class="settings-inline-form" onSubmit={event => void redeem(event)}>
+          <input
+            type="text"
+            aria-label="Promo code"
+            placeholder="Enter promo code"
+            value={promoCode()}
+            onInput={event => setPromoCode(event.currentTarget.value)}
+          />
+          <button type="submit" disabled={redeeming() || !promoCode().trim()}>
+            {redeeming() ? 'Redeeming…' : 'Redeem'}
+          </button>
+        </form>
+        <Show when={redeemMessage()}>
+          <small class="settings-field__success">{redeemMessage()}</small>
+        </Show>
+        <Show when={redeemError()}>
+          <small class="settings-field__error">{redeemError()}</small>
         </Show>
       </section>
     </>

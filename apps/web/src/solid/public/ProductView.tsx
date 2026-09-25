@@ -43,29 +43,31 @@ export const ProductView = (props: { slug?: string }) => {
               </div>
             </div>
           </section>
-          <section class="lb-band lb-prod-sample">
-            <div class="lb-wrap">
-              <div class="lb-prod-frame">
-                <Show
-                  when={p().sampleSrc}
-                  fallback={
-                    <div class="lb-prod-deck">
-                      <span class="lb-prod-deck-slide" />
-                      <span class="lb-prod-deck-slide" />
-                      <span class="lb-prod-deck-slide">
-                        <b>Problem</b>
-                        <i />
-                        <i />
-                      </span>
-                    </div>
-                  }
-                >
-                  <video src={p().sampleSrc} muted loop playsinline autoplay preload="metadata" />
-                </Show>
+          <Show when={p().sampleSrc || p().slug === 'pitch-decks'}>
+            <section class="lb-band lb-prod-sample">
+              <div class="lb-wrap">
+                <div class="lb-prod-frame">
+                  <Show
+                    when={p().sampleSrc}
+                    fallback={
+                      <div class="lb-prod-deck">
+                        <span class="lb-prod-deck-slide" />
+                        <span class="lb-prod-deck-slide" />
+                        <span class="lb-prod-deck-slide">
+                          <b>Problem</b>
+                          <i />
+                          <i />
+                        </span>
+                      </div>
+                    }
+                  >
+                    <video src={p().sampleSrc} muted loop playsinline autoplay preload="metadata" />
+                  </Show>
+                </div>
+                <p class="lb-prod-cap">{p().sampleCaption}</p>
               </div>
-              <p class="lb-prod-cap">{p().sampleCaption}</p>
-            </div>
-          </section>
+            </section>
+          </Show>
           <section class="lb-band lb-prod-points">
             <div class="lb-wrap">
               <div class="lb-prod-grid">
@@ -100,11 +102,11 @@ export const ProductView = (props: { slug?: string }) => {
               </div>
             </div>
           </section>
-          <section class="lb-band lb-endcap">
+          <section class="lb-band lb-endcap lb-endcap--plain">
             <div class="lb-endcap-inner">
               <div class="lb-endcap-copy">
                 <h2 class="lb-endcap-title">
-                  Your {p().name.toLowerCase().replace(/s$/, '')} is
+                  Your {p().endcap ?? p().name.toLowerCase().replace(/s$/, '')} is
                   <br /> one <em>sentence</em> away.
                 </h2>
                 <div class="lb-endcap-actions">
@@ -116,7 +118,6 @@ export const ProductView = (props: { slug?: string }) => {
                   </A>
                 </div>
               </div>
-              <div class="lb-endcap-word">PITCH</div>
             </div>
           </section>
           <LandingFooter />

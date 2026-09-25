@@ -2165,6 +2165,10 @@
   text-align: center;
 }
 .lb-endcap-copy { position: relative; z-index: 2; }
+/* the closing call to action, without the oversized PITCH wordmark behind it */
+.lb-endcap--plain,
+.lb-endcap--plain .lb-endcap-inner { min-height: 0; }
+.lb-endcap--plain .lb-endcap-inner { padding-bottom: clamp(56px, 6vw, 84px); }
 .lb-endcap-title {
   margin: 0;
   color: var(--lb-ink);

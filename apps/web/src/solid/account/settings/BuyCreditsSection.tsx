@@ -23,6 +23,12 @@ export function BuyCreditsSection(props: { openUsage?: () => void }) {
   })
 
   const flex = PLANS.find(plan => plan.key === 'flex')!
+  const planName = () => {
+    const key = summary()?.activeSubscription?.planKey.replace('_annual', '')
+    return key ? (PLANS.find(plan => plan.key === key)?.name ?? key) : 'No plan'
+  }
+  const used = () => summary()?.usage?.credits ?? 0
+  const balance = () => summary()?.balance ?? 0
   const upsells = PLANS.filter(plan => plan.kind === 'subscription' || plan.kind === 'contact')
   const activeKey = () => summary()?.activeSubscription?.planKey ?? ''
   const isCurrentPlan = (plan: Plan) => activeKey() === plan.key || activeKey() === plan.annual?.key
@@ -66,13 +72,13 @@ export function BuyCreditsSection(props: { openUsage?: () => void }) {
             <img src={pCoinIcon} alt="" />
             <div>
               <span>Available credits</span>
-              <strong>{summary()?.balance ?? 0}</strong>
+              <strong>{formatCredits(balance())}</strong>
             </div>
           </div>
-          <small>{summary()?.activeSubscription?.planKey.toUpperCase() ?? 'No plan'}</small>
+          <small>{planName()}</small>
         </div>
         <div class="settings-credit-meta">
-          <span>Usage to date: {summary()?.usage?.credits ?? 0}</span>
+          <span>Used this period: {formatCredits(used())}</span>
           <span>
             Next reset:{' '}
             {summary()?.activeSubscription?.currentPeriodEnd
@@ -129,17 +135,18 @@ export function BuyCreditsSection(props: { openUsage?: () => void }) {
         </div>
         <div class="settings-credit-usage-row">
           <strong>This period</strong>
-          <span>{summary()?.usage?.credits ?? 0} used</span>
+          <span>{formatCredits(used())} used</span>
           <i
             style={{
-              width: `${Math.min(100, ((summary()?.usage?.credits ?? 0) / Math.max(1, summary()?.balance ?? 0)) * 100)}%`,
+              // share of this period's credits (used + still available) already spent
+              width: `${Math.min(100, (used() / Math.max(1, used() + balance())) * 100)}%`,
             }}
           />
         </div>
         <div class="settings-credit-stats">
           <div>
             <span>Available</span>
-            <strong>{summary()?.balance ?? 0}</strong>
+            <strong>{formatCredits(balance())}</strong>
           </div>
           <div>
             <span>Next reset</span>

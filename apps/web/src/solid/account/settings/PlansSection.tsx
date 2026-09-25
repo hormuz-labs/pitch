@@ -110,13 +110,17 @@ export function PlansSection() {
             {sub => (
               <>
                 <strong class="settings-current-plan__value">
-                  {(
-                    PLANS.find(
-                      plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey,
-                    )?.name ?? sub().planKey
-                  ).toUpperCase()}
+                  {PLANS.find(
+                    plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey,
+                  )?.name ?? sub().planKey}
+                  <span>{sub().planKey.endsWith('_annual') ? 'Annual' : 'Monthly'}</span>
                 </strong>
-                <small>{formatCredits(sub().creditsPerCycle)} credits per billing cycle</small>
+                <small>
+                  {formatCredits(sub().creditsPerCycle)} credits each billing cycle
+                  {sub().currentPeriodEnd
+                    ? ` · Renews ${new Date(sub().currentPeriodEnd!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                    : ''}
+                </small>
               </>
             )}
           </Show>
@@ -128,7 +132,7 @@ export function PlansSection() {
           <strong>{activeKey() ? 'Manage subscription' : 'Billing portal'}</strong>
           <small>
             {activeKey()
-              ? `Change or cancel your plan in the secure billing portal${summary()?.activeSubscription?.currentPeriodEnd ? `. Plan features continue through ${new Date(summary()!.activeSubscription!.currentPeriodEnd!).toLocaleDateString()}` : ''}. Remaining credits stay in your balance until used.`
+              ? 'Change plan, update your payment method or cancel in the secure billing portal. Credits already in your balance stay yours.'
               : 'View invoices and manage payment methods from previous purchases.'}
           </small>
         </div>
@@ -141,7 +145,7 @@ export function PlansSection() {
           onClick={() => void openPortal()}
         >
           <ExternalLink size={14} />
-          {activeKey() ? 'Manage or cancel subscription' : 'Open billing portal'}
+          Billing portal
         </button>
       </section>
 
@@ -209,7 +213,7 @@ export function PlansSection() {
                       }
                     >
                       {isCurrentPlan(plan)
-                        ? 'Manage or cancel'
+                        ? 'Manage plan'
                         : checkoutKey() === view()?.key
                           ? 'Redirecting…'
                           : `Choose ${plan.name}`}

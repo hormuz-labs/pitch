@@ -1,6 +1,6 @@
 import { useNavigate } from '@solidjs/router'
 import { Code, CreditCard, ExternalLink, Mail, User, Webhook, X } from 'lucide-solid'
-import { createSignal, For, onMount, Show } from 'solid-js'
+import { createSignal, For, onMount, Show, Suspense } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { useAuth, useClerk, useUser } from '../core/auth'
@@ -482,71 +482,76 @@ export function SettingsModal(props: {
                 </For>
               </select>
             </div>
-            <Show when={props.section === 'profile'}>
-              <ProfileSection />
-            </Show>
-            <Show when={props.section === 'notifications'}>
-              <NotificationsSection />
-            </Show>
-            <Show when={props.section === 'plans'}>
-              <PlansSection />
-            </Show>
-            <Show when={props.section === 'usage'}>
-              <UsageSection />
-            </Show>
-            <Show when={props.section === 'credits'}>
-              <BuyCreditsSection openUsage={() => props.onSectionChange('usage')} />
-            </Show>
-            <Show when={props.section === 'rewards'}>
-              <RewardsSection />
-            </Show>
-            <Show when={props.section === 'connections'}>
-              {/* The welcome reward is claimed here: connect Discord, join,
+            {/* Sections that read a createResource (usage, buy credits) suspend while
+                it loads. Without a boundary here that reached the app-root Suspense,
+                whose full-screen fallback blanked the whole app for a frame. */}
+            <Suspense fallback={<p class="settings-empty">Loading…</p>}>
+              <Show when={props.section === 'profile'}>
+                <ProfileSection />
+              </Show>
+              <Show when={props.section === 'notifications'}>
+                <NotificationsSection />
+              </Show>
+              <Show when={props.section === 'plans'}>
+                <PlansSection />
+              </Show>
+              <Show when={props.section === 'usage'}>
+                <UsageSection />
+              </Show>
+              <Show when={props.section === 'credits'}>
+                <BuyCreditsSection openUsage={() => props.onSectionChange('usage')} />
+              </Show>
+              <Show when={props.section === 'rewards'}>
+                <RewardsSection />
+              </Show>
+              <Show when={props.section === 'connections'}>
+                {/* The welcome reward is claimed here: connect Discord, join,
                   claim. The follow links below it grant nothing. */}
-              <DiscordConnectionSection />
-              <SocialSection />
-            </Show>
-            <Show when={props.section === 'mcp'}>
-              <McpSettingsPanel openApi={() => props.onSectionChange('api')} />
-            </Show>
-            <Show when={props.section === 'api'}>
-              <ApiKeysView embedded />
-            </Show>
-            <Show when={props.section === 'support'}>
-              <section class="settings-card settings-support-panel">
-                <div class="settings-support-panel__heading">
-                  <strong>Help &amp; support</strong>
-                  <small>Get help, share feedback, or reach the Pitch team.</small>
-                  <a class="settings-primary" href="mailto:support@trypitch.co">
-                    <Mail size={14} />
-                    Contact support
-                  </a>
-                </div>
-                <div class="settings-support">
-                  <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
-                    <span>
-                      <strong>Join our Discord</strong>
-                      <small>Chat with the community and get fast answers.</small>
-                    </span>
-                    <ExternalLink size={14} />
-                  </a>
-                  <a href="/docs" target="_blank" rel="noopener">
-                    <span>
-                      <strong>Read the documentation</strong>
-                      <small>Find guides for the API, MCP, and studio.</small>
-                    </span>
-                    <ExternalLink size={14} />
-                  </a>
-                </div>
-                <p class="settings-support-panel__footer">
-                  Prefer email? Reach us at{' '}
-                  <a href="mailto:support@trypitch.co">support@trypitch.co</a>.
-                </p>
-              </section>
-            </Show>
-            <Show when={props.section === 'account'}>
-              <AccountSection onClose={props.onClose} />
-            </Show>
+                <DiscordConnectionSection />
+                <SocialSection />
+              </Show>
+              <Show when={props.section === 'mcp'}>
+                <McpSettingsPanel openApi={() => props.onSectionChange('api')} />
+              </Show>
+              <Show when={props.section === 'api'}>
+                <ApiKeysView embedded />
+              </Show>
+              <Show when={props.section === 'support'}>
+                <section class="settings-card settings-support-panel">
+                  <div class="settings-support-panel__heading">
+                    <strong>Help &amp; support</strong>
+                    <small>Get help, share feedback, or reach the Pitch team.</small>
+                    <a class="settings-primary" href="mailto:support@trypitch.co">
+                      <Mail size={14} />
+                      Contact support
+                    </a>
+                  </div>
+                  <div class="settings-support">
+                    <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
+                      <span>
+                        <strong>Join our Discord</strong>
+                        <small>Chat with the community and get fast answers.</small>
+                      </span>
+                      <ExternalLink size={14} />
+                    </a>
+                    <a href="/docs" target="_blank" rel="noopener">
+                      <span>
+                        <strong>Read the documentation</strong>
+                        <small>Find guides for the API, MCP, and studio.</small>
+                      </span>
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
+                  <p class="settings-support-panel__footer">
+                    Prefer email? Reach us at{' '}
+                    <a href="mailto:support@trypitch.co">support@trypitch.co</a>.
+                  </p>
+                </section>
+              </Show>
+              <Show when={props.section === 'account'}>
+                <AccountSection onClose={props.onClose} />
+              </Show>
+            </Suspense>
           </main>
         </div>
       </div>

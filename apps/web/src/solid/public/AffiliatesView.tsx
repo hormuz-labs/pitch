@@ -310,6 +310,24 @@ export const AffiliatesView = () => {
         </div>
       </section>
       <Show when={!signed()}>
+        <section class="lb-band lb-endcap lb-endcap--plain">
+          <div class="lb-endcap-inner">
+            <div class="lb-endcap-copy">
+              <h2 class="lb-endcap-title">
+                Free to join.
+                <br /> Your link is <em>one click</em> away.
+              </h2>
+              <div class="lb-endcap-actions">
+                <a class="lb-endcap-link" href="#how">
+                  See how it works
+                </a>
+                <A href="/sign-up?redirect=%2Faffiliates" class="lb-endcap-primary">
+                  Join the affiliate program
+                </A>
+              </div>
+            </div>
+          </div>
+        </section>
         <LandingFooter />
       </Show>
     </div>
