@@ -1,0 +1,109 @@
+name: Deploy web
+
+# Production deploys of trypitch.co (Vercel project `trypitch`, root apps/web).
+#
+# Vercel's own build runs only `vite build`: its build machines cannot launch
+# the headless Chromium that scripts/prerender.mjs needs, so pages shipped as an
+# empty app shell to crawlers and AI agents. This job builds here instead, where
+# Playwright's Chromium runs, and hands Vercel the finished output with
+# `vercel deploy --prebuilt`. Git-triggered production deploys of main are
+# switched off in apps/web/vercel.json so this is the only production path;
+# branch previews still build on Vercel (without prerendered HTML).
+#
+# Repository secrets:
+#   VERCEL_TOKEN                 vercel.com/account/tokens, officialtrypitch-3395 team
+#   VITE_CLERK_PUBLISHABLE_KEY   production pk_live_… key (required)
+#   VITE_POSTHOG_KEY, VITE_POSTHOG_HOST   analytics (optional)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - apps/web/**
+      - packages/**
+      - package.json
+      - bun.lock
+      - .github/workflows/deploy-web.yml
+
+concurrency:
+  group: web-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_zIiESu5Llgl5So6Nrkh06fRF
+  VERCEL_PROJECT_ID: prj_7sNTP1jqrnZtUuMQKdBMSa0oP5ex
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Chromium for the prerender
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install the Vercel CLI
+        run: bun add --global vercel@latest
+
+      - name: Pull production settings and environment
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      # Vercel marks these as sensitive, and `vercel pull` returns sensitive values
+      # empty. Without the Clerk key the app throws on load, so the prerender
+      # hangs and the deploy would ship a broken site. They are public client keys;
+      # they live in repository secrets only so they are not hard-coded here.
+      - name: Fill in values vercel pull leaves empty
+        run: |
+          test -n "$VITE_CLERK_PUBLISHABLE_KEY" || { echo "::error::Set the VITE_CLERK_PUBLISHABLE_KEY repository secret"; exit 1; }
+          env_file=.vercel/.env.production.local
+          for key in VITE_CLERK_PUBLISHABLE_KEY VITE_POSTHOG_KEY VITE_POSTHOG_HOST; do
+            value="${!key}"
+            [ -n "$value" ] || continue
+            grep -v "^$key=" "$env_file" > /tmp/env && mv /tmp/env "$env_file"
+            printf '%s="%s"\n' "$key" "$value" >> "$env_file"
+          done
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+
+      # The dashboard's Build Command is `vite build`, which skips the type check
+      # and the prerender. Override it for this build only; vercel.json in the repo
+      # keeps no buildCommand so branch previews (no Chromium) still succeed.
+      - name: Use the full build command
+        run: |
+          jq '. + {buildCommand: "bun run build"}' apps/web/vercel.json > /tmp/vercel.json
+          mv /tmp/vercel.json apps/web/vercel.json
+
+      - name: Build with prerender
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Check the prerendered output
+        run: |
+          out=.vercel/output/static
+          test -s "$out/sitemap.xml"
+          test -s "$out/llms.txt"
+          # A prerendered homepage carries its headline; the empty shell does not.
+          grep -q 'lb-agenc-title' "$out/index.html"
+          test -s "$out/blog/index.html"
+          echo "prerendered pages: $(find "$out" -name index.html | wc -l)"
+
+      - name: Deploy to production
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

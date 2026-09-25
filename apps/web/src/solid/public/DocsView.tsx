@@ -4,6 +4,7 @@ import {
   BookOpen,
   Bot,
   Check,
+  ChevronDown,
   Copy,
   FileText,
   Menu,
@@ -19,6 +20,7 @@ import { type Block, DOC_PAGES, findPage } from '../../docs/pages'
 import { Seo } from '../core/Seo'
 import { useTheme } from '../core/theme'
 import { PitchLogoAnimation } from './brand'
+import { highlight } from './highlight'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 import '../../styles/docs.css'
@@ -69,7 +71,10 @@ const CodeBlock = (props: { code: string; lang?: string }) => {
         </button>
       </div>
       <pre>
-        <code>{props.code}</code>
+        <code
+          class={`lang-${props.lang ?? 'text'}`}
+          innerHTML={highlight(props.code, props.lang)}
+        />
       </pre>
     </div>
   )
@@ -260,8 +265,15 @@ export const DocsView = (props: { slug?: string }) => {
                   <div class="docs-mobile-nav-tree">
                     <For each={['Guide', 'Reference']}>
                       {group => (
-                        <div class="docs-side-group">
-                          <p class="docs-side-title">{group}</p>
+                        // A dropdown per group; the one holding the current page starts open.
+                        <details
+                          class="docs-side-group docs-mobile-group"
+                          open={pages.some(x => x.group === group && x.slug === p().slug)}
+                        >
+                          <summary class="docs-side-title">
+                            {group}
+                            <ChevronDown size={14} aria-hidden="true" />
+                          </summary>
                           <For each={pages.filter(x => x.group === group)}>
                             {x => (
                               <A
@@ -273,7 +285,7 @@ export const DocsView = (props: { slug?: string }) => {
                               </A>
                             )}
                           </For>
-                        </div>
+                        </details>
                       )}
                     </For>
                   </div>

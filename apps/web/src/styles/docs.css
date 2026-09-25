@@ -93,7 +93,7 @@
   display: block;
   padding: 6px 10px 6px 13px;
   border-left: 1px solid var(--lb-line);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0;
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--lb-ink-2);
@@ -402,35 +402,47 @@
 /* ── mobile docs tree in .lb-mobile-menu ───────────────────────────────── */
 .docs-mobile-nav-tree {
   margin-top: 18px;
-  padding-top: 18px;
   border-top: 1px solid var(--lb-line);
   display: flex;
   flex-direction: column;
-  gap: 18px;
 }
 .docs-mobile-nav-tree .docs-side-group {
   display: flex;
   flex-direction: column;
+  border-bottom: 1px solid var(--lb-line);
 }
 .docs-mobile-nav-tree .docs-side-title {
-  margin: 0 0 8px;
-  padding-left: 12px;
+  margin: 0;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-family: var(--lb-mono);
   font-size: 9.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--lb-ink-dim);
+  cursor: pointer;
+  list-style: none;
 }
+.docs-mobile-nav-tree .docs-side-title::-webkit-details-marker { display: none; }
+.docs-mobile-nav-tree .docs-side-title svg { transition: transform 160ms ease; }
+.docs-mobile-group[open] > .docs-side-title svg { transform: rotate(180deg); }
+.docs-mobile-group[open] > .docs-side-title { color: var(--lb-ink); }
+.docs-mobile-nav-tree .docs-side-title:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: -2px; }
+.docs-mobile-group[open] { padding-bottom: 8px; }
+/* boxy, not pill-shaped: square rows with a hard accent edge on the current page */
 .docs-mobile-nav-tree .docs-side-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 0;
+  border-left: 2px solid transparent;
   font-size: 13px;
   color: var(--lb-ink-2);
   text-decoration: none;
-  transition: all 120ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 .docs-mobile-nav-tree .docs-side-link:hover {
   background: var(--lb-surface-2);
@@ -440,7 +452,7 @@
   background: var(--lb-surface-2);
   color: var(--lb-ink);
   font-weight: 550;
-  border-left: 2px solid var(--lb-accent);
+  border-left-color: var(--lb-accent);
 }
 
 /* ── responsive ────────────────────────────────────────────────────────── */
@@ -527,3 +539,16 @@
 @media (max-width: 340px) {
   .lb-root .docs-brand-word { display: none; }
 }
+
+/* ── syntax colours (src/solid/public/highlight.ts) ─────────────────────
+   Code blocks are the dark "film surface" in both themes, so one palette:
+   restrained, with the site blue for keywords and warm tones for values. */
+.docs-code .tok-comment { color: #6b7280; font-style: italic; }
+.docs-code .tok-keyword { color: #7cc4fa; }
+.docs-code .tok-function { color: #c4b5fd; }
+.docs-code .tok-property { color: #93c5fd; }
+.docs-code .tok-string { color: #a7e3b4; }
+.docs-code .tok-number,
+.docs-code .tok-literal { color: #f5c07a; }
+.docs-code .tok-variable { color: #f9a8d4; }
+.docs-code .tok-flag { color: #fdba74; }
