@@ -2,7 +2,6 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
-// @ts-expect-error plain ESM build script, no type declarations
 import { writeSeoFiles } from './scripts/seo-files.mjs'
 
 // https://vite.dev/config/
