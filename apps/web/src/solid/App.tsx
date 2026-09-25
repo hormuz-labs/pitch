@@ -26,7 +26,6 @@ const Settings = routeComponent('settings')
 const ApiKeys = routeComponent('apiKeys')
 const Sessions = routeComponent('sessions')
 const ChatHistory = routeComponent('chats')
-const Affiliate = routeComponent('affiliate')
 const Admin = routeComponent('admin')
 const CheckoutReturn = routeComponent('checkoutReturn')
 const Studio = routeComponent('studio')
@@ -233,7 +232,7 @@ export default function App() {
       <Route path="/sessions" component={protectedRoute(Sessions)} />
       <Route path="/chats" component={redirect('/chats/history')} />
       <Route path="/chats/history" component={protectedRoute(ChatHistory)} />
-      <Route path="/affiliate" component={protectedRoute(Affiliate, true)} />
+      <Route path="/affiliate" component={redirect('/affiliates')} />
       <Route path="/admin" component={protectedRoute(Admin)} />
       <Route path="/admin/projects/:id" component={protectedRoute(AdminStudioRoute)} />
       <Route path="/checkout/return" component={protectedRoute(CheckoutReturn)} />

@@ -4,6 +4,7 @@ import {
   BookOpen,
   Bot,
   Check,
+  ChevronDown,
   Copy,
   FileText,
   Menu,
@@ -19,6 +20,7 @@ import { type Block, DOC_PAGES, findPage } from '../../docs/pages'
 import { Seo } from '../core/Seo'
 import { useTheme } from '../core/theme'
 import { PitchLogoAnimation } from './brand'
+import { highlight } from './highlight'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 import '../../styles/docs.css'
@@ -69,7 +71,10 @@ const CodeBlock = (props: { code: string; lang?: string }) => {
         </button>
       </div>
       <pre>
-        <code>{props.code}</code>
+        <code
+          class={`lang-${props.lang ?? 'text'}`}
+          innerHTML={highlight(props.code, props.lang)}
+        />
       </pre>
     </div>
   )
@@ -155,8 +160,16 @@ export const DocsView = (props: { slug?: string }) => {
         return (
           <div class="lb-root docs-root">
             <Seo
-              title={`${p().title} — Pitch docs`}
-              description={p().lede}
+              title={
+                p().slug
+                  ? `${p().title} | Pitch API & MCP docs`
+                  : 'Pitch API & MCP docs: build with Pitch'
+              }
+              description={
+                p().slug
+                  ? p().lede
+                  : 'Drive Pitch from an AI agent over MCP or from your own code over REST: create projects, send prompts, export videos and decks, and check credits.'
+              }
               path={p().slug ? `/docs/${p().slug}` : '/docs'}
             />
             <header
@@ -252,8 +265,15 @@ export const DocsView = (props: { slug?: string }) => {
                   <div class="docs-mobile-nav-tree">
                     <For each={['Guide', 'Reference']}>
                       {group => (
-                        <div class="docs-side-group">
-                          <p class="docs-side-title">{group}</p>
+                        // A dropdown per group; the one holding the current page starts open.
+                        <details
+                          class="docs-side-group docs-mobile-group"
+                          open={pages.some(x => x.group === group && x.slug === p().slug)}
+                        >
+                          <summary class="docs-side-title">
+                            {group}
+                            <ChevronDown size={14} aria-hidden="true" />
+                          </summary>
                           <For each={pages.filter(x => x.group === group)}>
                             {x => (
                               <A
@@ -265,7 +285,7 @@ export const DocsView = (props: { slug?: string }) => {
                               </A>
                             )}
                           </For>
-                        </div>
+                        </details>
                       )}
                     </For>
                   </div>
@@ -319,7 +339,7 @@ export const DocsView = (props: { slug?: string }) => {
                 <For each={p().blocks}>{b => <BlockView block={b} />}</For>
                 <nav class="docs-pager">
                   {pages[index - 1] ? (
-                    <A href={`/docs/${pages[index - 1].slug}`}>
+                    <A href={pages[index - 1].slug ? `/docs/${pages[index - 1].slug}` : '/docs'}>
                       <span>Previous</span>
                       {pages[index - 1].title}
                     </A>

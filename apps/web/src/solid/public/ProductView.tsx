@@ -2,6 +2,7 @@ import { A, Navigate } from '@solidjs/router'
 import { For, Show } from 'solid-js'
 import { useAuth } from '../core/auth'
 import { Seo } from '../core/Seo'
+import { BLOG_POSTS } from './blogPosts'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
 import { PRODUCTS, ProductGlyph, productBySlug } from './productCatalog'
@@ -18,9 +19,22 @@ export const ProductView = (props: { slug?: string }) => {
       {p => (
         <div class="lb-root">
           <Seo
-            title={`Pitch — ${p().name}`}
+            title={p().seoTitle}
             description={p().seoDescription}
             path={`/product/${p().slug}`}
+            jsonLd={{
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'FAQPage',
+                  mainEntity: p().faq.map(([q, a]) => ({
+                    '@type': 'Question',
+                    name: q,
+                    acceptedAnswer: { '@type': 'Answer', text: a },
+                  })),
+                },
+              ],
+            }}
           />
           <LandingNav />
           <section class="lb-band lb-prod-hero">
@@ -43,29 +57,31 @@ export const ProductView = (props: { slug?: string }) => {
               </div>
             </div>
           </section>
-          <section class="lb-band lb-prod-sample">
-            <div class="lb-wrap">
-              <div class="lb-prod-frame">
-                <Show
-                  when={p().sampleSrc}
-                  fallback={
-                    <div class="lb-prod-deck">
-                      <span class="lb-prod-deck-slide" />
-                      <span class="lb-prod-deck-slide" />
-                      <span class="lb-prod-deck-slide">
-                        <b>Problem</b>
-                        <i />
-                        <i />
-                      </span>
-                    </div>
-                  }
-                >
-                  <video src={p().sampleSrc} muted loop playsinline autoplay preload="metadata" />
-                </Show>
+          <Show when={p().sampleSrc || p().slug === 'pitch-decks'}>
+            <section class="lb-band lb-prod-sample">
+              <div class="lb-wrap">
+                <div class="lb-prod-frame">
+                  <Show
+                    when={p().sampleSrc}
+                    fallback={
+                      <div class="lb-prod-deck">
+                        <span class="lb-prod-deck-slide" />
+                        <span class="lb-prod-deck-slide" />
+                        <span class="lb-prod-deck-slide">
+                          <b>Problem</b>
+                          <i />
+                          <i />
+                        </span>
+                      </div>
+                    }
+                  >
+                    <video src={p().sampleSrc} muted loop playsinline autoplay preload="metadata" />
+                  </Show>
+                </div>
+                <p class="lb-prod-cap">{p().sampleCaption}</p>
               </div>
-              <p class="lb-prod-cap">{p().sampleCaption}</p>
-            </div>
-          </section>
+            </section>
+          </Show>
           <section class="lb-band lb-prod-points">
             <div class="lb-wrap">
               <div class="lb-prod-grid">
@@ -78,6 +94,29 @@ export const ProductView = (props: { slug?: string }) => {
                   )}
                 </For>
               </div>
+            </div>
+          </section>
+          <section class="lb-band lb-prod-faq">
+            <div class="lb-wrap">
+              <p class="lb-chy">Questions</p>
+              <div class="lb-prod-faq-list">
+                <For each={p().faq}>
+                  {([q, a]) => (
+                    <div>
+                      <h3>{q}</h3>
+                      <p>{a}</p>
+                    </div>
+                  )}
+                </For>
+              </div>
+              <Show when={BLOG_POSTS.find(post => post.slug === p().guide)}>
+                {post => (
+                  <A href={`/blog/${post().slug}`} class="lb-prod-guide">
+                    <span>Guide</span>
+                    {post().title} →
+                  </A>
+                )}
+              </Show>
             </div>
           </section>
           <section class="lb-band lb-prod-more">
@@ -100,11 +139,11 @@ export const ProductView = (props: { slug?: string }) => {
               </div>
             </div>
           </section>
-          <section class="lb-band lb-endcap">
+          <section class="lb-band lb-endcap lb-endcap--plain">
             <div class="lb-endcap-inner">
               <div class="lb-endcap-copy">
                 <h2 class="lb-endcap-title">
-                  Your {p().name.toLowerCase().replace(/s$/, '')} is
+                  Your {p().endcap ?? p().name.toLowerCase().replace(/s$/, '')} is
                   <br /> one <em>sentence</em> away.
                 </h2>
                 <div class="lb-endcap-actions">
@@ -116,7 +155,6 @@ export const ProductView = (props: { slug?: string }) => {
                   </A>
                 </div>
               </div>
-              <div class="lb-endcap-word">PITCH</div>
             </div>
           </section>
           <LandingFooter />

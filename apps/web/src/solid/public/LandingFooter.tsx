@@ -43,6 +43,7 @@ const columns: Footer15Column[] = [
       { label: 'Pricing', href: '/pricing' },
       { label: 'Docs', href: '/docs' },
       { label: 'API Reference', href: '/docs/api' },
+      { label: 'AgenC', href: '/AgenC' },
     ],
   },
   { title: 'Social', links: SOCIALS },

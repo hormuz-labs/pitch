@@ -18,6 +18,15 @@
  * cookie/proxy shenanigans.
  */
 
+/**
+ * What the referrer earns, in credits. Mirrors REFERRAL_REWARDS in
+ * apps/api/src/config.ts (tests/referral-rewards.test.ts keeps them equal).
+ * Referred accounts get no bonus: every wallet starts empty.
+ */
+export const REFERRAL_REWARDS = { signup: 40, purchase: 320 } as const
+/** Roughly what a narrated demo video costs; see tests/credit-pricing.test.ts. */
+export const CREDITS_PER_VIDEO = 120
+
 const STORAGE_KEY = 'pitch_ref_code'
 const STORED_AT_KEY = 'pitch_ref_stored_at'
 // 30 days — matches the cookie max-age that /r/:code used to set.

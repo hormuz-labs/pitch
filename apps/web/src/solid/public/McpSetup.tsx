@@ -1,8 +1,10 @@
-import { Bot, BrainCircuit, Check, Copy, Shell, SquareTerminal } from 'lucide-solid'
+import { Bot, Check, Copy, SquareTerminal } from 'lucide-solid'
 import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from 'solid-js'
 import chatgptIco from '../../assets/chatgpt.png'
 import claudeIco from '../../assets/claude.svg'
 import cursorIco from '../../assets/cursor.png'
+import hermesIco from '../../assets/hermes-64.png'
+import openclawIco from '../../assets/openclaw.svg'
 import perplexityIco from '../../assets/perplexity.png'
 
 export const MCP_URL = 'https://api.trypitch.co/mcp'
@@ -14,27 +16,19 @@ const BRAND: Record<string, string> = {
   cursor: cursorIco,
   chatgpt: chatgptIco,
   perplexity: perplexityIco,
+  openclaw: openclawIco,
+  hermes: hermesIco,
 }
 
 export const Glyph = (props: { id: string }) => (
   <Show
     when={BRAND[props.id]}
-    fallback={
-      props.id === 'api' ? (
-        <SquareTerminal size={14} />
-      ) : props.id === 'openclaw' ? (
-        <Shell size={14} />
-      ) : props.id === 'hermes' ? (
-        <BrainCircuit size={14} />
-      ) : (
-        <Bot size={14} />
-      )
-    }
+    fallback={props.id === 'api' ? <SquareTerminal size={14} /> : <Bot size={14} />}
   >
     <img
       src={BRAND[props.id]}
       alt=""
-      class={`mcp-tab-ico${props.id === 'chatgpt' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' ? ' mcp-icon--tile' : ''}${props.id === 'perplexity' ? ' mcp-icon--perplexity' : ''}`}
+      class={`mcp-tab-ico${props.id === 'chatgpt' || props.id === 'hermes' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' ? ' mcp-icon--tile' : ''}${props.id === 'perplexity' ? ' mcp-icon--perplexity' : ''}`}
       width="16"
       height="16"
     />

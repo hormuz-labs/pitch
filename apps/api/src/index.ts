@@ -72,6 +72,7 @@ const { router: mcpRoutes } = await import('./routes/mcp.js')
 const { router: musicRoutes } = await import('./routes/music.js')
 const { router: voiceRoutes } = await import('./routes/voices.js')
 const { router: newsletterRoutes } = await import('./routes/newsletter.js')
+const { router: pricingRoutes } = await import('./routes/pricing.js')
 const { router: promoRoutes } = await import('./routes/promo.js')
 const { router: projectRoutes, publicRouter: publicProjectRoutes } = await import(
   './routes/projects.js'
@@ -196,6 +197,7 @@ if (IS_API) {
   app.use('/credits', creditRoutes)
   app.use('/users', userRoutes)
   app.use('/checkout', checkoutRoutes)
+  app.use('/pricing', pricingRoutes)
   app.use('/promo', promoRoutes)
   app.use(redirectRouter)
   app.use(shareRouter)

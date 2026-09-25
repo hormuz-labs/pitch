@@ -5,9 +5,11 @@ export interface SeoProps {
   description: string
   path: string
   image?: string
+  /** Page-level schema.org JSON-LD; the site-wide graph lives in index.html. */
+  jsonLd?: Record<string, unknown>
 }
 
-const SITE_URL = (import.meta.env.VITE_SITE_URL ?? 'https://trypitch.co').replace(/\/$/, '')
+export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? 'https://trypitch.co').replace(/\/$/, '')
 
 function upsertMeta(selector: string, attributes: Record<string, string>): HTMLMetaElement {
   const existing = document.head.querySelector<HTMLMetaElement>(selector)
@@ -45,8 +47,20 @@ export function Seo(props: SeoProps) {
       upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: props.image })
     }
 
+    // A prerendered page already carries its JSON-LD; replace it, never stack a copy.
+    for (const stale of document.head.querySelectorAll('script[data-page]')) stale.remove()
+    let ld: HTMLScriptElement | undefined
+    if (props.jsonLd) {
+      ld = document.createElement('script')
+      ld.type = 'application/ld+json'
+      ld.dataset.page = ''
+      ld.textContent = JSON.stringify(props.jsonLd)
+      document.head.append(ld)
+    }
+
     onCleanup(() => {
       document.title = previousTitle
+      ld?.remove()
     })
   })
   return null

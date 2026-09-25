@@ -6,6 +6,7 @@ import * as db from '@saas/db'
 import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import { type Request, type Response, Router } from 'express'
+import { CREDITS_PER_VIDEO } from '../config.js'
 import { requireAuth } from '../middleware/auth.js'
 import { IDLE_EXPORT } from '../projects/export.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
@@ -613,7 +614,7 @@ router.get('/users/:id', async (req, res) => {
             totalSignups: affiliate._count.leads,
             totalConversions: affiliate.conversions.length,
             creditsEarned: referralCredits,
-            videosEarned: Math.floor(referralCredits / 3),
+            videosEarned: Math.floor(referralCredits / CREDITS_PER_VIDEO),
             totalRevenue: affiliate.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
           }
         : null,
@@ -743,7 +744,7 @@ router.get('/users/:id/affiliate', async (req, res) => {
       ...affiliate,
       signups: affiliate._count.leads,
       creditsEarned,
-      videosEarned: Math.floor(creditsEarned / 3),
+      videosEarned: Math.floor(creditsEarned / CREDITS_PER_VIDEO),
     })
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch user affiliate')
@@ -786,7 +787,7 @@ router.get('/analytics', async (_req, res) => {
           a.clicks.length > 0 ? ((a.conversions.length / a.clicks.length) * 100).toFixed(1) : '0.0',
         totalRevenue: a.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
         creditsEarned,
-        videosEarned: Math.floor(creditsEarned / 3),
+        videosEarned: Math.floor(creditsEarned / CREDITS_PER_VIDEO),
         conversions: a.conversions,
       }
     })

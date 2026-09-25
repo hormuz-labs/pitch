@@ -63,7 +63,7 @@ export const CREDIT_PACKS = {
 /** Entry retail price of a credit, used where a pack price is unavailable. */
 export const CREDIT_RETAIL_USD = 0.025
 
-/** One-time purchases. Flex is the entry product: no subscription required. */
+/** One-time purchases. Flex is an add-on: checkout requires an active Pro or Max plan. */
 export const TOPUP_PACKS = {
   flex: {
     credits: 800,
@@ -104,6 +104,9 @@ export const SIGNUP_BONUS_CREDITS = 0
 
 // Referral rewards are paid to the referrer in credits. Referred users do not
 // receive a signup grant: all new accounts start at zero.
+/** Roughly what a narrated demo video costs; turns earned credits into videos. */
+export const CREDITS_PER_VIDEO = 120
+
 export const REFERRAL_REWARDS = {
   newUserBonus: 0,
   referrerSignup: 40,

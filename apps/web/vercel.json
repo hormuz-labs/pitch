@@ -1,4 +1,97 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.trypitch.co"
+        }
+      ],
+      "destination": "https://trypitch.co/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/blog/pitch-deck-vs-demo-video",
+      "destination": "/blog/best-ai-pitch-deck-generators",
+      "permanent": true
+    },
+    {
+      "source": "/blog/b2b-cold-outreach-video",
+      "destination": "/blog/async-demo-vs-live-demo-saas-sales",
+      "permanent": true
+    },
+    {
+      "source": "/blog/ai-for-investor-fundraising-demo",
+      "destination": "/blog/turn-a-pdf-or-website-into-an-investor-deck",
+      "permanent": true
+    },
+    {
+      "source": "/blog/ai-agents-replacing-screen-recorders",
+      "destination": "/blog/zero-shot-demo-video-from-url",
+      "permanent": true
+    },
+    {
+      "source": "/blog/voice-selection-demo-videos",
+      "destination": "/blog/zero-shot-demo-video-from-url",
+      "permanent": true
+    },
+    {
+      "source": "/blog/replace-sales-engineer-ai-demo-automation",
+      "destination": "/blog/async-demo-vs-live-demo-saas-sales",
+      "permanent": true
+    },
+    {
+      "source": "/blog/future-of-product-demos",
+      "destination": "/blog/best-ai-product-demo-video-tools",
+      "permanent": true
+    },
+    {
+      "source": "/blog/best-ai-tools-for-startup-founders-2026",
+      "destination": "/blog/best-ai-tools-for-product-launch-videos",
+      "permanent": true
+    },
+    {
+      "source": "/blog/why-every-saas-needs-a-demo-video",
+      "destination": "/blog/best-ai-product-demo-video-tools",
+      "permanent": true
+    },
+    {
+      "source": "/blog/onboarding-videos-reduce-churn",
+      "destination": "/blog/zero-shot-demo-video-from-url",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scaling-content-production-ai",
+      "destination": "/blog/best-ai-tools-for-product-launch-videos",
+      "permanent": true
+    },
+    {
+      "source": "/blog/ai-go-to-market-strategy-saas",
+      "destination": "/blog/best-ai-tools-for-product-launch-videos",
+      "permanent": true
+    },
+    {
+      "source": "/blog/generative-ai-product-marketing-2026",
+      "destination": "/blog/best-ai-tools-for-product-launch-videos",
+      "permanent": true
+    },
+    {
+      "source": "/blog/chatgpt-perplexity-product-discovery-2026",
+      "destination": "/blog/generate-videos-from-claude-or-cursor-with-mcp",
+      "permanent": true
+    },
+    {
+      "source": "/blog/product-led-growth-ai-2026",
+      "destination": "/blog/zero-shot-demo-video-from-url",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/r/(.*)",
