@@ -40,6 +40,8 @@ export function useProject(id: string | undefined) {
     [inspectMode, setInspectMode] = createSignal(false),
     [draft, setDraftValue] = createSignal('')
   const [playhead, setPlayhead] = createSignal(0),
+    // The live film's page size, reported by the preview (SHOTS.format).
+    [stage, setStage] = createSignal({ w: 1920, h: 1080 }),
     [playing, setPlaying] = createSignal(false),
     [exportPending, setExportPending] = createSignal(false),
     [exportStatus, setExportStatus] = createSignal<ExportStatus | null>(null)
@@ -538,6 +540,10 @@ export function useProject(id: string | undefined) {
       return playhead()
     },
     setPlayhead,
+    get stage() {
+      return stage()
+    },
+    setStage,
     get playing() {
       return playing()
     },

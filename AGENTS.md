@@ -27,7 +27,7 @@ owned.
 | Pipeline | Host actions | Skill |
 |---|---|---|
 | launch film | `motion_*` | `launch-video` |
-| cinematic promo / brand manifesto | `motion_*` | `promo-video` |
+| social ad / promo / brand manifesto | `motion_*`, `launch_footage`, `launch_stock` | `promo-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
@@ -45,6 +45,12 @@ Rules:
 - `describe()` **looks** at the workspace and previews the newest artifact, so
   the preview follows the work. Do not reintroduce a stored notion of what a
   project "is".
+- Films have a frame: `SHOTS.format` (16:9 default, 9:16, 1:1, 4:5) sets the
+  page size; `window.__STAGE` carries it to the studio preview, thumbnails,
+  capture, review and audit — never assume 1920×1080 in new engine or script
+  code. `footage` shots play real video through a canvas from blob URLs, so
+  `window.__SEEK` may return a promise: every caller that screenshots must
+  await it (`seekFilm` in `.pi/scripts/launch-video/lib/browser.mjs`).
 - The deck preview is a live editor: `deck.html` served with `?studio=1&edit=1`
   carries `engine/js/deck-editor.js` (pure helpers in `deck-editor-lib.js`),
   the Solid chrome lives in `apps/web/src/solid/studio/deck/`, and saves are

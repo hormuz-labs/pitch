@@ -1,72 +1,105 @@
 ---
 name: promo-video
-description: Creates cinematic, voice-led promotional films and brand manifestos as live shots.js previews, using rhythmic montage, sparse micro-copy, sourced or generated imagery, graphic overlays, and designed sound. Use when the user asks for a promo video, brand anthem, manifesto film, inspirational science or technology montage, or the dark editorial reference style; use launch-video for product-led feature films and video-editing for post-processing an existing file.
+description: Makes promotional films and ads as live shots.js previews — short-form social and performance ads (Reels, TikTok, Shorts, Stories, paid social, DTC, UGC-style, B2B) that hook in three seconds, cut in bursts under word-synced captions, keep a fast continuous voiceover and drop the music on the turn; and cinematic voice-led brand manifestos. Use it for any request to make an ad, a promo, a commercial, a product video for social, "an ad like this reference", a video from stock or uploaded footage, a brand anthem or manifesto — even when the user only says "make a video for my product/site" and the result is meant to sell. Use launch-video when the product's UI walkthrough is the subject, and video-editing to post-process an existing file.
 ---
 
-# Promo video
+# Promo videos and ads
 
-Create `shots.js`; the studio plays the compiled `index.html` live and the user
-exports the MP4. This skill authors an original thematic promo, not a copy of a
-reference film. For edits to an uploaded or rendered video file, use
-[video-editing](../video-editing/SKILL.md).
+Build `shots.js`; the studio plays it live and the user exports the MP4. This
+skill makes an original film in a studied shape — never a copy of a
+reference's footage, words, voice, music or brand.
 
-Read [the editorial grammar](references/editorial-grammar.md) before planning.
-It captures the supplied reference's transferable visual, pacing, type, audio,
-and ending principles without depending on its footage, script, or branding.
+## Choose the treatment
 
-## Shape the film
+| The brief | Treatment | Read first | Frame |
+|---|---|---|---|
+| An ad for a product or service: short-form, social, paid, DTC, B2B, "sell this", a reference ad to match | social ad | [social-ad.md](references/social-ad.md) | 9:16 |
+| A brand anthem, manifesto, inspirational or editorial montage led by a spoken idea | manifesto | [editorial-grammar.md](references/editorial-grammar.md) | 16:9 |
 
-- Find one human question or tension that the brand can credibly own. Build a
-  spoken thesis, not a product feature list; it must still make sense as audio.
-- Decide the emotional curve from the brief. The reference-like default is
-  mystery → inquiry → accelerating discovery → breath/reset → human resolve →
-  quiet brand landing. Treat this as a shape, not a fixed timestamp template.
-- Choose a small motif network that can match-cut across unlike sources: circle,
-  eye, lens, aperture, particle field, tunnel, orbit, horizon, or another concept
-  native to the subject. Every return must advance the thought.
-- Write `direction.md` with audience takeaway, thesis, emotional curve, motifs,
-  footage/source ledger, graphic system, sound arc, end-card copy, and a shot
-  table: `id | spoken thought | focal image/action | copy | duration | connection`.
+The frame follows the placement: 9:16 for Reels/TikTok/Shorts/Stories (the
+ad default), 4:5 or 1:1 for a feed, 16:9 for YouTube pre-roll or a site hero.
+When the brief does not say, take the default and name it in the summary.
+Set it once with `pitch motion scaffold --format 9:16`.
 
-## Build the audio spine first
+For an ad, also choose a **look** — editorial DTC, loud DTC or cinematic B2B
+(social-ad.md → Three looks) — from the product and its audience, and keep
+its devices together. [reference-studies.md](references/reference-studies.md)
+has five studied ads beat by beat; read the one nearest the brief.
 
-For original narration, read
-[narration](../launch-video/references/audio/narration.md), record one continuous
-read, and align it before timing shots. User-supplied licensed or public-domain
-speech may be edited into a documented collage; do not scrape speeches, clone a
-recognizable person's voice, or assume archival footage is free to use.
+## Workflow
 
-Read [audio routing](../launch-video/references/audio.md) for the music, SFX, and
-mix modules actually needed. Plan one or two genuine breaths in the arrangement,
-reserve signature impacts for structural turns, and let the music carry across
-picture cuts. Do not imitate the reference's hot master or copy its score.
+1. **Facts.** Read the product (product-research skill, `pitch motion recon
+   <url>` for colours, fonts and logo). Collect what the film may claim: the
+   product's own facts, at most one or two outside facts with their source
+   page (`pitch motion inspect <url>`), and real product imagery (uploads,
+   then the site).
+2. **Script.** Write it for the ear in the arc of the treatment: a hook that
+   works in 3 seconds, one number, the enemy, the turn, the name, proof, the
+   close. Aim for runtime × 3 words/s. Put delivery marks in it (below).
+3. **Voice.** Cast it: `pitch motion voices --search "<tone, accent, age>"`
+   when narration is on ElevenLabs, else a Gemini voice and `--style`. Record
+   one continuous read with `pitch motion tts --pace ad`, remove the breaths
+   with `pitch motion tighten`, then `pitch motion align`. Details in
+   [ad-sound.md](references/ad-sound.md).
+4. **direction.md.** Takeaway, audience, placement, look, the script, the
+   claim ledger (each fact → its source), the footage ledger (each clip →
+   file, origin, licence), the **music plan** (sections and drops in film
+   seconds, from the aligned words) and the shot table
+   `id | spoken words (cue) | density (BURST / HOLD / INTERRUPT) | picture | source | caption | sound`.
+   Alternate densities: a burst in the first 3 seconds, an interrupt every
+   5–10, a hold on every proof.
+5. **Picture.** Source and prepare footage ([footage.md](references/footage.md));
+   build the special shots from [recipes.md](references/recipes.md); the
+   skeleton in [example-ad.md](references/example-ad.md) shows the pieces
+   together. Scaffold, then add shots in small batches with `pitch motion check`.
+6. **Words on screen.** The `captions` track — keywords, mixed type, and for
+   long or loud ads a `subtitles` tier (`pitch motion schema --section
+   captions`) — then `pitch motion sync --write` for cued shots.
+7. **Sound.** Generate or shape the bed to the music plan, add `audio.fx`
+   (thin / muffle / ring) and a few structural SFX, then `pitch motion mix`
+   ([ad-sound.md](references/ad-sound.md)).
+8. **Finish.** [finish](../launch-video/references/finish.md): one `pitch
+   motion review`, `--times` inside every burst and across the turn, one
+   `pitch motion audit`. Report runtime, frame, sources and anything
+   unresolved. Export belongs to the user.
 
-## Source and author
+## Tools this skill leans on
 
-- Use supplied, licensed, public-domain, or product-owned footage. Record source
-  and rights notes in `direction.md`. Use [generated-video](../generated-video/SKILL.md)
-  only for abstract or otherwise nonexistent footage, never to fake a real
-  person, product, event, or historical record.
-- Inspect an unfamiliar brand with the product-research skill. Use real product
-  imagery only when it supports the thesis; this treatment is metaphor-led.
-- Explore effects with `pitch effects browse`, `pitch effects search`, or
-  `pitch effects families`; inspect candidates with `pitch effects show <id>`,
-  and load `--source` only for chosen mechanisms.
-  Use each cited lab ID once.
-- Follow [authoring](../launch-video/references/authoring.md) for scaffolding,
-  schemas, seekable GSAP implementation, and the `direction.md`/shot workflow.
-  Follow [continuity](../launch-video/references/continuity.md) for match cuts,
-  transformations, and scene connections.
-- Keep centered micro-copy rare and readable. Use a giant keyword only when it
-  marks a true structural reset. Prefer restrained monochrome/near-black frames
-  with one controlled accent family over unrelated spectacle.
+| Need | Command |
+|---|---|
+| Frame, footage, captions, audio fx fields | `pitch motion schema --section "format,footage,captions,audio effects"`, `pitch motion schema --types footage --types evidence --types card` |
+| Stock footage/photos (licensed) | `pitch motion stock --mode search …`, then `--mode get --pick N --name …` |
+| Prepare any clip for the film | `pitch motion footage --src … --name … --in … --dur … --focus x,y` |
+| Look inside a long source | `pitch video frames --source … --times '[…]' --contact-sheet` |
+| Footage that cannot exist (abstract, metaphor) | `pitch video generate` — read [generated-video](../generated-video/SKILL.md) first |
+| A source page, read or captured | `pitch motion inspect <url>`, `pitch motion screenshot --url … --out … [--fullPage]` |
+| Cast and record the voice | `pitch motion voices --search …`, `pitch motion tts --pace ad [--voice id --stability 0.35]`, `pitch motion tighten`, `pitch motion align`, `pitch motion sync --write` |
+| Music with drops, custom SFX | `pitch motion music --duration … --prompt "<timed arrangement>"`, `pitch motion find-audio`, `pitch motion sound --prompt …`, `pitch motion sfx`, `pitch motion mix` |
+| Other motion | `pitch effects search/show` (see launch-video's effects list); cite `lab` only for ported source |
 
-## Finish
+## Non-negotiable
 
-Run `pitch motion check`, then follow
-[finish](../launch-video/references/finish.md): one audit, one compact settled-frame
-review, and targeted transition samples only for unresolved motion. Check that
-voice remains intelligible, flashes are brief and purposeful, overlays support
-the image, source rights are documented, and the final brand card has enough
-quiet time. Report actual runtime and unresolved limitations; MP4 export remains
-the user's action.
+- **No invented evidence.** Every number, study, quote, review, rating,
+  customer count, before/after, award or "as seen in" on screen or in the
+  voice traces to a source recorded in direction.md. `evidence` shots quote
+  the source verbatim and name it. No source, no claim: rewrite the line as
+  the brand's own promise, or cut the beat.
+- **The product is real.** Product shots come from the brand's imagery or the
+  user's uploads — never generated, redrawn or composited into stock footage.
+  Stock and generated footage show context, emotion and metaphor, never the
+  product in use.
+- **People in stock are not customers.** Never pair a stock or generated
+  face with a testimonial, a quote, a before/after or "I use it". Creator and
+  UGC proof comes only from real footage the user supplies.
+- **Health, money and safety claims** stay inside the source's own wording:
+  no cures, guarantees or fear beyond what the source says. An offer
+  (risk-free, a guarantee, a price) must be the brand's real offer.
+- **Flashes are brief.** Bursts of hard cuts and one-frame flashes last under
+  a second and never strobe for longer; `glitch` marks act changes only.
+- **Readable at phone size.** Keywords stay inside the safe area (middle 80%
+  of the width, above the bottom fifth); subtitles sit just above it with a
+  `box`; every caption holds long enough to read.
+
+If a needed input is missing — no product imagery, no stock key, no source
+for a claim, no real reviews — say so first in the summary and show what
+replaced it.

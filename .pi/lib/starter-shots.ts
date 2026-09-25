@@ -107,7 +107,7 @@ function openingShot(tokens: ReconTokens | null): string[] {
 }
 
 /** shots.js with the brand filled in and the shot list open. */
-export function starterShots(tokens: ReconTokens | null): string {
+export function starterShots(tokens: ReconTokens | null, format?: string): string {
   const c = tokens?.colors ?? {}
   const measured = Boolean(c.bg && c.ink && c.accent)
   const bg = c.bg ?? '#FFFFFF'
@@ -121,6 +121,11 @@ export function starterShots(tokens: ReconTokens | null): string {
     '// shots.js — the film, as one data literal the engine compiles.',
     '// Fields: pitch motion schema --types <type> and pitch motion schema --section <name>.',
     'window.SHOTS = {',
+    ...(format && format !== '16:9'
+      ? [
+          `  format: ${quote(format)},                  // the delivery frame: pitch motion schema --section format`,
+        ]
+      : []),
     `  brand: {                          // ${note}`,
     `    bg: ${quote(bg)},`,
     `    ink: ${quote(ink)},`,

@@ -36,7 +36,8 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { loadShots, voStartOf } from "./lib/vo-words.mjs";
+import { loadShots, loadWords, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
+import { muffleGraph, muffleStages, resolveAudioFx, ringArgs } from "./lib/audio-fx.mjs";
 import { breathFilter, breathsFromSpec } from "./lib/breaths.mjs";
 import { balanceProblems, balanceRegions, measureAudioWindows } from "./lib/audio-levels.mjs";
 
@@ -101,6 +102,21 @@ if (!DURATION) {
 }
 if (![DURATION, BED_ATTEN_DB, SFX_TRIM_DB, DUCK_DEPTH].every(Number.isFinite) || DURATION <= 0 || DUCK_DEPTH < 0 || DUCK_DEPTH > 24) {
   throw new Error("duration and gains must be finite; duration > 0 and duck between 0 and 24 dB");
+}
+
+// shots.js audio.fx: muffle windows and rings (lib/audio-fx.mjs), resolved
+// against the aligned read so they stay on their words after a re-record.
+const FX = (() => {
+  let spec = null;
+  try { spec = loadShots(abs("shots.js")); } catch {}
+  if (!Array.isArray(spec?.audio?.fx) || !spec.audio.fx.length) return { muffles: [], rings: [], thins: [], problems: [] };
+  const vo = typeof spec.audio.vo === "string" ? spec.audio.vo : null;
+  const timeline = vo ? loadWords(wordsPathFor(abs(vo))) : null;
+  return resolveAudioFx(spec, timeline ? timeline.words : null, DURATION);
+})();
+if (FX.problems.length) {
+  console.error(`❌ shots.js audio.fx:\n${FX.problems.map((p) => "   " + p).join("\n")}`);
+  process.exit(1);
 }
 
 const sh = (args, opts = {}) =>
@@ -278,6 +294,9 @@ for (const c of voClips) {
 console.log(`\n  bed ${BED_ATTEN_DB}dB · ${MUSIC_ONLY ? "music-led; no speech sidechain or vocal carve" : `speech duck up to ${DUCK_DEPTH}dB · vocal-band carve`}`);
 console.log(`  music: ${MUSIC || "(none)"}`);
 console.log(`  sfx:   ${SFX || "(none)"}`);
+for (const m of FX.muffles) console.log(`  muffle ${m.from.toFixed(2)}–${m.to.toFixed(2)}s  ${m.targets.map((t) => `${t} ${t === "vo" ? (m.voCutoff ? m.voCutoff + "Hz" : "clear") : m.cutoff + "Hz"}`).join(" · ")}`);
+for (const r of FX.rings) console.log(`  ring   ${r.from.toFixed(2)}–${r.to.toFixed(2)}s  ${r.freq}Hz at ${r.level}dBFS`);
+for (const t of FX.thins) console.log(`  thin   ${t.from.toFixed(2)}–${t.to.toFixed(2)}s  ${t.targets.join(" · ")} above ${t.cutoff}Hz — the low end returns at ${t.to.toFixed(2)}s`);
 
 if (FRAGMENTED) {
   problems.push(`fragmented narration: ${voClips.length} separate clips. Each clip restarts the voice's intonation and leaves dead air — the robotic sound. ` +
@@ -300,6 +319,22 @@ mkdirSync(tmp, { recursive: true });
 mkdirSync(dirname(OUT), { recursive: true });
 
 const VO_FULL = join(tmp, "vo_full.wav");
+/** Run a stem through each muffle (low-pass) and thin (high-pass) pass it takes, one per cutoff. */
+async function muffleStem(file, stem) {
+  let cur = file;
+  const passes = [
+    ...muffleStages(FX.muffles, stem).map((g) => ({ ...g, pass: "lowpass", label: "muffled" })),
+    ...muffleStages(FX.thins, stem).map((g) => ({ ...g, pass: "highpass", label: "thinned" })),
+  ];
+  for (const [k, stage] of passes.entries()) {
+    const out = join(tmp, `${stem}_fx_${k}.wav`);
+    await sh(["-i", cur, "-filter_complex", muffleGraph(stage.windows, stage.cutoff, stage.pass), "-map", "[out]",
+      "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", out]);
+    console.log(`Step M  ${stem.padEnd(14)} ${stage.label} at ${stage.cutoff}Hz (${stage.windows.length} window${stage.windows.length === 1 ? "" : "s"})`);
+    cur = out;
+  }
+  return cur;
+}
 if (!MUSIC_ONLY) {
   const inputs = voClips.flatMap(c => ["-i", c.path]);
   // highpass clears rumble the TTS sometimes carries; compression evens the
@@ -396,8 +431,11 @@ if (MUSIC) {
 // ---------------------------------------------------------------------------
 // 4. Step D — final assembly
 // ---------------------------------------------------------------------------
-const stems = MUSIC_ONLY ? [] : [VO_FULL];
-if (BED) stems.push(BED);
+const stems = MUSIC_ONLY ? [] : [await muffleStem(VO_FULL, "vo")];
+if (BED) {
+  BED = await muffleStem(BED, "bed");
+  stems.push(BED);
+}
 let SFX_STEM = null;
 if (SFX) {
   const sfxPath = abs(SFX);
@@ -410,6 +448,7 @@ if (SFX) {
     const t = await meanVolume(SFX_STEM);
     console.log(`Step C2 sfx_trimmed    mean ${t.mean}dB  (${SFX_TRIM_DB > 0 ? "+" : ""}${SFX_TRIM_DB}dB SFX trim)`);
   }
+  SFX_STEM = await muffleStem(SFX_STEM, "sfx");
   stems.push(SFX_STEM);
 }
 
@@ -438,6 +477,14 @@ if (SFX_STEM) {
     process.exit(1);
   }
   console.log("   SFX headroom and local music balance verified (400ms windows / 100ms hops)");
+}
+
+// Rings go in last and untouched: not ducked, not muffled, not carved.
+for (const [k, ring] of FX.rings.entries()) {
+  const out = join(tmp, `ring_${k}.wav`);
+  await sh(ringArgs(ring, DURATION + TAIL, out));
+  stems.push(out);
+  console.log(`Step R  ring ${k + 1}         ${ring.freq}Hz ${ring.level}dBFS ${ring.from.toFixed(2)}–${ring.to.toFixed(2)}s`);
 }
 
 const fadeOutAt = Math.max(0, DURATION - 1.5);

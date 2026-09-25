@@ -11,6 +11,7 @@ it. There is no separate timing file.
 
 ```js
 window.SHOTS = {
+  format: "16:9",             // optional: "16:9" (1920×1080, default) | "9:16" (1080×1920) | "1:1" | "4:5" (see "Format")
   brand: {
     bg: "#FAF9F6",            // stage/paper color (measured from the product's site)
     ink: "#141413",           // text color
@@ -22,7 +23,8 @@ window.SHOTS = {
       { family: "Fraunces", src: "assets/fonts/Fraunces.woff2", weight: "100 900" },
     ],
   },
-  audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only)
+  audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only); fx: [...] (see "Audio effects"); pace: "ad" for a short-form ad read (2.7–3.5 words/s)
+  // captions: { style: {…}, phrases: [{ cue: "here's the thing" }, …] },   // the spoken words on screen (see "Captions")
   ambient: { kind: "none" },                     // optional stage treatment (see "Density layer")
   motion: { exit: "none", drift: false, cutDur: 0.5 }, // no added motion by default; opt into exits or drift for this film
   actors: { folder: { src: "assets/harvested/folder.png", w: 320 } },   // objects that live across shots (see "Actors")
@@ -45,7 +47,7 @@ density or a universal animation pattern.
 | `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — optional layer between the background and content, moving as a function of film time. Kinds: `blobs` (blurred discs), `light` (orbiting light), `blueprint` (panning line grid; `size` = cell), `hairlines` (drifting rules), `halftone` (panning dots; `size` = cell), `shapes` (flat rotating geometry), `grid` (blurred tiles), `aurora` (soft discs; `colors` or accent tints; default opacity 0.22), `none` (bare stage). `shot.ambient = false` hides it on one shot. Choose for the treatment; no stage layer is required. |
 | `motion.exit` / `shot.exit` | top / shot | `none` (default) \| `up` \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` — optional exit in the last ~0.3s. `blur` rises 70px and blurs away; `left` / `right` accelerate off that side; `scatter` throws words/cards outward. Prefer `none` when the factory already supplies an exit or the next cut should arrive directly. |
 | `motion.drift` / `shot.drift` | top / shot | `false` (default). `true` adds linear rest travel (scale 1 → 1.045, x +10, y −8) over the shot. `shot.drift: false` overrides a film-wide `true`. Applies to custom types too; omit when their own camera or layout supplies the motion. The audit disables this layer. |
-| `beats` | shot | `[{ at, kind, sel?, … }]` — optional events for any type. `swap` (replace text of `sel`, default the headline), `pulse` (scale pop), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame colour flash), `hide` / `show` (`sel`), `nudge` (move by `amount`/`y`), `halo` (blurred disc of `color` behind `sel`, `size` 900, `hold`, `fade: false` keeps it), `ripple` (expanding rings), `blurout` (blur/fade over 0.3s), `flood` (colour from `sel`: halo for `pre` 0.2s, solid for `hold` 0.08s, retreat over `dur` 0.9s; `stay: true` keeps the colour), `zoom` (push into `sel`, `fill` 0.6, `dur` 0.25s, surroundings blur unless `dof: false`, pull back after `release`), `breath` (music dip, `dur` 0.45s, `depth` 0.35 ≈ −3.7dB, `attack` 0.15s, `release` 0.3s; read by `pitch motion mix`). `at` defaults to evenly spaced. Choose events for their meaning or musical role, not to raise the audit's pixel-change count. |
+| `beats` | shot | `[{ at, kind, sel?, … }]` — optional events for any type. `swap` (replace text of `sel`, default the headline), `pulse` (scale pop), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame colour flash), `hide` / `show` (`sel`), `nudge` (move by `amount`/`y`), `halo` (blurred disc of `color` behind `sel`, `size` 900, `hold`, `fade: false` keeps it), `ripple` (expanding rings), `blurout` (blur/fade over 0.3s), `flood` (colour from `sel`: halo for `pre` 0.2s, solid for `hold` 0.08s, retreat over `dur` 0.9s; `stay: true` keeps the colour), `zoom` (push into `sel`, `fill` 0.6, `dur` 0.25s, surroundings blur unless `dof: false`, pull back after `release`), `breath` (music dip, `dur` 0.45s, `depth` 0.35 ≈ −3.7dB, `attack` 0.15s, `release` 0.3s; read by `pitch motion mix`), `glitch` (the shot tears in place for `dur` 0.28s — displaced, colour-broken steps and a noise band — and lands clean). `at` defaults to evenly spaced. Choose events for their meaning or musical role, not to raise the audit's pixel-change count. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
 | `parts[].accent` | any `parts` | The keyword. Colored `--accent` (ink on accent backgrounds). One per line. |
 
@@ -121,7 +123,7 @@ and leave dead air between them.
 | `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
 | `chapter` | The prompt → product → payoff group this shot belongs to (`"create"`, `"style"`). The studio and the audit read the groups; the first shot of a group opens it. |
-| `cut` | `hard` (default, one-frame cut), `punch` (incoming shot lands from 1.12× in 0.38s), or a **transition** that composites both shots for `cutDur` seconds (default 0.5, capped at 45% of the shot): `dissolve`, `wipe-left` \| `wipe-right` \| `wipe-up` \| `wipe-down`, `push-left` \| `push-right` \| `push-up` \| `push-down`, `iris`, `zoom` (the outgoing shot flies past the camera, the incoming arrives from behind it — the push-in from a screen to one of its parts), `zoom-out` (the outgoing shrinks into the frame, the incoming arrives from past the camera — the pull back from a part to the whole), `flip`, `flood` (a halo of `flood.color` blooms behind the outgoing shot for `flood.pre` 0.3s, the frame is that colour for one instant at the cut, and it retreats to `flood.at: {x, y}` (fractions, centre) over `cutDur`, uncovering the incoming shot — the cut that never reads as one). The outgoing shot's exit motion is suppressed under a transition. |
+| `cut` | `hard` (default, one-frame cut), `punch` (incoming shot lands from 1.12× in 0.38s), or a **transition** that composites both shots for `cutDur` seconds (default 0.5, capped at 45% of the shot): `dissolve`, `wipe-left` \| `wipe-right` \| `wipe-up` \| `wipe-down`, `push-left` \| `push-right` \| `push-up` \| `push-down`, `iris`, `zoom` (the outgoing shot flies past the camera, the incoming arrives from behind it — the push-in from a screen to one of its parts), `zoom-out` (the outgoing shrinks into the frame, the incoming arrives from past the camera — the pull back from a part to the whole), `flip`, `glitch` (whole-frame jumps between the two shots on a 25fps cadence, displaced, colour-broken and cut by a noise band, landing clean on the incoming shot — keep `cutDur` 0.2–0.35), `flood` (a halo of `flood.color` blooms behind the outgoing shot for `flood.pre` 0.3s, the frame is that colour for one instant at the cut, and it retreats to `flood.at: {x, y}` (fractions, centre) over `cutDur`, uncovering the incoming shot — the cut that never reads as one). The outgoing shot's exit motion is suppressed under a transition. |
 | `cutDur` | Length of this shot's transition in seconds (else `motion.cutDur`, else 0.5). |
 | `carry` | Match cut on one element: `{ from: ".logo-img", to: ".logo-img", dur?: 0.55, ease? }` on the incoming shot — a ghost of the outgoing shot's `from` travels to where `to` sits in this shot. For an object that lives through more than one boundary, declare an actor instead. |
 | `exit` | Overrides `motion.exit` for this shot. |
@@ -155,6 +157,9 @@ and leave dead air between them.
 | `rive` | a Rive `.riv` scrubbed from the timeline — `src`, `artboard?`, `animation?` (name; default the file's default animation), `from` (s), `speed`, plus the `lottie` geometry, `enter` and `caption` fields. Needs `pitch motion scaffold``. |
 | `device-3d` | the product's screen on a real object: `device: slab\|card\|phone\|laptop` (decide it), `src` (a harvested screenshot or a mined frame for the screen, cover-fit; `align: top\|center`), `turn: { from: [x°, y°], to: [x°, y°], ease? }` (decide it — without one the console warns and a house move plays), `color` (body; default the ink), `light`, `shadow` (0–1), `fov`, `offsetY` (px, positive moves the device up — a laptop's base needs room below), `enter: "none"` to skip the arrival from depth, `hover: false`, `caption` + `captionPos`. **`ring`**: several screens around the view axis, seen from inside — `ring: { srcs: [five mined frames], radius: 760, z: -250, lean: 0.55, spin: [-14, 14], offset: 0 }`, each lying along the ring and leaning in; `turn` tilts the whole ring, `exit3d: "through"` flies it past the camera at the end (the frame that then floods or becomes the bar). Real geometry — thickness, bevels, a laptop base — under a key light, a rim in the accent and a cast shadow; use a dark `bg` for a single device or the shadow vanishes; the ring stands on the bare stage. No custom factory; `ShotKit.three` is for what this does not do. |
 | `ui-frame` | the product itself — see below |
+| `footage` | real video or stills on the film's clock — see "Footage". `src` (a clip from `pitch motion footage`, or an image) or `clips: [{ src, in?, dur?, rate?, focus?, look?, push? }]` (a montage: hard cuts inside one shot), `in` (seconds into the clip), `rate` (0.5 = half speed), `loop`, `every` (montage clip length), `hold: false`, `fit: cover\|contain`, `focus: [x, y]`, `look` (`mono`, `mono-hard`, `warm`, `cool`, `faded`, `night`, `vivid` or a CSS filter), `push` (end scale, or `[from, to]`), `flip`, `shade` (0–1 black veil for type), `flash` (a colour: one bright frame at each montage cut), `window` (the footage in a rounded frame on the shot's `bg`: a width fraction, or `{ w, h, x, y, radius, border, borderWidth, glow, glowColor, from: 1, at, dur }` — `from: 1` shrinks it out of full-bleed), `scroll: [from, to]` (travel down a tall image: a landing page, a review wall, an article; fractions of its height). DOM: `.footage`, `.ft-clip`, `.ft-media` |
+| `card` | a plain ground and nothing else — `bg` (default black), optional `gradient` (a CSS background) — for the black cards where the `captions` track is the whole picture. |
+| `evidence` | a real source quoted: a page of the source's own words with the claim highlighted while the camera pushes in. `paragraphs` (the quoted text, verbatim), `highlight` (a phrase inside it), `mark: select\|marker\|underline`, `markAt` (s), `source` (short credit shown on screen, e.g. "WHO · Deafness and hearing loss"), `title`, `push` ([1.05, 1.35]), `focusX`/`focusY` (where the claim lands, 0.5/0.45), `scroll` (px the page drifts up), `paper`, `ink`, `font: "serif"\|"sans"\|css`, `size`, `width`. Never invent or paraphrase the text. DOM: `.ev-page`, `.ev-mark`, `.ev-source` |
 
 ### `ui-frame` — the product demo shot
 
@@ -208,6 +213,112 @@ tween; the camera settles before the cursor acts; at most one focus per shot
 (use two `ui-frame` shots for two targets, or a `cursor.then` swap for the
 consequence, or `cursor.zoom` when the clicked thing becomes the subject).
 Skip `focus` when the whole screen is the point.
+
+## Format
+
+`format` sets the delivery frame for the whole film: `"16:9"` (1920×1080, the
+default), `"9:16"` (1080×1920 — Reels, TikTok, Shorts, Stories), `"1:1"`
+(1080×1080) or `"4:5"` (1080×1350 — feed). The page, the studio preview,
+`check`, `review`, `audit` and the export all use that stage; stage px in
+`x`/`y`, actor poses and custom types refer to it (`ShotKit.stage` is
+`{ w, h, format }`). Decide it before the first shot: changing it later means
+recomposing every shot. Built-in types centre themselves; `ui-frame`'s
+browser frame and `device-3d` are landscape compositions — in 9:16 prefer
+`frame: "phone"`, `footage`, `evidence`, `line`/`word-cut` and project types.
+Keep essential type inside the platform-safe area: roughly the middle 80% of
+the width and away from the bottom 20% of a 9:16 frame, where the platform's
+caption and buttons sit.
+
+## Footage
+
+A `footage` shot plays real video frame-accurately: the preview plays it
+natively, and a seek, the review, the audit and the export decode the exact
+source frame for every picture. Prepare every clip with `pitch motion footage`
+(an upload, a `pitch motion stock` download, a `pitch video generate` clip):
+it cuts the used range, removes baked-in bars, crops to the film frame around
+`focus` and writes a silent, seekable WebM to `assets/footage/`. Raw camera
+files and H.264 downloads are not guaranteed to decode in the capture browser.
+
+```js
+{ id: "pain", type: "footage", dur: 2.4, look: "mono", push: [1, 1.06], flash: "#fff",
+  clips: [                                   // a burst: hard cuts inside one shot
+    { src: "assets/footage/face-1.webm", dur: 0.3 },
+    { src: "assets/footage/face-2.webm", dur: 0.3, focus: [0.5, 0.3] },
+    { src: "assets/footage/face-3.webm" },    // the last clip holds to the end
+  ] },
+{ id: "sand", type: "footage", dur: 1.4, src: "assets/footage/hourglass.webm", in: 0.2, rate: 0.6 },
+```
+
+`in` is seconds into the prepared clip; a clip shorter than its time on screen
+holds its last frame unless `loop: true`. A montage clip without `dur` lasts
+`every` (default: an equal share). Footage carries no sound — the narration,
+music, SFX and `audio.fx` are the soundtrack. `shade` darkens footage under
+captions; `look` grades one shot, the top-level `grade` the whole film.
+
+## Captions
+
+`captions` puts the spoken words on screen as the narrator says them — the
+big, stacked, word-by-word type of short-form ads. It is one layer above every
+shot, so a stack keeps building while the footage under it cuts; camera beats
+and transitions do not move it.
+
+```js
+captions: {
+  style: { size: 0.115, weight: 800, pos: "upper", stack: "word", align: "left" },
+  phrases: [
+    { cue: "here's the thing" },                                   // each word lands on its onset
+    { cue: "1.1 billion", words: [{ text: "1.1", fx: "type" }, "billion"], pos: "center" },
+    { cue: "earplugs suck", words: ["earplugs", { text: "suck", fx: ["big", "glitch"] }] },
+    { cue: "they make music muffled", words: ["they", "make", "music", { text: "muffled", fx: "blur" }], pos: "lower" },
+    { cue: "finally", stack: "replace", until: "what clear music" },
+  ],
+},
+```
+
+| Field | Meaning |
+|---|---|
+| `cue` | The narration's words for this phrase, as spoken. Each word appears on its onset in `audio/vo-words.json` (`pitch motion align`), `lead` (0.04s) early; re-recording and re-aligning moves every caption. `check` fails a cue that is not in the read. |
+| `words` | What to show, one entry per spoken word (a string or `{ text, fx, color, scale, font, weight, italic, case, at }`); default: the cue's own words. A different count maps proportionally. Mix type inside a phrase: a serif italic `{ text: "you", font: "Georgia, serif", italic: true, case: "none", weight: 400 }`, a heavy keyword, a small light connective `{ text: "to the", scale: 0.55, weight: 500 }`. |
+| `at`, `each` | Without narration: the first word's film time and the gap between words (0.22s). A word's own `at` overrides. |
+| `out`, `until`, `hold` | When the phrase clears: film seconds, or the onset of an `until` phrase; default the next phrase's first word or `hold` (0.35s) after its last word, whichever is first. |
+| `stack` | `word` (one word per line, the phrase grows downward — the default), `line` (words flow and wrap within the margins), `replace` (each word replaces the last in one spot). |
+| `pos`, `x`, `y` | `top` (0.12), `upper` (0.24), `lower` (0.66): the phrase's top edge at that fraction of the height; `center` centres the finished phrase; `bottom` puts its last line at 0.84. Or `y` (fraction, top edge) and `x`. |
+| `align`, `margin` | `left` (default), `center`, `right`; side margin 0.09 of the width. |
+| `size`, `weight`, `leading`, `tracking`, `case`, `font`, `color`, `shadow` | Type. `size` < 2 is a fraction of the short side (0.115 ≈ 124px on 1080), else px. `case`: `upper` (default), `none`, `lower`, `title`. `shadow: false` for type on flat colour. |
+| `enter` | `cut` (default: the word is simply there, on the syllable), `pop`, `rise`, `blur`. |
+| `box` | A backing behind the phrase (`true` = a soft dark pill, or a CSS colour) so it reads over light and dark pictures alike. |
+| `tier` | Phrases time and clear only against their own tier (default `"main"`), so a second tier can share the screen with the keywords. |
+| `exit` | `cut` (default) or `fade`. |
+| `fx` (word) | `accent` (brand accent), `big` (1.42×, tighter), `blur` (soft — say "muffled" and show it), `rgb` (chromatic fringe), `glitch` (tears for 0.34s, then holds), `shake`, `outline`, `strike`, `small`, `type` (characters arrive across the spoken word: "1" → "1." → "1.1"), `count` (a number counts up across the word). Several: `fx: ["big", "glitch"]`. |
+
+**`subtitles`** — `captions.subtitles: true` or `{ words: 4, pos: 0.78, size: 0.036, build: false, box, color }`
+puts the whole read on screen as a small running line, a few words at a time,
+in its own tier under the big keywords (the two-tier look of long-form DTC
+ads). It needs the aligned narration. Keep the keyword phrases `upper` or
+`center` when it is on, so the tiers never collide.
+
+Put `style` defaults once and override per phrase. Caption the phrases that
+carry the argument, not every word the narrator says; let proof shots,
+product shots and the brand card play without them.
+
+## Audio effects
+
+`audio.fx` makes the soundtrack part of the argument. `pitch motion mix`
+applies it; the preview and export hear the result.
+
+```js
+audio: { vo: "audio/vo.wav", voStart: 0.3, fx: [
+  { kind: "muffle", cue: "they make music muffled", until: "conversations", cutoff: 800, voCutoff: 3200 },
+  { kind: "ring", cue: "forever", until: "sunglasses", freq: 3600, level: -30 },
+] }
+```
+
+| Field | Meaning |
+|---|---|
+| `kind: "muffle"` | Low-passes the mix over the window with eased edges (`attack` 0.12s, `release` 0.25s): the bed and SFX at `cutoff` (800Hz — through a wall), the voice at `voCutoff` (3200Hz — dulled, every word still clear; `null` leaves it). `targets` narrows to `bed`, `sfx`, `vo`. |
+| `kind: "thin"` | The bass pulled out of the bed (a high-pass at `cutoff`, 300Hz) with eased edges — the breakdown before a drop. When the window ends the low end slams back: end it (`until`) on the word the film turns on. Default target the bed only. |
+| `kind: "ring"` | A sine tone at `freq` (3600Hz) and `level` dBFS (−30, never above −12), faded in over `attack` (0.3s) and out over `release`: tinnitus, a flatline, a held breath. Never ducked or muffled. |
+| `from`, `to` / `cue`, `until` | The window in film seconds, or narration phrases: `cue`'s first word onset to `until`'s last word end (`cue` alone spans that phrase). |
 
 ## Materials
 

@@ -36,9 +36,10 @@
  * grid, and their frames replace the matching ones in audit/.
  */
 import os from "node:os";
-import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { fitStage, localPageUrl, openStudioBrowser, seekFilm } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
+import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
@@ -60,7 +61,9 @@ const only = args.shots ? String(args.shots).split(",").map(x => x.trim()).filte
 // Tabs sampling in parallel (capture.mjs uses the same bound).
 const workers = Math.max(1, Math.min(8, Number(args.workers ?? Math.max(1, Math.min(6, os.cpus().length - 2)))));
 const SCALE = 0.5;
-const shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
+// Sized to the film's stage once the page reports it (SHOTS.format).
+let stage = { w: 1920, h: 1080, format: "16:9" };
+let shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
 const inspectedEffects = (() => {
   try {
     const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
@@ -86,7 +89,7 @@ const page = await studio.newPage();
 const cdp = await page.context().newCDPSession(page);
 /** Seek a tab and capture it at SCALE (physical pixels — see capture.mjs on clip.scale). */
 const grabAt = async (pg, sess, t) => {
-  await pg.evaluate((seekT) => { window.__SEEK(seekT); }, t);
+  await seekFilm(pg, t);
   const { data } = await sess.send("Page.captureScreenshot", shotOpts);
   return Buffer.from(data, "base64");
 };
@@ -95,6 +98,8 @@ const base = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const url = base + (base.includes("?") ? "&" : "?") + "audit";
 await page.goto(url, { waitUntil: "domcontentloaded" });
 await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+stage = await fitStage(page);
+shotOpts = { ...shotOpts, clip: { x: 0, y: 0, width: stage.w, height: stage.h, scale: SCALE } };
 mark("load");
 
 const duration = await page.evaluate("window.__DURATION()");
@@ -166,9 +171,12 @@ if (!spec) {
       narration = { mode: "continuous", dur: timeline.duration, cued: cued.length, total: shots.length, maxDrift, worst, speechEnd, wps,
         breath: speechGaps(words, 0.3)[0] || null, matched: timeline.matched };
       // The voice never sprints. Energy is what moves on screen, not words per second.
-      if (wps > 2.7) lint.push({ level: "fail", msg: `Narration is rushed: ${wps.toFixed(2)} words/s. A narrator sounds human at 1.9–2.4. Re-record with an unhurried, conversational style, then motion_align + motion_sync. Density comes from the picture (beats, second acts, ambient), never from a fast read.` });
-      else if (wps > 2.45) lint.push({ level: "warn", msg: `Narration is brisk (${wps.toFixed(2)} words/s) — aim 1.9–2.4; let the picture carry the pace.` });
-      else if (wps < 1.6) lint.push({ level: "warn", msg: `Narration is very slow (${wps.toFixed(2)} words/s) — aim 1.9–2.4.` });
+      // audio.pace "ad" allows the brisker short-form ad read (lib/pace.mjs).
+      const pace = paceOf(spec.audio?.pace);
+      const aim = `${pace.aim[0]}–${pace.aim[1]}`;
+      if (wps > pace.rushed) lint.push({ level: "fail", msg: `Narration is rushed: ${wps.toFixed(2)} words/s. A ${pace.name} read sounds human at ${aim}. Re-record with a less hurried style or cut copy, then motion_align + motion_sync. Density comes from the picture (beats, second acts, ambient), never from a fast read.` });
+      else if (wps > pace.brisk) lint.push({ level: "warn", msg: `Narration is brisk (${wps.toFixed(2)} words/s) — aim ${aim}; let the picture carry the pace.` });
+      else if (wps < pace.slow) lint.push({ level: "warn", msg: `Narration is very slow (${wps.toFixed(2)} words/s) — aim ${aim}.` });
       if (missing.length) lint.push({ level: "fail", msg: `Cue phrase(s) not in the script: ${missing.join(", ")} — fix the cue or the copy, then motion_sync.` });
       if (Math.abs(maxDrift) > 0.35 || maxDrift > 0.15) lint.push({ level: "fail", msg: `Picture is off the narration: #${worst} starts ${maxDrift > 0 ? maxDrift.toFixed(2) + "s AFTER" : (-maxDrift).toFixed(2) + "s before"} its cue word. Run motion_sync --write (a shot lands 0.1–0.3s before its word).` });
       if (cued.length < Math.ceil(shots.length * 0.6)) lint.push({ level: "warn", msg: `Only ${cued.length}/${shots.length} shots carry a \`cue\` — uncued shots float against the voice. Cue every shot that should land on a word.` });
@@ -208,6 +216,7 @@ await Promise.all(Array.from({ length: workers }, async (_, w) => {
   let pg = page, sess = cdp;
   if (w > 0) {
     pg = await studio.newPage();
+    await pg.setViewportSize({ width: stage.w, height: stage.h });
     sess = await pg.context().newCDPSession(pg);
     await pg.goto(url, { waitUntil: "domcontentloaded" });
     await pg.waitForFunction("window.__READY === true", null, { timeout: 30000 });
@@ -256,8 +265,8 @@ if (cues.length) {
 }
 
 // The threshold in pixels, so a beat that cannot register is not tried twice.
-const eventPx = Math.round(eventThreshold * 1920 * 1080);
-console.log(`📊 Pixel-change density (step ${step}s; an event is ≥ ${(eventThreshold * 100).toFixed(1)}% of the frame changing ≈ ${eventPx.toLocaleString("en-US")}px at 1080p — small actions may not register; continuous motion may count repeatedly)`);
+const eventPx = Math.round(eventThreshold * stage.w * stage.h);
+console.log(`📊 Pixel-change density (step ${step}s; an event is ≥ ${(eventThreshold * 100).toFixed(1)}% of the frame changing ≈ ${eventPx.toLocaleString("en-US")}px at ${stage.w}×${stage.h} — small actions may not register; continuous motion may count repeatedly)`);
 console.log(`   ${"shot".padEnd(12)} ${"type".padEnd(14)} ${"dur".padStart(5)} ${"events".padStart(7)} ${"ev/s".padStart(6)}   bar`);
 for (const r of shotRows) {
   const bar = "█".repeat(Math.min(24, Math.round(r.eps * 6)));
@@ -283,8 +292,8 @@ if (cues.length > 1) {
     const mid = start + (end - start) / 2;
     // One CDP round trip per midpoint: the seek applies its styles synchronously,
     // so the read follows it in the same evaluate (two trips × 10 shots was 6s).
-    const vis = await page.evaluate((seekT) => {
-      window.__SEEK(seekT);
+    const vis = await page.evaluate(async (seekT) => {
+      await window.__SEEK(seekT);
       let scenes = [...document.querySelectorAll(".shot[id], .scene[id]")];
       if (!scenes.length) scenes = [...document.querySelectorAll("#camera > div[id]")];
       return scenes.map(el => { const cs = getComputedStyle(el); return { id: el.id, opacity: parseFloat(cs.opacity), visibility: cs.visibility }; });
@@ -311,7 +320,7 @@ let determinismWarnings = 0;
   const sp = spans[0], len = sp.end - sp.start;
   const probe = sp.start + Math.min(len * 0.4, Math.max(Math.min(1, len * 0.3), len - 1));
   const away = sp.start + Math.min(len * 0.8, Math.max(Math.min(2, len * 0.6), len - 0.5));
-  const grab = async (t) => { await page.evaluate((tt) => window.__SEEK(tt), t); await page.waitForTimeout(140); return grabAt(page, cdp, t); };
+  const grab = async (t) => { await seekFilm(page, t); await page.waitForTimeout(140); return grabAt(page, cdp, t); };
   const first = await grab(probe); await grab(away); const second = await grab(probe);
   // Pixels, not bytes: see getBufferDiffRatio. 0.1% of pixels is far below any
   // designed motion and far above the browser's own rasterization noise.

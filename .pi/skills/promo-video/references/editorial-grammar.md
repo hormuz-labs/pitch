@@ -106,3 +106,32 @@ the true-peak overs or crush the mix to match perceived loudness.
   not become random stock montage.
 - If the film still works with shots shuffled, the argument is too weak. Fix the
   spoken progression or motif handoffs before adding more effects.
+
+## Building it here
+
+- **Frame**: `format` 16:9, as the reference.
+- **The spoken subtitles**: the reference builds each thought word by word in
+  small, centred white type ("What" → "What we're looking for" → "…how
+  everything works"), cleared when the thought ends. That is the `captions`
+  track with `stack: "line"`:
+  `style: { stack: "line", size: 0.03, weight: 500, case: "none", align: "center", pos: "center", margin: 0.25, shadow: false }`.
+  Caption the thesis sentences, not every word; one word per thought may take
+  `fx: "accent"` in the film's single accent colour.
+- **The giant keyword** at a structural reset: one phrase with `size` 0.2–0.28,
+  `weight` 800, `case: "upper"`, `enter: "blur"` (or `fx: "glitch"` over
+  archival grain), `hold` 1–1.5s. Two or three in a film, never more.
+- **Footage**: licensed or public-domain archival and stock through
+  [footage.md](footage.md); `look: "mono"` or `"mono-hard"` for archive
+  against colour for the present; montage bursts as `footage` `clips` at
+  0.1–0.15s with a one-frame `flash`; holds of 2–5s with `push` 1 → 1.06.
+- **Match cuts on the motif**: prepare both clips with `--focus` on the shared
+  form (the iris, the planet, the ring) so it lands in the same place of the
+  frame, then cut hard. A 0.3s `dissolve` only where the forms truly overlap.
+- **Thin-line diagrams** (orbits, labels, measurement marks): a project type
+  drawing SVG with DrawSVG on the timeline; the `signal` recipe in
+  [recipes.md](recipes.md) is the pattern for a canvas line.
+- **Sound**: the voice as one continuous read (or a documented collage of
+  cleared speech); a bed with a real breath at ~60% of the runtime (a `breath`
+  beat, `depth` 0.8+); an optional `ring` under the most tense line.
+- **End card**: `logo-sting` with the brand's own logo on black, then a
+  `card` with the imperative as a caption phrase, then the audio tail.

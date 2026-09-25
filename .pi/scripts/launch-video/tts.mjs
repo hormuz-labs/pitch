@@ -30,6 +30,7 @@
 import { execSync } from "node:child_process";
 import { writeFileSync, mkdirSync, rmSync, readFileSync, existsSync, renameSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
+import { paceOf } from "./lib/pace.mjs";
 
 let key = process.env.GEMINI_API_KEY;
 if (!key) {
@@ -107,8 +108,10 @@ async function record(withModel, file) {
   return { model: withModel, file, dur, wps: wordCount / Math.max(0.01, dur) };
 }
 
-const HUMAN = 2.15;                 // the middle of 1.9–2.4 words/s
-const rushed = (t) => t.wps > 2.45; // over this the read sprints — or the model dropped half the script
+// --pace=ad: the brisker short-form ad read (lib/pace.mjs); narration otherwise.
+const PACE = paceOf(args.pace);
+const HUMAN = PACE.target;                  // the middle of the aimed range
+const rushed = (t) => t.wps > PACE.brisk;   // over this the read sprints — or the model dropped half the script
 let take = await record(model, out);
 // One take that comes back rushed is usually a truncated one (a 69-word script
 // in 10s), and the agent's answer was three calls in a row. Re-record once
@@ -125,5 +128,5 @@ const txt = out.replace(/\.\w+$/, "") + ".txt";
 writeFileSync(txt, text + "\n");
 console.log(`Wrote ${out} (${dur.toFixed(2)}s, ${wordCount} words, ${wps.toFixed(2)} words/s, voice=${voice}, model=${take.model})`);
 console.log(`Script saved to ${txt}. Next: align.mjs --vo=${out} → cue the shots → sync.mjs --write`);
-if (wps > 2.45) console.log(`⚠ RUSHED read (${wps.toFixed(2)} words/s) from both models. A narrator sounds human at 1.9–2.4 words/s. Do NOT keep this: re-record with an unhurried, conversational style — the picture carries the energy, the voice never sprints.`);
-if (wps < 1.6) console.log("⚠ very slow read (< 1.6 words/s) — ask for a natural conversational pace, or cut copy.");
+if (wps > PACE.brisk) console.log(`⚠ RUSHED read (${wps.toFixed(2)} words/s) from both models. A ${PACE.name} read sounds human at ${PACE.aim[0]}–${PACE.aim[1]} words/s. Do NOT keep this: re-record with a less hurried style or cut copy — the picture carries the energy, the voice never sprints.`);
+if (wps < PACE.slow) console.log(`⚠ very slow read (< ${PACE.slow} words/s) — ask for a ${PACE.name === "ad" ? "brisker, punchier" : "natural conversational"} pace, or cut copy.`);

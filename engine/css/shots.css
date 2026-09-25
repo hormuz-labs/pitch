@@ -549,3 +549,47 @@ img.actor.mat-glass, img.actor.mat-neumorph { padding: 14px 18px; border-radius:
 .ui-cursor-named { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; display: flex; align-items: flex-start; gap: 6px; }
 .ui-cursor-named svg { width: 26px; height: 26px; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 .ui-cursor-named .tag { font-size: 15px; font-weight: 600; color: #fff; padding: 3px 9px; border-radius: 8px; margin-top: 14px; white-space: nowrap; }
+
+/* ---- footage: video / stills on the film's clock ---- */
+.footage { position: absolute; inset: 0; overflow: hidden; }
+.ft-clip { position: absolute; inset: 0; will-change: transform; }
+.ft-media { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ft-shade { position: absolute; inset: 0; background: #000; pointer-events: none; }
+.ft-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.footage.ft-window { overflow: hidden; }
+
+/* ---- evidence: a quoted source with its claim highlighted ---- */
+.ev-page { position: absolute; left: 0; top: 0; padding: 0.8em 1.2em; line-height: 1.5; text-align: left; will-change: transform; }
+.ev-title { font-size: 1.3em; line-height: 1.2; font-weight: 700; margin-bottom: 0.7em; }
+.ev-p { margin: 0 0 0.95em; }
+.ev-mark { --ev-p: 0; --ev-color: #B3D4FD; color: inherit; padding: 0 0.08em; margin: 0 -0.08em; border-radius: 0.08em; white-space: nowrap;
+  background: linear-gradient(var(--ev-color), var(--ev-color)) no-repeat 0 0 / calc(var(--ev-p) * 100%) 100%; }
+.ev-mark.marker { --ev-color: #FFF06A; }
+.ev-mark.underline { --ev-color: var(--accent); background-position: 0 94%; background-size: calc(var(--ev-p) * 100%) 0.12em; }
+.ev-source { position: absolute; left: 6%; bottom: 6%; z-index: 3; padding: 0.45em 0.9em; border-radius: 999px; background: rgba(0, 0, 0, 0.74);
+  color: #fff; font-family: var(--font); font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+
+/* ---- card: a plain ground ---- */
+.card-ground { position: absolute; inset: 0; }
+
+/* ---- captions: the film-wide spoken-word track (compiler) ---- */
+#captions { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+.cap-phrase { position: absolute; visibility: hidden; display: flex; flex-direction: column; color: var(--cap-color, #fff);
+  font-family: var(--cap-font, var(--font)); text-shadow: var(--cap-shadow, none); }
+.cap-phrase.line { display: block; }
+.cap-phrase.line .cap-w { display: inline-block; margin-right: 0.24em; }
+.cap-phrase.align-center { align-items: center; text-align: center; }
+.cap-phrase.align-right { align-items: flex-end; text-align: right; }
+.cap-w { display: block; white-space: nowrap; visibility: hidden; will-change: transform, filter, opacity; }
+.cap-w.fx-accent { color: var(--accent); }
+.cap-w.fx-blur { filter: blur(0.065em); opacity: 0.92; }
+.cap-w.fx-rgb, .cap-w.fx-glitch { text-shadow: -0.04em 0 rgba(255, 30, 70, 0.85), 0.04em 0 rgba(0, 220, 255, 0.85); }
+.cap-w.fx-big { font-size: 1.42em; line-height: 0.84; }
+.cap-w.fx-outline { color: transparent; -webkit-text-stroke: 0.035em var(--cap-color, #fff); }
+.cap-w.fx-strike { text-decoration: line-through; text-decoration-thickness: 0.09em; }
+.cap-w.fx-small { font-size: 0.62em; }
+.cap-phrase.replace { display: grid; }
+.cap-phrase.replace .cap-w { grid-area: 1 / 1; justify-self: start; }
+.cap-phrase.replace.align-center .cap-w { justify-self: center; }
+.cap-phrase.replace.align-right .cap-w { justify-self: end; }
+.ft-decoder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

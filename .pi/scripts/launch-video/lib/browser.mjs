@@ -138,3 +138,34 @@ export async function openStudioBrowser({
     },
   };
 }
+
+/**
+ * The film's stage as the loaded page reports it (`window.__STAGE`, set by
+ * the engine from `SHOTS.format`): 1920×1080 for 16:9, 1080×1920 for 9:16.
+ * A page without the engine is treated as the classic 1920×1080 stage.
+ */
+export async function stageOf(page) {
+  const s = await page.evaluate(() => window.__STAGE || null).catch(() => null);
+  return s && s.w > 0 && s.h > 0
+    ? { w: Number(s.w), h: Number(s.h), format: String(s.format || "16:9") }
+    : { w: 1920, h: 1080, format: "16:9" };
+}
+
+/** Resize a loaded tab to its film's stage; returns the stage. */
+export async function fitStage(page) {
+  const stage = await stageOf(page);
+  const vp = page.viewportSize();
+  if (!vp || vp.width !== stage.w || vp.height !== stage.h) {
+    await page.setViewportSize({ width: stage.w, height: stage.h });
+  }
+  return stage;
+}
+
+/**
+ * Seek the film and wait until it is ready to be photographed. The engine's
+ * `__SEEK` returns a promise while footage decodes the requested frames;
+ * page.evaluate awaits it, so a screenshot never shows the previous frame.
+ */
+export function seekFilm(page, t) {
+  return page.evaluate((tt) => window.__SEEK(tt), t);
+}

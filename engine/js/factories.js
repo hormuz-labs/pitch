@@ -1,5 +1,20 @@
 /* Shot factories: mount(el, shot, ctx) + animate(el, shot, D, ctx) */
 (function () {
+  // The stage. `SHOTS.format` picks the delivery frame; every factory, the
+  // compiler, the studio preview and the capture read the page size from
+  // here (window.__STAGE), so a 9:16 ad is laid out, previewed and exported
+  // at 1080×1920 rather than letterboxed inside a landscape page.
+  const FORMATS = {
+    "16:9": { w: 1920, h: 1080 },
+    "9:16": { w: 1080, h: 1920 },
+    "1:1": { w: 1080, h: 1080 },
+    "4:5": { w: 1080, h: 1350 },
+  };
+  const requested = window.SHOTS && window.SHOTS.format;
+  if (requested && !FORMATS[requested]) console.warn(`[factories] unknown format "${requested}" — use ${Object.keys(FORMATS).join(", ")}; 16:9 used`);
+  const STAGE = { format: FORMATS[requested] ? requested : "16:9", ...(FORMATS[requested] || FORMATS["16:9"]) };
+  window.__STAGE = STAGE;
+
   const EASE = {
     slam: "expo.out",
     land: "power4.out",
@@ -185,7 +200,8 @@
     const tag = el.querySelector(".logo-tag");
     if (shot.mode === "mark" && mark) {
       if (rest) gsap.set(rest, { opacity: 0, width: 0, overflow: "hidden" });
-      if (tag) gsap.set(tag, { opacity: 0 });
+      // Out of the layout, not just invisible: an unseen tag pushed the mark off centre.
+      if (tag) gsap.set(tag, { display: "none" });
       tl.from([mark, d].filter(Boolean), { scale: 0.45, opacity: 0, duration: 0.5, ease: EASE.slam }, 0);
     } else {
       if (mark) tl.from(mark, { scale: 0.6, opacity: 0, duration: 0.42, ease: EASE.slam }, 0);
@@ -571,7 +587,7 @@
     const w = shot.width || size.w;
     const hgt = shot.height || size.h;
     const cam = h(`<div class="ui-cam"></div>`);
-    const wrap = h(`<div class="ui-frame ${kind}" style="width:${w}px;height:${hgt}px;left:${(1920 - w) / 2 + (shot.offsetX || 0)}px;top:${(1080 - hgt) / 2 + (shot.offsetY || 0)}px"></div>`);
+    const wrap = h(`<div class="ui-frame ${kind}" style="width:${w}px;height:${hgt}px;left:${(STAGE.w - w) / 2 + (shot.offsetX || 0)}px;top:${(STAGE.h - hgt) / 2 + (shot.offsetY || 0)}px"></div>`);
     if (kind === "browser") {
       wrap.appendChild(h(`<div class="ui-bar"><span class="ui-dot"></span><span class="ui-dot"></span><span class="ui-dot"></span><span class="ui-url">${shot.url || ""}</span></div>`));
     }
@@ -777,8 +793,8 @@
   function three(el, opts = {}) {
     const THREE = window.THREE;
     if (!THREE) throw new Error("three.js is not on the page — run motion_scaffold again (it writes the module tag)");
-    const width = opts.width || 1920;
-    const height = opts.height || 1080;
+    const width = opts.width || STAGE.w;
+    const height = opts.height || STAGE.h;
     const fov = opts.fov || 35;
     const canvas = document.createElement("canvas");
     canvas.className = "gl-stage";
@@ -814,7 +830,7 @@
     if (!lib) throw new Error("lottie-web is not on the page — run motion_scaffold again");
     const holder = document.createElement("div");
     holder.className = "lottie-stage";
-    holder.style.cssText = `position:absolute;left:${opts.x ?? 0}px;top:${opts.y ?? 0}px;width:${opts.width || 1920}px;height:${opts.height || 1080}px;pointer-events:none;`;
+    holder.style.cssText = `position:absolute;left:${opts.x ?? 0}px;top:${opts.y ?? 0}px;width:${opts.width || STAGE.w}px;height:${opts.height || STAGE.h}px;pointer-events:none;`;
     el.appendChild(holder);
     const anim = lib.loadAnimation({
       container: holder, renderer: opts.renderer || "svg", loop: false, autoplay: false,
@@ -847,8 +863,8 @@
   function riveStage(el, opts = {}) {
     const lib = window.rive;
     if (!lib) throw new Error("the Rive runtime is not on the page — motion_scaffold({ rive: true })");
-    const width = opts.width || 1920;
-    const height = opts.height || 1080;
+    const width = opts.width || STAGE.w;
+    const height = opts.height || STAGE.h;
     const dpr = opts.pixelRatio || window.devicePixelRatio || 1;
     const canvas = document.createElement("canvas");
     canvas.className = "rive-stage";
@@ -881,7 +897,7 @@
   function vectorBox(shot) {
     const hgt = shot.height || 720;
     const w = shot.width || hgt;
-    return { w, h: hgt, x: shot.x ?? (1920 - w) / 2, y: shot.y ?? (1080 - hgt) / 2 };
+    return { w, h: hgt, x: shot.x ?? (STAGE.w - w) / 2, y: shot.y ?? (STAGE.h - hgt) / 2 };
   }
   function captionMount(el, shot) {
     if (!shot.caption) return;
@@ -1331,8 +1347,343 @@
     return tl;
   }
 
+  /* ---------- footage: real video or stills on the film's clock ---------- */
+  // Clips come from `pitch motion footage` (VP9 WebM, silent, cut to the range
+  // used) or are stills. A <video> served without byte ranges cannot seek, so
+  // every file is fetched once into a blob URL — seekable to the frame — and
+  // __READY waits for its first decoded frame.
+  //
+  // What is SEEN is a canvas the decoded frame is drawn into, never the
+  // <video> itself: Chrome does not reliably repaint a paused video that was
+  // seeked as it became visible (the capture kept photographing its first
+  // frame), while drawImage at `seeked` is exactly the requested frame. The
+  // canvas takes the same object-fit, object-position, filter and flip.
+  //
+  // While the film PLAYS (studio preview) the visible videos play natively at
+  // their rate, are only nudged when they drift, and are drawn every tick.
+  // While it is PAUSED or SEEKED (scrubbing, capture, audit, review) each
+  // visible video is seeked to its exact source time and drawn at `seeked`;
+  // window.__SEEK returns a promise for those draws, which the capture awaits
+  // before every frame.
+  const LOOKS = {
+    mono: "grayscale(1) contrast(1.08)",
+    "mono-hard": "grayscale(1) contrast(1.4) brightness(0.92)",
+    warm: "sepia(0.22) saturate(1.12) contrast(1.04)",
+    cool: "saturate(0.85) hue-rotate(-10deg) brightness(0.97) contrast(1.06)",
+    faded: "contrast(0.88) saturate(0.78) brightness(1.06)",
+    night: "brightness(0.72) contrast(1.18) saturate(0.9)",
+    vivid: "saturate(1.35) contrast(1.08)",
+  };
+  window.__MEDIA_ISSUES = window.__MEDIA_ISSUES || [];
+  const mediaIssue = (msg) => { window.__MEDIA_ISSUES.push(msg); console.warn("[media] " + msg); };
+  function lookFilter(look) {
+    if (!look || look === "none") return "";
+    if (LOOKS[look]) return LOOKS[look];
+    if (/\(/.test(look)) return look;
+    mediaIssue(`unknown look "${look}" — use ${Object.keys(LOOKS).join(", ")} or a CSS filter string`);
+    return "";
+  }
+  const isVideoSrc = (src) => /\.(webm|mp4|mov|m4v|ogv)(?:[?#]|$)/i.test(src);
+  const FOOTAGE = { videos: [], pending: [] };
+  window.__FOOTAGE = FOOTAGE;
+  function loadVideo(v, src) {
+    return fetch(src)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((b) => new Promise((resolve) => {
+        v.addEventListener("loadeddata", resolve, { once: true });
+        v.addEventListener("error", () => { mediaIssue(`${src} cannot be decoded here (${v.error ? v.error.message || v.error.code : "unknown"}) — prepare it with pitch motion footage`); resolve(); }, { once: true });
+        v.src = URL.createObjectURL(b);
+      }))
+      .catch((e) => mediaIssue(`${src} failed to load (${e.message || e})`));
+  }
+  function drawFrame(e) {
+    const v = e.v, c = e.canvas;
+    if (!v.videoWidth || v.readyState < 2) return;
+    if (c.width !== v.videoWidth || c.height !== v.videoHeight) { c.width = v.videoWidth; c.height = v.videoHeight; }
+    e.ctx.drawImage(v, 0, 0, c.width, c.height);
+    e.drawn = v.currentTime;
+  }
+  function seekVideo(e, t) {
+    const v = e.v;
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; clearTimeout(timer); drawFrame(e); resolve(); } };
+      const timer = setTimeout(finish, 4000);
+      v.addEventListener("seeked", finish, { once: true });
+      v.currentTime = t;
+    });
+  }
+  // Called by the compiler after every master render with whether it plays.
+  FOOTAGE.sync = function (playing) {
+    for (const e of FOOTAGE.videos) {
+      const v = e.v;
+      if (!v.src || v.readyState < 1) continue;
+      const shotEl = e.shotEl || (e.shotEl = e.wrap.closest(".shot"));
+      const lt = e.st.t;
+      const on = !!shotEl && shotEl.style.opacity !== "0" && e.wrap.style.visibility !== "hidden"
+        && lt >= e.start - 1e-4 && lt <= e.end + 1e-4;
+      if (!on) { if (!v.paused) v.pause(); continue; }
+      const len = v.duration || 0;
+      // +1ms: a time that lands exactly on a frame boundary (4.1s × 30fps) must
+      // show that frame, not the one float rounding leaves just before it.
+      let target = e.in + Math.max(0, lt - e.start) * e.rate + 0.001;
+      if (len) target = e.loop ? target % len : Math.min(target, Math.max(0, len - 0.04));
+      if (playing) {
+        if (v.playbackRate !== e.rate) v.playbackRate = e.rate;
+        if (Math.abs(v.currentTime - target) > 0.3) v.currentTime = target;
+        if (v.paused) v.play().catch(() => {});
+        if (!v.seeking) drawFrame(e);
+      } else {
+        if (!v.paused) v.pause();
+        if (Math.abs(v.currentTime - target) > 0.0005) FOOTAGE.pending.push(seekVideo(e, target));
+        else if (e.drawn !== v.currentTime && !v.seeking) drawFrame(e);
+      }
+    }
+    if (FOOTAGE.pending.length > 64) FOOTAGE.pending.splice(0, FOOTAGE.pending.length - 64);
+  };
+  // What __SEEK returns: the decode of every frame the last sync asked for.
+  FOOTAGE.settle = function () {
+    const p = FOOTAGE.pending.splice(0);
+    return p.length ? Promise.all(p).then(() => undefined) : null;
+  };
+
+  // window: 0.8 (width, a fraction of the stage) or { w, h, x, y, radius,
+  // border, borderWidth, glow, glowColor, from, at, dur }. h defaults to a
+  // 4:5 frame; x/y centre it (fractions); `from: 1` grows out of full-bleed.
+  function footageWindow(shot) {
+    const v = shot.window;
+    if (!v) return null;
+    const o = typeof v === "number" ? { w: v } : v;
+    const w = Math.round(STAGE.w * Math.min(1, Math.max(0.2, Number(o.w) || 0.8)));
+    const hgt = Math.round(o.h ? STAGE.h * Math.min(1, Number(o.h)) : Math.min(STAGE.h * 0.9, w * 1.25));
+    const cx = STAGE.w * (o.x ?? 0.5), cy = STAGE.h * (o.y ?? 0.5);
+    return {
+      w, h: hgt, x: Math.round(cx - w / 2), y: Math.round(cy - hgt / 2),
+      radius: o.radius ?? Math.round(Math.min(w, hgt) * 0.07),
+      border: o.border || null, borderWidth: o.borderWidth ?? 10,
+      glow: o.glow === true ? 80 : Number(o.glow) || 0, glowColor: o.glowColor || "rgba(255,255,255,0.28)",
+      from: o.from != null ? Number(o.from) : null, at: Number(o.at) || 0, dur: Number(o.dur) || 0.35,
+    };
+  }
+  function footageClips(shot) {
+    const list = Array.isArray(shot.clips) && shot.clips.length ? shot.clips : [{ src: shot.src }];
+    return list.map((c) => (typeof c === "string" ? { src: c } : c || {})).filter((c) => {
+      if (typeof c.src === "string" && c.src) return true;
+      mediaIssue(`#${shot.id}: a footage clip has no src`);
+      return false;
+    });
+  }
+  // [from, to] scale for the slow push (a number is the end scale from 1).
+  const pushPair = (p) => (Array.isArray(p) ? [Number(p[0]) || 1, Number(p[1]) || 1] : p ? [1, Number(p)] : null);
+  function footageMount(el, shot) {
+    el.dataset.bg = shot.bg || "#000";
+    const box = h(`<div class="footage"></div>`);
+    footageClips(shot).forEach((c, i) => {
+      const focus = c.focus || shot.focus || [0.5, 0.5];
+      const wrap = h(`<div class="ft-clip" data-clip="${i}"></div>`);
+      let media;
+      if (isVideoSrc(c.src)) {
+        // The decoder stays in the clip (browsers throttle detached or
+        // offscreen video) but is covered by the canvas that shows its frames.
+        const v = document.createElement("video");
+        v.className = "ft-decoder";
+        v.muted = true;
+        v.defaultMuted = true;
+        v.playsInline = true;
+        v.preload = "auto";
+        v.setAttribute("muted", "");
+        v.setAttribute("playsinline", "");
+        v.__loaded = loadVideo(v, c.src);
+        ready(v.__loaded);
+        wrap.appendChild(v);
+        media = document.createElement("canvas");
+        media.width = 16;
+        media.height = 16;
+      } else {
+        media = document.createElement("img");
+        media.alt = "";
+        media.draggable = false;
+        media.decoding = "sync";
+        // `error` is the only evidence of a missing still; decode() can reject
+        // for a load that then succeeds, so it is only awaited, never trusted.
+        const img = media;
+        ready(new Promise((resolve) => {
+          img.addEventListener("load", () => img.decode().catch(() => {}).then(resolve), { once: true });
+          img.addEventListener("error", () => { mediaIssue(`${c.src} failed to load`); resolve(); }, { once: true });
+        }));
+        media.src = c.src;
+      }
+      media.className = "ft-media";
+      media.dataset.src = c.src;
+      media.style.objectFit = c.fit || shot.fit || "cover";
+      media.style.objectPosition = `${(focus[0] ?? 0.5) * 100}% ${(focus[1] ?? 0.5) * 100}%`;
+      const filter = lookFilter(c.look ?? shot.look);
+      if (filter) media.style.filter = filter;
+      if (c.flip ?? shot.flip) media.style.transform = "scaleX(-1)";
+      wrap.appendChild(media);
+      box.appendChild(wrap);
+    });
+    const shade = Number(shot.shade) || 0;
+    if (shade > 0) box.appendChild(h(`<div class="ft-shade" style="opacity:${Math.min(1, shade)}"></div>`));
+    // A window: the footage in a rounded frame on the shot's ground, the way
+    // every reference ad sets UGC, screenshots and archive — optionally
+    // shrinking into place from full-bleed at `window.from`.
+    const win = footageWindow(shot);
+    if (win) {
+      box.classList.add("ft-window");
+      box.style.borderRadius = `${win.radius}px`;
+      if (win.border) box.style.boxShadow = `0 0 0 ${win.borderWidth}px ${win.border}${win.glow ? `, 0 0 ${win.glow}px ${win.glowColor}` : ""}`;
+      else if (win.glow) box.style.boxShadow = `0 0 ${win.glow}px ${win.glowColor}`;
+      Object.assign(box.style, { left: `${win.x}px`, top: `${win.y}px`, width: `${win.w}px`, height: `${win.h}px`, right: "auto", bottom: "auto" });
+    }
+    if (shot.flash) {
+      const flash = h(`<div class="ft-flash"></div>`);
+      flash.style.background = shot.flash === true ? "#fff" : shot.flash;
+      box.appendChild(flash);
+    }
+    el.appendChild(box);
+  }
+  function footageAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const clips = footageClips(shot);
+    const wraps = qsa(el, ".ft-clip");
+    const n = wraps.length;
+    if (!n) return tl;
+    // A montage is hard cuts inside one shot: each clip lasts its `dur`, else
+    // `every`, else an equal share; the last one holds to the end of the shot.
+    const every = Number(shot.every) > 0 ? Number(shot.every) : D / n;
+    const spans = [];
+    let clock = 0;
+    clips.forEach((c, i) => {
+      const len = Number(c.dur) > 0 ? Number(c.dur) : every;
+      const end = i === n - 1 && shot.hold !== false ? D : Math.min(D, clock + len);
+      spans.push({ start: Math.min(clock, D), end });
+      clock += len;
+    });
+    if (clock > D + 0.02 && n > 1) mediaIssue(`#${shot.id}: its clips need ${clock.toFixed(2)}s but the shot lasts ${D}s — the last ones never show`);
+    const flash = el.querySelector(".ft-flash");
+    const st = { t: 0 };
+    const apply = () => {
+      const lt = st.t;
+      wraps.forEach((w, i) => {
+        const on = lt >= spans[i].start - 1e-6 && (lt < spans[i].end || (i === n - 1 && lt <= D + 1e-6));
+        w.style.visibility = on ? "inherit" : "hidden";
+      });
+      if (flash) flash.style.opacity = spans.some((s, i) => i > 0 && lt >= s.start && lt < s.start + 0.04) ? "1" : "0";
+    };
+    apply();
+    tl.to(st, { t: D, duration: D, ease: "none", onUpdate: apply }, 0);
+    const win = footageWindow(shot);
+    if (win && win.from != null) {
+      // Out of full-bleed into the frame: position, size and corners together.
+      const box = qs(el, ".footage");
+      tl.fromTo(box, { left: 0, top: 0, width: STAGE.w, height: STAGE.h, borderRadius: 0 },
+        { left: win.x, top: win.y, width: win.w, height: win.h, borderRadius: win.radius, duration: win.dur, ease: "expo.inOut" }, win.at);
+    }
+    clips.forEach((c, i) => {
+      const push = pushPair(c.push ?? shot.push);
+      const span = spans[i];
+      if (push && span.end > span.start) {
+        tl.fromTo(wraps[i], { scale: push[0] }, { scale: push[1], duration: span.end - span.start, ease: "none", transformOrigin: "50% 50%" }, span.start);
+      }
+      // scroll: [from, to] — the kept frame travels down a tall image (a
+      // landing page, a wall of reviews, an article), as fractions of it.
+      const scroll = c.scroll ?? shot.scroll;
+      if (Array.isArray(scroll) && span.end > span.start) {
+        const media = wraps[i].querySelector(".ft-media");
+        const fx = ((c.focus || shot.focus || [0.5])[0] ?? 0.5) * 100;
+        tl.fromTo(media, { objectPosition: `${fx}% ${(Number(scroll[0]) || 0) * 100}%` },
+          { objectPosition: `${fx}% ${(Number(scroll[1]) || 0) * 100}%`, duration: span.end - span.start, ease: c.scrollEase || shot.scrollEase || "power1.inOut" }, span.start);
+      }
+      const v = wraps[i].querySelector("video");
+      if (v) {
+        const rate = Number(c.rate ?? shot.rate) || 1;
+        const canvas = wraps[i].querySelector("canvas.ft-media");
+        const entry = { v, canvas, ctx: canvas.getContext("2d"), drawn: null, wrap: wraps[i], st, start: span.start, end: span.end, in: Number(c.in ?? shot.in) || 0, rate, loop: !!(c.loop ?? shot.loop), shotEl: null };
+        FOOTAGE.videos.push(entry);
+        // Cue every clip on its first frame before the film is ready, so the
+        // preview never shows a blank canvas while a clip seeks as it appears.
+        ready(Promise.resolve(v.__loaded).then(() => (v.readyState >= 1 ? seekVideo(entry, entry.in + 0.001) : null)));
+      }
+    });
+    return tl;
+  }
+
+  /* ---------- evidence: a real source, quoted and highlighted ---------- */
+  // The page of an article, study, review or spec sheet — the source's own
+  // words, never invented — with the claim highlighted while the camera
+  // pushes in on it. The page is wider than the frame on purpose: it reads as
+  // a document someone is looking at, not a slide.
+  const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  function evidenceMount(el, shot) {
+    el.dataset.bg = shot.paper || shot.bg || "#FBFAF7";
+    const serif = '"Iowan Old Style", "Palatino Linotype", Georgia, "Times New Roman", serif';
+    const size = shot.size || Math.round(Math.min(STAGE.w, STAGE.h) * 0.05);
+    const width = shot.width || Math.round(STAGE.w * 1.3);
+    const page = h(`<div class="ev-page"></div>`);
+    page.style.cssText = `width:${width}px;font-size:${size}px;color:${shot.ink || "#1B1B1B"};font-family:${shot.font === "sans" ? "var(--font)" : shot.font || serif};`;
+    if (shot.title) page.appendChild(h(`<h3 class="ev-title">${escapeHtml(shot.title)}</h3>`));
+    const paragraphs = Array.isArray(shot.paragraphs) ? shot.paragraphs : shot.text ? [shot.text] : [];
+    if (!paragraphs.length) mediaIssue(`#${shot.id}: evidence needs paragraphs — the source's own text`);
+    let marked = !shot.highlight;
+    paragraphs.forEach((text) => {
+      let html = escapeHtml(text);
+      if (!marked) {
+        const needle = escapeHtml(shot.highlight);
+        let at = html.indexOf(needle);
+        if (at < 0) at = html.toLowerCase().indexOf(needle.toLowerCase());
+        if (at >= 0) {
+          html = `${html.slice(0, at)}<mark class="ev-mark ${shot.mark || "select"}">${html.slice(at, at + needle.length)}</mark>${html.slice(at + needle.length)}`;
+          marked = true;
+        }
+      }
+      page.appendChild(h(`<p class="ev-p">${html}</p>`));
+    });
+    if (!marked) mediaIssue(`#${shot.id}: highlight "${shot.highlight}" is not in the quoted text`);
+    el.appendChild(page);
+    if (shot.source) el.appendChild(h(`<div class="ev-source" style="font-size:${Math.round(Math.min(STAGE.w, STAGE.h) * 0.024)}px">${escapeHtml(shot.source)}</div>`));
+  }
+  function evidenceAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const page = qs(el, ".ev-page");
+    const mark = el.querySelector(".ev-mark");
+    const push = pushPair(shot.push ?? 1.28) || [1, 1];
+    // The claim lands at this point of the frame and the push scales about it.
+    const fx = STAGE.w * (shot.focusX ?? 0.5);
+    const fy = STAGE.h * (shot.focusY ?? 0.45);
+    let anchor = null;
+    const measure = () => {
+      if (anchor) return anchor;
+      if (mark) {
+        let x = 0, y = 0;
+        for (let n = mark; n && n !== page; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; }
+        anchor = { x: x + mark.offsetWidth / 2, y: y + mark.offsetHeight / 2 };
+      } else anchor = { x: page.offsetWidth / 2, y: page.offsetHeight / 3 };
+      return anchor;
+    };
+    const scroll = Number(shot.scroll) || 0;
+    tl.fromTo(page,
+      { scale: push[0], x: () => fx - measure().x, y: () => fy - measure().y + scroll, transformOrigin: () => `${measure().x}px ${measure().y}px` },
+      { scale: push[1], x: () => fx - measure().x, y: () => fy - measure().y, duration: D, ease: shot.ease || "power1.inOut" }, 0);
+    if (mark) {
+      const at = shot.markAt ?? Math.min(0.45, D * 0.3);
+      const sweep = (shot.mark || "select") === "select" ? 0.001 : 0.4;
+      tl.fromTo(mark, { "--ev-p": 0 }, { "--ev-p": 1, duration: sweep, ease: "power2.out" }, at);
+    }
+    return tl;
+  }
+
+  /* ---------- card: a plain ground for the caption track ---------- */
+  // A black (or any colour) frame with nothing on it: the hook and the
+  // objection of an ad, where the captions are the whole picture.
+  function cardMount(el, shot) {
+    el.dataset.bg = shot.bg || "#000";
+    if (shot.gradient) el.appendChild(h(`<div class="card-ground" style="background:${shot.gradient}"></div>`));
+  }
+  function cardAnimate() { return gsap.timeline(); }
+
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap };
+  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, stage: STAGE, looks: LOOKS };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },
@@ -1353,5 +1704,8 @@
     "lottie": { mount: lottieMount, animate: lottieAnimate },
     "rive": { mount: riveMount, animate: riveAnimate },
     "device-3d": { mount: device3dMount, animate: device3dAnimate },
+    "footage": { mount: footageMount, animate: footageAnimate },
+    "evidence": { mount: evidenceMount, animate: evidenceAnimate },
+    "card": { mount: cardMount, animate: cardAnimate },
   };
 })();

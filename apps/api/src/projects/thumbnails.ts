@@ -149,7 +149,14 @@ export async function projectThumbnail(p: ProjectRow, t: number): Promise<Buffer
               { timeout: 8000 },
             )
             .catch(() => {})
-          await page.evaluate(`if (typeof window.__SEEK === 'function') window.__SEEK(${t});`)
+          // The film's own frame (a 9:16 ad is 1080×1920), and a seek that
+          // resolves once any footage shows the requested frame.
+          const stage = (await page.evaluate('window.__STAGE || null').catch(() => null)) as {
+            w?: number
+            h?: number
+          } | null
+          if (stage?.w && stage?.h) await page.setViewportSize({ width: stage.w, height: stage.h })
+          await page.evaluate(`typeof window.__SEEK === 'function' ? window.__SEEK(${t}) : null`)
         } else {
           await page.waitForTimeout(600)
           const slide = Math.max(1, Math.round(t))

@@ -136,7 +136,7 @@ The named outcomes survive as **host actions** plus a skill, not as flows:
 | Pipeline | Host actions | Skill |
 |---|---|---|
 | launch film | `motion_*` | `launch-video` |
-| cinematic promo / brand manifesto | `motion_*` | `promo-video` |
+| social ad / promo / brand manifesto | `motion_*` | `promo-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
@@ -153,9 +153,12 @@ or squeezing a timeline to the preference. Source trim ranges remain exact.
 
 The motion pipeline has two authoring entry points. `launch-video` loads one
 product-led treatment (cinematic, composed product walkthrough, kinetic type,
-teaser, feature announcement or 3D). `promo-video` supplies the voice-led,
-editorial-montage grammar for brand anthems and manifesto films. Both then load
-only the production references the current task needs. Audio has separate music,
+teaser, feature announcement or 3D). `promo-video` makes social ads (a 9:16
+`format`, real `footage` from uploads, Pexels stock via `pitch motion stock`
+and `pitch motion footage`, a word-synced `captions` track and `audio.fx`
+muffle/ring automation in the mix) and the voice-led editorial montage of
+brand anthems and manifesto films. Both then load only the production
+references the current task needs. Audio has separate music,
 narration, SFX and mixing modules. A music-only film does not load narration
 guidance; a level edit loads mixing rather than the entire production workflow.
 `demo-video` owns recording only and references the shared

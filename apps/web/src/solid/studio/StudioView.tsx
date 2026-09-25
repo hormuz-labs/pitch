@@ -160,10 +160,17 @@ function Build(props: { store: ProjectStore }) {
   )
 }
 const RES = [
-  { res: '720p', note: '1280 × 720 · 60 fps · quick share' },
-  { res: '1080p', note: '1920 × 1080 · 60 fps · standard' },
-  { res: '4k', note: '3840 × 2160 · 60 fps · slow render' },
-] satisfies { res: ExportResolution; note: string }[]
+  { res: '720p', short: 720, note: 'quick share' },
+  { res: '1080p', short: 1080, note: 'standard' },
+  { res: '4k', short: 2160, note: 'slow render' },
+] satisfies { res: ExportResolution; short: number; note: string }[]
+/** "1280 × 720" for a landscape film, "720 × 1280" for a 9:16 one: the short side is the resolution. */
+function resNote(r: (typeof RES)[number], stage: { w: number; h: number }) {
+  const long =
+    Math.round((r.short * Math.max(stage.w, stage.h)) / Math.min(stage.w, stage.h) / 2) * 2
+  const [w, h] = stage.w >= stage.h ? [long, r.short] : [r.short, long]
+  return `${w} × ${h} · 60 fps · ${r.note}`
+}
 const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[] = [
   { format: 'premiere', label: 'Premiere Pro', note: 'Image motion + baked sequence' },
   { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
@@ -442,7 +449,7 @@ export function Actions(
                     >
                       <span class="export-row-main">
                         <span class="export-row-label">{r.res}</span>
-                        <span class="export-row-note">{r.note}</span>
+                        <span class="export-row-note">{resNote(r, s.stage)}</span>
                       </span>
                       <span class="export-row-status">
                         {have() && !have()!.stale ? 'download' : 'render'}

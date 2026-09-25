@@ -55,7 +55,9 @@ if (!scriptText) {
   }
   scriptText = readFileSync(scriptFile, "utf8");
 }
-scriptText = scriptText.replace(/\s+/g, " ").trim();
+// ElevenLabs v3 delivery tags ([excited], [whispers], [pause]) steer the read
+// but are never spoken; aligning them as words would shift every onset after.
+scriptText = scriptText.replace(/\[[^\]\n]{1,40}\]/g, " ").replace(/\s+/g, " ").trim();
 
 function findModel() {
   const explicit = flag("model", process.env.WHISPER_MODEL || null);

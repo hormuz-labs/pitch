@@ -1,0 +1,23 @@
+{
+  "skill_name": "promo-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "make a 30 sec tiktok ad for trypitch.co. facts from the site: 'Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos.' Tagline: 'An AI production studio you can direct.' 'Cinematic 60-second launch films from one line.' 'Narrated walkthroughs of your real user flows.' 'Investor and sales decks from a brief, URL, or file.' Brand: white bg #FFFFFF, ink #202020, accent blue #1385D6, pixel-block PITCH wordmark in assets/logo/logo-1.svg. We have mobile screenshots of the homepage in uploads/site/.",
+      "expected_output": "direction.md + shots.js + commands.sh for a 9:16, ~30s ad: fast continuous voice, opening burst, interrupts, music plan with a drop on the turn, only the site's own claims.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Need a 45-second Reels ad for our posture corrector brand 'Alignr'. I've uploaded uploads/alignr-front.png, uploads/alignr-side.png (transparent product cutouts) and three real customer videos uploads/ugc-1.mp4 (woman at desk putting it on, talking), uploads/ugc-2.mp4 (before/after standing side profile), uploads/ugc-3.mp4 (guy saying 'my back pain was gone in two weeks'). We have 12,000 customers and a 60-day money-back guarantee. Brand colour is lime #C8FF3D on black. Make it punchy like those viral DTC ads.",
+      "expected_output": "A loud-DTC 9:16 ad plan: call-out hook, anaphora/list devices, real UGC as proof, offer close with the real guarantee, two caption tiers, music drops, no invented stats.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "15-second ad for our coffee subscription Morningside — warm and a bit cinematic, for instagram. We only have two packshots: uploads/bag-front.jpg and uploads/mug.jpg. Tagline: 'Fresh roasted, at your door every Monday.'",
+      "expected_output": "A short 9:16 ad plan (hook, turn, reveal, payoff, brand) that uses stock for context, the real packshots for the product, a tight voice, and a music drop.",
+      "files": []
+    }
+  ]
+}

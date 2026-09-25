@@ -80,6 +80,9 @@ const data = await page.evaluate(() => ({
   brand: window.__BRAND || {},
   // `breath` beats: the bed ducks here (mix.mjs reads them from cues.json).
   breaths: window.__BREATHS || [],
+  // Captions and footage: missing cue words, files that would not load.
+  media: window.__MEDIA_REPORT || null,
+  stage: window.__STAGE || null,
 }));
 const spec = CHECK ? await page.evaluate(extractSpec) : null;
 await studio.close();
@@ -115,10 +118,21 @@ if (CHECK) {
     process.exit(1);
   }
 }
+const media = data.media;
+const mediaProblems = media ? [
+  ...media.captions.missing.map((m) => `caption cue not in the narration: ${m} — use the words as spoken (pitch motion align writes them to audio/vo-words.json)`),
+  ...media.issues,
+] : [];
+if (media && (media.captions.phrases || media.captions.subtitles || media.captions.missing.length)) {
+  console.log(`   captions: ${media.captions.phrases} phrase${media.captions.phrases === 1 ? "" : "s"}${media.captions.subtitles ? ` + ${media.captions.subtitles} subtitle lines` : ""} · ${media.captions.words} words on their spoken onsets`);
+}
+if (data.stage && data.stage.format && data.stage.format !== "16:9") console.log(`   format: ${data.stage.format} (${data.stage.w}×${data.stage.h})`);
+for (const m of mediaProblems) console.log(`❌ ${m}`);
 if (errors.length) {
   console.log(`\n❌ page errors:\n   - ${errors.join("\n   - ")}`);
   process.exit(1);
 }
+if (CHECK && mediaProblems.length) process.exit(1);
 if (CHECK) {
   const tokens = ["bg", "ink", "accent"];
   const unset = tokens.filter((k) => !data.brand[k]);

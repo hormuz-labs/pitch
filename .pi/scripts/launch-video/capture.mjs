@@ -28,7 +28,7 @@ import { rename, stat, writeFile } from "node:fs/promises";
 import { resolve, dirname, extname, isAbsolute, relative } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { localPageUrl, localPathFromUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { localPageUrl, localPathFromUrl, openStudioBrowser, seekFilm, stageOf } from "./lib/browser.mjs";
 import {
   buildNativeLayerSidecar,
   discoverNativeCandidates,
@@ -112,10 +112,11 @@ function encoderLabel(backend) {
 const pageArg  = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.html";
 const fps      = Number(args.fps ?? 60);
 /**
- * Output resolution. The stage is a fixed 1920x1080 page, so this is a
- * render/encode concern only — rendering the page at a smaller viewport would
- * reflow every absolutely-positioned scene. 4K captures at deviceScaleFactor 2;
- * 720p captures at 1 and is downscaled on encode.
+ * Output resolution. The stage is a fixed page — 1920x1080, or the size its
+ * `SHOTS.format` names (1080x1920 for 9:16) — so this is a render/encode
+ * concern only: rendering the page at a smaller viewport would reflow every
+ * absolutely-positioned scene. 4K captures at deviceScaleFactor 2; 720p
+ * captures at 1 and is downscaled on encode (the SHORT side becomes 720).
  *
  * This must resolve BEFORE `scale` is read: --out-res=4k has to reach the
  * capture pass, not just the encoder.
@@ -126,11 +127,8 @@ if (args["out-res"] && !outRes) {
   console.error(`Unknown --out-res=${args["out-res"]} (expected 720p, 1080p or 4k)`);
   process.exit(1);
 }
-const downscale = outRes?.height ? `scale=-2:${outRes.height}` : null;
 
 const scale    = outRes ? outRes.scale : Number(args.scale ?? 2);   // 2 = 3840x2160 4K UHD
-const width    = Number(args.width ?? 1920);
-const height   = Number(args.height ?? 1080);
 // Workers are tabs in one Chromium process, not browser processes: the
 // screenshots are what costs time, and Page.captureScreenshot on a background
 // tab returns that tab's own frame, so they overlap cleanly.
@@ -153,14 +151,28 @@ rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
+const studio = await openStudioBrowser({ deviceScaleFactor: scale });
+
+const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
+const initPage = await studio.newPage();
+await initPage.goto(url, { waitUntil: "domcontentloaded" });
+await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+// The film's own frame (SHOTS.format) unless the caller forces one.
+const stage = await stageOf(initPage);
+const width    = Number(args.width ?? stage.w);
+const height   = Number(args.height ?? stage.h);
+const downscale = outRes?.height
+  ? (width >= height ? `scale=-2:${outRes.height}` : `scale=${outRes.height}:-2`)
+  : null;
 const renderW = width * scale;
 const renderH = height * scale;
 
 console.log(`\n🚀 Starting Ultra-HD Video Render:`);
 console.log(`   Page:      ${pageArg}`);
-console.log(`   Res:       ${renderW}x${renderH} (${scale >= 2 ? "4K UHD" : "1080p"} @ scale ${scale})`);
+console.log(`   Res:       ${renderW}x${renderH} (${stage.format}, ${scale >= 2 ? "4K UHD" : "1080p"} @ scale ${scale})`);
 console.log(`   FPS:       ${fps} FPS`);
 console.log(`   Workers:   ${workers} parallel capture tabs`);
+console.log("   Browser:   Chromium");
 
 /**
  * `deviceScaleFactor` on the context makes the page rasterize at `scale`,
@@ -171,17 +183,7 @@ const clip = { x: 0, y: 0, width, height, scale };
 const shotOpts = framesFmt === "png"
   ? { format: "png", captureBeyondViewport: false, clip }
   : { format: "jpeg", quality: 92, optimizeForSpeed: true, captureBeyondViewport: false, clip };
-
-const studio = await openStudioBrowser({
-  viewport: { width, height },
-  deviceScaleFactor: scale,
-});
-console.log("   Browser:   Chromium");
-
-const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
-const initPage = await studio.newPage();
-await initPage.goto(url, { waitUntil: "domcontentloaded" });
-await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+await initPage.setViewportSize({ width, height });
 const duration = await initPage.evaluate("window.__DURATION()");
 const cues = await initPage.evaluate("window.__CUES().map(({ label, time }) => ({ label, time }))");
 const film = await initPage.evaluate("({ render: (window.SHOTS && window.SHOTS.render) || null, grade: (window.SHOTS && window.SHOTS.grade) || null })");
@@ -243,6 +245,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   if (startFrame >= total) return;
 
   const page = await studio.newPage();
+  await page.setViewportSize({ width, height });
   const cdp = await page.context().newCDPSession(page);
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
@@ -259,7 +262,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   }
 
   for (let i = startFrame; i < endFrame; i++) {
-    await page.evaluate((seekT) => { window.__SEEK(seekT); }, from + i / fps);
+    await seekFilm(page, from + i / fps);
     if (workerNative && nativeCaptureError === null) {
       try {
         nativeSamples[i] = await page.evaluate(sampleNativeCandidates, nativeIds);
@@ -270,7 +273,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
     }
     const times = sampleTimes(from + i / fps, fps, render);
     for (let k = 0; k < times.length; k++) {
-      await page.evaluate((seekT) => { window.__SEEK(seekT); }, times[k]);
+      await seekFilm(page, times[k]);
       const { data } = await cdp.send("Page.captureScreenshot", shotOpts);
       const n = String(i * render.samples + k).padStart(7, "0");
       await writeFile(`${tmp}/f_${n}.${frameExt}`, Buffer.from(data, "base64"));

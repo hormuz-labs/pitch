@@ -6,6 +6,9 @@ import { useFullscreen } from './useFullscreen'
 
 type Frame = { ready: boolean; t: number; duration: number; paused: boolean }
 const EMPTY: Frame = { ready: false, t: 0, duration: 0, paused: true }
+type Stage = { w: number; h: number }
+/** The page reports its own size (SHOTS.format); a 9:16 ad is framed as 9:16. */
+const LANDSCAPE: Stage = { w: 1920, h: 1080 }
 
 export function HtmlPreview(props: { store: ProjectStore; src: string }) {
   const s = props.store
@@ -22,6 +25,7 @@ export function HtmlPreview(props: { store: ProjectStore; src: string }) {
   const [duration, setDuration] = createSignal(0)
   const [time, setTime] = createSignal(0)
   const [scale, setScale] = createSignal(0)
+  const [stage, setStage] = createSignal<Stage>(LANDSCAPE)
   const [muted, setMuted] = createSignal(false)
   const fullscreen = useFullscreen(() => container)
   const audioSrc = () => s.previewUrl(s.project?.description.audioUrl)
@@ -103,8 +107,10 @@ export function HtmlPreview(props: { store: ProjectStore; src: string }) {
     const resize = () => {
       // Measure a viewport owned by layout, never a child sized by this scale.
       const { width, height } = viewport.getBoundingClientRect()
-      if (width > 0 && height > 0) setScale(Math.min(width / 1920, height / 1080))
+      const { w, h } = stage()
+      if (width > 0 && height > 0) setScale(Math.min(width / w, height / h))
     }
+    createEffect(on(stage, resize, { defer: true }))
     const observer = new ResizeObserver(resize)
     observer.observe(viewport)
     resize()
@@ -113,6 +119,13 @@ export function HtmlPreview(props: { store: ProjectStore; src: string }) {
       const data = event.data
       if (data?.type === 'studio_element_selected' && data.element) s.addTarget(data.element)
       if (data?.type !== 'studio_state' || !loaded) return
+      const w = Number(data.stage?.w)
+      const h = Number(data.stage?.h)
+      const next = w > 0 && h > 0 ? { w, h } : LANDSCAPE
+      if (next.w !== stage().w || next.h !== stage().h) {
+        setStage(next)
+        s.setStage(next)
+      }
       const previous = state
       const total = Math.max(0, Number(data.duration) || 0)
       const t = Math.max(0, Number(data.t) || 0)
@@ -191,7 +204,7 @@ export function HtmlPreview(props: { store: ProjectStore; src: string }) {
       <div ref={viewport} class="live-preview-stage">
         <div
           class="live-preview-viewport"
-          style={{ width: `${1920 * scale()}px`, height: `${1080 * scale()}px` }}
+          style={{ width: `${stage().w * scale()}px`, height: `${stage().h * scale()}px` }}
           onClick={() => !s.inspectMode && toggle()}
         >
           <iframe
@@ -199,7 +212,11 @@ export function HtmlPreview(props: { store: ProjectStore; src: string }) {
             src={props.src}
             title="Live preview"
             allow="autoplay; fullscreen"
-            style={{ transform: `scale(${scale()})` }}
+            style={{
+              width: `${stage().w}px`,
+              height: `${stage().h}px`,
+              transform: `scale(${scale()})`,
+            }}
             onLoad={() => {
               loaded = true
               state = { ...EMPTY }

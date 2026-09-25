@@ -31,7 +31,7 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { fitStage, localPageUrl, openStudioBrowser, seekFilm } from "./lib/browser.mjs";
 import { normalizeGrade, reviewFilter } from "./lib/encode.mjs";
 import { planSamples, sheetOf } from "./lib/review-plan.mjs";
 
@@ -40,7 +40,7 @@ import { planSamples, sheetOf } from "./lib/review-plan.mjs";
  * element that directly holds visible hero-size text: the ink box of that
  * string, from the font's own metrics (a Range rect is the font's content
  * area; canvas measureText says where the ink of THESE glyphs sits inside
- * it), against the nearest clipping ancestor and the 1920×1080 stage.
+ * it), against the nearest clipping ancestor and the stage (window.__STAGE).
  *
  * `settled` is whether this is the shot's settled frame. Mid-move, a run of
  * type is cut by its mask on purpose all the time — that is what a mask
@@ -70,7 +70,8 @@ function measureClippedText(settled) {
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const text = (node.nodeValue || "").replace(/\s+/g, " ").trim();
     const el = node.parentElement;
-    if (!text || !el || done.has(el) || el.id === "__review_label" || el.closest(".marquee-field, .ui-screen, script, style")) continue;
+    // An evidence page bleeds past the frame by design; it is a document, not type.
+    if (!text || !el || done.has(el) || el.id === "__review_label" || el.closest(".marquee-field, .ui-screen, .ev-page, script, style")) continue;
     done.add(el);
     if (!shown(el)) continue;
     const cs = getComputedStyle(el);
@@ -100,7 +101,8 @@ function measureClippedText(settled) {
     }
     // The stage clips too, whatever mask sits inside it: a headline scaled up
     // on its entrance runs past both edges while its own mask runs with it.
-    const stage = { left: 0, top: 0, right: 1920, bottom: 1080 };
+    const S = window.__STAGE || { w: 1920, h: 1080 };
+    const stage = { left: 0, top: 0, right: S.w, bottom: S.h };
     if (!mask) mask = stage;
     else {
       const m = { left: Math.max(mask.left, stage.left), top: Math.max(mask.top, stage.top), right: Math.min(mask.right, stage.right), bottom: Math.min(mask.bottom, stage.bottom) };
@@ -115,9 +117,9 @@ function measureClippedText(settled) {
     const cuts = [["below", ink.bottom - mask.bottom], ["above", mask.top - ink.top], ["on the left", mask.left - ink.left], ["on the right", ink.right - mask.right]];
     for (const [side, px] of cuts) {
       if (px >= 2 && px <= cap) {
-        const fix = /the stage/.test(maskName) ? "Pull it inside 80px of the edge, or size it so the longest line fits 1760px — at every frame, an entrance scale included."
+        const fix = /the stage/.test(maskName) ? `Pull it inside 80px of the edge, or size it so the longest line fits ${S.w - 160}px — at every frame, an entrance scale included.`
           : `Give the mask room — padding .16em .08em .24em with the same negative margin — or line-height ≥ 1.1 (it is ${lineHeight}).`;
-        out.push({ text: text.slice(0, 40), side, px: Math.round(px), mask: maskName, font: `${Math.round(size)}px, line-height ${lineHeight}${k > 1.02 || k < 0.98 ? `, at ${k.toFixed(2)}×` : ""}`, fix: fits ? fix : (/the stage/.test(maskName) ? `It is wider than the picture here — keep the largest scale of the move inside 1760px.` : `It is bigger than its mask ${maskName} here — the move scales past the row; grow the mask with it (padding, or overflow visible on the row) or cap the scale.`) });
+        out.push({ text: text.slice(0, 40), side, px: Math.round(px), mask: maskName, font: `${Math.round(size)}px, line-height ${lineHeight}${k > 1.02 || k < 0.98 ? `, at ${k.toFixed(2)}×` : ""}`, fix: fits ? fix : (/the stage/.test(maskName) ? `It is wider than the picture here — keep the largest scale of the move inside ${S.w - 160}px.` : `It is bigger than its mask ${maskName} here — the move scales past the row; grow the mask with it (padding, or overflow visible on the row) or cap the scale.`) });
       }
     }
   }
@@ -129,7 +131,7 @@ function measureClippedText(settled) {
  * Text under 22px is counted too: at 1080p it is the copy nobody can read.
  */
 function measureSubject() {
-  const W = 1920, H = 1080;
+  const W = (window.__STAGE || { w: 1920 }).w, H = (window.__STAGE || { h: 1080 }).h;
   const shown = (el) => {
     for (let n = el; n && n !== document.body; n = n.parentElement) {
       const cs = getComputedStyle(n);
@@ -221,9 +223,9 @@ const pageArg = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.h
 const perShot = Math.max(1, Math.min(6, Number(args["per-shot"] ?? 1)));
 const only = args.shots ? String(args.shots).split(",").map(s => s.trim()).filter(Boolean) : [];
 const times = args.times ? String(args.times).split(",").map(Number).filter(Number.isFinite) : [];
-const cols = Number(args.cols ?? 4);
-const rows = Number(args.rows ?? 3);
-const tile = Number(args.tile ?? 480);
+let cols = Number(args.cols ?? 4);
+let rows = Number(args.rows ?? 3);
+let tile = Number(args.tile ?? 480);
 const outDir = resolve(String(args.out ?? "review"));
 const framesDir = join(outDir, ".frames");
 
@@ -245,6 +247,13 @@ try {
   const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+  const stage = await fitStage(page);
+  // A portrait film tiles six narrow frames per row, so a sheet stays screen-sized.
+  if (stage.h > stage.w) {
+    if (args.cols == null) cols = 6;
+    if (args.rows == null) rows = 2;
+    if (args.tile == null) tile = 300;
+  }
   mark("load");
   const duration = await page.evaluate("window.__DURATION()");
   const cues = await page.evaluate("window.__CUES ? window.__CUES() : []");
@@ -286,7 +295,7 @@ try {
   const grounds = [];
   const groundSeen = new Set();
   const captureAt = async (pg, sess, s, i) => {
-    await pg.evaluate(t => { window.__SEEK(t); }, s.t);
+    await seekFilm(pg, s.t);
     if (s.pct !== null) {
       const settled = s.pct >= 35 && s.pct <= 80;
       for (const c of await pg.evaluate(measureClippedText, settled)) clipped.push({ ...c, shot: s.shot, t: s.t });
@@ -302,7 +311,7 @@ try {
     await pg.waitForTimeout(60);
     const { data } = await sess.send("Page.captureScreenshot", {
       format: "jpeg", quality: 86, captureBeyondViewport: false,
-      clip: { x: 0, y: 0, width: 1920, height: 1080, scale: tile / 1920 },
+      clip: { x: 0, y: 0, width: stage.w, height: stage.h, scale: tile / stage.w },
     });
     writeFileSync(join(framesDir, `f_${String(i).padStart(3, "0")}.jpg`), Buffer.from(data, "base64"));
   };
@@ -315,6 +324,7 @@ try {
     let pg = page, sess = cdp;
     if (w > 0) {
       pg = await studio.newPage();
+      await pg.setViewportSize({ width: stage.w, height: stage.h });
       sess = await pg.context().newCDPSession(pg);
       await pg.goto(url, { waitUntil: "domcontentloaded" });
       await pg.waitForFunction("window.__READY === true", null, { timeout: 30000 });

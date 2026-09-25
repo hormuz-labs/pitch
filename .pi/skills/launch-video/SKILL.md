@@ -1,6 +1,6 @@
 ---
 name: launch-video
-description: Makes or edits product-led launch films, teasers, feature announcements, kinetic-type films, and 3D product animations as live shots.js previews. Use when the product, its workflow, or a feature is the film's subject; use promo-video for voice-led brand manifestos and cinematic editorial montages, and demo-video for recorded browser walkthroughs.
+description: Makes or edits product-led launch films, teasers, feature announcements, kinetic-type films, and 3D product animations as live shots.js previews. Use when the product, its workflow, or a feature is the film's subject; use promo-video for ads (short-form social, footage-led, problem → product), brand manifestos and cinematic editorial montages, and demo-video for recorded browser walkthroughs.
 ---
 
 # Launch films
@@ -8,8 +8,9 @@ description: Makes or edits product-led launch films, teasers, feature announcem
 Create `shots.js`; the studio plays the compiled `index.html` live. The user
 exports the MP4. Build and check the preview without rendering a review video.
 
-For a thematic promo, brand anthem, or voice-led editorial montage where the
-idea and emotional arc lead rather than a product feature, use
+For an ad (short-form social, built from real footage with word-synced
+captions), a thematic promo, a brand anthem, or a voice-led editorial montage
+where the idea and emotional arc lead rather than a product feature, use
 [promo-video](../promo-video/SKILL.md).
 
 For post-processing an existing video file (an uploaded clip, generated footage,

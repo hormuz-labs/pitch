@@ -104,6 +104,20 @@ registerHostAction(
   { remote: true },
 )
 
+// A clip of real footage, cut and cropped to the film's frame as VP9 WebM
+// (footage.mjs). Reads and writes only the workspace, so it can render remotely.
+registerHostAction(
+  'launch_footage',
+  (ws, params, ctx) => runSkillScript('footage.mjs', ws, scriptArgs(params), 600_000, ctx.signal),
+  { remote: true },
+)
+
+// Pexels search and download (stock.mjs). Needs the network and the host's
+// PEXELS_API_KEY, so it stays on the worker.
+registerHostAction('launch_stock', (ws, params, ctx) =>
+  runSkillScript('stock.mjs', ws, scriptArgs(params), 300_000, ctx.signal),
+)
+
 // A turn that ended without a mixdown (abort, crash, a model that stopped
 // early) still gets sound: rebuild audio/mix.wav from the workspace.
 const _uploads: UploadRef[] = []

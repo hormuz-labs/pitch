@@ -127,7 +127,7 @@ skill before you start**. Do not work from memory of these formats.
 
 | The user wants | Read |
 |---|---|
-| a voice-led promo, brand anthem, manifesto film, cinematic editorial montage | `promo-video` |
+| an ad (Reels, TikTok, Shorts, paid social), a promo, a brand anthem or manifesto film, a cinematic editorial montage | `promo-video` |
 | a product-led launch film, teaser, feature announcement | `launch-video` |
 | a narrated walkthrough of a live site or an uploaded PDF/deck | `demo-video` |
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |

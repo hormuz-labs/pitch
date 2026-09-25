@@ -1,8 +1,8 @@
 /**
  * Launch films — `pitch motion` commands wrapping the Node programs in
  * .pi/scripts/launch-video (recon, screenshot, tts, align, sync, cues/check,
- * sfx, mix, audit, review) plus two small host helpers (find_audio,
- * verify_duration). MP4 capture is owned by the user-triggered exporter. Scripts
+ * sfx, mix, audit, review, footage, stock) plus two small host helpers
+ * (find_audio, verify_duration). MP4 capture is owned by the user-triggered exporter. Scripts
  * live outside .pi/skills on purpose: the skills directory is readable by the
  * agent, and 200KB of host-side code is nothing it should ever read.
  *
@@ -262,6 +262,12 @@ export default function motionCommands(): CommandSpec[] {
           description: 'ElevenLabs: never use speed to rescue an overlong script',
         }),
       ),
+      pace: Type.Optional(
+        Type.Union([Type.Literal('narration'), Type.Literal('ad')], {
+          description:
+            'narration (default, 1.9–2.4 words/s) or ad (the brisker short-form ad read, 2.7–3.5); match shots.js audio.pace',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
@@ -304,6 +310,7 @@ export default function motionCommands(): CommandSpec[] {
       if (voice) a.push('--voice=' + voice)
       if (p.style) a.push('--style=' + p.style)
       if (model) a.push('--model=' + model)
+      if (p.pace) a.push('--pace=' + p.pace)
       return text(await runScript('tts.mjs', a, ws))
     },
   })
@@ -899,6 +906,146 @@ export default function motionCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'tighten',
+    description:
+      'Edit the breaths out of a narration read: every internal pause longer than --max (0.2s) is shortened to it, head and tail untouched, the original kept as <name>.untightened.<ext>. Short-form ads run the voice continuously (the reference ads pause for 0.3s+ about once per 30s). Run after pitch motion tts and before pitch motion align; re-align after any re-run.',
+    parameters: Type.Object({
+      vo: Type.Optional(Type.String({ description: 'Narration file (default audio/vo.wav)' })),
+      max: Type.Optional(
+        Type.Number({
+          minimum: 0.05,
+          maximum: 1,
+          description: 'Longest pause to keep, seconds (default 0.2)',
+        }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a = [`--vo=${relativeIn(ws, p.vo || 'audio/vo.wav', 'write')}`]
+      if (p.max != null) a.push(`--max=${p.max}`)
+      return text(await runScript('tighten.mjs', a, ws, 120_000))
+    },
+  })
+
+  /** A command's text plus the image it wrote, so the agent sees it without a second call. */
+  const withImage = (out: string, ws: string, file: string | null) => {
+    const abs = file ? resolveIn(ws, file) : null
+    if (!abs || !existsSync(abs)) return text(out)
+    return {
+      content: [
+        { type: 'text' as const, text: out },
+        {
+          type: 'image' as const,
+          data: readFileSync(abs).toString('base64'),
+          mimeType: 'image/jpeg',
+        },
+      ],
+      details: { file },
+    }
+  }
+
+  commands.push({
+    verb: 'footage',
+    description:
+      'Prepare one clip of real footage (an upload, a stock download, a generated clip) for a `footage` shot: cuts the range the film uses, removes baked-in black bars, crops to the film frame (shots.js `format`) around --focus, and encodes a seekable silent WebM → assets/footage/<name>.webm, recorded in assets/footage/footage.json. Returns a five-frame strip of the RESULT: look at it — a subject cropped out or a clip that crosses a cut is re-prepared, not used. Inspect long sources first with pitch video frames --contact-sheet.',
+    parameters: Type.Object({
+      src: Type.String({ description: 'Workspace video, e.g. uploads/stock/club-ears.mp4' }),
+      name: Type.String({ description: 'Readable slug for the clip, e.g. club-ears' }),
+      in: Type.Optional(
+        Type.Number({ minimum: 0, description: 'Source seconds to start at (default 0)' }),
+      ),
+      out: Type.Optional(Type.Number({ minimum: 0, description: 'Source seconds to end at' })),
+      dur: Type.Optional(
+        Type.Number({ minimum: 0.2, maximum: 60, description: 'Seconds to keep (instead of out)' }),
+      ),
+      focus: Type.Optional(
+        Type.String({
+          description:
+            'x,y fractions of the source the crop keeps centred, e.g. 0.5,0.35 (default 0.5,0.5)',
+        }),
+      ),
+      fit: Type.Optional(
+        Type.Union([Type.Literal('cover'), Type.Literal('contain')], {
+          description: 'cover (default) fills the frame; contain letterboxes',
+        }),
+      ),
+      format: Type.Optional(
+        Type.Union(
+          [Type.Literal('16:9'), Type.Literal('9:16'), Type.Literal('1:1'), Type.Literal('4:5')],
+          { description: 'Frame (default: shots.js format, else 16:9)' },
+        ),
+      ),
+      fps: Type.Optional(
+        Type.Integer({ minimum: 12, maximum: 60, description: 'Frame rate (default 30)' }),
+      ),
+      keep_bars: Type.Optional(
+        Type.Boolean({ description: 'Keep black bars baked into the source' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a = ['--src=' + relativeIn(ws, p.src), '--name=' + p.name]
+      for (const k of ['in', 'out', 'dur', 'focus', 'fit', 'format', 'fps'] as const)
+        if (p[k] != null) a.push(`--${k}=${p[k]}`)
+      if (p.keep_bars) a.push('--keep-bars')
+      const out = await hostAction(ws, 'launch_footage', { args: a })
+      const slug = String(p.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+      return withImage(out, ws, `assets/footage/${slug}.jpg`)
+    },
+  })
+
+  commands.push({
+    verb: 'stock',
+    description:
+      'Licensed stock footage and photos (Pexels) for shots that need a real-world picture nobody supplied. --mode search returns a numbered contact sheet: look at it and pick by what is visibly in the frame, not the title. --mode get downloads one result to uploads/stock/<name>.mp4|.jpg and records author, page and licence in uploads/stock/credits.json; then prepare a video with pitch motion footage. Search for the picture (subject, action, light, framing), not the idea. Identifiable people must not appear to endorse the product.',
+    parameters: Type.Object({
+      mode: Type.Union([Type.Literal('search'), Type.Literal('get')]),
+      query: Type.Optional(
+        Type.String({
+          description:
+            'search: what is in the frame, e.g. "close-up hand turning an hourglass, dark background"',
+        }),
+      ),
+      kind: Type.Optional(
+        Type.Union([Type.Literal('video'), Type.Literal('photo')], {
+          description: 'default video',
+        }),
+      ),
+      orientation: Type.Optional(
+        Type.Union([Type.Literal('portrait'), Type.Literal('landscape'), Type.Literal('square')], {
+          description: 'search: match the film frame',
+        }),
+      ),
+      count: Type.Optional(
+        Type.Integer({ minimum: 1, maximum: 15, description: 'search: results (default 9)' }),
+      ),
+      min_duration: Type.Optional(
+        Type.Number({ minimum: 0, description: 'search: shortest video, seconds' }),
+      ),
+      pick: Type.Optional(
+        Type.Integer({ minimum: 1, description: 'get: the number on the last search sheet' }),
+      ),
+      id: Type.Optional(
+        Type.Integer({ minimum: 1, description: 'get: a Pexels id (with kind) instead of pick' }),
+      ),
+      name: Type.Optional(Type.String({ description: 'get: readable file name, e.g. club-ears' })),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a = [p.mode]
+      if (p.query) a.push('--query=' + p.query)
+      if (p.min_duration != null) a.push('--min-duration=' + p.min_duration)
+      for (const k of ['kind', 'orientation', 'count', 'pick', 'id', 'name'] as const)
+        if (p[k] != null) a.push(`--${k}=${p[k]}`)
+      const out = await hostAction(ws, 'launch_stock', { args: a })
+      return withImage(out, ws, p.mode === 'search' ? '.studio/stock/search.jpg' : null)
+    },
+  })
+
+  commands.push({
     verb: 'find-audio',
     description:
       'Discover music candidates for any video. Respect an existing bed or user choice. List a small shuffled shortlist or use --random to import one candidate. Import only the candidate you will use or assess, not the entire shortlist. Optional pitch media review --purpose music analyzes actual sound when suitability is uncertain; it is not a routine gate. Filenames are opaque IDs, not moods. Reuse the chosen bed during edits.',
@@ -1011,7 +1158,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → only those types' fields and DOM classes; `section` → named sections, one or several at once. Read common shot fields once with --section 'common shot fields'; it is not repeated with each type lookup. Request only capabilities used by the chosen treatment, and reuse sections already in context. Sections include density layer, actors, narration spine, common shot fields, ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → only those types' fields and DOM classes; `section` → named sections, one or several at once. Read common shot fields once with --section 'common shot fields'; it is not repeated with each type lookup. Request only capabilities used by the chosen treatment, and reuse sections already in context. Sections include format, footage, captions, audio effects, density layer, actors, narration spine, common shot fields, ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {
@@ -1136,6 +1283,15 @@ export default function motionCommands(): CommandSpec[] {
             'Load p5.js (1MB) for a generative canvas shot ported from the lab (default false).',
         }),
       ),
+      format: Type.Optional(
+        Type.Union(
+          [Type.Literal('16:9'), Type.Literal('9:16'), Type.Literal('1:1'), Type.Literal('4:5')],
+          {
+            description:
+              'The starter shots.js frame: 16:9 (default), 9:16 for Reels/TikTok/Shorts, 1:1, 4:5. Decide it before the first shot.',
+          },
+        ),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
@@ -1155,7 +1311,7 @@ export default function motionCommands(): CommandSpec[] {
         } catch {
           tokens = null
         }
-        writeFileSync(shotsPath, starterShots(tokens))
+        writeFileSync(shotsPath, starterShots(tokens, p.format))
         starter = tokens
           ? "\nshots.js written with the brand recon measured and a placeholder opener from the site's h1 — it is playing now; replace it with your hook."
           : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run pitch motion recon, then put the measured values in brand.'
