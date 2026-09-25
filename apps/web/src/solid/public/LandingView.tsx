@@ -841,12 +841,16 @@ export const HowItWorks = () => {
           const center = rect.top + rect.height / 2
           const viewportCenter = window.innerHeight * 0.46
           const distance = Math.abs(center - viewportCenter)
-          const fadeDistance = Math.max(window.innerHeight * 0.88, rect.height * 0.82)
-          const visibility = 1 - gsap.utils.clamp(0, 1, distance / fadeDistance)
+          // Fully sharp while the step spans the reading line: tall steps
+          // (04, 05) rarely land their exact centre on it, so a point-only
+          // target left them faintly blurred mid-screen.
+          const clear = Math.max(0, distance - rect.height * 0.35)
+          const visibility = 1 - gsap.utils.clamp(0, 1, clear / (window.innerHeight * 0.6))
           const eased = visibility * visibility * (3 - 2 * visibility)
+          const blur = (1 - eased) * 2.5
           gsap.set(element, {
             autoAlpha: 0.28 + eased * 0.72,
-            filter: `blur(${(1 - eased) * 2.5}px)`,
+            filter: blur < 0.05 ? 'none' : `blur(${blur}px)`,
             y: gsap.utils.clamp(-18, 18, (viewportCenter - center) * 0.035),
           })
           if (distance < window.innerHeight * 0.24) setActive(index)

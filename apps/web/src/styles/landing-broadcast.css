@@ -136,8 +136,8 @@
   top: 0;
   z-index: 50;
   background: color-mix(in srgb, var(--lb-bg) 90%, transparent);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--lb-line);
   transition: background 180ms var(--ease-out), backdrop-filter 180ms var(--ease-out);
 }
@@ -147,8 +147,8 @@
   z-index: 54;
   width: 100%;
   background: var(--lb-surface);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .lb-nav[data-mobile-open='true'] .lb-nav-in {
   background: var(--lb-surface);
@@ -280,8 +280,8 @@
   inset: 0;
   border: 0;
   background: rgba(0, 0, 0, 0.045);
-  backdrop-filter: blur(9px);
   -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
   opacity: 0;
   pointer-events: none;
   transform: translateZ(0);

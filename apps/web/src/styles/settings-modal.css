@@ -12,8 +12,8 @@
   place-items: center;
   padding: 24px;
   background: rgb(0 0 0 / 72%);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   font-family: var(--font-sans);
   animation: settings-fade 160ms ease both;
 }
