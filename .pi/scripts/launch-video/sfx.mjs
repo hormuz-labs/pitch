@@ -35,6 +35,19 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..", "..");
 const MANIFEST = join(HERE, "data", "sfx-index.json");
 
+// Studio defaults (data/sfx-settings.json), overridden per project by
+// `sfx-pack` / `sfx-density` in audio/mix-settings.json.
+const SETTINGS = (() => {
+  const read = f => { try { return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : {}; } catch { return {}; } };
+  const studio = read(join(HERE, "data", "sfx-settings.json"));
+  const project = read(resolve(process.cwd(), "audio", "mix-settings.json"));
+  return {
+    pack: project["sfx-pack"] ?? studio.pack ?? null,
+    density: project["sfx-density"] ?? studio.density ?? "heavy",
+  };
+})();
+const HEAVY = SETTINGS.density === "heavy";
+
 // ---------------------------------------------------------------------------
 // Per-class mix targets. These are the levels the SFX bus is built AT, before
 // it is mixed under VO and music (see references/sfx-design.md §4).
@@ -47,8 +60,13 @@ const TARGET_LUFS = {
   tick: -34, pop: -30, click: -30, type: -32, data: -31, select: -29,
   notify: -28, chime: -27, camera: -29, success: -26,
   whoosh_soft: -28, whoosh_deep: -24, reverse: -27, glitch: -27,
-  riser: -25, impact: -21, subdrop: -20,
+  riser: -25, impact: -21, subdrop: -20, ring: -30,
 };
+// A heavy mix: every non-micro class sits 4dB hotter, so whooshes, risers and
+// hits are felt under the voice rather than implied.
+if (HEAVY) for (const k of Object.keys(TARGET_LUFS)) if (!MICRO_EVENTS.has(k)) TARGET_LUFS[k] += 4;
+/** Per-30s budgets: signature (non-micro) cues and micro texture. */
+const BUDGET = HEAVY ? { t1: 22, t2: 48 } : { t1: 6, t2: 14 };
 
 /**
  * Travel sounds must PEAK on the beat, not start on it — a whoosh that begins
@@ -58,6 +76,9 @@ const TARGET_LUFS = {
 const DEFAULT_LEAD = {
   whoosh_soft: 0.12, whoosh_deep: 0.22, reverse: 0.30, riser: 0.0, subdrop: 0.06,
 };
+
+/** Sounds that build INTO their cue time and end on it. */
+const APPROACH = new Set(["riser", "reverse"]);
 
 /** When an event has no clips of its own, borrow from a neighbour. */
 const FALLBACK = {
@@ -151,6 +172,8 @@ async function inspectWorkspaceClip(rel, event) {
  */
 function rank(clips, target) {
   return [...clips].sort((a, b) => {
+    const pa = a.pack === SETTINGS.pack, pb = b.pack === SETTINGS.pack;
+    if (pa !== pb) return pa ? -1 : 1;             // the chosen pack first
     if (b.trust !== a.trust) return b.trust - a.trust;
     const ga = a.lufs == null ? 6 : Math.abs(target - a.lufs);
     const gb = b.lufs == null ? 6 : Math.abs(target - b.lufs);
@@ -200,7 +223,12 @@ if (MODE === "query" || MODE === undefined) {
     for (const [ev, meta] of Object.entries(manifest.events)) {
       console.log(`${ev.padEnd(14)} ${String(meta.count).padStart(3)}   ${meta.use}`);
     }
-    console.log(`\nBudget per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture — the build warns past either.`);
+    console.log(`\nPack: ${SETTINGS.pack || "(none)"} ranked first · density: ${SETTINGS.density} — budget per 30s: ~${BUDGET.t1} signature cues (every event but tick/pop/click/type/data) and ~${BUDGET.t2} micro-texture; the build warns past either.`);
+    for (const [name, pack] of Object.entries(manifest.packs || {})) {
+      if (!Object.keys(pack.roles || {}).length) continue;
+      console.log(`\n${pack.title} — suggested layers per film moment (event:clip id, pass as "clip"):`);
+      for (const [role, picks] of Object.entries(pack.roles)) console.log(`  ${role.padEnd(10)} ${picks.join("  ")}`);
+    }
     console.log(`Query: node scripts/sfx.mjs query --event=<name>[,<name>…] [--max=<sec>] [--limit=<n>] — every event you need in one call.`);
     process.exit(0);
   }
@@ -241,12 +269,13 @@ if (MODE === "query" || MODE === undefined) {
   if (!hits.length) { console.log(`No clips for '${event}'.`); continue; }
 
   console.log(`${event}${note}   target ${TARGET_LUFS[event] ?? -28} LUFS, default lead ${DEFAULT_LEAD[event] ?? 0}s\n`);
-  console.log("  EFF    ONSET  LUFS    ID");
+  console.log("  EFF    HIT    LUFS    ID  — what it is / use it for");
   hits = rank(hits, TARGET_LUFS[event] ?? -28);
   for (const c of hits.slice(0, limit)) {
     console.log(
-      `  ${c.effDur.toFixed(2).padStart(5)}s ${c.onset.toFixed(2).padStart(5)}s ` +
-      `${(c.lufs == null ? "  —  " : c.lufs.toFixed(1).padStart(6))}  ${c.id}`
+      `  ${c.effDur.toFixed(2).padStart(5)}s ${(c.hit ?? 0).toFixed(2).padStart(5)}s ` +
+      `${(c.lufs == null ? "  —  " : c.lufs.toFixed(1).padStart(6))}  ${c.id}` +
+      (c.desc ? `\n                         ${c.desc} — ${c.use}` : "")
     );
   }
   if (hits.length > limit) console.log(`  … ${hits.length - limit} more`);
@@ -314,6 +343,8 @@ for (const [i, cue] of cues.entries()) {
     // pointing at the same sound afterwards.
     clip = manifest.clips.find(c =>
       c.id === cue.clip ||
+      c.id.endsWith("/" + cue.clip) ||                 // a curated pack's short id
+      c.path.split("/").pop().replace(/\.[^.]+$/, "") === cue.clip ||
       c.path.endsWith(cue.clip) ||
       c.sourceId === cue.clip ||
       (c.origin && c.origin.endsWith(cue.clip)));
@@ -335,7 +366,9 @@ for (const [i, cue] of cues.entries()) {
   used.add(clip.id);
 
   const event = cue.event || clip.event;
-  const lead = cue.lead ?? DEFAULT_LEAD[event] ?? 0;
+  // A curated clip knows where its moment lands (`hit`, from its onset): the
+  // whoosh's peak, the swell-in impact's crest. Align that to t.
+  const lead = cue.lead ?? clip.hit ?? DEFAULT_LEAD[event] ?? 0;
   if (!Number.isFinite(lead) || (cue.dur != null && (!Number.isFinite(cue.dur) || cue.dur <= 0))
     || (cue.fadeOut != null && (!Number.isFinite(cue.fadeOut) || cue.fadeOut < 0))) {
     problems.push(`${label}: lead/fadeOut must be finite and dur must be positive`);
@@ -344,8 +377,20 @@ for (const [i, cue] of cues.entries()) {
   // Place the TRANSIENT at t: back off the clip's own silent head, then the
   // class lead so travel sounds peak on the beat instead of starting on it.
   // A riser ENDS at t. Its audible duration is the approach to the payoff.
-  const audibleDur = cue.dur ?? (event === "riser" ? Math.min(1.5, clip.effDur) : null);
+  // A riser with a measured crest plays the approach that ENDS on its crest
+  // (its head is trimmed), so it peaks on t instead of stopping mid-build.
+  // Reverse (suck-in) sounds are approaches too: they end on their crest.
+  const crest = APPROACH.has(event) && clip.hit != null ? clip.hit : null;
+  // A travel sound with a measured moment keeps a short tail after it by
+  // default, so a whoosh on every cut never needs hand-set lengths.
+  const autoTail = !APPROACH.has(event) && clip.hit != null && clip.effDur > 1.5
+    ? Number(Math.min(clip.effDur, clip.hit + 0.8).toFixed(3)) : null;
+  const audibleDur = cue.dur ?? (event === "riser" || crest != null ? Math.min(1.5, crest ?? clip.effDur) : autoTail);
+  const head = crest != null ? Math.max(0, crest - audibleDur) : 0;
+  // The part rendered for a crest riser already starts at its head, so it is
+  // placed by its audible length alone.
   const startAt = cue.align === "file" ? cue.t
+    : crest != null ? cue.t - audibleDur
     : event === "riser" ? cue.t - clip.onset - audibleDur
     : cue.t - clip.onset - lead;
   // Negative placement must trim the head, not shift the transient later.
@@ -357,7 +402,8 @@ for (const [i, cue] of cues.entries()) {
   // landed. `dur` is measured in AUDIBLE seconds from the transient, so it
   // lines up with the animation length you read off the timeline.
   const dur = audibleDur;
-  const fade = cue.fadeOut ?? (dur ? Math.min(0.18, dur * 0.3) : 0);
+  // A crest riser ends ON its peak: a long fade would shave the payoff off.
+  const fade = cue.fadeOut ?? (dur ? (crest != null ? 0.03 : Math.min(0.18, dur * 0.3)) : 0);
 
   const target = cue.targetLufs ?? TARGET_LUFS[event] ?? -28;
   const offset = cue.gainDb ?? defaults.gainDb ?? 0;
@@ -365,7 +411,7 @@ for (const [i, cue] of cues.entries()) {
     problems.push(`${label}: targetLufs and gainDb must be finite numbers`);
     continue;
   }
-  const { gainDb, ceiling } = cueGain(clip, target, offset, event);
+  const { gainDb, ceiling } = cueGain(clip, target, offset, event, HEAVY ? -6 : -9);
 
   if (clip.lufs != null && Math.abs(target - clip.lufs) > 14) {
     problems.push(`${label}: needs ${(target - clip.lufs).toFixed(1)}dB to reach ${target} LUFS — ` +
@@ -374,6 +420,12 @@ for (const [i, cue] of cues.entries()) {
   if (cue.t < 0) problems.push(`${label}: t=${cue.t}s is before zero — move the cue later`);
   if (cue.t > duration) problems.push(`${label}: t=${cue.t}s is past the ${duration}s timeline`);
 
+  if (crest == null && dur && cue.align !== "file" && dur < lead) {
+    problems.push(`${label}: dur ${dur}s ends before this clip's moment at ${lead.toFixed(2)}s — its peak would be cut off; lengthen dur or pick a shorter clip`);
+  }
+  if (crest != null && dur > crest + 0.05) {
+    problems.push(`${label}: this riser builds for ${crest.toFixed(2)}s before its crest — a ${dur}s approach would end past the peak; shorten dur or pick a longer riser`);
+  }
   if (dur && dur > clip.effDur + 0.05) {
     problems.push(`${label}: dur ${dur}s exceeds the clip's ${clip.effDur}s of audio — ` +
       `it will end early; pick a longer clip or shorten the cue`);
@@ -385,14 +437,16 @@ for (const [i, cue] of cues.entries()) {
     problems.push(`${label}: the sound ends before the timeline starts — move t later`);
   }
 
-  plan.push({ label, event, clip, t: cue.t, startAt: Math.max(0, startAt), trimFrom, gainDb, ceiling, borrowedFrom, dur, fade });
+  plan.push({ label, event, clip, t: cue.t, startAt: Math.max(0, startAt), trimFrom, gainDb, ceiling, borrowedFrom, dur, fade, from: crest != null ? clip.onset + head : null });
 }
 
 // --- density check: two tiers (see references/sfx-design.md §5) ------------
 // Tier 2 is quiet supporting texture and may be frequent; Tier 1 is the loud
 // signature layer and is strictly budgeted. Counting them together would either
 // ban legitimate texture or wave through six impacts in a row.
-const TIER2 = MICRO_EVENTS;
+// A heavy mix treats light travel and shutter clicks as texture: they ride
+// every cut, and only the weighted classes spend the signature budget.
+const TIER2 = HEAVY ? new Set([...MICRO_EVENTS, "whoosh_soft", "camera"]) : MICRO_EVENTS;
 const per30 = {};
 for (const p of plan) {
   const bucket = Math.floor(p.t / 30);
@@ -403,18 +457,18 @@ const dense = [];
 for (const [bucket, b] of Object.entries(per30)) {
   // Name the offenders: "9 signature cues" alone sent the agent hunting for the definition.
   const inBucket = (tier1) => plan.filter(p => Math.floor(p.t / 30) === +bucket && TIER2.has(p.event) !== tier1).map(p => `${p.label} (${p.event} @${p.t.toFixed(1)}s)`).join(", ");
-  if (b.t1 > 6) dense.push([bucket, `${b.t1} signature cues (budget ~6, ★ below): ${inBucket(true)} — demote some to a pop/tick, or drop them`]);
-  if (b.t2 > 14) dense.push([bucket, `${b.t2} micro-texture cues (budget ~14): ${inBucket(false)}`]);
+  if (b.t1 > BUDGET.t1) dense.push([bucket, `${b.t1} signature cues (budget ~${BUDGET.t1}, ★ below): ${inBucket(true)} — demote some to a pop/tick, or drop them`]);
+  if (b.t2 > BUDGET.t2) dense.push([bucket, `${b.t2} micro-texture cues (budget ~${BUDGET.t2}): ${inBucket(false)}`]);
 }
 
-// Cues closer than 120ms smear into one mushy noise instead of reading as
-// separate events.
-// A riser's t is its END, so sharing a payoff with an impact/chime is the
-// intended handoff, not two simultaneous attacks.
-const bySeq = plan.filter(p => p.event !== "riser").sort((a, b) => a.t - b.t);
+// Two cues of the SAME class closer than 120ms smear into one mushy noise.
+// Different classes on one moment are a layer — a whoosh into a hit over a
+// sub drop — and are the point of a heavy mix. A riser's t is its END, so
+// sharing a payoff with an impact is the intended handoff.
+const bySeq = plan.filter(p => !APPROACH.has(p.event)).sort((a, b) => a.event.localeCompare(b.event) || a.t - b.t);
 for (let i = 0; i < bySeq.length - 1; i++) {
   const gap = bySeq[i + 1].t - bySeq[i].t;
-  if (gap < 0.12) {
+  if (bySeq[i + 1].event === bySeq[i].event && gap < 0.12) {
     problems.push(
       `${bySeq[i].label} → ${bySeq[i + 1].label}: only ${(gap * 1000).toFixed(0)}ms apart ` +
       `— cues under 120ms smear together; merge them or move one`
@@ -423,8 +477,8 @@ for (let i = 0; i < bySeq.length - 1; i++) {
 }
 
 console.log(`SFX bus plan — ${plan.length} cues over ${duration}s`);
-console.log("Peak ceilings before mix trim: signature −9dBFS, micro-texture −18dBFS; LUFS correction is capped by transient headroom.");
-console.log(`★ signature (every event except ${[...TIER2].join("/")}) — ~6 per 30s, one per shot; unmarked rows are micro-texture, up to ~14 per 30s\n`);
+console.log(`Pack ${SETTINGS.pack || "(none)"} first · density ${SETTINGS.density}. Peak ceilings before mix trim: signature ${HEAVY ? "−6" : "−9"}dBFS, micro-texture −18dBFS; LUFS correction is capped by transient headroom.`);
+console.log(`★ signature (every event except ${[...TIER2].join("/")}) — ~${BUDGET.t1} per 30s; unmarked rows are micro-texture, up to ~${BUDGET.t2} per 30s. Layers (different classes on one moment) are welcome.\n`);
 console.log("     T      START   GAIN    EVENT         CLIP");
 for (const p of plan) {
   console.log(
@@ -466,10 +520,13 @@ for (const [i, p] of plan.entries()) {
   if (p.dur) {
     // Trim measured from the clip's transient, not its file start, then fade
     // so the cut is inaudible.
-    const end = p.clip.onset + p.dur;
-    filters.push(`atrim=0:${end.toFixed(3)}`, "asetpts=N/SR/TB");
+    // A crest riser keeps [from, from + dur]; everything else [0, onset + dur].
+    const begin = p.from ?? 0;
+    const end = (p.from ?? p.clip.onset) + p.dur;
+    filters.push(`atrim=${begin.toFixed(3)}:${end.toFixed(3)}`, "asetpts=N/SR/TB");
     if (p.fade > 0) {
-      filters.push(`afade=t=out:st=${Math.max(0, end - p.fade).toFixed(3)}:d=${p.fade.toFixed(3)}`);
+      const len = end - begin;
+      filters.push(`afade=t=out:st=${Math.max(0, len - p.fade).toFixed(3)}:d=${p.fade.toFixed(3)}`);
     }
   }
   if (p.trimFrom) filters.push(`atrim=start=${p.trimFrom.toFixed(3)}`, "asetpts=PTS-STARTPTS");

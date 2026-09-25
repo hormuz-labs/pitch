@@ -341,23 +341,96 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'music',
     description:
-      'Generate a bespoke instrumental bed with ElevenLabs Music, when nothing in the curated library (pitch motion find-audio) fits. ' +
-      'Describe genre, mood, instrumentation, BPM, production character and the timed arrangement (where it builds, where it drops, how it ends); never name an artist or a song. ' +
-      "Ask for the film's exact length. Billed; one call per film.",
+      'Generate a bespoke instrumental bed, when nothing in the curated library (pitch motion find-audio) fits. Billed; one call per film. ' +
+      'Default provider lyria (Lyria 3.5): one prompt — identity line (genre and era, BPM and feel, instruments plus one unexpected, mood), then timestamped sections ("[0:00 - 0:03] Intro: …") from the music plan. ' +
+      'Provider elevenlabs (music_v2): styles (6–7) and sections, each ending at a film second (until), at least 3s: ' +
+      '[{"label":"Intro","until":3.1,"text":"filtered drums, no bass","avoid":["808","bass"]},…]; exact length, but it follows the sections loosely (one drop, no breakdown, in vocal-free takes). Never name an artist or a song. ' +
+      'Neither keeps the clock exactly, so the tool measures where the bass really drops out and slams back and, with drop_at, trims the head so a drop lands on that film second (the turn word). ' +
+      "It cuts the bed to the film's duration with a fade, keeps the raw take, and reports every drop in film time.",
     parameters: Type.Object({
-      prompt: Type.String({
-        description: 'The brief: BPM, palette, instruments and the timed arrangement',
+      provider: Type.Optional(
+        Type.Union([Type.Literal('elevenlabs'), Type.Literal('lyria')], {
+          description:
+            'lyria (default: follows the arrangement) or elevenlabs (exact length, loose sections)',
+        }),
+      ),
+      styles: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "elevenlabs: the bed's identity, 6–7 styles (genre and era, BPM, instruments, mood)",
+        }),
+      ),
+      avoid: Type.Optional(
+        Type.Array(Type.String(), {
+          description: 'elevenlabs: styles to keep out of every section',
+        }),
+      ),
+      sections: Type.Optional(
+        Type.Array(
+          Type.Object({
+            label: Type.String(),
+            until: Type.Number({ description: 'Film second the section ends on' }),
+            text: Type.Optional(Type.String({ description: 'What enters, leaves or builds' })),
+            styles: Type.Optional(Type.Array(Type.String())),
+            avoid: Type.Optional(Type.Array(Type.String())),
+          }),
+          { description: 'elevenlabs: the music plan, in order, each at least 3s' },
+        ),
+      ),
+      prompt: Type.Optional(
+        Type.String({
+          description:
+            'lyria: the brief with timestamped sections; elevenlabs: a plain prompt when no sections are given',
+        }),
+      ),
+      duration: Type.Number({
+        minimum: 3,
+        maximum: 600,
+        description: "The film's length in seconds",
       }),
-      duration: Type.Number({ minimum: 3, maximum: 600, description: 'Exact length in seconds' }),
-      out: Type.Optional(Type.String({ description: 'Output .mp3 (default audio/music.mp3)' })),
+      drop_at: Type.Optional(
+        Type.Number({
+          minimum: 0,
+          description: 'Film second a drop must land on: the onset of the word the film turns on',
+        }),
+      ),
+      out: Type.Optional(
+        Type.String({
+          description:
+            'Fitted bed .mp3 (default audio/music.mp3; the raw take is kept as <name>.elevenlabs.mp3 or <name>.lyria.mp3)',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
+      const out = relativeIn(ws, p.out || 'audio/music.mp3', 'write')
+      if (p.provider !== 'elevenlabs') {
+        if (!p.prompt)
+          return text(
+            'pitch motion music needs --prompt (or --provider elevenlabs with --styles and --sections).',
+          )
+        return text(
+          await hostAction(ws, 'lyria_music', {
+            prompt: p.prompt,
+            duration: p.duration,
+            dropAt: p.drop_at,
+            out,
+          }),
+        )
+      }
+      if (!p.sections?.length && !p.prompt)
+        return text(
+          'pitch motion music --provider elevenlabs needs --styles and --sections (or a --prompt).',
+        )
       return text(
         await hostAction(ws, 'elevenlabs_music', {
+          styles: p.styles,
+          avoid: p.avoid,
+          sections: p.sections,
           prompt: p.prompt,
           duration: p.duration,
-          out: relativeIn(ws, p.out || 'audio/music.mp3', 'write'),
+          dropAt: p.drop_at,
+          out,
         }),
       )
     },
@@ -366,7 +439,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'sound',
     description:
-      'Generate ONE isolated, product-specific sound with ElevenLabs Sound Effects, when the curated manifest (pitch motion sfx --mode query) has nothing that fits the event. ' +
+      "Generate ONE isolated, product-specific sound with ElevenLabs Sound Effects — only for what the curated library cannot have (the product's own foley, a literal ambience). Whooshes, risers, impacts, sub drops and shutters come from pitch motion sfx (the Gakuyen pack). " +
       'One concise sound per call — the transient, its material, its length — never a soundscape. Reference the file in audio/sfx-cues.json with its event class; the build measures its onset and places it.',
     parameters: Type.Object({
       prompt: Type.String({ description: 'One sound event, at most 450 characters' }),
@@ -763,7 +836,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'check',
     description:
-      'Fast compile check: links new js/shots/*.js and css/shots/*.css, loads the page and reports errors, valid durations, real shot start times and actionable factory overruns (over 1.1×; over 1.6× fails audit). Flags whole-screen UI for a delivery-size readability review; overviews are valid. Does not prescribe pacing, lab effects, word entrances or objects crossing cuts. Run after adding shots; address actual build problems and review content notes against the treatment.',
+      'Fast compile check: links new js/shots/*.js and css/shots/*.css, loads the page and reports errors, valid durations, real shot start times and actionable factory overruns (over 1.1×; over 1.6× fails audit). Flags whole-screen UI for a delivery-size readability review; overviews are valid. For ads (audio.pace "ad") it also warns on pace (picture changes under 1.5/s, a still picture held past 1.5s, a clip reused across beats), a subtitle tier, and captions that sit where the last one did or cover what the shot shows. Does not prescribe lab effects, word entrances or objects crossing cuts. Run after adding shots; address actual build problems and review content notes against the treatment.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -807,7 +880,8 @@ export default function motionCommands(): CommandSpec[] {
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
       'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Read references/audio.md first. Cue sheet: {"duration":23.4,"cues":[{"t":6.4,"event":"impact","dur":0.8}]}, not a bare array. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
-      'Ceilings per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; these are limits, not targets. Choose sparse effects or music alone when the treatment calls for it. The build must finish with no placement warnings.',
+      'The studio pack (Gakuyen) ranks first and every clip carries its measured moment (`hit`), so t is the cut or word and the sound peaks there; pass a pack clip by its short id in "clip" (mode=list shows the suggested layers per moment). ' +
+      'Density follows data/sfx-settings.json (heavy by default, a project may set "sfx-density" in audio/mix-settings.json): heavy layers a whoosh on every cut, a shutter per burst clip and stacked riser+impact+subdrop on big moments, with ~22 signature and ~48 texture cues per 30s (a sound on every picture change); different classes on one t are a layer, the same class within 120ms smears. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
       event: Type.Optional(

@@ -936,6 +936,24 @@
     return scan(Math.max(0, from || 0)) || scan(0);
   }
   const CAP_POS = { top: 0.12, upper: 0.24, center: 0.5, lower: 0.66, bottom: 0.84 };
+  // `jump`: the slots a phrase can land in (top edge, alignment), inside the
+  // safe zone.
+  const JUMP_SLOTS = [
+    { y: 0.14, align: "left" }, { y: 0.42, align: "center" }, { y: 0.58, align: "right" }, { y: 0.2, align: "right" },
+    { y: 0.34, align: "left" }, { y: 0.12, align: "center" }, { y: 0.52, align: "left" }, { y: 0.28, align: "center" },
+  ];
+  // A walk of 3 or 5 steps round the ring (both coprime to 8): the next slot
+  // is never the current one.
+  function jumpSlot(pi) {
+    let at = 0;
+    for (let k = 1; k <= pi; k++) {
+      let h = Math.imul(k ^ 0x5bd1e995, 0x27d4eb2d);
+      h = Math.imul(h ^ (h >>> 15), 0x165667b1);
+      at = (at + ((h ^ (h >>> 13)) & 4 ? 3 : 5)) % JUMP_SLOTS.length;
+    }
+    return at;
+  }
+  const jumpAmount = (v) => (v === true ? 0.6 : Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
   const CAP_ENTER = 0.14;
   function captionsWordsUrl(spec) {
     const c = spec.captions || {};
@@ -951,7 +969,21 @@
     const s = { ...style, ...p };
     const el = document.createElement("div");
     const stack = s.stack || "word";
+    // Jump: a phrase that does not place itself takes the next slot, a tilt
+    // and a pop entrance. Everything is seeded by the phrase index, so every
+    // render and every seek agrees.
+    const jump = jumpAmount(s.jump);
+    const r = rng(7919 * (pi + 1) + 17);
+    const placed = ["pos", "y", "x", "align"].some((k) => p[k] != null);
+    const slotAt = jump && !placed ? jumpSlot(pi) : null;
+    if (slotAt != null) {
+      const slot = JUMP_SLOTS[slotAt];
+      s.y = slot.y; s.align = slot.align; s.pos = null;
+    }
     const align = s.align || "left";
+    const rot = Number.isFinite(s.rotate) ? s.rotate : jump ? (r() - 0.5) * 2 * 7 * jump : 0;
+    if (rot) { el.style.transform = `rotate(${rot.toFixed(2)}deg)`; el.style.transformOrigin = "50% 50%"; }
+    const enterDefault = s.enter || (jump ? "pop" : "cut");
     el.className = `cap-phrase ${stack === "line" ? "line" : stack === "replace" ? "replace" : "stack"} align-${align}`;
     el.dataset.phrase = String(pi);
     if (s.tier) el.dataset.tier = s.tier;
@@ -989,10 +1021,15 @@
       if (w.italic) node.style.fontStyle = "italic";
       if (w.case) node.style.textTransform = w.case === "none" ? "none" : w.case === "lower" ? "lowercase" : w.case === "title" ? "capitalize" : "uppercase";
       el.appendChild(node);
-      return { el: node, text: String(w.text), fx, at: Number.isFinite(w.at) ? w.at : null, end: Number.isFinite(w.end) ? w.end : null, enter: w.enter || s.enter || "cut" };
+      // A word's own tilt and nudge (em); under jump each word leans a little,
+      // and in a `replace` stack each word hops to its own spot (placed later).
+      const wr = Number.isFinite(w.rotate) ? w.rotate : jump ? (r() - 0.5) * 2 * 3.5 * jump : 0;
+      const hop = jump && stack === "replace" ? { x: (r() - 0.5) * 2 * 0.2 * jump, y: (r() - 0.5) * 2 * 0.12 * jump } : null;
+      return { el: node, text: String(w.text), fx, at: Number.isFinite(w.at) ? w.at : null, end: Number.isFinite(w.end) ? w.end : null,
+        enter: w.enter || enterDefault, rot: wr, dx: Number(w.dx) || 0, dy: Number(w.dy) || 0, hop, ox: 0, oy: 0 };
     });
     layer.appendChild(el);
-    return { el, spec: p, style: s, stack, align, margin, words, tier: s.tier || "main", start: null, out: null };
+    return { el, spec: p, style: s, stack, align, margin, words, jump, slotAt, tier: s.tier || "main", start: null, out: null };
   }
   function captionsMount(spec, viewport) {
     const c = spec.captions;
@@ -1100,25 +1137,114 @@
     report.words = live.reduce((t, ph) => t + ph.words.length, 0);
   }
   // Place each phrase once its words have their final size (all laid out, only hidden).
-  function captionsPlace(model) {
+  // What a caption must not cover at time t: the media and the large type of
+  // the shot on screen (a film window, a logo, a card's headline). Full-bleed
+  // pictures do not count — type over them is the point.
+  function captionsBusy(ctx, t) {
+    if (!ctx || !ctx.master) return [];
+    const node = ctx.nodes.find((n) => {
+      const st = ctx.master.labels[n.shot.id];
+      return Number.isFinite(st) && t >= st && t < st + (n.shot.dur || 0);
+    });
+    if (!node) return [];
+    const vp = (document.getElementById("viewport") || document.body).getBoundingClientRect();
+    const sx = W / (vp.width || W), sy = H / (vp.height || H);
+    const big = Math.min(W, H) * 0.03;
+    const out = [];
+    for (const el of node.inner.querySelectorAll("img, video, canvas, svg, .ft-window, *")) {
+      const media = /^(IMG|VIDEO|CANVAS|SVG)$/i.test(el.tagName) || el.classList.contains("ft-window");
+      const text = !media && [...el.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim())
+        && parseFloat(getComputedStyle(el).fontSize) >= big;
+      const cs = getComputedStyle(el);
+      // A visible box — a pill, a card, a window frame — is content too.
+      const alpha = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); return m ? (m[1].split(",")[3] == null ? 1 : Number(m[1].split(",")[3])) : 0; };
+      const boxed = !media && !text && (alpha(cs.backgroundColor) > 0.3 || (parseFloat(cs.borderTopWidth) > 0 && alpha(cs.borderTopColor) > 0.3));
+      if (!media && !text && !boxed) continue;
+      if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.05) continue;
+      const r = el.getBoundingClientRect();
+      const pad = H * 0.02;
+      const box = { l: (r.left - vp.left) * sx - pad, t: (r.top - vp.top) * sy - pad, r: (r.right - vp.left) * sx + pad, b: (r.bottom - vp.top) * sy + pad };
+      const area = Math.max(0, box.r - box.l) * Math.max(0, box.b - box.t);
+      if (area < 1 || area > W * H * 0.7) continue;
+      out.push(box);
+    }
+    return out;
+  }
+  const overlap = (a, b) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+  function captionsPlace(model, ctx) {
+    const wasAt = ctx && ctx.master ? ctx.master.time() : null;
+    let prevSlot = null;
     for (const ph of model.phrases) {
       const s = ph.style;
       const el = ph.el;
-      // scrollWidth: a single word wider than the margins overflows its box.
-      const w = Math.max(el.offsetWidth, el.scrollWidth), hgt = el.offsetHeight;
-      const y = typeof s.pos === "number" ? s.pos : s.y ?? CAP_POS[s.pos || "upper"] ?? CAP_POS.upper;
-      // A stack grows downward from its top edge, so top/upper/lower pin the
-      // top; center centres the finished phrase; bottom pins its last line.
-      let top = y * H;
-      if (s.pos === "center") top -= hgt / 2;
-      else if (s.pos === "bottom") top -= hgt;
-      let left;
-      if (ph.align === "center") left = (s.x != null ? s.x * W : W / 2) - w / 2;
-      else if (ph.align === "right") left = W - (s.x != null ? s.x * W : ph.margin * W) - w;
-      else left = s.x != null ? s.x * W : ph.margin * W;
+      // A jumping phrase tries its slot, then walks the ring until it clears
+      // the shot's content at its own moment (and never repeats the last slot).
+      if (ph.slotAt != null && ph.start != null && ctx && ctx.master) {
+        // Sample the phrase's whole life: it can outlast its shot, and a logo
+        // or window may still be animating in at its first word.
+        const end = Number.isFinite(ph.out) ? ph.out : ph.start + 1;
+        const busy = [];
+        for (const t of [ph.start + 0.12, (ph.start + end) / 2, end - 0.08]) {
+          if (t < ph.start) continue;
+          ctx.master.seek(t, false);
+          busy.push(...captionsBusy(ctx, t));
+        }
+        let best = null;
+        for (let k = 0; k < JUMP_SLOTS.length; k++) {
+          const idx = (ph.slotAt + k * 3) % JUMP_SLOTS.length;
+          if (idx === prevSlot) continue;
+          const box = captionsBox(ph, JUMP_SLOTS[idx]);
+          const hit = busy.reduce((n, b) => n + overlap(box, b), 0) / Math.max(1, (box.r - box.l) * (box.b - box.t));
+          if (!best || hit < best.hit) best = { idx, hit };
+          if (hit < 0.02) break;
+        }
+        ph.slotAt = best.idx;
+        prevSlot = best.idx;
+        ph.clash = best.hit >= 0.02 ? best.hit : 0;
+      }
+      const box = captionsBox(ph, ph.slotAt != null ? JUMP_SLOTS[ph.slotAt] : null);
+      const left = box.l, top = box.t;
       el.style.left = `${Math.round(left)}px`;
       el.style.top = `${Math.round(top)}px`;
+      // Replace-stack hops, in px, clamped so each word stays on screen.
+      for (const wd of ph.words) {
+        if (!wd.hop) continue;
+        const x0 = left + wd.el.offsetLeft, y0 = top + wd.el.offsetTop;
+        const ww = wd.el.offsetWidth, wh = wd.el.offsetHeight;
+        wd.ox = Math.round(Math.min(Math.max(wd.hop.x * W, W * 0.05 - x0), W * 0.95 - ww - x0));
+        wd.oy = Math.round(Math.min(Math.max(wd.hop.y * H, H * 0.06 - y0), H * 0.8 - wh - y0));
+      }
     }
+    if (wasAt != null) ctx.master.seek(wasAt, false);
+  }
+  // Where a phrase's box sits, for its own style or a jump slot.
+  function captionsBox(ph, slot) {
+    const s = slot ? { ...ph.style, y: slot.y, pos: null } : ph.style;
+    const el = ph.el;
+    if (slot) {
+      ph.align = slot.align;
+      el.classList.remove("align-left", "align-center", "align-right");
+      el.classList.add(`align-${slot.align}`);
+    }
+    // scrollWidth: a single word wider than the margins overflows its box.
+    const w = Math.max(el.offsetWidth, el.scrollWidth), hgt = el.offsetHeight;
+    const y = typeof s.pos === "number" ? s.pos : s.y ?? CAP_POS[s.pos || "upper"] ?? CAP_POS.upper;
+    // A stack grows downward from its top edge, so top/upper/lower pin the
+    // top; center centres the finished phrase; bottom pins its last line.
+    let top = y * H;
+    if (s.pos === "center") top -= hgt / 2;
+    else if (s.pos === "bottom") top -= hgt;
+    let left;
+    if (ph.align === "center") left = (s.x != null ? s.x * W : W / 2) - w / 2;
+    else if (ph.align === "right") left = W - (s.x != null ? s.x * W : ph.margin * W) - w;
+    else left = s.x != null ? s.x * W : ph.margin * W;
+    // A jumping phrase is kept inside the safe zone: 5% side margins, clear
+    // of the platform UI in the bottom fifth.
+    if (ph.jump) {
+      left = Math.min(Math.max(left, W * 0.05), Math.max(W * 0.05, W * 0.95 - w));
+      top = Math.min(Math.max(top, H * 0.06), Math.max(H * 0.06, H * 0.8 - hgt));
+    }
+    return { l: left, t: top, r: left + w, b: top + hgt };
   }
   const easeOut = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
   function captionsApply(model, t) {
@@ -1136,6 +1262,9 @@
         const since = t - w.at;
         const k01 = easeOut(since / CAP_ENTER);
         let tf = "", op = 1, blur = null;
+        if (w.ox || w.oy) tf += `translate(${w.ox}px, ${w.oy}px) `;
+        if (w.dx || w.dy) tf += `translate(${w.dx}em, ${w.dy}em) `;
+        if (w.rot) tf += `rotate(${w.rot.toFixed(2)}deg) `;
         if (w.enter === "pop") tf += `scale(${(1.14 - 0.14 * k01).toFixed(4)}) `;
         else if (w.enter === "rise") { tf += `translateY(${((1 - k01) * 0.28).toFixed(4)}em) `; op = k01; }
         else if (w.enter === "blur") { blur = (1 - k01) * 14; op = 0.3 + 0.7 * k01; }
@@ -1190,7 +1319,7 @@
     if (oldCaptions) oldCaptions.remove();
     // What check reports about footage and captions: missing cues, files
     // that would not load, a highlight not in its quote.
-    const report = { captions: { phrases: 0, words: 0, missing: [] }, issues: window.__MEDIA_ISSUES || (window.__MEDIA_ISSUES = []) };
+    const report = { captions: { phrases: 0, words: 0, missing: [] }, issues: window.__MEDIA_ISSUES || (window.__MEDIA_ISSUES = []), warnings: [] };
     window.__MEDIA_REPORT = report;
     const captions = captionsMount(spec, viewport);
     if (captions) {
@@ -1426,7 +1555,23 @@
       try { buildCarries(master, nodes, shots); } catch (e) { console.warn("[compiler] carry failed", e); }
       master.seek(wasAt, false);
       runFrameHooks();
-      if (captions) { captionsPlace(captions); captionsApply(captions, master.time()); }
+      if (captions) {
+        captionsPlace(captions, { master, nodes });
+        const said = (ph) => `"${ph.words.map((w) => w.text).join(" ")}" at ${ph.start.toFixed(2)}s`;
+        for (const ph of captions.phrases.filter((x) => x.clash)) {
+          report.warnings.push(`caption ${said(ph)} covers ${Math.round(ph.clash * 100)}% of the shot's content — no jump slot is clear; place it by hand (x/y) or shorten it`);
+        }
+        // The same spot twice in a row reads as subtitles, not type in the edit.
+        const main = captions.phrases.filter((x) => x.tier === "main" && x.start != null).sort((a, b) => a.start - b.start);
+        const same = [];
+        for (let i = 1; i < main.length; i++) {
+          const a = main[i - 1].el, b = main[i].el;
+          if (Math.abs(a.offsetLeft - b.offsetLeft) < W * 0.05 && Math.abs(a.offsetTop - b.offsetTop) < H * 0.04 && main[i - 1].align === main[i].align) same.push(i);
+        }
+        if (same.length > 3) report.warnings.push(`${same.length} of ${main.length - 1} captions land where the one before sat (${said(main[same[0]])}, …) — the type reads as subtitles; set captions.style.jump or give phrases their own pos/x/y/align`);
+        else for (const i of same) report.warnings.push(`caption ${said(main[i])} sits where ${said(main[i - 1])} did — move it (pos/x/y/align) or set captions.style.jump`);
+        captionsApply(captions, master.time());
+      }
       window.__READY = true;
       syncMedia();
     };

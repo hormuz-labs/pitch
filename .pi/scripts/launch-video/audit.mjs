@@ -40,7 +40,7 @@ import { fitStage, localPageUrl, openStudioBrowser, seekFilm } from "./lib/brows
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { paceOf } from "./lib/pace.mjs";
-import { designSummary, extractSpec, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
+import { designSummary, extractSpec, lintAd, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -133,7 +133,7 @@ if (!spec) {
 } else {
   const shots = spec.shots;
   // Timeline validity and content-review hints (lib/design-rules.mjs).
-  lint.push(...lintDesign(spec));
+  lint.push(...lintDesign(spec), ...lintAd(spec));
   lint.push(...lintEffectSources(spec, inspectedEffects));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------

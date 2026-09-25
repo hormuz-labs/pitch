@@ -48,6 +48,7 @@ await import('./pipelines/media.js')
 await import('./pipelines/video-editing.js')
 await import('./pipelines/video-gen.js')
 await import('./pipelines/elevenlabs.js')
+await import('./pipelines/lyria.js')
 await import('./flows/launch-video/index.js')
 await import('./flows/deck/index.js').catch(err =>
   logger.warn({ err }, 'deck pipeline unavailable'),

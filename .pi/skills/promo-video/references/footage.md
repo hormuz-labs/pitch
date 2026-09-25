@@ -4,9 +4,15 @@
 
 1. **The user's uploads** (`ls uploads`) and the brand's own imagery (recon,
    the site's product pages): the only source for the product itself, its
-   making, its team and its customers.
-2. **Licensed stock** — `pitch motion stock` (Pexels): people, places,
-   objects, nature, textures; context and emotion, never the product.
+   making, its team and its customers — and only for those beats.
+2. **Pexels stock, whenever possible** — `pitch motion stock` (free,
+   licensed): people, places, objects, nature, textures; context, emotion
+   and metaphor, never the product. This is the default for every beat that
+   is not the product: the hook, the problem, the enemy, the feeling, the
+   payoff. A fast ad eats pictures (social-ad.md → Pace), and the brand's
+   few clips repeated across beats is the failure to avoid. Do not use the
+   brand's own work as the "bad example" in a problem act; that is a stock
+   beat.
 3. **Generated clips** — `pitch video generate`, after reading the
    generated-video skill: only for what cannot be filmed or found (an abstract
    texture, a metaphor, an impossible camera). Never a real person, product,
@@ -81,7 +87,10 @@ pitch motion footage --src uploads/stock/club-crowd.mp4 --name club-crowd --in 3
   of `grain` over mixed stock sources so they sit together.
 - `shade` (0.2–0.45) darkens busy footage under captions.
 - `window` sets footage in a rounded frame on the shot's `bg` — the way the
-  studied ads show selfies, UGC, screenshots and archive: `window: 0.78`, or
+  studied ads show selfies, UGC, screenshots and archive. In 9:16, footage is
+  full-bleed by default; a landscape screenshot or UI in a window takes at
+  least 0.55 of the height (crop with `--focus` rather than letterbox it
+  small): `window: 0.78`, or
   `{ w: 0.8, h: 0.5, y: 0.55, border: "<brand accent>", glow: true, from: 1,
   at: 0.2 }` to shrink it out of full-bleed mid-shot (an interrupt).
   Two windows side by side (two shots, or two `x` positions across a cut) make

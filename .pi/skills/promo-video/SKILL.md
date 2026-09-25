@@ -53,21 +53,39 @@ has five studied ads beat by beat; read the one nearest the brief.
    table
    `id | spoken words (cue) | density (BURST / HOLD / INTERRUPT) | picture | source | caption | sound`.
    Alternate densities: a burst in the first 3 seconds, an interrupt every
-   5–10, a hold on every proof.
-5. **Picture.** Source and prepare footage ([footage.md](references/footage.md));
-   build the special shots from [recipes.md](references/recipes.md); the
+   4–6, a short hold on every proof. Budget the picture before building it:
+   **at least 1.5 picture changes per second over the film, 2+ in the
+   problem act**, median time on one picture under 0.6s (social-ad.md →
+   Pace). Plan 3–5 pictures for every spoken sentence, not one.
+5. **Picture.** Source and prepare footage ([footage.md](references/footage.md)).
+   **Pexels first:** search `pitch motion stock` for every beat that is not
+   the product itself — the problem, the feeling, the metaphor, the payoff —
+   and fill bursts with several picks per search. Brand imagery is for the
+   product and its proof only, and never repeats a clip across beats. Build
+   the special shots from [recipes.md](references/recipes.md); the
    skeleton in [example-ad.md](references/example-ad.md) shows the pieces
    together. Scaffold, then add shots in small batches with `pitch motion check`.
-6. **Words on screen.** The `captions` track — keywords, mixed type, and for
-   long or loud ads a `subtitles` tier (`pitch motion schema --section
-   captions`) — then `pitch motion sync --write` for cued shots.
-7. **Sound.** Perform the score: choose a library bed and cut it into
-   sections with `audio.fx` (`thin` windows that end on the drop words, a
-   `breath` before the name, one `muffle` or `ring` if a word asks for it),
-   put manifest SFX on the score's moments (a riser ending on the turn, an
-   impact on it), then `pitch motion mix` and listen against the score
-   ([ad-sound.md](references/ad-sound.md)). There is no ElevenLabs step: no
-   generated music or custom sound effects.
+6. **Words on screen.** The `captions` track — keywords only, mixed type,
+   and **placement that moves**: every phrase lands somewhere new (social-ad.md
+   → Captions that jump). **No `subtitles` tier** unless the user asks for
+   one (`pitch motion schema --section captions`) — then `pitch motion sync
+   --write` for cued shots.
+7. **Sound.** Perform the score. Generate this film's own bed from its
+   music plan: `pitch motion music --duration <film> --drop_at <turn word
+   onset> --prompt "<identity line + timestamped sections>"` (Lyria;
+   `--provider elevenlabs --styles … --sections …` when the length must be
+   exact). The tool measures the take's real drops and trims it so one lands
+   on the turn word. Keep that bed through edits, and regenerate only when
+   the words move. Make the other sections with `audio.fx` `thin` windows
+   that end on their words, a `breath` before the name, and one `muffle` or
+   `ring` if a word asks for it. Build a **heavy, layered** SFX bus from the
+   library: `pitch motion sfx --mode list` (the Gakuyen pack's layers per
+   moment), then a cue on every cut (rotating whooshes), a shutter per burst
+   clip, and stacked risers/impacts/sub on the hook, interrupts and the turn
+   ([ad-sound.md](references/ad-sound.md) → Step 4). `pitch motion sound`
+   (ElevenLabs) only for the product's own foley or a literal ambience. Then
+   `pitch motion sfx --mode build`, `pitch motion mix`, and listen against
+   the score.
 8. **Finish.** [finish](../launch-video/references/finish.md): one `pitch
    motion review`, `--times` inside every burst and across the turn, one
    `pitch motion audit`. Report runtime, frame, sources and anything
@@ -84,8 +102,8 @@ has five studied ads beat by beat; read the one nearest the brief.
 | Footage that cannot exist (abstract, metaphor) | `pitch video generate` — read [generated-video](../generated-video/SKILL.md) first |
 | A source page, read or captured | `pitch motion inspect <url>`, `pitch motion screenshot --url … --out … [--fullPage]` |
 | Record the voice (Gemini) | `pitch motion tts --pace ad --provider gemini --model gemini-3.8-flash-tts --voice <name>` (script directed in `{turns}`), `pitch motion tighten`, `pitch motion align`, `pitch motion sync --write` |
-| Music bed and its sections | `pitch motion find-audio`, `pitch media review --purpose music` (optional), `audio.fx` `thin` / `muffle` / `ring`, `breath` beats |
-| Sound effects, mix | `pitch motion sfx --mode query --event "…"`, `pitch motion sfx --mode build`, `pitch motion mix` |
+| Music bed and its sections | `pitch motion music --duration … --drop_at … --prompt "…"` (Lyria); `--provider elevenlabs --styles … --sections …`; `pitch motion find-audio` for a library bed; `audio.fx` `thin` / `muffle` / `ring`, `breath` beats |
+| Sound effects, mix | `pitch motion sfx --mode list` / `--mode query --event "whoosh_soft,impact,riser,…"` (the Gakuyen pack first, the default); `pitch motion sfx --mode build`, `pitch motion mix`; `pitch motion sound --prompt "…" --out audio/generated-sfx/<name>.mp3` (ElevenLabs) only for product foley or an ambience |
 | Other motion | `pitch effects search/show` (see launch-video's effects list); cite `lab` only for ported source |
 
 ## Non-negotiable
@@ -107,13 +125,23 @@ has five studied ads beat by beat; read the one nearest the brief.
   (risk-free, a guarantee, a price) must be the brand's real offer.
 - **Sound is performed, not applied.** The voice changes feeling at least
   three times, the bass returns on a named word, and the turn is the biggest
-  sound moment. Narration is always Gemini TTS; never call `pitch motion
-  voices`, `music` or `sound` (ElevenLabs) from this skill.
+  sound moment. Narration is always Gemini 3.8 TTS; music is generated
+  for each film (Lyria by default, or ElevenLabs) or from the library;
+  sound effects come from the curated library (the Gakuyen pack first),
+  layered on every cut and stacked on every big moment, with ElevenLabs
+  only for sounds a library cannot have. Never an ElevenLabs voice
+  (`pitch motion voices`).
 - **Flashes are brief.** Bursts of hard cuts and one-frame flashes last under
   a second and never strobe for longer; `glitch` marks act changes only.
 - **Readable at phone size.** Keywords stay inside the safe area (middle 80%
-  of the width, above the bottom fifth); subtitles sit just above it with a
-  `box`; every caption holds long enough to read.
+  of the width, above the bottom fifth); every caption holds long enough to
+  read.
+- **Fast picture, steady voice.** Keep the read's pace (2.7–3.5 words/s) and
+  speed up the picture, not the voice: no single picture on screen longer
+  than 1.5s except the reveal and one proof hold (≤2.5s, with a `push`); a
+  longer beat is a `clips` burst. No clip appears in two beats.
+- **No subtitles.** Keywords only, placed to move; a running subtitle line
+  is added only when the user asks for it.
 
 If a needed input is missing — no product imagery, no stock key, no source
 for a claim, no real reviews — say so first in the summary and show what

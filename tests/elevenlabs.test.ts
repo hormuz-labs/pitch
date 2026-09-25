@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  compositionPlanBody,
   musicRequestBody,
   soundRequestBody,
   voiceoverRequestBody,
@@ -84,5 +85,63 @@ describe('ElevenLabs launch audio requests', () => {
     expect(() => voiceoverRequestBody({ text: 'Hello', voiceId: 'voice_123', speed: 1.3 })).toThrow(
       /speed must be between/,
     )
+  })
+
+  it('builds a music_v2 plan with each section its exact length and spare tail on the last', () => {
+    const body = compositionPlanBody({
+      styles: ['2020s trap-pop', '140 BPM', 'punchy 808s', 'pizzicato string riff'],
+      avoid: ['guitar'],
+      sections: [
+        { label: 'Intro', until: 3.1, text: 'filtered drums, no bass', avoid: ['808'] },
+        { label: 'Drop', until: 9.8, styles: ['full groove'] },
+        { label: 'Big Drop', until: 30 },
+      ],
+      duration: 30,
+      slack: 5,
+    }) as any
+    expect(body.model_id).toBe('music_v2')
+    const chunks = body.composition_plan.chunks
+    expect(chunks.map((c: any) => c.duration_ms)).toEqual([3100, 6700, 25200])
+    // plain text is sung as lyrics: the description goes in as a {cue}
+    expect(chunks.map((c: any) => c.text)).toEqual([
+      '[Intro]\n{filtered drums, no bass}',
+      '[Drop]',
+      '[Big Drop]',
+    ])
+    expect(chunks[0].positive_styles).toEqual([
+      'instrumental',
+      '2020s trap-pop',
+      '140 BPM',
+      'punchy 808s',
+      'pizzicato string riff',
+    ])
+    expect(chunks[1].positive_styles).toEqual([
+      'instrumental',
+      '2020s trap-pop',
+      '140 BPM',
+      'full groove',
+    ])
+    expect(chunks[0].negative_styles).toEqual([
+      'vocals',
+      'singing',
+      'spoken word',
+      'lyrics',
+      'guitar',
+      '808',
+    ])
+    expect(chunks.every((c: any) => c.context_adherence === 'high')).toBe(true)
+  })
+
+  it('refuses a section under 3s, and a plan without identity', () => {
+    const sections = [
+      { label: 'Hook', until: 2.4 },
+      { label: 'Drop', until: 20 },
+    ]
+    expect(() => compositionPlanBody({ styles: ['house'], sections, duration: 20 })).toThrow(
+      /Hook" is 2.40s; each must be at least 3s/,
+    )
+    expect(() =>
+      compositionPlanBody({ styles: [], sections: [{ label: 'A', until: 10 }], duration: 10 }),
+    ).toThrow(/styles are required/)
   })
 })

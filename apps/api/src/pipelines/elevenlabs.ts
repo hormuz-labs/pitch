@@ -7,8 +7,11 @@
  * beside it; the API key never crosses into the workspace.
  *
  * Narration here is the alternative to Gemini TTS: .pi/audio.json says which
- * of the two `pitch motion tts` records with. Music and sound effects have no
- * other generator — the curated libraries under assets/ are the alternative.
+ * of the two `pitch motion tts` records with. Music is `pitch motion music
+ * --provider elevenlabs`: a music_v2 composition plan built from the film's
+ * sections, fitted onto the turn word by music-fit.ts (Lyria, pipelines/
+ * lyria.ts, is the default: its vocal-free takes follow an arrangement better). Sound effects have no other generator — the curated
+ * library under assets/ is the alternative.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -18,6 +21,7 @@ import { getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
 import type { Workspace } from '../studio/paths.js'
 import { insideWorkspace } from './media.js'
+import { describeFit, dropAtParam, fitBed } from './music-fit.js'
 
 const logger = createLogger('studio:elevenlabs')
 const BASE_URL = 'https://api.elevenlabs.io'
@@ -32,6 +36,96 @@ const TTS_TIMEOUT_MS = Number(process.env.ELEVENLABS_TTS_TIMEOUT_MS ?? 3 * 60_00
 export interface MusicRequest {
   prompt: string
   duration: number
+}
+
+/** One section of the film's music plan, ending at a film second. */
+export interface MusicSection {
+  /** Section label: Intro, Drop, Breakdown, Big Drop, Outro… */
+  label: string
+  /** Film second the section ends on (the last one ends the film). */
+  until: number
+  /** What happens in it: what enters, leaves, builds. Sent as a style, never as text. */
+  text?: string
+  styles?: string[]
+  avoid?: string[]
+}
+
+export interface PlanRequest {
+  /** The bed's identity, 6–7 styles: genre and era, BPM, instruments, mood. */
+  styles: string[]
+  avoid?: string[]
+  sections: MusicSection[]
+  duration: number
+  /** Seconds added to the last section so trimming the head onto the turn never leaves the film short. */
+  slack?: number
+}
+
+const NO_VOICE = ['vocals', 'singing', 'spoken word', 'lyrics']
+const MIN_CHUNK_MS = 3000
+const MAX_CHUNK_MS = 120_000
+/** music_v2 lands the drops up to ~3s late; this much spare tail survives the trim. */
+export const MUSIC_SLACK = 5
+
+const styleList = (...lists: (string[] | undefined)[]) =>
+  [
+    ...new Set(
+      lists
+        .flat()
+        .map(s => String(s ?? '').trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 50)
+
+/**
+ * A music_v2 composition plan from the film's sections: one chunk per section
+ * with its exact duration, the identity styles on the first chunk (it sets the
+ * tone), the genre anchors on every chunk so a later one cannot drift, no
+ * voice anywhere, high context adherence so the sections read as one piece.
+ *
+ * A chunk's `text` is LYRICS to the model: sections described there as plain
+ * words ("filtered drums, tension building") came back sung, word for word.
+ * So the description goes in as an inline cue in braces, which the model
+ * reads as direction: `[Intro]\n{filtered drums, no bass}` — measured vocal-free.
+ */
+export function compositionPlanBody(input: PlanRequest): Record<string, unknown> {
+  const styles = styleList(input.styles)
+  if (!styles.length)
+    throw new Error('music styles are required: genre and era, BPM, instruments, mood')
+  if (!Number.isFinite(input.duration) || input.duration < 3 || input.duration > 600)
+    throw new Error('music duration must be between 3 and 600 seconds')
+  const sections = input.sections ?? []
+  if (!sections.length) throw new Error('music sections are required')
+  if (sections.length > 30) throw new Error('at most 30 music sections')
+  const slack = input.slack ?? MUSIC_SLACK
+  let start = 0
+  const chunks = sections.map((section, i) => {
+    const last = i === sections.length - 1
+    const end = last ? input.duration : Number(section.until)
+    if (!(end > start)) throw new Error(`music section "${section.label}" must end after ${start}s`)
+    const ms = Math.round((end - start + (last ? slack : 0)) * 1000)
+    if (ms < MIN_CHUNK_MS)
+      throw new Error(
+        `music section "${section.label}" is ${(end - start).toFixed(2)}s; each must be at least 3s — merge it into a neighbour and make the change with a thin window`,
+      )
+    if (ms > MAX_CHUNK_MS)
+      throw new Error(`music section "${section.label}" is over 120s; split it`)
+    start = end
+    const label = String(section.label ?? '').trim() || `Section ${i + 1}`
+    return {
+      text: section.text?.trim()
+        ? `[${label}]\n{${section.text.trim().replace(/[{}]/g, '')}}`
+        : `[${label}]`,
+      duration_ms: ms,
+      positive_styles: styleList(
+        ['instrumental'],
+        i === 0 ? styles : styles.slice(0, 2),
+        section.styles,
+      ),
+      negative_styles: styleList(NO_VOICE, input.avoid, section.avoid),
+      context_adherence: 'high',
+    }
+  })
+  return { model_id: MUSIC_MODEL, composition_plan: { chunks } }
 }
 
 export interface SoundRequest {
@@ -302,16 +396,32 @@ registerHostAction('elevenlabs_voiceover', async (ws, params, ctx) => {
 })
 
 registerHostAction('elevenlabs_music', async (ws, params, ctx) => {
-  const request: MusicRequest = {
-    prompt: String(params.prompt ?? ''),
-    duration: Number(params.duration),
-  }
-  const body = musicRequestBody(request)
+  const duration = Number(params.duration)
+  const dropAt = dropAtParam(params.dropAt, duration)
+  // A plan when the film's sections are given — each section its exact length;
+  // otherwise a prompt, with spare length only when a drop has to be fitted.
+  const body = Array.isArray(params.sections)
+    ? compositionPlanBody({
+        styles: Array.isArray(params.styles) ? params.styles : [],
+        avoid: Array.isArray(params.avoid) ? params.avoid : undefined,
+        sections: params.sections,
+        duration,
+      })
+    : musicRequestBody({
+        prompt: String(params.prompt ?? ''),
+        duration: Math.min(600, duration + (dropAt === undefined ? 0 : MUSIC_SLACK)),
+      })
   const out = outputPath(ws, params.out, 'audio/music.mp3')
-  logger.info({ workspace: ws.internal, out: out.rel, duration: request.duration }, 'music')
-  const result = await generate('/v1/music', body, MUSIC_TIMEOUT_MS, 'auto', ctx.signal)
-  await save(out.abs, result, { kind: 'music', model: MUSIC_MODEL, ...body })
-  return `Generated an instrumental bed: ${out.rel} (${mb(result.audio)}, ${request.duration.toFixed(1)}s asked). pitch motion mix levels and ducks it.`
+  const rawRel = out.rel.replace(/\.mp3$/i, '.elevenlabs.mp3')
+  const raw = insideWorkspace(ws, rawRel)
+  logger.info({ workspace: ws.internal, out: out.rel, duration, dropAt }, 'music')
+  const result = await generate('/v1/music', body, MUSIC_TIMEOUT_MS, 'mp3_48000_192', ctx.signal)
+  await save(raw, result, { kind: 'music', ...body })
+  const fit = await fitBed(raw, out.abs, duration, dropAt)
+  return [
+    `Generated with ElevenLabs ${MUSIC_MODEL}: ${rawRel} (${fit.rawDuration.toFixed(1)}s raw, ${mb(result.audio)}).`,
+    ...describeFit(fit, out.rel, duration, dropAt),
+  ].join('\n')
 })
 
 registerHostAction('elevenlabs_sound', async (ws, params, ctx) => {

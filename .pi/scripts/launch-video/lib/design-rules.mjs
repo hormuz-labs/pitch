@@ -23,6 +23,7 @@ export function extractSpec() {
     motionExit: s.motion && s.motion.exit ? s.motion.exit : null,
     audio: s.audio || null,
     actors: s.actors ? Object.keys(s.actors).length : 0,
+    captions: s.captions ? { subtitles: !!s.captions.subtitles, jump: !!(s.captions.style && s.captions.style.jump) } : null,
     shots: s.shots.map((x) => {
       const names = x.actors ? Object.keys(x.actors) : [];
       return {
@@ -37,6 +38,10 @@ export function extractSpec() {
       focus: !!x.focus, cursor: !!x.cursor, clickZoom: !!(x.cursor && x.cursor.zoom), cursors: Array.isArray(x.cursors) ? x.cursors.length : 0,
       frame: x.frame || null, tilt: !!x.tilt, layers: !!x.layers, html: !!x.html, lab: x.lab || null,
       src: x.src, rows: x.rows,
+      // footage montage: each clip plays `dur` or `every`, the last holds to the end
+      every: Number(x.every) > 0 ? Number(x.every) : null,
+      clipDurs: Array.isArray(x.clips) ? x.clips.map((c) => (c && Number(c.dur) > 0 ? Number(c.dur) : null)) : null,
+      srcs: [x.src, ...(Array.isArray(x.clips) ? x.clips.map((c) => c && c.src) : [])].filter((v) => typeof v === "string"),
       };
     }),
   };
@@ -83,9 +88,66 @@ export function lintEffectSources(spec, inspected = []) {
   return out;
 }
 
+/**
+ * Pace and type rules for an ad (`audio.pace: "ad"`): the picture changes at
+ * least 1.5 times a second, no still picture holds past 1.5s (the reveal and
+ * one proof may reach 2.5s; the closing card is free), no clip is reused
+ * across beats, and the keywords stand alone without a subtitle tier.
+ * Shots that move inside themselves (float, exploded, signal, cascade…) count
+ * as one picture but are not held against the still-picture limit.
+ */
+const STILL_TYPES = new Set(["footage", "card", "evidence", "line", "ui-frame"]);
+const CLOSE_TYPES = new Set(["logo-cta", "logo-sting"]);
+export function paceStats(spec) {
+  const shots = spec.shots || [];
+  let changes = 0, total = 0;
+  const holds = [];
+  shots.forEach((s, i) => {
+    total += s.dur;
+    let spans = [s.dur];
+    if (s.type === "footage" && s.clipDurs && s.clipDurs.length > 1) {
+      const n = s.clipDurs.length, every = s.every ?? s.dur / n;
+      spans = [];
+      let clock = 0;
+      s.clipDurs.forEach((d, k) => {
+        const end = k === n - 1 ? s.dur : Math.min(s.dur, clock + (d ?? every));
+        if (end > clock) spans.push(end - clock);
+        clock = end;
+      });
+    }
+    changes += spans.length;
+    const last = i === shots.length - 1 && CLOSE_TYPES.has(s.type);
+    if (STILL_TYPES.has(s.type) && !last) holds.push({ id: s.id, type: s.type, hold: Math.max(...spans) });
+  });
+  return { changes, duration: total, rate: total ? changes / total : 0, holds };
+}
+export function lintAd(spec) {
+  if (!spec.audio || spec.audio.pace !== "ad") return [];
+  const out = [];
+  const st = paceStats(spec);
+  if (st.rate < 1.5) out.push({ level: "warn", code: "pace", msg: `picture changes ${st.rate.toFixed(2)}/s (${st.changes} in ${st.duration.toFixed(1)}s) — an ad targets ≥1.5/s: split long beats into \`clips\` bursts (every 0.2–0.5s) rather than speeding the voice.` });
+  const long = st.holds.filter((h) => h.hold > 1.5).sort((a, b) => b.hold - a.hold);
+  // The reveal and one proof hold may run to 2.5s.
+  const allowed = long.filter((h) => h.hold <= 2.5).slice(0, 2).map((h) => h.id);
+  for (const h of long) {
+    if (allowed.includes(h.id)) continue;
+    out.push({ level: "warn", code: "hold", msg: `#${h.id}: one ${h.type === "footage" ? "picture" : h.type} holds ${h.hold.toFixed(2)}s — over 1.5s; make it a burst (more \`clips\`, or \`every\` so the last clip does not hold) or split the card.` });
+  }
+  const seen = new Map();
+  for (const s of spec.shots || []) {
+    for (const src of new Set(s.srcs || [])) {
+      if (!/\.(mp4|webm|mov|m4v)$/i.test(src)) continue;
+      if (seen.has(src) && seen.get(src) !== s.id) out.push({ level: "warn", code: "reuse", msg: `#${s.id}: ${src} already plays in #${seen.get(src)} — a clip belongs to one beat; find another (pitch motion stock).` });
+      else seen.set(src, s.id);
+    }
+  }
+  if (spec.captions && spec.captions.subtitles) out.push({ level: "warn", code: "subtitles", msg: "captions.subtitles is on — ads use moving keywords only unless the user asked for subtitles." });
+  return out;
+}
+
 /** The lints worth hearing while the film is still being built (cues.mjs --check). */
 export function lintWhileBuilding(spec) {
-  return lintDesign(spec).filter((l) => l.code !== "count");
+  return [...lintDesign(spec).filter((l) => l.code !== "count"), ...lintAd(spec)];
 }
 
 /** The per-shot line the audit prints for the summary. */

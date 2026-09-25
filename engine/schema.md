@@ -278,7 +278,7 @@ captions: {
 | Field | Meaning |
 |---|---|
 | `cue` | The narration's words for this phrase, as spoken. Each word appears on its onset in `audio/vo-words.json` (`pitch motion align`), `lead` (0.04s) early; re-recording and re-aligning moves every caption. `check` fails a cue that is not in the read. |
-| `words` | What to show, one entry per spoken word (a string or `{ text, fx, color, scale, font, weight, italic, case, at }`); default: the cue's own words. A different count maps proportionally. Mix type inside a phrase: a serif italic `{ text: "you", font: "Georgia, serif", italic: true, case: "none", weight: 400 }`, a heavy keyword, a small light connective `{ text: "to the", scale: 0.55, weight: 500 }`. |
+| `words` | What to show, one entry per spoken word (a string or `{ text, fx, color, scale, font, weight, italic, case, at, rotate, dx, dy }` — `rotate` in degrees, `dx`/`dy` a nudge in em); default: the cue's own words. A different count maps proportionally. Mix type inside a phrase: a serif italic `{ text: "you", font: "Georgia, serif", italic: true, case: "none", weight: 400 }`, a heavy keyword, a small light connective `{ text: "to the", scale: 0.55, weight: 500 }`. |
 | `at`, `each` | Without narration: the first word's film time and the gap between words (0.22s). A word's own `at` overrides. |
 | `out`, `until`, `hold` | When the phrase clears: film seconds, or the onset of an `until` phrase; default the next phrase's first word or `hold` (0.35s) after its last word, whichever is first. |
 | `stack` | `word` (one word per line, the phrase grows downward — the default), `line` (words flow and wrap within the margins), `replace` (each word replaces the last in one spot). |
@@ -286,6 +286,8 @@ captions: {
 | `align`, `margin` | `left` (default), `center`, `right`; side margin 0.09 of the width. |
 | `size`, `weight`, `leading`, `tracking`, `case`, `font`, `color`, `shadow` | Type. `size` < 2 is a fraction of the short side (0.115 ≈ 124px on 1080), else px. `case`: `upper` (default), `none`, `lower`, `title`. `shadow: false` for type on flat colour. |
 | `enter` | `cut` (default: the word is simply there, on the syllable), `pop`, `rise`, `blur`. |
+| `rotate` | Tilt the whole phrase, in degrees (`-6` leans it left). |
+| `jump` | `true` (0.6) or 0–1, usually in `style`: every phrase that does not set its own `pos`/`y`/`x`/`align` lands in a new slot of a ring of eight inside the safe zone — never the same slot twice running — tilted a few degrees, each word leaning a little, entering with `pop`. Each phrase samples the shot under it (start, middle, end) and skips slots that would cover its media, boxes or large type; `check` warns when no slot is clear. In a `replace` stack each word also hops to its own spot. Seeded by phrase order, so every render and seek agrees. |
 | `box` | A backing behind the phrase (`true` = a soft dark pill, or a CSS colour) so it reads over light and dark pictures alike. |
 | `tier` | Phrases time and clear only against their own tier (default `"main"`), so a second tier can share the screen with the keywords. |
 | `exit` | `cut` (default) or `fade`. |

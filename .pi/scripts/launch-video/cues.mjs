@@ -128,6 +128,7 @@ if (media && (media.captions.phrases || media.captions.subtitles || media.captio
 }
 if (data.stage && data.stage.format && data.stage.format !== "16:9") console.log(`   format: ${data.stage.format} (${data.stage.w}×${data.stage.h})`);
 for (const m of mediaProblems) console.log(`❌ ${m}`);
+for (const m of (media && media.warnings) || []) console.log(`⚠ ${m}`);
 if (errors.length) {
   console.log(`\n❌ page errors:\n   - ${errors.join("\n   - ")}`);
   process.exit(1);

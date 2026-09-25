@@ -5,9 +5,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   designSummary,
+  lintAd,
   lintDesign,
   lintEffectSources,
   lintWhileBuilding,
+  paceStats,
 } from '../.pi/scripts/launch-video/lib/design-rules.mjs'
 
 const shot = (o: Record<string, unknown>) => ({
@@ -160,5 +162,57 @@ describe('designSummary', () => {
     )
     expect(designSummary(spec)).toBe('actors 2 · chapters 1 · lab moves 1 · breaths 1')
     expect(designSummary({ shots: [] })).toBe('lab moves 0 · breaths 0')
+  })
+})
+
+describe('ad pace lint', () => {
+  const shot = (id: string, type: string, dur: number, extra: object = {}) => ({
+    id,
+    type,
+    dur,
+    ...extra,
+  })
+  const ad = (shots: object[], extra: object = {}) => ({ audio: { pace: 'ad' }, shots, ...extra })
+
+  it('only speaks for ads', () => {
+    expect(lintAd({ audio: {}, shots: [shot('a', 'card', 5)] })).toEqual([])
+  })
+
+  it('counts montage clips, and the last clip holding to the end', async () => {
+    const st = paceStats({
+      shots: [shot('burst', 'footage', 3, { every: 0.5, clipDurs: [null, null, null] })],
+    })
+    expect(st.changes).toBe(3)
+    expect(st.holds[0].hold).toBeCloseTo(2, 5)
+  })
+
+  it('flags slow pace, long holds past the two allowed, reuse and subtitles', () => {
+    const codes = lintAd(
+      ad(
+        [
+          shot('hook', 'footage', 3, { srcs: ['a.mp4'] }),
+          shot('card', 'card', 2),
+          shot('proof', 'footage', 2.2, { srcs: ['b.mp4'] }),
+          shot('again', 'footage', 1, { srcs: ['a.mp4'] }),
+          shot('close', 'logo-cta', 6),
+        ],
+        { captions: { subtitles: true } },
+      ),
+    ).map(l => l.code)
+    expect(codes).toContain('pace')
+    expect(codes.filter(c => c === 'hold')).toHaveLength(1) // the 3s hook; the 2s card and 2.2s proof are allowed
+    expect(codes).toContain('reuse')
+    expect(codes).toContain('subtitles')
+  })
+
+  it('passes a fast film', () => {
+    const shots = Array.from({ length: 10 }, (_, i) =>
+      shot(`s${i}`, 'footage', 2, {
+        every: 0.4,
+        clipDurs: [null, null, null, null, null],
+        srcs: [`c${i}.mp4`],
+      }),
+    )
+    expect(lintAd(ad(shots))).toEqual([])
   })
 })

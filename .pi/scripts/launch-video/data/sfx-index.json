@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T19:21:23.013Z",
+  "generated": "2026-09-25T18:52:35.619Z",
   "generator": "scripts/sfx-vendor.mjs",
   "repoRoot": "/home/adnan/Documents/pitch",
   "roots": [
@@ -9,7 +9,7 @@
       "trust": 3
     }
   ],
-  "total": 308,
+  "total": 352,
   "events": {
     "pop": {
       "use": "an element, icon, chip or card appearing; per-item stagger accents",
@@ -59,45 +59,319 @@
     "camera": {
       "use": "snapshot beat, freeze-frame, capture accent",
       "maxDur": 3.2,
-      "count": 8
+      "count": 20
     },
     "whoosh_deep": {
       "use": "big/fast camera moves, full-frame tile expansions, scene-scale travel",
       "maxDur": 5,
-      "count": 21
+      "count": 30
     },
     "whoosh_soft": {
       "use": "light element travel, card slides, lateral pans",
       "maxDur": 2.2,
-      "count": 110
+      "count": 119
     },
     "reverse": {
       "use": "pre-roll suck-in leading INTO a cut or reveal",
       "maxDur": 3.2,
-      "count": 2
+      "count": 3
     },
     "riser": {
       "use": "tension build into a hero reveal or stat slam",
       "maxDur": 9,
-      "count": 28
+      "count": 33
     },
     "impact": {
       "use": "logo lock-up, headline slam, hard chapter cut",
       "maxDur": 4.5,
-      "count": 19
+      "count": 25
     },
     "subdrop": {
       "use": "weighted scene change; pairs under a cut for cinematic gravity",
       "maxDur": 5,
-      "count": 6
+      "count": 7
     },
     "glitch": {
       "use": "scramble-text decode, digital state change, error/edge beat",
       "maxDur": 3.2,
       "count": 41
+    },
+    "ring": {
+      "use": "stunned silence, a tinnitus ring after an impact, the muffled/deaf beat",
+      "maxDur": 12,
+      "count": 1
     }
   },
   "clips": [
+    {
+      "id": "gakuyen/camera/gakuyen-camera-shutter1-soft",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-shutter1-soft.opus",
+      "event": "camera",
+      "dur": 0.36,
+      "onset": 0.023,
+      "effDur": 0.307,
+      "lufs": null,
+      "peak": -8.7,
+      "hit": 0.087,
+      "desc": "Soft small shutter click",
+      "tags": [
+        "soft",
+        "small"
+      ],
+      "use": "micro accents under captions; quiet repeats in a burst",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 4591,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Shutter 1.wav#0.21-0.56"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-35mm-shutter-b",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-35mm-shutter-b.opus",
+      "event": "camera",
+      "dur": 0.34,
+      "onset": 0,
+      "effDur": 0.31,
+      "lufs": null,
+      "peak": -5.8,
+      "hit": 0.08,
+      "desc": "35mm film shutter, second take",
+      "tags": [
+        "shutter",
+        "film"
+      ],
+      "use": "alternate with shutter-a so repeats do not sound identical",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 5555,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/35mm Shutter.wav#4.33-4.66"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-mech3-click",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-mech3-click.opus",
+      "event": "camera",
+      "dur": 0.34,
+      "onset": 0,
+      "effDur": 0.31,
+      "lufs": null,
+      "peak": -0.5,
+      "hit": 0.23,
+      "desc": "Hard, loud single camera click",
+      "tags": [
+        "hard",
+        "click",
+        "loud"
+      ],
+      "use": "the first frame of the hook; a snap cut",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 5835,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Camera Mechanics 3.wav#3.27-3.6"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-35mm-shutter-a",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-35mm-shutter-a.opus",
+      "event": "camera",
+      "dur": 0.35,
+      "onset": 0,
+      "effDur": 0.32,
+      "lufs": null,
+      "peak": -5.8,
+      "hit": 0.08,
+      "desc": "35mm film shutter, single crisp click",
+      "tags": [
+        "shutter",
+        "film",
+        "crisp"
+      ],
+      "use": "a freeze-frame, a still landing, one frame of a burst",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 5743,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/35mm Shutter.wav#1.38-1.72"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-mechanics-hard",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-mechanics-hard.opus",
+      "event": "camera",
+      "dur": 0.44,
+      "onset": 0,
+      "effDur": 0.41,
+      "lufs": -19.2,
+      "peak": -7.2,
+      "hit": 0.19,
+      "desc": "Heavy mechanical shutter slap",
+      "tags": [
+        "heavy",
+        "shutter"
+      ],
+      "use": "a photo slamming on screen; a hard freeze",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 8418,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Camera Mechanics.wav#3.99-4.42"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-mech2-click",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-mech2-click.opus",
+      "event": "camera",
+      "dur": 0.52,
+      "onset": 0.022,
+      "effDur": 0.468,
+      "lufs": -23.4,
+      "peak": -6.6,
+      "hit": 0.218,
+      "desc": "Mechanical camera click cluster",
+      "tags": [
+        "mechanical",
+        "click"
+      ],
+      "use": "a UI capture, a screenshot taken",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 11342,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Camera Mechanics 2.wav#2.89-3.4"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-medium-shutter-b",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-medium-shutter-b.opus",
+      "event": "camera",
+      "dur": 0.64,
+      "onset": 0.024,
+      "effDur": 0.586,
+      "lufs": -21.3,
+      "peak": -5.5,
+      "hit": 0.196,
+      "desc": "Medium-format shutter, second take",
+      "tags": [
+        "shutter",
+        "medium-format"
+      ],
+      "use": "alternate with medium-shutter for repeats",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 9394,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Medium Format Shutter.wav#4.71-5.34"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-shutter1-big",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-shutter1-big.opus",
+      "event": "camera",
+      "dur": 0.63,
+      "onset": 0,
+      "effDur": 0.59,
+      "lufs": -19.6,
+      "peak": 2,
+      "hit": 0.2,
+      "desc": "Sharp DSLR shutter with a hard transient",
+      "tags": [
+        "dslr",
+        "sharp"
+      ],
+      "use": "the URL or CTA landing; a final still",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 6964,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Shutter 1.wav#2.74-3.36"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-medium-shutter",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-medium-shutter.opus",
+      "event": "camera",
+      "dur": 0.64,
+      "onset": 0,
+      "effDur": 0.61,
+      "lufs": -21,
+      "peak": -5.3,
+      "hit": 0.21,
+      "desc": "Medium-format shutter, big body",
+      "tags": [
+        "shutter",
+        "medium-format",
+        "full"
+      ],
+      "use": "a proof still or product shot captured; a premium look",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 9127,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Medium Format Shutter.wav#2.33-2.96"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-35mm-advance",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-35mm-advance.opus",
+      "event": "camera",
+      "dur": 0.75,
+      "onset": 0,
+      "effDur": 0.72,
+      "lufs": -28.1,
+      "peak": -10.6,
+      "hit": 0.3,
+      "desc": "35mm film-advance lever wind",
+      "tags": [
+        "advance",
+        "wind",
+        "mechanical"
+      ],
+      "use": "before a sequence of photos; a 'next' beat",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 8557,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/35mm Shutter.wav#3.23-3.97"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-mech-wind",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-mech-wind.opus",
+      "event": "camera",
+      "dur": 0.78,
+      "onset": 0,
+      "effDur": 0.75,
+      "lufs": -24.5,
+      "peak": -6.3,
+      "hit": 0.52,
+      "desc": "Camera mechanism whir and clicks",
+      "tags": [
+        "mechanical",
+        "whir"
+      ],
+      "use": "a lens or focus change, an object assembling",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 11222,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Camera Mechanics 2.wav#0.49-1.26"
+    },
+    {
+      "id": "gakuyen/camera/gakuyen-camera-mechanics-triple",
+      "path": "assets/sfx-lib/camera/gakuyen-camera-mechanics-triple.opus",
+      "event": "camera",
+      "dur": 0.92,
+      "onset": 0.022,
+      "effDur": 0.858,
+      "lufs": -24.6,
+      "peak": -5.9,
+      "hit": 0.438,
+      "desc": "Three rapid mechanical clicks",
+      "tags": [
+        "triple",
+        "burst",
+        "rapid"
+      ],
+      "use": "a 3-clip burst — one click per cut",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 17651,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Camera Sounds/Camera Mechanics.wav#1.07-1.98"
+    },
     {
       "id": "vendored/camera/dslr-camera-focus-shutter-sound.opus",
       "path": "assets/sfx-lib/camera/dslr-camera-focus-shutter-sound.opus",
@@ -227,22 +501,6 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Camera/digicamerasound.wav"
     },
     {
-      "id": "vendored/chime/flare.opus",
-      "path": "assets/sfx-lib/chime/flare.opus",
-      "event": "chime",
-      "dur": 1.74,
-      "onset": 1.063,
-      "effDur": 0.677,
-      "lufs": -32.2,
-      "peak": -16.2,
-      "pack": "vendored",
-      "trust": 2,
-      "bytes": 23177,
-      "ext": "opus",
-      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/RISERS/03 BELL RISER/Flare.wav",
-      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/RISERS/03 BELL RISER/Flare.wav"
-    },
-    {
       "id": "vendored/chime/chime-ding.mp3",
       "path": "assets/sfx-lib/chime/chime-ding.mp3",
       "event": "chime",
@@ -257,6 +515,22 @@
       "ext": "mp3",
       "sourceId": "curated-core/chime-ding.mp3",
       "origin": "assets/sfx/chime-ding.mp3"
+    },
+    {
+      "id": "vendored/chime/flare.opus",
+      "path": "assets/sfx-lib/chime/flare.opus",
+      "event": "chime",
+      "dur": 1.74,
+      "onset": 1.063,
+      "effDur": 0.677,
+      "lufs": -32.2,
+      "peak": -16.2,
+      "pack": "vendored",
+      "trust": 2,
+      "bytes": 23177,
+      "ext": "opus",
+      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/RISERS/03 BELL RISER/Flare.wav",
+      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/RISERS/03 BELL RISER/Flare.wav"
     },
     {
       "id": "vendored/chime/normal.opus",
@@ -401,6 +675,38 @@
       "ext": "mp3",
       "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Transition Sound Effects/Sound Design_Title Sfx_Metal Shimmer_Whoosh_Sweep_Low Reverse_HutchSFX_3.mp3",
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Transition Sound Effects/Sound Design_Title Sfx_Metal Shimmer_Whoosh_Sweep_Low Reverse_HutchSFX_3.mp3"
+    },
+    {
+      "id": "vendored/click/click.mp3",
+      "path": "assets/sfx-lib/click/click.mp3",
+      "event": "click",
+      "dur": 1.06,
+      "onset": 0.137,
+      "effDur": 0.923,
+      "lufs": -27.2,
+      "peak": -2.5,
+      "pack": "vendored",
+      "trust": 3,
+      "bytes": 33792,
+      "ext": "mp3",
+      "sourceId": "curated-core/click.mp3",
+      "origin": "assets/sfx/click.mp3"
+    },
+    {
+      "id": "vendored/click/mouse-click.mp3",
+      "path": "assets/sfx-lib/click/mouse-click.mp3",
+      "event": "click",
+      "dur": 1.06,
+      "onset": 0.137,
+      "effDur": 0.923,
+      "lufs": -27.2,
+      "peak": -2.5,
+      "pack": "vendored",
+      "trust": 3,
+      "bytes": 33792,
+      "ext": "mp3",
+      "sourceId": "curated-core/mouse-click.mp3",
+      "origin": "assets/sfx/mouse-click.mp3"
     },
     {
       "id": "vendored/click/digital-click-3.mp3",
@@ -689,38 +995,6 @@
       "ext": "mp3",
       "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/click 0.mp3",
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/click 0.mp3"
-    },
-    {
-      "id": "vendored/click/click.mp3",
-      "path": "assets/sfx-lib/click/click.mp3",
-      "event": "click",
-      "dur": 1.06,
-      "onset": 0.137,
-      "effDur": 0.923,
-      "lufs": -27.2,
-      "peak": -2.5,
-      "pack": "vendored",
-      "trust": 3,
-      "bytes": 33792,
-      "ext": "mp3",
-      "sourceId": "curated-core/click.mp3",
-      "origin": "assets/sfx/click.mp3"
-    },
-    {
-      "id": "vendored/click/mouse-click.mp3",
-      "path": "assets/sfx-lib/click/mouse-click.mp3",
-      "event": "click",
-      "dur": 1.06,
-      "onset": 0.137,
-      "effDur": 0.923,
-      "lufs": -27.2,
-      "peak": -2.5,
-      "pack": "vendored",
-      "trust": 3,
-      "bytes": 33792,
-      "ext": "mp3",
-      "sourceId": "curated-core/mouse-click.mp3",
-      "origin": "assets/sfx/mouse-click.mp3"
     },
     {
       "id": "vendored/click/click-01.opus",
@@ -1571,6 +1845,142 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/CINEMATIC GLITCH (29).wav"
     },
     {
+      "id": "gakuyen/impact/gakuyen-deep-thud",
+      "path": "assets/sfx-lib/impact/gakuyen-deep-thud.opus",
+      "event": "impact",
+      "dur": 4.02,
+      "onset": 0,
+      "effDur": 2.23,
+      "lufs": -15.3,
+      "peak": -0.7,
+      "hit": 0.05,
+      "desc": "Short deep thud, dry, no swell",
+      "tags": [
+        "thud",
+        "dry",
+        "short"
+      ],
+      "use": "a black-card interrupt, a word slamming in, the 'skipped' beat",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 36798,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Deep Thud.wav"
+    },
+    {
+      "id": "gakuyen/impact/gakuyen-dramatic-impact",
+      "path": "assets/sfx-lib/impact/gakuyen-dramatic-impact.opus",
+      "event": "impact",
+      "dur": 4.02,
+      "onset": 0.107,
+      "effDur": 3.323,
+      "lufs": -18.9,
+      "peak": -2.2,
+      "hit": 1.063,
+      "desc": "Dramatic impact with a short swell into the crest",
+      "tags": [
+        "dramatic",
+        "swell"
+      ],
+      "use": "a stat or number slam, the enemy line, a headline",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 51231,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Dramatic Impact.wav"
+    },
+    {
+      "id": "gakuyen/impact/gakuyen-cinematic-hit-2",
+      "path": "assets/sfx-lib/impact/gakuyen-cinematic-hit-2.opus",
+      "event": "impact",
+      "dur": 4.55,
+      "onset": 0,
+      "effDur": 3.68,
+      "lufs": -19.4,
+      "peak": -1.7,
+      "hit": 1.2,
+      "desc": "Gentler cinematic hit that swells up then settles",
+      "tags": [
+        "soft",
+        "swell"
+      ],
+      "use": "a quieter act change, the endcard, an emotional hold",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 58804,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Cinematic Hit 2.wav"
+    },
+    {
+      "id": "gakuyen/impact/gakuyen-cinematic-hit",
+      "path": "assets/sfx-lib/impact/gakuyen-cinematic-hit.opus",
+      "event": "impact",
+      "dur": 4.59,
+      "onset": 0.074,
+      "effDur": 4.516,
+      "lufs": -14.2,
+      "peak": 0.2,
+      "hit": 0.046,
+      "desc": "Huge instant cinematic hit, deep, long tail",
+      "tags": [
+        "huge",
+        "instant",
+        "deep"
+      ],
+      "use": "THE turn or reveal — once per film; the hook's first frame",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 69413,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Cinematic Hit.wav"
+    },
+    {
+      "id": "gakuyen/impact/gakuyen-large-cinematics",
+      "path": "assets/sfx-lib/impact/gakuyen-large-cinematics.opus",
+      "event": "impact",
+      "dur": 5.17,
+      "onset": 0.085,
+      "effDur": 4.595,
+      "lufs": -17.6,
+      "peak": -1.2,
+      "hit": 1.055,
+      "desc": "Swell-in cinematic impact that crests about a second in",
+      "tags": [
+        "swell",
+        "cinematic",
+        "trailer"
+      ],
+      "use": "the turn line; a slow-built slam where the build is part of the sound",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 80722,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Large Cinematics.wav"
+    },
+    {
+      "id": "gakuyen/impact/gakuyen-hit-large",
+      "path": "assets/sfx-lib/impact/gakuyen-hit-large.opus",
+      "event": "impact",
+      "dur": 5.64,
+      "onset": 0.223,
+      "effDur": 4.877,
+      "lufs": -16.4,
+      "peak": -0.6,
+      "hit": 0.717,
+      "desc": "Large, wide hit with a long rumble",
+      "tags": [
+        "large",
+        "wide",
+        "rumble"
+      ],
+      "use": "the brand name, the colour flip, the logo lock-up",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 74603,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Hit Large .wav"
+    },
+    {
       "id": "vendored/impact/impact-boom.mp3",
       "path": "assets/sfx-lib/impact/impact-boom.mp3",
       "event": "impact",
@@ -1939,22 +2349,6 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/notification-ping-372479.mp3"
     },
     {
-      "id": "vendored/pop/multi-pop-6-188170.mp3",
-      "path": "assets/sfx-lib/pop/multi-pop-6-188170.mp3",
-      "event": "pop",
-      "dur": 0.41,
-      "onset": 0.024,
-      "effDur": 0.386,
-      "lufs": -16.2,
-      "peak": -3.4,
-      "pack": "vendored",
-      "trust": 2,
-      "bytes": 13056,
-      "ext": "mp3",
-      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/multi-pop-6-188170.mp3",
-      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/multi-pop-6-188170.mp3"
-    },
-    {
       "id": "vendored/pop/bubble-pop.mp3",
       "path": "assets/sfx-lib/pop/bubble-pop.mp3",
       "event": "pop",
@@ -1985,6 +2379,22 @@
       "ext": "mp3",
       "sourceId": "curated-core/dragon-studio-pop-402324.mp3",
       "origin": "assets/sfx/dragon-studio-pop-402324.mp3"
+    },
+    {
+      "id": "vendored/pop/multi-pop-6-188170.mp3",
+      "path": "assets/sfx-lib/pop/multi-pop-6-188170.mp3",
+      "event": "pop",
+      "dur": 0.41,
+      "onset": 0.024,
+      "effDur": 0.386,
+      "lufs": -16.2,
+      "peak": -3.4,
+      "pack": "vendored",
+      "trust": 2,
+      "bytes": 13056,
+      "ext": "mp3",
+      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/multi-pop-6-188170.mp3",
+      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/multi-pop-6-188170.mp3"
     },
     {
       "id": "vendored/pop/floraphonic-ui-pop-up-5-197889.mp3",
@@ -2067,6 +2477,29 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/ui-pop-up-15-197897.mp3"
     },
     {
+      "id": "gakuyen/reverse/gakuyen-suction-riser",
+      "path": "assets/sfx-lib/reverse/gakuyen-suction-riser.opus",
+      "event": "reverse",
+      "dur": 4.02,
+      "onset": 0.34,
+      "effDur": 2.16,
+      "lufs": -22.4,
+      "peak": -9.5,
+      "hit": 2.09,
+      "desc": "Suck-in riser, air pulled backwards into a point",
+      "tags": [
+        "suction",
+        "reverse",
+        "suck-in"
+      ],
+      "use": "the pre-roll INTO a hard cut or reveal; the breath before the name",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 35766,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Suction Riser.wav"
+    },
+    {
       "id": "vendored/reverse/bongo-reverse-hits-10-1.mp3",
       "path": "assets/sfx-lib/reverse/bongo-reverse-hits-10-1.mp3",
       "event": "reverse",
@@ -2097,6 +2530,143 @@
       "ext": "opus",
       "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/REVERSE (42).wav",
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/REVERSE (42).wav"
+    },
+    {
+      "id": "gakuyen/ring/gakuyen-high-pitch-ringing",
+      "path": "assets/sfx-lib/ring/gakuyen-high-pitch-ringing.opus",
+      "event": "ring",
+      "dur": 14.1,
+      "onset": 0.379,
+      "effDur": 12.391,
+      "lufs": -26.9,
+      "peak": -27.6,
+      "hit": 0,
+      "desc": "Tinnitus-style high ringing tone that swells and fades (11s)",
+      "tags": [
+        "ring",
+        "tinnitus",
+        "shock"
+      ],
+      "use": "stunned silence, the muffled/deaf problem beat, after an impact — pass dur",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 259443,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/High Pitch Ringing.wav"
+    },
+    {
+      "id": "gakuyen/riser/gakuyen-metallic-riser",
+      "path": "assets/sfx-lib/riser/gakuyen-metallic-riser.opus",
+      "event": "riser",
+      "dur": 4.02,
+      "onset": 0,
+      "effDur": 1.73,
+      "lufs": -13.7,
+      "peak": -1,
+      "hit": 1.68,
+      "desc": "Bright metallic riser, sharp top",
+      "tags": [
+        "metallic",
+        "bright",
+        "sharp"
+      ],
+      "use": "into a number slam, a count-up landing, a glitch",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 36813,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Metallic Riser.wav"
+    },
+    {
+      "id": "gakuyen/riser/gakuyen-riser-simple",
+      "path": "assets/sfx-lib/riser/gakuyen-riser-simple.opus",
+      "event": "riser",
+      "dur": 4.02,
+      "onset": 0.068,
+      "effDur": 1.792,
+      "lufs": -29.5,
+      "peak": -17.5,
+      "hit": 1.762,
+      "desc": "Thin, high, simple riser, very quiet",
+      "tags": [
+        "thin",
+        "high",
+        "quiet"
+      ],
+      "use": "micro tension under a caption; stack under another riser for air",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 33224,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Riser Simple.wav"
+    },
+    {
+      "id": "gakuyen/riser/gakuyen-riser-layered",
+      "path": "assets/sfx-lib/riser/gakuyen-riser-layered.opus",
+      "event": "riser",
+      "dur": 2.14,
+      "onset": 0.276,
+      "effDur": 1.864,
+      "lufs": -23.7,
+      "peak": -8.5,
+      "hit": 1.604,
+      "desc": "Layered riser, quieter, textured",
+      "tags": [
+        "layered",
+        "subtle"
+      ],
+      "use": "a softer build under the voice; into a proof hold",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 26802,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Riser Layered.wav"
+    },
+    {
+      "id": "gakuyen/riser/gakuyen-cinematic-riser",
+      "path": "assets/sfx-lib/riser/gakuyen-cinematic-riser.opus",
+      "event": "riser",
+      "dur": 2.57,
+      "onset": 0.392,
+      "effDur": 2.118,
+      "lufs": -13.6,
+      "peak": 0.9,
+      "hit": 1.988,
+      "desc": "Cinematic riser, steady low-mid build to a full top",
+      "tags": [
+        "cinematic",
+        "build",
+        "tension"
+      ],
+      "use": "the 1-2s approach into the turn or the brand name",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 39189,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Cinematic Riser.wav"
+    },
+    {
+      "id": "gakuyen/riser/gakuyen-riser-sci-fi",
+      "path": "assets/sfx-lib/riser/gakuyen-riser-sci-fi.opus",
+      "event": "riser",
+      "dur": 3.9,
+      "onset": 0.755,
+      "effDur": 2.315,
+      "lufs": -15.6,
+      "peak": -0.5,
+      "hit": 1.705,
+      "desc": "Synthetic sci-fi riser, bigger and longer",
+      "tags": [
+        "sci-fi",
+        "synth",
+        "tech"
+      ],
+      "use": "a tech/AI product reveal; into a stat or a demo",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 46360,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Risers/Riser Sci-fi.wav"
     },
     {
       "id": "vendored/riser/riser.mp3",
@@ -2627,6 +3197,29 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/mix/miraclei-sample_confirm_accept02_kofi_by_miraclei-364180.mp3"
     },
     {
+      "id": "gakuyen/subdrop/gakuyen-analog-synth-hit-deep",
+      "path": "assets/sfx-lib/subdrop/gakuyen-analog-synth-hit-deep.opus",
+      "event": "subdrop",
+      "dur": 4.02,
+      "onset": 0.091,
+      "effDur": 3.359,
+      "lufs": -8.6,
+      "peak": -0.7,
+      "hit": 0.229,
+      "desc": "Pure analog synth sub boom, sustained 3s, no highs",
+      "tags": [
+        "sub",
+        "synth",
+        "bass"
+      ],
+      "use": "under the turn word where the bass returns; under a cut for gravity — pass dur",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 54460,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Impacts/Analog Synth Hit Deep.wav"
+    },
+    {
       "id": "vendored/subdrop/low-horn-39.opus",
       "path": "assets/sfx-lib/subdrop/low-horn-39.opus",
       "event": "subdrop",
@@ -2883,22 +3476,6 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/middle gear.wav"
     },
     {
-      "id": "vendored/type/keyboard-4.mp3",
-      "path": "assets/sfx-lib/type/keyboard-4.mp3",
-      "event": "type",
-      "dur": 1.73,
-      "onset": 0.083,
-      "effDur": 1.647,
-      "lufs": -29.2,
-      "peak": -3.5,
-      "pack": "vendored",
-      "trust": 2,
-      "bytes": 75275,
-      "ext": "mp3",
-      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/Keyboard - 4.mp3",
-      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/Keyboard - 4.mp3"
-    },
-    {
       "id": "vendored/type/keyboard.mp3",
       "path": "assets/sfx-lib/type/keyboard.mp3",
       "event": "type",
@@ -2915,6 +3492,22 @@
       "origin": "assets/sfx/keyboard.mp3"
     },
     {
+      "id": "vendored/type/keyboard-4.mp3",
+      "path": "assets/sfx-lib/type/keyboard-4.mp3",
+      "event": "type",
+      "dur": 1.73,
+      "onset": 0.083,
+      "effDur": 1.647,
+      "lufs": -29.2,
+      "peak": -3.5,
+      "pack": "vendored",
+      "trust": 2,
+      "bytes": 75275,
+      "ext": "mp3",
+      "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/336 SFX/MIX/Keyboard - 4.mp3",
+      "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/MIX/Keyboard - 4.mp3"
+    },
+    {
       "id": "vendored/type/digital-type-text.opus",
       "path": "assets/sfx-lib/type/digital-type-text.opus",
       "event": "type",
@@ -2929,6 +3522,208 @@
       "ext": "opus",
       "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Digital HUD Interface Sounds/Digital Type Text.wav",
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Digital HUD Interface Sounds/Digital Type Text.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-deep-low-swoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-deep-low-swoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.02,
+      "onset": 0.128,
+      "effDur": 1.402,
+      "lufs": -16.5,
+      "peak": -1.7,
+      "hit": 0.582,
+      "desc": "Very low, sub-heavy swoosh with no top end",
+      "tags": [
+        "deep",
+        "sub",
+        "dark"
+      ],
+      "use": "the dark problem act; a black-card interrupt; full-frame moves",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 38926,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Deep Low Swoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-dramatic-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-dramatic-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.02,
+      "onset": 0,
+      "effDur": 1.78,
+      "lufs": -15,
+      "peak": -2.2,
+      "hit": 0.48,
+      "desc": "Dramatic, full-bodied whoosh with an early hit",
+      "tags": [
+        "dramatic",
+        "heavy"
+      ],
+      "use": "an act change, a glitch cut, the pattern-interrupt card",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 41714,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Dramatic Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-whoosh-reverbed",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-whoosh-reverbed.opus",
+      "event": "whoosh_deep",
+      "dur": 1.99,
+      "onset": 0,
+      "effDur": 1.99,
+      "lufs": -19,
+      "peak": -7.3,
+      "hit": 0.52,
+      "desc": "Whoosh that blooms into a long reverb wash",
+      "tags": [
+        "reverb",
+        "wash"
+      ],
+      "use": "into a pause or silence; out of the last line into the endcard",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 24852,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Whoosh Reverbed.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-deep-long-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-deep-long-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.02,
+      "onset": 0.67,
+      "effDur": 2.01,
+      "lufs": -12.9,
+      "peak": 0.3,
+      "hit": 1.16,
+      "desc": "Long deep whoosh that swells to a big peak",
+      "tags": [
+        "deep",
+        "long",
+        "swell"
+      ],
+      "use": "into the reveal or the name; scene-scale travel",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 49810,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Deep Long Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-deep-low-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-deep-low-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.02,
+      "onset": 0.035,
+      "effDur": 2.345,
+      "lufs": -23.2,
+      "peak": -6.8,
+      "hit": 0.435,
+      "desc": "Low whoosh, front-loaded, fades long",
+      "tags": [
+        "deep",
+        "dark"
+      ],
+      "use": "a slow push, a heavy shot entering, an ominous line",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 38990,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Deep Low Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-smooth-cinematic-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-smooth-cinematic-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 3.24,
+      "onset": 0.124,
+      "effDur": 2.736,
+      "lufs": -18.6,
+      "peak": -3.9,
+      "hit": 0.676,
+      "desc": "Smooth, polished cinematic whoosh",
+      "tags": [
+        "smooth",
+        "cinematic",
+        "polished"
+      ],
+      "use": "a logo or wordmark arriving; the move into the CTA",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 39544,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Smooth Cinematic Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-layered-whoosh-transition",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-layered-whoosh-transition.opus",
+      "event": "whoosh_deep",
+      "dur": 2.92,
+      "onset": 0.161,
+      "effDur": 2.739,
+      "lufs": -16.4,
+      "peak": -4.5,
+      "hit": 0.859,
+      "desc": "Layered transition whoosh, strong attack, wide tail",
+      "tags": [
+        "layered",
+        "transition"
+      ],
+      "use": "a major transition between acts; the colour flip at the turn",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 36561,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Layered Whoosh Transition.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-layered-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-layered-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.02,
+      "onset": 0.072,
+      "effDur": 3.288,
+      "lufs": -17.2,
+      "peak": -5,
+      "hit": 1.668,
+      "desc": "Layered whoosh that builds slowly to a wide peak",
+      "tags": [
+        "layered",
+        "build"
+      ],
+      "use": "a zoom-through or a window shrinking out of full-bleed",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 49125,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Layered Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_deep/gakuyen-early-whoosh",
+      "path": "assets/sfx-lib/whoosh_deep/gakuyen-early-whoosh.opus",
+      "event": "whoosh_deep",
+      "dur": 4.93,
+      "onset": 0,
+      "effDur": 4.5,
+      "lufs": -17.5,
+      "peak": -0.1,
+      "hit": 1.14,
+      "desc": "Big cinematic whoosh with a long low tail (4.5s)",
+      "tags": [
+        "cinematic",
+        "long",
+        "tail"
+      ],
+      "use": "the opening frame; a trailer-style title; pass dur to cut the tail",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 59118,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Early Whoosh.wav"
     },
     {
       "id": "vendored/whoosh_deep/space-ship-fly-by.opus",
@@ -3267,6 +4062,243 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/336 SFX/SLOW MOTION/Intense slow mo.wav"
     },
     {
+      "id": "gakuyen/whoosh_soft/gakuyen-fast-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-fast-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 0.9,
+      "onset": 0.137,
+      "effDur": 0.563,
+      "lufs": -20.3,
+      "peak": -3.5,
+      "hit": 0.213,
+      "desc": "Tiny, very fast air whoosh, half a second",
+      "tags": [
+        "fast",
+        "short",
+        "light",
+        "cut"
+      ],
+      "use": "hard cuts inside a burst, a caption jumping to a new spot, rapid list items",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 12465,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Fast Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-short-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-short-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 4.02,
+      "onset": 0.161,
+      "effDur": 0.699,
+      "lufs": -23.1,
+      "peak": -3.2,
+      "hit": 0.399,
+      "desc": "Short, punchy whoosh with a low body",
+      "tags": [
+        "short",
+        "punchy",
+        "low"
+      ],
+      "use": "a whip-pan or a hard cut that needs weight without a tail",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 28435,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Short Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-quick-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-quick-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 4.02,
+      "onset": 0.2,
+      "effDur": 0.94,
+      "lufs": -21.4,
+      "peak": -6,
+      "hit": 0.47,
+      "desc": "Quick, clean mid whoosh",
+      "tags": [
+        "quick",
+        "clean"
+      ],
+      "use": "the default cut between two footage shots; card slides",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 28722,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Quick Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-quick-intense-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-quick-intense-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 1.71,
+      "onset": 0.123,
+      "effDur": 1.117,
+      "lufs": -24.2,
+      "peak": -7.7,
+      "hit": 0.487,
+      "desc": "Quick whoosh that swells and snaps, more aggressive",
+      "tags": [
+        "quick",
+        "intense"
+      ],
+      "use": "a push-in on a stressed word, a punch zoom, a caption slam",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 24650,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Quick Intense Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-short-airy-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-short-airy-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 2.27,
+      "onset": 0.296,
+      "effDur": 1.644,
+      "lufs": -21.9,
+      "peak": -4.9,
+      "hit": 0.684,
+      "desc": "Short, breathy, bright whoosh",
+      "tags": [
+        "airy",
+        "bright",
+        "short"
+      ],
+      "use": "a window or card sliding in; a colour flip",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 28630,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Short Airy Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-air-swoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-air-swoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 4.02,
+      "onset": 0.349,
+      "effDur": 1.681,
+      "lufs": -19.9,
+      "peak": -3.1,
+      "hit": 0.521,
+      "desc": "Soft airy swoosh, gentle",
+      "tags": [
+        "airy",
+        "soft",
+        "gentle"
+      ],
+      "use": "light element travel on a white/solution act; calm transitions",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 40624,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Air Swoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-flyby-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-flyby-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 3.38,
+      "onset": 0.173,
+      "effDur": 2.437,
+      "lufs": -20.2,
+      "peak": -4.5,
+      "hit": 1.247,
+      "desc": "Pass-by flyby whoosh that builds and passes",
+      "tags": [
+        "flyby",
+        "pan",
+        "travel"
+      ],
+      "use": "lateral pans, a scroll across a page, something passing the camera",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 39592,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Flyby Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-quick-reverb-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-quick-reverb-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 2.5,
+      "onset": 0,
+      "effDur": 2.5,
+      "lufs": -18.4,
+      "peak": -3.2,
+      "hit": 0.69,
+      "desc": "Quick whoosh with a roomy reverb tail",
+      "tags": [
+        "reverb",
+        "tail",
+        "space"
+      ],
+      "use": "a cut into a quieter, bigger space; before a held line",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 31540,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Quick Reverb Whoosh.wav"
+    },
+    {
+      "id": "gakuyen/whoosh_soft/gakuyen-reverb-whoosh",
+      "path": "assets/sfx-lib/whoosh_soft/gakuyen-reverb-whoosh.opus",
+      "event": "whoosh_soft",
+      "dur": 4.02,
+      "onset": 0.307,
+      "effDur": 2.623,
+      "lufs": -23,
+      "peak": -7.9,
+      "hit": 0.933,
+      "desc": "Mid whoosh with a long reverb",
+      "tags": [
+        "reverb",
+        "tail"
+      ],
+      "use": "a transition into a hold; an act change that should breathe",
+      "pack": "gakuyen",
+      "trust": 4,
+      "bytes": 48132,
+      "ext": "opus",
+      "origin": "assets/Gakuyen Ultimate Sound FX Pack/Whoosh/Reverb Whoosh.wav"
+    },
+    {
+      "id": "vendored/whoosh_soft/whoosh.mp3",
+      "path": "assets/sfx-lib/whoosh_soft/whoosh.mp3",
+      "event": "whoosh_soft",
+      "dur": 0.68,
+      "onset": 0.079,
+      "effDur": 0.601,
+      "lufs": -20.4,
+      "peak": -4.3,
+      "pack": "vendored",
+      "trust": 3,
+      "bytes": 11212,
+      "ext": "mp3",
+      "sourceId": "curated-core/whoosh.mp3",
+      "origin": "assets/sfx/whoosh.mp3"
+    },
+    {
+      "id": "vendored/whoosh_soft/swoosh-soft.mp3",
+      "path": "assets/sfx-lib/whoosh_soft/swoosh-soft.mp3",
+      "event": "whoosh_soft",
+      "dur": 1.13,
+      "onset": 0.044,
+      "effDur": 1.086,
+      "lufs": -37.7,
+      "peak": -2.4,
+      "pack": "vendored",
+      "trust": 3,
+      "bytes": 9261,
+      "ext": "mp3",
+      "sourceId": "curated-core/swoosh-soft.mp3",
+      "origin": "assets/sfx/swoosh-soft.mp3"
+    },
+    {
       "id": "vendored/whoosh_soft/whoosh-swoosh-swing-fishing-pole-closefull-fienu.mp3",
       "path": "assets/sfx-lib/whoosh_soft/whoosh-swoosh-swing-fishing-pole-closefull-fienu.mp3",
       "event": "whoosh_soft",
@@ -3587,22 +4619,6 @@
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Swishes/Sharp swoosh.wav"
     },
     {
-      "id": "vendored/whoosh_soft/whoosh.mp3",
-      "path": "assets/sfx-lib/whoosh_soft/whoosh.mp3",
-      "event": "whoosh_soft",
-      "dur": 0.68,
-      "onset": 0.079,
-      "effDur": 0.601,
-      "lufs": -20.4,
-      "peak": -4.3,
-      "pack": "vendored",
-      "trust": 3,
-      "bytes": 11212,
-      "ext": "mp3",
-      "sourceId": "curated-core/whoosh.mp3",
-      "origin": "assets/sfx/whoosh.mp3"
-    },
-    {
       "id": "vendored/whoosh_soft/whoosh-swish-sounds-4.MP3",
       "path": "assets/sfx-lib/whoosh_soft/whoosh-swish-sounds-4.MP3",
       "event": "whoosh_soft",
@@ -3857,22 +4873,6 @@
       "ext": "MP3",
       "sourceId": "urfasteditor/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Transition Sound Effects/Whoosh_ Swish Sounds.MP3",
       "origin": "assets/1000+UR.FASTEDITOR SFX/1000+UR.FASTEDITOR SFX/450 cinematic sound effects/Transition Sound Effects/Whoosh_ Swish Sounds.MP3"
-    },
-    {
-      "id": "vendored/whoosh_soft/swoosh-soft.mp3",
-      "path": "assets/sfx-lib/whoosh_soft/swoosh-soft.mp3",
-      "event": "whoosh_soft",
-      "dur": 1.13,
-      "onset": 0.044,
-      "effDur": 1.086,
-      "lufs": -37.7,
-      "peak": -2.4,
-      "pack": "vendored",
-      "trust": 3,
-      "bytes": 9261,
-      "ext": "mp3",
-      "sourceId": "curated-core/swoosh-soft.mp3",
-      "origin": "assets/sfx/swoosh-soft.mp3"
     },
     {
       "id": "vendored/whoosh_soft/04.opus",
@@ -5028,5 +6028,65 @@
     }
   ],
   "vendored": true,
-  "note": "Vendored + re-measured. Audio lives in assets/sfx-lib/ and is committed with this manifest. The original packs are the SOURCE (gitignored); re-run sfx-index.mjs then sfx-vendor.mjs to rebuild."
+  "note": "Vendored + re-measured. Audio lives in assets/sfx-lib/ and is committed with this manifest. The original packs are the SOURCE (gitignored); re-run sfx-index.mjs then sfx-vendor.mjs to rebuild.",
+  "packs": {
+    "gakuyen": {
+      "title": "Gakuyen Ultimate Sound FX Pack",
+      "trust": 4,
+      "roles": {
+        "hook": [
+          "impact:gakuyen-cinematic-hit",
+          "whoosh_soft:gakuyen-fast-whoosh",
+          "camera:gakuyen-camera-mech3-click"
+        ],
+        "burst": [
+          "whoosh_soft:gakuyen-fast-whoosh",
+          "whoosh_soft:gakuyen-short-whoosh",
+          "camera:gakuyen-camera-mechanics-triple"
+        ],
+        "cut": [
+          "whoosh_soft:gakuyen-quick-whoosh",
+          "whoosh_soft:gakuyen-short-airy-whoosh",
+          "whoosh_soft:gakuyen-air-swoosh"
+        ],
+        "interrupt": [
+          "impact:gakuyen-deep-thud",
+          "camera:gakuyen-camera-35mm-shutter-a",
+          "whoosh_deep:gakuyen-deep-low-swoosh"
+        ],
+        "problem": [
+          "ring:gakuyen-high-pitch-ringing",
+          "impact:gakuyen-deep-thud"
+        ],
+        "pre-turn": [
+          "riser:gakuyen-cinematic-riser",
+          "riser:gakuyen-riser-sci-fi",
+          "reverse:gakuyen-suction-riser"
+        ],
+        "turn": [
+          "impact:gakuyen-large-cinematics",
+          "impact:gakuyen-cinematic-hit",
+          "subdrop:gakuyen-analog-synth-hit-deep"
+        ],
+        "reveal": [
+          "impact:gakuyen-hit-large",
+          "subdrop:gakuyen-analog-synth-hit-deep",
+          "whoosh_deep:gakuyen-deep-long-whoosh"
+        ],
+        "proof": [
+          "camera:gakuyen-camera-medium-shutter",
+          "whoosh_soft:gakuyen-flyby-whoosh"
+        ],
+        "stat": [
+          "impact:gakuyen-dramatic-impact",
+          "riser:gakuyen-metallic-riser"
+        ],
+        "close": [
+          "whoosh_deep:gakuyen-smooth-cinematic-whoosh",
+          "impact:gakuyen-cinematic-hit-2",
+          "camera:gakuyen-camera-shutter1-big"
+        ]
+      }
+    }
+  }
 }

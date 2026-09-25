@@ -596,7 +596,8 @@ console.log(`\n${failed || problems.length ? "⚠ Mix rejected; previous output 
 // The export/idle safety net uses this same script. Keep explicit mix choices
 // across its automatic rebuilds instead of reverting to the default gains.
 if (!failed && !problems.length && !flag("out")) {
-  const next = JSON.stringify({ "bed-db": BED_ATTEN_DB, "sfx-db": SFX_TRIM_DB, duck: DUCK_DEPTH, "no-breaths": NO_BREATHS }, null, 2);
+  // Keep keys other tools own (sfx-pack, sfx-density) across a level rewrite.
+  const next = JSON.stringify({ ...settings, "bed-db": BED_ATTEN_DB, "sfx-db": SFX_TRIM_DB, duck: DUCK_DEPTH, "no-breaths": NO_BREATHS }, null, 2);
   if (!existsSync(SETTINGS) || readFileSync(SETTINGS, "utf8") !== next) {
     writeFileSync(SETTINGS, next);
     const mixedAt = statSync(OUT).mtime;

@@ -1,6 +1,7 @@
 # Recipes: shots the ads keep needing
 
-Three project shot types, tested in a 9:16 film (seek-exact, audit-clean).
+Four project shot types in a 9:16 film (`signal`, `exploded` and `float`
+tested seek-exact and audit-clean; `strobe` follows the same pattern).
 Copy one into `js/shots/<type>.js` (and its CSS into `css/shots/<type>.css`)
 only when the film uses it; `pitch motion check` links the files. Change the
 look freely; keep the rules they follow — every value driven from the
@@ -204,6 +205,85 @@ captions in the empty half of the frame, dark `color` on a light `bg`.
 .fl-item img { position: absolute; left: 0; top: 0; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.16)); }
 .fl-shadow { position: absolute; left: 0; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(0, 0, 0, 0.35), transparent); filter: blur(6px); }
+```
+
+## `strobe` — one word, cycling dressings
+
+The flicker from the studies' closes and loud lists: a single word holds its
+spot while its dressing — typeface, colour, fill, outline, glow — swaps every
+0.08–0.2s, then lands on the final (usually the clean, brand) treatment. The
+eye reads the word once; the flicker is pure energy. Keep the cycling under a
+second, then land — strobing longer breaks the flash rule. For the *text*
+swapping in one spot, use a `line` shot's `rotate` instead.
+
+```js
+{ id: "dont", type: "strobe", dur: 2.4, bg: "#000", text: "DON'T MISS OUT",
+  every: 0.11, land: 0,
+  treatments: [
+    { font: "Georgia, serif", italic: true, color: "#FFFFFF" },   // the landing face
+    { font: "'Arial Black', 'Helvetica Neue', sans-serif", color: "#C8FF3D", weight: 900 },
+    { font: "'Courier New', monospace", color: "#FF4D6D", outline: "#FFFFFF" },
+    { font: "'Times New Roman', serif", color: "#0B0B0C", highlight: "#C8FF3D" },
+    { font: "'Helvetica Neue', sans-serif", color: "#FFFFFF", glow: "#7CF2C8", weight: 800 },
+  ] }
+```
+
+```js
+// One word holding its spot while its dressing cycles (font, colour, fill,
+// outline, glow), then landing on one treatment for the rest of the shot.
+// The index is a function of shot time, so every seek lands exactly.
+// { type: "strobe", dur, text, every: 0.11, land: <index, default last>,
+//   treatments: [{ font?, color?, weight?, italic?, case?, outline?: <colour>,
+//   glow?: <colour>, highlight?: <colour>, scale?: <multiplier> }] }
+(function () {
+  window.ProjectShotFactories = Object.assign(window.ProjectShotFactories || {}, {
+    strobe: {
+      mount(el, shot) {
+        el.dataset.bg = shot.bg || "#000";
+        const word = document.createElement("div");
+        word.className = "st-word";
+        word.textContent = shot.text || "";
+        word.style.fontSize = `${Math.round(window.ShotKit.stage.w * (shot.size || 0.13))}px`;
+        el.appendChild(word);
+        el.__strobe = { word, i: -1 };
+      },
+      animate(el, shot, D) {
+        const st = el.__strobe;
+        const ts = shot.treatments && shot.treatments.length ? shot.treatments : [{}];
+        const every = shot.every ?? 0.11;
+        const land = shot.land ?? ts.length - 1;
+        const flicker = Math.min(D, every * ts.length);
+        const apply = () => {
+          const t = state.t;
+          const i = t >= flicker ? land : Math.floor(t / every) % ts.length;
+          if (i === st.i) return;
+          st.i = i;
+          const tr = ts[i];
+          const w = st.word.style;
+          w.fontFamily = tr.font || "";
+          w.fontWeight = String(tr.weight ?? 800);
+          w.fontStyle = tr.italic ? "italic" : "normal";
+          w.textTransform = tr.case || "uppercase";
+          w.color = tr.color || "#FFFFFF";
+          w.background = tr.highlight || "transparent";
+          w.webkitTextStroke = tr.outline ? `2px ${tr.outline}` : "0px transparent";
+          w.textShadow = tr.glow ? `0 0 30px ${tr.glow}, 0 0 90px ${tr.glow}` : "none";
+          w.transform = `translate(-50%, -50%) scale(${tr.scale || 1})`;
+        };
+        const state = { t: 0 };
+        const tl = gsap.timeline();
+        tl.to(state, { t: D, duration: D, ease: "none", onUpdate: apply }, 0);
+        apply();
+        return tl;
+      },
+    },
+  });
+})();
+```
+
+```css
+.st-word { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  white-space: nowrap; text-align: center; padding: 0 0.12em; }
 ```
 
 ## Built in, not a recipe

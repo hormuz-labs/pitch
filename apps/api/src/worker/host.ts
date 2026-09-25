@@ -109,6 +109,7 @@ const logger = createLogger('studio:host')
 const BILLABLE_GENERATION_ACTIONS = new Set([
   'elevenlabs_voiceover',
   'elevenlabs_music',
+  'lyria_music',
   'elevenlabs_sound',
   'demo_record_start',
   'edit_render',

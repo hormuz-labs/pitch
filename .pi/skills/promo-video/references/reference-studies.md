@@ -7,7 +7,7 @@ words, claims, music or brand. The shared grammar is in
 
 | Ad | Look | Length | Voice | Cuts | Opening 5s | Master |
 |---|---|---|---|---|---|---|
-| A — hearing protection | editorial DTC | 49s | 2.75 w/s | 1.8/s in the problem act | "Here's the thing", a burst of faces under "1.1 BILLION" | −13.7 LUFS |
+| A — hearing protection | editorial DTC | 49s | 2.75 w/s | 2.1/s overall, bursts of 0.08s | "Here's the thing", a burst of faces under "1.1 BILLION" | −13.7 LUFS |
 | B — men's acne device | editorial DTC | 95s | 3.25 w/s, one pause in 90s | 0.64/s overall, bursts of 0.1s | 11 cuts: "Here's the thing", articles, faces under "OVER THE AGE [25]" | −11.2 LUFS |
 | C — B2B sales software | cinematic B2B | 33s | 3.68 w/s | 1.19/s | speed-ramped money, watch, phones under "LOSING… UNREACHABLE…" | −9.1 LUFS |
 | D — women's serum | loud DTC | 76s | 2.77 w/s | 1.20/s, 15 cuts in the first 5s | "Mothers +40", seven faces in 0.7s under "YOUNG Enough", "KEEP WATCHING" | −22.4 LUFS* |
@@ -35,6 +35,13 @@ dynamics, not their level.
 | 33.5–38.0 | "…effective protection…" | the product in hand; people laughing in bars and concerts | — | proof of life: the promise delivered |
 | 38.2–43.3 | "Thank us when you finally experience what clear music sounds like" | the product floating on white | THANK / US / WHEN / YOU → FINALLY → EXPERIENCE → WHAT / CLEAR / MUSIC / SOUNDS / LIKE | payoff: the feeling, not the spec |
 | 43.5–49.0 | — | logo on black with drifting particles; social handle | — | brand, with room |
+
+Sound: the mix performs the problem — the bed ducks ~10dB under the "muffled"
+stretch (4.8–13.5s) and slams back +15–19dB on the pandemic reframe; 0.45s of
+dead silence at 19.0s detonates +35dB into EARPLUGS SUCK — the film's loudest
+moment, on the objection, not the turn (the turn and the product reveal then
+*lift*, +12–17dB). A breath before the name, another 0.5s before the logo.
+−13.7 LUFS, LRA 8.0: the hottest and most dynamic master of the five.
 
 ## B — men's acne device (editorial DTC, 95s)
 
@@ -78,7 +85,9 @@ into a search bar as the close.
 | 26–33 | close | wordmark + URL typed into a search bar; "Welcome to the digital age gold rush"; DON'T [miss out]; "Book a call today" |
 
 Sound: a driving 91 BPM bed under a fast, clipped voice (3.68 w/s);
-sentence-final words land long ("table.", "today.", "Belfort.").
+sentence-final words land long ("table.", "today.", "Belfort."), and a surge
+lands on them every 4–6s (measured at 4.3, 8.3, 14.3s) — the bed keeps the
+time the cuts don't.
 
 ## D — women's serum (loud DTC, 76s)
 

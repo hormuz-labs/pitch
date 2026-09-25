@@ -18,9 +18,13 @@ Write `audio/sfx-cues.json` as an object, not an array:
 Transients land at `t`; a riser ENDS at `t`, with `dur` describing its approach.
 Other sounds longer than 1.5s need `dur` matching the action and no longer than
 the available clip. Match whoosh peaks to movement and leave room for silence.
-The builder enforces approximate ceilings per 30s: six signature cues, one per
-shot, and fourteen micro-events (tick/pop/click/type/data). These are limits,
-not targets. Prefer dropping redundant sounds over filling the allowance.
+The studio default SFX density is `heavy` (built for ads and promos). A launch
+film is sparse: write `"sfx-density": "standard"` into `audio/mix-settings.json`
+before the first build. At `standard` the builder enforces approximate ceilings
+per 30s: six signature cues, one per shot, and fourteen micro-events
+(tick/pop/click/type/data). These are limits, not targets. Prefer dropping
+redundant sounds over filling the allowance. The Gakuyen pack ranks first for
+whooshes, risers, impacts and shutters; each clip's measured `hit` is aligned to `t`.
 
 Run `pitch motion sfx --mode build`, correct reported placement problems in a
 batch, then mix (`references/audio/mix.md`). A new effect generated with

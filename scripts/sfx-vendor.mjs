@@ -196,4 +196,4 @@ console.log(`\n✅ ${clips.length} clips vendored`);
 console.log(`   ${(srcBytes / 1e6).toFixed(1)} MB → ${(outBytes / 1e6).toFixed(1)} MB ` +
   `(${(srcBytes / outBytes).toFixed(1)}x smaller)`);
 console.log(`   manifest rewritten → ${relative(REPO, MANIFEST)}`);
-console.log(`\nNext: rebuild a project's SFX bus and confirm the levels still match.`);
+console.log(`\nNext: node scripts/sfx-add-pack.mjs — this rewrite dropped the hand-curated packs (data/sfx-packs/*.json); re-add them, then rebuild a project's SFX bus and confirm the levels still match.`);

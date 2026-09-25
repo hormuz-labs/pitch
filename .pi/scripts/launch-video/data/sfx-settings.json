@@ -1,0 +1,5 @@
+{
+  "pack": "gakuyen",
+  "density": "heavy",
+  "note": "Studio-wide SFX defaults. `pack` is ranked first whenever a cue names only an event (auto-pick and query); other packs fill events it lacks. `density: heavy` layers sound through the whole film — whooshes on cuts, risers into builds, stacked hits — and lifts every non-micro class +4dB with a -6dBFS per-cue ceiling; `standard` is the older sparse budget. A project overrides either with `sfx-pack` / `sfx-density` in audio/mix-settings.json."
+}

@@ -3,8 +3,8 @@ import { spawn } from "node:child_process";
 export const MICRO_EVENTS = new Set(["tick", "pop", "click", "type", "data"]);
 
 /** LUFS alone over-amplifies short, high-crest-factor transients. */
-export function cueGain({ lufs, peak }, target, offset, event) {
-  const ceiling = MICRO_EVENTS.has(event) ? -18 : -9;
+export function cueGain({ lufs, peak }, target, offset, event, signatureCeiling = -9) {
+  const ceiling = MICRO_EVENTS.has(event) ? -18 : signatureCeiling;
   const requested = (Number.isFinite(lufs) ? Math.max(-18, Math.min(18, target - lufs)) : 0) + offset;
   return {
     gainDb: Number.isFinite(peak) ? Math.min(requested, ceiling - peak) : requested,
