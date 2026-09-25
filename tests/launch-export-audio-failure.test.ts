@@ -20,6 +20,9 @@ vi.mock('../apps/api/src/lib/mix.js', () => ({
   }),
 }))
 vi.mock('../apps/api/src/lib/node.js', () => ({ nodeBinary: () => 'node' }))
+vi.mock('../apps/api/src/projects/watermark.js', () => ({
+  shouldWatermarkVideo: vi.fn(async () => false),
+}))
 vi.mock('../apps/api/src/projects/service.js', () => ({
   workspaceOf: () => ({ dir, internal: 'user--film' }),
 }))
