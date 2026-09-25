@@ -6,6 +6,11 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://trypitch.co/AgenC</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://trypitch.co/pricing</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -106,110 +111,74 @@
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/best-ai-tools-for-startup-founders-2026</loc>
-    <lastmod>2026-05-30</lastmod>
+    <loc>https://trypitch.co/blog/best-ai-tools-for-product-launch-videos</loc>
+    <lastmod>2026-09-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/why-every-saas-needs-a-demo-video</loc>
-    <lastmod>2026-05-28</lastmod>
+    <loc>https://trypitch.co/blog/best-ai-product-demo-video-tools</loc>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/ai-go-to-market-strategy-saas</loc>
-    <lastmod>2026-05-26</lastmod>
+    <loc>https://trypitch.co/blog/best-ai-pitch-deck-generators</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/ai-agents-replacing-screen-recorders</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://trypitch.co/blog/best-ai-video-editors-for-screen-recordings</loc>
+    <lastmod>2026-09-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/replace-sales-engineer-ai-demo-automation</loc>
-    <lastmod>2026-05-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/onboarding-videos-reduce-churn</loc>
-    <lastmod>2026-05-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/ai-for-investor-fundraising-demo</loc>
-    <lastmod>2026-05-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/pitch-deck-vs-demo-video</loc>
-    <lastmod>2026-05-08</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/async-demo-vs-live-demo-saas-sales</loc>
-    <lastmod>2026-05-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/product-hunt-launch-video-guide</loc>
-    <lastmod>2026-04-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/generative-ai-product-marketing-2026</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/scaling-content-production-ai</loc>
-    <lastmod>2026-04-22</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/chatgpt-perplexity-product-discovery-2026</loc>
-    <lastmod>2026-04-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://trypitch.co/blog/b2b-cold-outreach-video</loc>
-    <lastmod>2026-04-14</lastmod>
+    <loc>https://trypitch.co/blog/how-to-make-a-product-launch-video-with-ai</loc>
+    <lastmod>2026-09-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://trypitch.co/blog/zero-shot-demo-video-from-url</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-09-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/future-of-product-demos</loc>
-    <lastmod>2026-04-05</lastmod>
+    <loc>https://trypitch.co/blog/turn-a-pdf-or-website-into-an-investor-deck</loc>
+    <lastmod>2026-09-02</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/voice-selection-demo-videos</loc>
-    <lastmod>2026-03-28</lastmod>
+    <loc>https://trypitch.co/blog/edit-a-video-by-chatting</loc>
+    <lastmod>2026-08-29</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trypitch.co/blog/product-led-growth-ai-2026</loc>
-    <lastmod>2026-03-20</lastmod>
+    <loc>https://trypitch.co/blog/generate-videos-from-claude-or-cursor-with-mcp</loc>
+    <lastmod>2026-08-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://trypitch.co/blog/vertical-product-teaser-videos</loc>
+    <lastmod>2026-08-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://trypitch.co/blog/product-hunt-launch-video-guide</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://trypitch.co/blog/async-demo-vs-live-demo-saas-sales</loc>
+    <lastmod>2026-08-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

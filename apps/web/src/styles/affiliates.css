@@ -38,12 +38,14 @@
   font-size: 0.86rem;
   line-height: 1.45;
   color: var(--lb-ink-2);
-  max-width: 20ch;
+  max-width: 26ch;
 }
 
 /* ── three steps ─────────────────────────────────────────────────── */
 .lb-aff-steps {
-  margin-top: 34px;
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
@@ -186,7 +188,42 @@
   color: var(--lb-ink-2);
 }
 
-.lb-aff-audiences { margin-top: 30px; }
+/* ── audiences: three cards, one border each, an icon where the step number sits ── */
+.lb-aff-audiences {
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.lb-aff-audience {
+  padding: 24px 22px 26px;
+  border: 1px solid var(--lb-line);
+  border-radius: 12px;
+  background: var(--lb-surface);
+  transition: border-color 0.15s var(--ease-out);
+}
+.lb-aff-audience:hover { border-color: var(--lb-line-2); }
+.lb-aff-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--lb-line);
+  border-radius: 10px;
+  background: var(--lb-bg);
+  color: var(--lb-accent);
+}
+.lb-aff-audience h3 {
+  margin: 18px 0 8px;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 1.1rem;
+  letter-spacing: -0.025em;
+  color: var(--lb-ink);
+}
+.lb-aff-audience p { margin: 0; font-size: 0.92rem; line-height: 1.6; color: var(--lb-ink-2); }
 
 /* ── terms ───────────────────────────────────────────────────────── */
 .lb-aff-terms {
@@ -201,7 +238,19 @@
   border-radius: 10px;
   overflow: hidden;
 }
-.lb-aff-terms li { background: var(--lb-bg); padding: 24px 22px; }
+.lb-aff-terms li { background: var(--lb-bg); padding: 22px 22px 24px; }
+.lb-aff-term-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: var(--lb-surface-2);
+  color: var(--lb-ink-2);
+}
+/* the two reward terms carry the numbers, so they get the accent */
+.lb-aff-terms li:nth-child(-n + 2) .lb-aff-term-glyph { color: var(--lb-accent); }
 .lb-aff-terms h3 {
   margin: 0 0 8px;
   font-family: var(--lb-sans);
@@ -218,6 +267,7 @@
 @media (max-width: 900px) {
   .lb-aff-stats { grid-template-columns: 1fr 1fr; }
   .lb-aff-steps { grid-template-columns: 1fr; }
+  .lb-aff-audiences { grid-template-columns: 1fr; }
   .lb-aff-terms { grid-template-columns: 1fr 1fr; }
   .lb-aff-calc { grid-template-columns: 1fr; }
 }
@@ -227,3 +277,70 @@
   .lb-aff-terms { grid-template-columns: 1fr; }
   .lb-aff-actions .lb-cta { flex: 1 1 auto; text-align: center; }
 }
+
+/* ── signed-in referral panel ─────────────────────────────────────────
+   The portal components (link card, stat grid, runway card) read the
+   --affiliate-* tokens; here they resolve to the landing tokens so the
+   panel is part of this page, in light and dark alike. */
+.lb-aff-portal { margin-top: 32px; }
+.referral-panel {
+  --affiliate-bg: var(--lb-bg);
+  --affiliate-panel: var(--lb-surface);
+  --affiliate-surface: var(--lb-surface);
+  --affiliate-ink: var(--lb-ink);
+  --affiliate-muted: var(--lb-ink-2);
+  --affiliate-faint: var(--lb-ink-dim);
+  --affiliate-line: var(--lb-line);
+  display: grid;
+  gap: 10px;
+  color: var(--lb-ink);
+  container-type: inline-size;
+}
+.referral-panel .affiliate-loading { min-height: 160px; }
+.referral-panel .affiliate-link-card__label { display: flex; align-items: center; gap: 10px; }
+.referral-activate__copy {
+  margin: 8px 0 0;
+  max-width: 52ch;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--lb-ink-2);
+}
+.referral-activate .affiliate-trust-row { margin-top: 14px; }
+/* The portal painted the link card as a black slab in both themes; on this
+   page it is a themed surface like the stat cards beneath it. */
+.referral-panel .affiliate-link-card {
+  border: 1px solid var(--lb-line);
+  border-radius: 12px;
+  background: var(--lb-surface);
+  color: var(--lb-ink);
+}
+.referral-panel .affiliate-link-card__icon { border-color: var(--lb-line-2); color: var(--lb-ink); }
+.referral-panel .affiliate-link-card__label { color: var(--lb-ink-dim); }
+.referral-panel .affiliate-link-card__controls code {
+  border-color: var(--lb-line);
+  background: var(--lb-bg);
+  color: var(--lb-ink-2);
+}
+.referral-panel .affiliate-link-card__controls > button,
+.referral-panel .affiliate-link-card__controls > div > button {
+  border-color: var(--lb-line-2);
+  color: var(--lb-ink);
+}
+.referral-panel .affiliate-link-card__controls > button:hover,
+.referral-panel .affiliate-link-card__controls > div > button:hover {
+  border-color: var(--lb-ink-dim);
+  background: var(--lb-surface-2);
+}
+/* the one filled button on the card: activate */
+.referral-panel .affiliate-link-card__controls > .affiliate-primary-action {
+  border-color: var(--lb-btn);
+  background: var(--lb-btn);
+  color: var(--lb-btn-ink);
+}
+.referral-panel .affiliate-link-card__controls > .affiliate-primary-action:hover:not(:disabled) {
+  border-color: var(--lb-btn);
+  background: var(--lb-btn);
+}
+.referral-panel .affiliate-status { padding: 5px 9px; }
+.referral-activate .affiliate-trust-row { color: var(--lb-ink-2); }
+.referral-activate .affiliate-link-card__controls { justify-content: flex-end; }

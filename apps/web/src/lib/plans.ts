@@ -155,12 +155,12 @@ export const PLANS: readonly Plan[] = [
     kind: 'topup',
     priceUsd: 20,
     credits: 800,
-    description: 'Best for occasional videos without a recurring plan.',
+    description: 'Add-on credits for Pro and Max, for when a project needs more runway.',
     features: [
       '800 credits',
-      'No subscription required',
-      'Watermark-free exports',
-      'Up to 1080p exports',
+      'Requires an active Pro or Max plan',
+      'One-time purchase',
+      'Credits stay yours until used',
     ],
   },
   {

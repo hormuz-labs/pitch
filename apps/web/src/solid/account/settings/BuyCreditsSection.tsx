@@ -27,6 +27,8 @@ export function BuyCreditsSection(props: { openUsage?: () => void }) {
   const activeKey = () => summary()?.activeSubscription?.planKey ?? ''
   const isCurrentPlan = (plan: Plan) => activeKey() === plan.key || activeKey() === plan.annual?.key
   const isRecommendedPlan = (plan: Plan) => !activeKey() && !!plan.popular
+  // Checkout refuses Flex without a plan; say so here instead of after the click.
+  const needsPlan = () => summary() !== undefined && !summary()?.activeSubscription
 
   const buyFlex = async () => {
     setBuying(true)
@@ -89,14 +91,21 @@ export function BuyCreditsSection(props: { openUsage?: () => void }) {
               {flex.name} one-time purchase · {pricePerCredit(flex)} per credit
             </span>
           </div>
-          <button type="button" disabled={buying()} onClick={() => void buyFlex()}>
+          <button
+            type="button"
+            disabled={buying() || needsPlan()}
+            title={needsPlan() ? 'Flex needs an active Pro or Max plan' : undefined}
+            onClick={() => void buyFlex()}
+          >
             {buying() ? 'Redirecting…' : 'Buy credits'}
           </button>
         </div>
         <div class="settings-buy-detail">
           <strong>One-time payment of ${flex.priceUsd}</strong>
           <span>
-            {formatCredits(flex.credits ?? 0)} credits are added immediately after checkout.
+            {needsPlan()
+              ? 'Flex is an add-on for Pro and Max. Choose a plan below to buy extra credits.'
+              : `${formatCredits(flex.credits ?? 0)} credits are added immediately after checkout.`}
           </span>
         </div>
         <small class="settings-purchase-final">All purchases are final.</small>

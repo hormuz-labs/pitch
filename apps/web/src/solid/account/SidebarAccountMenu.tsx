@@ -107,7 +107,7 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
             <CircleHelp />
             <span>Docs &amp; help</span>
           </A>
-          <A role="menuitem" href="/affiliate">
+          <A role="menuitem" href="/affiliates">
             <Gift />
             <span>Affiliates</span>
           </A>

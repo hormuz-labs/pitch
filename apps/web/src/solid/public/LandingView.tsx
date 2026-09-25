@@ -32,6 +32,7 @@ import { PitchLogoAnimation } from './brand'
 import { LandingAgenC } from './LandingAgenC'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { LANDING_JSON_LD } from './landingJsonLd'
 import { McpSetup, REGISTRY_NAME } from './McpSetup'
 import { carouselAsset } from './productCatalog'
 import { SHOWCASE_FILMS } from './showcaseFilms'
@@ -1042,8 +1043,9 @@ export const LandingView = () => {
     <>
       <Seo
         title="Pitch: The AI production studio you can direct"
-        description="Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos."
+        description="Pitch is an AI production studio you direct by chat. Turn a URL, file or idea into launch films, product demos, slide decks and edited videos."
         path="/"
+        jsonLd={LANDING_JSON_LD}
       />
       <div class="lb-root" ref={root}>
         <LandingNav />

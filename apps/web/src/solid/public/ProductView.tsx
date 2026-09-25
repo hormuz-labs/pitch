@@ -18,7 +18,7 @@ export const ProductView = (props: { slug?: string }) => {
       {p => (
         <div class="lb-root">
           <Seo
-            title={`Pitch — ${p().name}`}
+            title={p().seoTitle}
             description={p().seoDescription}
             path={`/product/${p().slug}`}
           />

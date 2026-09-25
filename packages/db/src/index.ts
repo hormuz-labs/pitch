@@ -835,9 +835,15 @@ export async function getAffiliateStats(affiliateId: string) {
     signups,
     conversions,
     creditsEarned,
-    videosEarned: Math.floor(creditsEarned / 3),
+    videosEarned: Math.floor(creditsEarned / CREDITS_PER_VIDEO),
   }
 }
+
+/**
+ * Roughly what a narrated demo video costs in credits (see
+ * tests/credit-pricing.test.ts). Used to show earned credits as videos.
+ */
+export const CREDITS_PER_VIDEO = 120
 
 export * from './browser-profiles.js'
 

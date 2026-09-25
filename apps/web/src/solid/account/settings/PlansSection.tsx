@@ -237,8 +237,9 @@ export function PlansSection() {
       </div>
 
       <p class="settings-note">
-        Flex is a one-time purchase, no subscription required — see Buy credits. Pro and Max include
-        credits for the billing period and auto-renew until cancelled. All purchases are final.
+        Flex is a one-time credit add-on for Pro and Max plans — see Buy credits. Pro and Max
+        include credits for the billing period and auto-renew until cancelled. All purchases are
+        final.
       </p>
     </>
   )

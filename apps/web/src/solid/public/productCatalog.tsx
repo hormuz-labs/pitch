@@ -16,6 +16,7 @@ export interface ProductEntry {
   points: { h: string; p: string }[]
   sampleSrc?: string
   sampleCaption: string
+  seoTitle: string
   seoDescription: string
 }
 export const carouselAsset = (name: string) =>
@@ -59,6 +60,7 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('graphify.mp4'),
     sampleCaption: 'Graphify: “Make a 70-second launch video on graphify.com”',
+    seoTitle: 'Launch videos | AI launch video maker from a URL | Pitch',
     seoDescription:
       'Give Pitch a URL and a line of direction. An AI agent films your real product and cuts a scored, narrated 1080p launch video in minutes. No recording, no editing.',
   },
@@ -89,6 +91,7 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('demo.mp4'),
     sampleCaption: 'shadcn/ui: a narrated walkthrough of the component workflow',
+    seoTitle: 'Product demos | AI product demo video generator | Pitch',
     seoDescription:
       'Pitch signs into your product, clicks through the real flow end to end, and narrates it as a clean demo video. Point it at onboarding or a single feature and get a shareable walkthrough.',
   },
@@ -118,6 +121,7 @@ export const PRODUCTS: ProductEntry[] = [
     ],
     sampleSrc: video('gtmcofounder.mp4'),
     sampleCaption: 'GTM Cofounder: a 40-second “what it does and why” explainer',
+    seoTitle: 'Explainers | AI explainer video maker | Pitch',
     seoDescription:
       'Pitch turns the concept that needs a whiteboard into a tight 30-second explainer covering the problem, product, and payoff. It is built from your real screens and captioned for the timeline.',
   },
@@ -146,6 +150,7 @@ export const PRODUCTS: ProductEntry[] = [
       },
     ],
     sampleCaption: 'A 10-slide seed deck created from product research and a concise brief',
+    seoTitle: 'Pitch decks | AI pitch deck generator | Pitch',
     seoDescription:
       'Pitch researches your product and market, then writes and designs an editable investor pitch, sales one-pager, or board update as a PDF you can still edit slide by slide.',
   },

@@ -1,16 +1,16 @@
 import * as db from '@saas/db'
 
-/** Only accounts that have never bought a plan or credit pack receive a watermark. */
-export async function shouldWatermarkVideo(userId: string): Promise<boolean> {
-  const [subscription, topUp] = await Promise.all([
-    db.prisma.subscription.findFirst({
-      where: { userId, status: 'active' },
-      select: { id: true },
-    }),
-    db.prisma.topUpPurchase.findFirst({
-      where: { userId },
-      select: { id: true },
-    }),
-  ])
-  return !subscription && !topUp
+/**
+ * Exports carry the watermark unless the account is on a Pro or Max plan. A
+ * subscription counts while it is active and, once cancelled, until the end of
+ * the period already paid for; after that the watermark returns. Flex credits
+ * do not count on their own: they can only be bought on an active plan, and
+ * credits left over after the plan ends do not keep exports clean.
+ */
+export async function shouldWatermarkVideo(userId: string, now = new Date()): Promise<boolean> {
+  const subscription = await db.prisma.subscription.findFirst({
+    where: { userId, OR: [{ status: 'active' }, { currentPeriodEnd: { gt: now } }] },
+    select: { id: true },
+  })
+  return !subscription
 }

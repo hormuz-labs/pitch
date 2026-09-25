@@ -33,7 +33,7 @@ const Page = (props: {
 export const AboutUs = () => (
   <Page
     title="About Us"
-    description="Pitch is a directable AI production studio that turns a URL, recording, document, asset, or rough idea into polished launch films, product demos, demo recordings, slide decks, and edited videos."
+    description="Who builds Pitch, the AI production studio for launch films, product demos, slide decks and video edits, and how its agent does the work."
     path="/about"
   >
     <section class="mb-8 space-y-6 text-gray-600 leading-relaxed text-base">

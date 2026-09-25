@@ -1,271 +1,362 @@
 import { A, useParams } from '@solidjs/router'
-import { createMemo, createSignal, For, Show } from 'solid-js'
+import { ArrowUpRight, ExternalLink } from 'lucide-solid'
+import { createMemo, createSignal, For, type JSX, Show } from 'solid-js'
 import { useAuth } from '../core/auth'
-import { Seo } from '../core/Seo'
+import { Seo, SITE_URL } from '../core/Seo'
+import { BLOG_POSTS, type Block, CATEGORIES, type Post } from './blogPosts'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
 import '../../styles/blog.css'
-import '../../styles/pagination.css'
 
-interface Post {
-  slug: string
-  category: string
-  readTime: string
-  date: string
-  title: string
-  excerpt: string
-  keywords: string[]
-  content: string[]
-}
-export const BLOG_POSTS: Post[] = [
-  [
-    'why-every-saas-needs-a-demo-video',
-    'Product Marketing',
-    '5 min read',
-    'May 28, 2026',
-    'Why Every SaaS Product Needs a Demo Video in 2026',
-    'B2B buyers watch multiple videos before talking to sales. A good demo video can cut sales cycles and increase sign-ups.',
-  ],
-  [
-    'ai-agents-replacing-screen-recorders',
-    'AI & Automation',
-    '7 min read',
-    'May 22, 2026',
-    'How AI Agents Are Replacing Screen Recorders',
-    'Screen recording tools require manual clicking and editing. AI agents browse your product autonomously and deliver a finished video.',
-  ],
-  [
-    'onboarding-videos-reduce-churn',
-    'Customer Success',
-    '6 min read',
-    'May 15, 2026',
-    'Onboarding Videos That Actually Reduce Churn',
-    'Users who never reach their aha moment churn quickly. Contextual onboarding videos increase activation rates and reduce support tickets.',
-  ],
-  [
-    'pitch-deck-vs-demo-video',
-    'Sales',
-    '4 min read',
-    'May 8, 2026',
-    'Pitch Deck vs. Demo Video: Which Converts More Leads?',
-    'Slide decks require cognitive effort. Demo videos are dynamic and memorable. Prospects who watch a demo video book more discovery calls.',
-  ],
-  [
-    'product-hunt-launch-video-guide',
-    'Growth',
-    '8 min read',
-    'Apr 30, 2026',
-    'The Ultimate Guide to a Product Hunt Launch Video',
-    'Product Hunt visitors decide whether to engage in five seconds. Listings with a high-quality demo video get twice as many upvotes.',
-  ],
-  [
-    'scaling-content-production-ai',
-    'AI & Automation',
-    '6 min read',
-    'Apr 22, 2026',
-    "Scaling Video Content Production with AI: A Founder's Playbook",
-    'AI video generation allows small teams to produce content at the speed of a full production house.',
-  ],
-  [
-    'b2b-cold-outreach-video',
-    'Sales',
-    '5 min read',
-    'Apr 14, 2026',
-    'Using Personalized Demo Videos in B2B Cold Outreach',
-    'Cold emails with a GIF thumbnail linking to a personalized demo get higher reply rates than text-only emails.',
-  ],
-  [
-    'future-of-product-demos',
-    'Industry Trends',
-    '9 min read',
-    'Apr 5, 2026',
-    'The Future of Product Demos: Interactive, AI-Narrated, and On-Demand',
-    "Next-generation product demos will be interactive, tailored to the viewer's role, and generated instantly.",
-  ],
-  [
-    'voice-selection-demo-videos',
-    'Product Tips',
-    '3 min read',
-    'Mar 28, 2026',
-    'Picking the Right AI Voice for Your Demo Video',
-    'Voice tone and pace affect how users perceive your product.',
-  ],
-  [
-    'best-ai-tools-for-startup-founders-2026',
-    'Growth',
-    '8 min read',
-    'May 30, 2026',
-    'Best AI Tools for Startup Founders in 2026',
-    'Top founders use AI tools to build, sell, and fundraise faster with smaller teams.',
-  ],
-  [
-    'ai-go-to-market-strategy-saas',
-    'Growth',
-    '7 min read',
-    'May 26, 2026',
-    'How to Build an AI-Powered Go-to-Market Strategy for SaaS',
-    'AI changes how SaaS companies attract and retain customers.',
-  ],
-  [
-    'replace-sales-engineer-ai-demo-automation',
-    'Sales',
-    '6 min read',
-    'May 20, 2026',
-    'How AI Demo Automation Is Replacing the Sales Engineer Role',
-    'AI demo tools automate repeatable product walkthroughs quickly and cheaply.',
-  ],
-  [
-    'ai-for-investor-fundraising-demo',
-    'Growth',
-    '5 min read',
-    'May 13, 2026',
-    'How Founders Are Using AI Demo Videos to Close Investor Meetings',
-    'A concise product demo helps investors understand the product before the first meeting.',
-  ],
-  [
-    'async-demo-vs-live-demo-saas-sales',
-    'Sales',
-    '5 min read',
-    'May 5, 2026',
-    'Async Demo vs. Live Demo: Which Converts More SaaS Deals?',
-    'Async demos let prospects evaluate a product without scheduling a call.',
-  ],
-  [
-    'generative-ai-product-marketing-2026',
-    'Product Marketing',
-    '7 min read',
-    'Apr 28, 2026',
-    'How Generative AI Is Transforming Product Marketing in 2026',
-    'Product marketing teams use generative AI to make launch assets faster.',
-  ],
-  [
-    'chatgpt-perplexity-product-discovery-2026',
-    'Industry Trends',
-    '6 min read',
-    'Apr 18, 2026',
-    'How Buyers Now Discover Software via ChatGPT and Perplexity',
-    'Software buyers increasingly use AI assistants for research.',
-  ],
-  [
-    'zero-shot-demo-video-from-url',
-    'AI & Automation',
-    '4 min read',
-    'Apr 10, 2026',
-    'Zero-Shot Demo Video: Generate a Product Walkthrough from Just a URL',
-    'Generate a professional demo by giving an AI agent a product URL.',
-  ],
-  [
-    'product-led-growth-ai-2026',
-    'Growth',
-    '8 min read',
-    'Mar 20, 2026',
-    'Product-Led Growth + AI: The 2026 Playbook',
-    'Product-led companies use AI for demos and onboarding to grow efficiently.',
-  ],
-].map(([slug, category, readTime, date, title, excerpt]) => ({
-  slug,
-  category,
-  readTime,
-  date,
-  title,
-  excerpt,
-  keywords: ['AI demo video generator', 'product demo software', 'SaaS growth'],
-  content: [
-    excerpt,
-    `${title} matters because buyers want to understand a product before committing time to a call. A concise demonstration makes the value concrete.`,
-    `Pitch uses an agent to navigate the real product, capture the important flow, write narration, and produce a polished video. This turns video production into a repeatable part of the team’s workflow.`,
-    `The strongest results come from a clear brief, a focused audience, and one outcome per video. Teams can then update or adapt the result as the product changes.`,
-  ],
-}))
-const categories = [
-  'All',
-  'AI & Automation',
-  'Product Marketing',
-  'Sales',
-  'Growth',
-  'Customer Success',
-  'Product Tips',
-  'Industry Trends',
-]
-const shell = (auth: ReturnType<typeof useAuth>, children: any) => (
-  <div
-    class={`min-h-screen flex flex-col ${typeof auth.isSignedIn === 'function' ? (auth.isSignedIn() ? '' : 'lb-root') : auth.isSignedIn ? '' : 'lb-root'}`}
-  >
-    <Show when={!(typeof auth.isSignedIn === 'function' ? auth.isSignedIn() : auth.isSignedIn)}>
-      <LandingNav />
-    </Show>
+export { BLOG_POSTS } from './blogPosts'
+
+const isSignedIn = (auth: ReturnType<typeof useAuth>) =>
+  typeof auth.isSignedIn === 'function' ? auth.isSignedIn() : auth.isSignedIn
+
+const formatDate = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+
+// Signed-out visitors get the full landing root (it paints the page); signed-in
+// ones still need the --lb-* tokens, which `.lb-chrome` carries without painting.
+// The site nav and footer show for everyone: the nav swaps its CTA to
+// "Dashboard" when signed in, so a reader always has a way around.
+const shell = (auth: ReturnType<typeof useAuth>, children: JSX.Element) => (
+  <div class={`min-h-screen flex flex-col ${isSignedIn(auth) ? 'lb-chrome blog-page' : 'lb-root'}`}>
+    <LandingNav />
     {children}
-    <Show when={!(typeof auth.isSignedIn === 'function' ? auth.isSignedIn() : auth.isSignedIn)}>
-      <LandingFooter />
-    </Show>
+    <LandingFooter />
   </div>
 )
+
+type Segment = { block: Block } | { fit: { title: string; items: string[] }[] }
+
+/**
+ * "When Pitch fits" and "When to use another tool", each a heading and a list,
+ * read best side by side; everything else renders in order.
+ */
+const segments = (body: Block[]): Segment[] => {
+  const out: Segment[] = []
+  for (let i = 0; i < body.length; i++) {
+    const [h1, l1, h2, l2] = body.slice(i, i + 4)
+    if (
+      h1 &&
+      'h' in h1 &&
+      h1.h.startsWith('When Pitch fits') &&
+      l1 &&
+      'list' in l1 &&
+      h2 &&
+      'h' in h2 &&
+      h2.h.startsWith('When to use') &&
+      l2 &&
+      'list' in l2
+    ) {
+      out.push({
+        fit: [
+          { title: h1.h, items: l1.list },
+          { title: h2.h, items: l2.list },
+        ],
+      })
+      i += 3
+    } else out.push({ block: body[i] })
+  }
+  return out
+}
+
+/** Renders `[label](href)` links inside otherwise plain copy. */
+const Inline = (props: { text: string }) => {
+  const parts = () => props.text.split(/(\[[^\]]+\]\([^)]+\))/g)
+  return (
+    <For each={parts()}>
+      {part => {
+        const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+        if (!m) return part
+        return m[2].startsWith('/') ? (
+          <A href={m[2]}>{m[1]}</A>
+        ) : (
+          <a href={m[2]} target="_blank" rel="noopener noreferrer">
+            {m[1]}
+          </a>
+        )
+      }}
+    </For>
+  )
+}
+
+const BlockView = (props: { block: Block }) => {
+  const b = props.block
+  if ('h' in b) return <h2>{b.h}</h2>
+  if ('p' in b)
+    return (
+      <p>
+        <Inline text={b.p} />
+      </p>
+    )
+  if ('prompt' in b)
+    return (
+      <figure class="blog-prompt">
+        <figcaption>Prompt</figcaption>
+        <blockquote>{b.prompt}</blockquote>
+      </figure>
+    )
+  if ('table' in b)
+    return (
+      <div class="blog-table-wrap">
+        <table class="blog-table">
+          <thead>
+            <tr>
+              <For each={b.table.head}>{c => <th scope="col">{c}</th>}</For>
+            </tr>
+          </thead>
+          <tbody>
+            <For each={b.table.rows}>
+              {row => (
+                <tr>
+                  <For each={row}>
+                    {(c, i) => (i() === 0 ? <th scope="row">{c}</th> : <td>{c}</td>)}
+                  </For>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
+      </div>
+    )
+  const items = (
+    <For each={b.list}>
+      {x => (
+        <li>
+          <Inline text={x} />
+        </li>
+      )}
+    </For>
+  )
+  return b.ordered ? <ol>{items}</ol> : <ul>{items}</ul>
+}
+
+const postJsonLd = (p: Post) => {
+  const url = `${SITE_URL}/blog/${p.slug}`
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Article',
+        '@id': `${url}#article`,
+        headline: p.title,
+        description: p.excerpt,
+        datePublished: p.date,
+        dateModified: p.date,
+        articleSection: p.category,
+        image: `${SITE_URL}/og-image.png?v=2`,
+        mainEntityOfPage: url,
+        author: { '@id': `${SITE_URL}/#org` },
+        publisher: { '@id': `${SITE_URL}/#org` },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
+          { '@type': 'ListItem', position: 3, name: p.title, item: url },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: p.faq.map(([q, a]) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
+      },
+    ],
+  }
+}
+
+const Arrow = () => <span aria-hidden="true">→</span>
+
+const PostRow = (props: { post: Post }) => (
+  <article class="blog-row">
+    <p class="blog-row-cat">
+      <i />
+      {props.post.category}
+    </p>
+    <div class="blog-row-main">
+      <h2 class="blog-row-title">
+        <A href={`/blog/${props.post.slug}`}>{props.post.title}</A>
+      </h2>
+      <p class="blog-row-excerpt">{props.post.excerpt}</p>
+    </div>
+    <span class="blog-row-more">
+      Read guide <Arrow />
+    </span>
+  </article>
+)
+
 export const BlogPostView = () => {
   const auth = useAuth(),
     params = useParams(),
-    post = () => BLOG_POSTS.find(p => p.slug === params.slug)
+    post = () => BLOG_POSTS.find(p => p.slug === params.slug),
+    related = () => {
+      const p = post()
+      if (!p) return []
+      const same = BLOG_POSTS.filter(x => x.slug !== p.slug && x.category === p.category)
+      const rest = BLOG_POSTS.filter(x => x.slug !== p.slug && x.category !== p.category)
+      return [...same, ...rest].slice(0, 3)
+    }
   return shell(
     auth,
     <Show
       when={post()}
       fallback={
-        <div class="max-w-6xl mx-auto px-6 py-16">
-          <A href="/blog">Back to Blog</A>
-          <h1>Post not found.</h1>
+        <div class="blog-shell">
+          <A href="/blog" class="blog-back">
+            ← Pitch Blog
+          </A>
+          <h1 class="blog-post-title">Post not found.</h1>
         </div>
       }
     >
       {p => (
         <>
           <Seo
-            title={`${p().title} — Pitch Blog`}
+            title={`${p().title} | Pitch`}
             description={p().excerpt}
             path={`/blog/${p().slug}`}
+            jsonLd={postJsonLd(p())}
           />
-          <article class="blog-shell blog-post">
-            <A href="/blog" class="blog-back">
-              ← Back to Blog
-            </A>
-            <header class="blog-post-head">
-              <p class="blog-post-meta">
-                <i />
-                {p().category} · {p().readTime} · {p().date}
-              </p>
-              <h1 class="blog-post-title">{p().title}</h1>
-            </header>
-            <div class="blog-post-body">
-              <For each={p().content}>{x => <p>{x}</p>}</For>
+          <div class="blog-shell blog-post">
+            <nav class="blog-crumbs" aria-label="Breadcrumb">
+              <A href="/blog">← Blog</A>
+            </nav>
+            <div class="blog-post-grid">
+              <article class="blog-post-main">
+                <header class="blog-post-head">
+                  <p class="blog-post-meta">
+                    <i />
+                    {p().category} · Updated <time datetime={p().date}>{formatDate(p().date)}</time>{' '}
+                    · {p().readTime}
+                  </p>
+                  <h1 class="blog-post-title">{p().title}</h1>
+                  <p class="blog-post-lede">{p().excerpt}</p>
+                </header>
+
+                <section class="blog-answer" aria-labelledby="direct-answer">
+                  <h2 id="direct-answer">Direct answer</h2>
+                  <For each={p().answer}>{x => <p>{x}</p>}</For>
+                </section>
+
+                <div class="blog-post-body">
+                  <For each={segments(p().body)}>
+                    {seg =>
+                      'fit' in seg ? (
+                        <div class="blog-fit">
+                          <For each={seg.fit}>
+                            {card => (
+                              <section class="blog-fit-card">
+                                <h2>{card.title}</h2>
+                                <ul>
+                                  <For each={card.items}>
+                                    {x => (
+                                      <li>
+                                        <Inline text={x} />
+                                      </li>
+                                    )}
+                                  </For>
+                                </ul>
+                              </section>
+                            )}
+                          </For>
+                        </div>
+                      ) : (
+                        <BlockView block={seg.block} />
+                      )
+                    }
+                  </For>
+
+                  <h2>FAQ</h2>
+                  <div class="blog-faq">
+                    <For each={p().faq}>
+                      {([q, a]) => (
+                        <div class="blog-faq-item">
+                          <h3>{q}</h3>
+                          <p>{a}</p>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </article>
+
+              <aside class="blog-aside" aria-label="About this guide">
+                <section class="blog-aside-card">
+                  <p class="blog-aside-label">Question answered</p>
+                  <p class="blog-aside-copy">{p().question}</p>
+                </section>
+                <section class="blog-aside-card">
+                  <p class="blog-aside-label">Primary sources</p>
+                  <ul class="blog-aside-links">
+                    <For each={p().sources}>
+                      {s =>
+                        s.href.startsWith('/') ? (
+                          <li>
+                            <A href={s.href}>
+                              {s.label}
+                              <ArrowUpRight size={14} aria-hidden="true" />
+                            </A>
+                          </li>
+                        ) : (
+                          <li>
+                            <a href={s.href} target="_blank" rel="noopener noreferrer">
+                              {s.label}
+                              <ExternalLink size={14} aria-hidden="true" />
+                            </a>
+                          </li>
+                        )
+                      }
+                    </For>
+                  </ul>
+                </section>
+                <section class="blog-aside-card">
+                  <p class="blog-aside-label">About Pitch</p>
+                  <p class="blog-aside-copy">
+                    Pitch is an AI production studio you direct by chat. It researches, records your
+                    real product, writes, narrates and edits launch films, demos, decks and video
+                    edits in one conversation.
+                  </p>
+                  <A href={isSignedIn(auth) ? '/new' : '/sign-up'} class="blog-aside-cta">
+                    Start a project <Arrow />
+                  </A>
+                </section>
+              </aside>
             </div>
-            <div class="blog-related">
-              <p class="blog-related-label">Related topics</p>
-              <div class="blog-tags">
-                <For each={p().keywords}>
-                  {x => (
-                    <A href="/sign-up" class="blog-tag">
-                      {x}
-                    </A>
-                  )}
-                </For>
+
+            <section class="blog-related">
+              <p class="blog-related-label">Keep reading</p>
+              <div class="blog-list">
+                <For each={related()}>{r => <PostRow post={r} />}</For>
               </div>
-            </div>
-          </article>
+            </section>
+          </div>
         </>
       )}
     </Show>,
   )
 }
+
 export const Blog = () => {
   const auth = useAuth(),
     [category, setCategory] = createSignal('All'),
-    [page, setPage] = createSignal(1),
     [email, setEmail] = createSignal(''),
     [subscribed, setSubscribed] = createSignal(false),
     [error, setError] = createSignal('')
+  const sorted = [...BLOG_POSTS].sort((a, b) => b.date.localeCompare(a.date))
   const filtered = createMemo(() =>
-      category() === 'All' ? BLOG_POSTS : BLOG_POSTS.filter(p => p.category === category()),
-    ),
-    shown = createMemo(() => filtered().slice((page() - 1) * 6, page() * 6)),
-    pages = createMemo(() => Math.ceil(filtered().length / 6))
+    category() === 'All' ? sorted : sorted.filter(p => p.category === category()),
+  )
   const submit = async (e: SubmitEvent) => {
     e.preventDefault()
     try {
@@ -284,95 +375,46 @@ export const Blog = () => {
     auth,
     <>
       <Seo
-        title="Blog — Pitch"
-        description="Guides on AI demo videos, product marketing, and go-to-market for SaaS founders."
+        title="Pitch Blog: guides for AI launch videos, demos and decks"
+        description="Direct answers and honest comparisons for making launch videos, product demos, pitch decks and video edits with AI."
         path="/blog"
       />
-      <div class="blog-shell">
+      <div class="blog-shell blog-index">
         <header class="blog-head">
-          <p class="lb-chy">Writing</p>
-          <h1 class="blog-title">Notes from the cutting room</h1>
+          <p class="lb-chy">Pitch Blog</p>
+          <h1 class="blog-title">Answers for AI video, demos and decks</h1>
           <p class="blog-lede">
-            Ideas on AI video, product growth, and the future of how software sells itself.
+            Practical guides and straight comparisons: which tool fits which job, how to brief an
+            agent, and when Pitch is the wrong pick.
           </p>
         </header>
-        <div class="blog-filters">
-          <For each={categories}>
+        <div class="blog-filters" role="tablist" aria-label="Filter by category">
+          <For each={['All', ...CATEGORIES]}>
             {c => (
               <button
+                type="button"
+                role="tab"
+                aria-selected={category() === c}
                 class={`blog-filter${category() === c ? ' is-on' : ''}`}
-                onClick={() => {
-                  setCategory(c)
-                  setPage(1)
-                }}
+                onClick={() => setCategory(c)}
               >
                 {c}
               </button>
             )}
           </For>
         </div>
-        <div class="blog-grid">
-          <For each={shown()}>
-            {p => (
-              <article class="blog-card">
-                <p class="blog-card-meta">
-                  <i />
-                  {p.category} · {p.readTime}
-                </p>
-                <h2 class="blog-card-title">
-                  <A href={`/blog/${p.slug}`}>{p.title}</A>
-                </h2>
-                <p class="blog-card-excerpt">{p.excerpt}</p>
-                <div class="blog-tags">
-                  <For each={p.keywords}>
-                    {x => (
-                      <A href="/sign-up" class="blog-tag">
-                        {x}
-                      </A>
-                    )}
-                  </For>
-                </div>
-                <div class="blog-card-foot">
-                  <span>{p.date}</span>
-                  <A href={`/blog/${p.slug}`} class="blog-more">
-                    Read →
-                  </A>
-                </div>
-              </article>
-            )}
+        <div class="blog-list">
+          <For each={filtered()} fallback={<p class="blog-empty">No guides here yet.</p>}>
+            {p => <PostRow post={p} />}
           </For>
         </div>
-        <Show when={pages() > 1}>
-          <nav class="pg-root">
-            <button class="pg-btn" disabled={page() === 1} onClick={() => setPage(page() - 1)}>
-              ‹
-            </button>
-            <For each={Array.from({ length: pages() }, (_, i) => i + 1)}>
-              {n => (
-                <button
-                  class={`pg-btn pg-page${page() === n ? ' is-on' : ''}`}
-                  onClick={() => setPage(n)}
-                >
-                  <span class="pg-page-label">{n}</span>
-                </button>
-              )}
-            </For>
-            <button
-              class="pg-btn"
-              disabled={page() === pages()}
-              onClick={() => setPage(page() + 1)}
-            >
-              ›
-            </button>
-          </nav>
-        </Show>
         <section class="blog-panel blog-panel--split">
           <div>
             <p class="blog-panel-kicker">
               <i />
               Newsletter
             </p>
-            <h2 class="blog-panel-title">New posts, every week.</h2>
+            <h2 class="blog-panel-title">New guides, when they ship.</h2>
           </div>
           <div>
             <Show
@@ -382,6 +424,7 @@ export const Blog = () => {
                   <input
                     type="email"
                     required
+                    aria-label="Email address"
                     value={email()}
                     onInput={e => setEmail(e.currentTarget.value)}
                     class="blog-news-input"
@@ -391,7 +434,7 @@ export const Blog = () => {
                 </form>
               }
             >
-              <div class="blog-news-done">✓ Subscribed — check your inbox.</div>
+              <div class="blog-news-done">✓ Subscribed. Check your inbox.</div>
             </Show>
             <Show when={error()}>
               <p class="blog-news-error">{error()}</p>

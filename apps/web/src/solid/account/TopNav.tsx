@@ -47,8 +47,8 @@ export function TopNav(props: {
         </button>
         <button
           type="button"
-          class={isActive('/affiliate') ? 'is-active' : ''}
-          onClick={() => navigate('/affiliate')}
+          class={isActive('/affiliates') ? 'is-active' : ''}
+          onClick={() => navigate('/affiliates')}
         >
           Affiliates
         </button>

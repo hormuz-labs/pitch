@@ -39,7 +39,6 @@ export const ROUTE_MODULES = {
   apiKeys: route('../account/ApiKeysView.tsx', 'ApiKeysView'),
   sessions: route('../account/SessionsView.tsx', 'SessionsView'),
   chats: route('../account/ChatHistoryView.tsx', 'ChatHistoryView'),
-  affiliate: route('../account/AffiliateView.tsx', 'AffiliateView'),
   admin: route('../account/AdminView.tsx', 'AdminView'),
   checkoutReturn: route('../account/CheckoutReturnView.tsx', 'CheckoutReturnView'),
   studio: route('../studio/StudioView.tsx', 'StudioView'),

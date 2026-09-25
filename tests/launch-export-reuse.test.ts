@@ -18,7 +18,11 @@ vi.mock('@saas/storage', () => ({ uploadFile: vi.fn(async () => 'https://s3/x.mp
 vi.mock('../apps/api/src/lib/mix.js', () => ({ ensureMix: vi.fn(async () => null) }))
 vi.mock('../apps/api/src/lib/node.js', () => ({ nodeBinary: () => 'node' }))
 vi.mock('../apps/api/src/projects/service.js', () => ({
-  workspaceOf: () => ({ dir, internal: 'user_1--film' }),
+  workspaceOf: () => ({ dir, internal: 'user_1--film', userId: 'user_1' }),
+}))
+const watermark = vi.hoisted(() => ({ should: vi.fn(async () => true) }))
+vi.mock('../apps/api/src/projects/watermark.js', () => ({
+  shouldWatermarkVideo: watermark.should,
 }))
 vi.mock('../apps/api/src/studio/paths.js', () => ({
   MOTION_SCRIPTS_DIR: '/nowhere',
@@ -40,6 +44,49 @@ const ago = (file: string, seconds: number) => {
   const t = new Date(Date.now() - seconds * 1000)
   return utimes(file, t, t)
 }
+
+describe('launch export and the free-plan watermark', () => {
+  const freshRender = async ({ clean }: { clean: boolean }) => {
+    await writeFile(path.join(dir, 'renders/launch-1080p.mp4'), 'mp4')
+    if (clean) await writeFile(path.join(dir, 'renders/launch-1080p.mp4.clean'), '')
+    await ago(path.join(dir, 'index.html'), 60)
+    await ago(path.join(dir, 'shots.js'), 60)
+  }
+  const rendersAgain = async (id: string) => {
+    await vi.waitFor(() => expect(launchExporter.status(id).stage).toBe('failed'))
+    expect(launchExporter.status(id).error).toMatch(/capture script/)
+  }
+
+  it('re-renders a stamped film clean once the account has paid', async () => {
+    await freshRender({ clean: false })
+    watermark.should.mockResolvedValueOnce(false)
+    const st = await launchExporter.start({ ...row, id: 'upgraded' }, { res: '1080p' }, publish)
+    expect(st.running).toBe(true)
+    await rendersAgain('upgraded')
+  })
+
+  it('re-renders a clean film stamped once a cancelled plan has run out', async () => {
+    await freshRender({ clean: true })
+    watermark.should.mockResolvedValueOnce(true)
+    const st = await launchExporter.start({ ...row, id: 'lapsed' }, { res: '1080p' }, publish)
+    expect(st.running).toBe(true)
+    await rendersAgain('lapsed')
+  })
+
+  it('hands a clean film back to an account that is still paying', async () => {
+    await freshRender({ clean: true })
+    watermark.should.mockResolvedValueOnce(false)
+    const st = await launchExporter.start({ ...row, id: 'paying' }, { res: '1080p' }, publish)
+    expect(st.stage).toBe('done')
+  })
+
+  it('hands a stamped film back to an account that is still on the free plan', async () => {
+    await freshRender({ clean: false })
+    watermark.should.mockResolvedValueOnce(true)
+    const st = await launchExporter.start({ ...row, id: 'still-free' }, { res: '1080p' }, publish)
+    expect(st.stage).toBe('done')
+  })
+})
 
 describe('launch export reuses a fresh render', () => {
   it('answers done with the workspace file when the render is newer than its sources', async () => {

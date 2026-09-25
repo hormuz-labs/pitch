@@ -17,24 +17,34 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'dist')
 
 // ── Route list ────────────────────────────────────────────────────────────────
-// Blog slugs/titles are parsed out of the BLOG_POSTS source so the prerender
-// set always matches what the app renders.
-const blogSrc = fs.readFileSync(path.join(root, 'src/solid/public/Blog.tsx'), 'utf8')
-const blogPosts = blogSrc
-  .slice(blogSrc.indexOf('export const BLOG_POSTS'), blogSrc.indexOf('].map'))
-  .split(/\n  \[\n/)
-  .slice(1)
-  .map(block => {
-    const fields = [...block.matchAll(/^\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),?$/gm)].map(
-      match => match[1] ?? match[2],
-    )
-    return { slug: fields[0], title: fields[4] }
-  })
-  .filter(p => p.slug && p.title)
+// Slugs and titles are parsed straight out of the TypeScript sources (this
+// script runs on plain node, so it cannot import them) so the prerender set
+// always matches what the app renders. Each source keeps `slug:` on the line
+// directly above its title field.
+const read = file => fs.readFileSync(path.join(root, file), 'utf8')
+const pairs = (src, titleKey) =>
+  [
+    ...src.matchAll(
+      new RegExp(
+        `^\\s*slug: '([^']*)',\\n\\s*${titleKey}: (?:'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)"),$`,
+        'gm',
+      ),
+    ),
+  ].map(m => ({ slug: m[1], title: (m[2] ?? m[3]).replace(/\\(.)/g, '$1') }))
 
-if (blogPosts.length === 0) {
-  console.error('prerender: could not parse any blog posts from solid/public/Blog.tsx')
-  process.exit(1)
+const blogPosts = pairs(read('src/solid/public/blogPosts.ts'), 'title')
+const docPages = pairs(read('src/docs/pages.tsx'), 'title')
+const products = pairs(read('src/solid/public/productCatalog.tsx'), 'name')
+
+for (const [name, list] of [
+  ['blog posts', blogPosts],
+  ['doc pages', docPages],
+  ['products', products],
+]) {
+  if (list.length === 0) {
+    console.error(`prerender: could not parse any ${name} from their source`)
+    process.exit(1)
+  }
 }
 
 const routes = [
@@ -45,6 +55,9 @@ const routes = [
   { path: '/', selector: '.lb-root .lb-agenc-title' },
   { path: '/AgenC', selector: '.lb-root .lb-agenc-page-title' },
   { path: '/pricing', expect: 'Pricing' },
+  { path: '/affiliates', expect: 'Affiliate program' },
+  ...products.map(p => ({ path: `/product/${p.slug}`, expect: p.title })),
+  ...docPages.map(p => ({ path: p.slug ? `/docs/${p.slug}` : '/docs', expect: p.title })),
   { path: '/about', expect: 'About Us' },
   { path: '/blog', expect: 'Blog' },
   ...blogPosts.map(p => ({ path: `/blog/${p.slug}`, expect: p.title.slice(0, 40) })),

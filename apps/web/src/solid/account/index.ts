@@ -1,5 +1,4 @@
 export { AdminView } from './AdminView'
-export { AffiliateView } from './AffiliateView'
 export { ApiKeysView } from './ApiKeysView'
 export { CheckoutReturnView } from './CheckoutReturnView'
 export { CreditChip, CreditPopover, SettingsCreditButton } from './credits'
