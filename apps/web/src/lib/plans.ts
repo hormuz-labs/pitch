@@ -11,77 +11,15 @@
 /** Credits a typical demo video consumes, used for the "about N videos" copy. */
 export const CREDITS_PER_DEMO_VIDEO = 120
 
-export const MODEL_CREDIT_RATES = [
-  {
-    name: 'Gemini 3.8 Flash',
-    detail: 'Fast multimodal production',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemini 3.1 Pro',
-    detail: 'Complex multimodal projects',
-    credits: 250,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemma 4 26B',
-    detail: 'Efficient open-weight model',
-    credits: 94,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Gemma 4 31B',
-    detail: 'Creative open-weight model',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.4 mini',
-    detail: 'Fast everyday production',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.4',
-    detail: 'Complex planning and execution',
-    credits: 250,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Luna',
-    detail: 'Fast drafts and lightweight edits',
-    credits: 94,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Terra',
-    detail: 'Everyday production work',
-    credits: 125,
-    unit: 'typical generation',
-  },
-  {
-    name: 'GPT-5.5',
-    detail: 'Deep planning and complex production',
-    credits: 188,
-    unit: 'typical generation',
-  },
-  {
-    name: 'Sol',
-    detail: 'Advanced video generation',
-    credits: 1250,
-    unit: 'up to 30 seconds',
-  },
-  {
-    name: 'Astra',
-    detail: 'Highest-capability video generation',
-    credits: 2500,
-    unit: 'up to 30 seconds',
-  },
-] as const
-
-export const generationsFor = (credits: number | null, rate: number): number | null =>
-  credits === null ? null : Math.floor(credits / rate)
+/** One row of the pricing page's model table, served by GET /pricing/models. */
+export interface ModelRate {
+  spec: string
+  name: string
+  detail: string
+  credits: number
+  unit: 'typical generation' | 'up to 30 seconds'
+  access: 'all' | 'request'
+}
 
 export const nonCreditFeatures = (plan: Plan): string[] =>
   plan.features.filter(feature => !/^[\d,]+ credits per (month|year)$/.test(feature))

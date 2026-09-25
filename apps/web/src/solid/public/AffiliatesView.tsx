@@ -1,16 +1,5 @@
 import { A } from '@solidjs/router'
-import {
-  Clapperboard,
-  Clock,
-  CreditCard,
-  Infinity as InfinityIcon,
-  ShieldCheck,
-  Terminal,
-  UserPlus,
-  Users,
-  Wallet,
-} from 'lucide-solid'
-import { createSignal, For, type JSX, Show } from 'solid-js'
+import { createSignal, For, Show } from 'solid-js'
 import { CREDITS_PER_VIDEO, REFERRAL_REWARDS } from '../../lib/referral'
 import { ReferralPanel } from '../account/ReferralPanel'
 import { useAuth } from '../core/auth'
@@ -50,52 +39,33 @@ const STEPS = [
     `${SIGNUP} credits the moment they sign up, ${PURCHASE} more when they first buy. They arrive in the same balance you make videos with.`,
   ],
 ]
-type Icon = (props: { size?: number; 'aria-hidden'?: boolean }) => JSX.Element
-const AUDIENCES: [Icon, string, string][] = [
+const AUDIENCES: [string, string][] = [
   [
-    Clapperboard,
     'Creators',
     'You already post short-form. A film Pitch made in one sentence is the kind of thing people stop scrolling for, and every view can carry your link.',
   ],
   [
-    Terminal,
     'Builders',
     'You show agent workflows, MCP setups and API tricks to a technical audience. Pitch is one of the few agents with something to look at when it finishes.',
   ],
   [
-    Users,
     'Communities',
     'You run a newsletter, a Discord, a cohort, a subreddit. Recommend the tool your members keep asking about anyway.',
   ],
 ]
-const TERMS: [Icon, string, string][] = [
+const TERMS: [string, string][] = [
   [
-    UserPlus,
     `+${SIGNUP} credits when they sign up`,
     'Paid the moment a referred account is created, before they spend anything.',
   ],
   [
-    CreditCard,
     `+${PURCHASE} credits when they first buy`,
     `Their first paid plan, Pro or Max. ${fmt(PER_BUYER)} credits in total covers about ${videos(PER_BUYER)} finished demo videos.`,
   ],
+  ['Credits, not cash', 'Rewards land in your normal balance. There is no payout form or minimum.'],
+  ['No cap on referrals', 'Refer as many people as you like. Every new account that pays counts.'],
+  ['30 days to decide', 'Your link is remembered for 30 days in the browser they clicked from.'],
   [
-    Wallet,
-    'Credits, not cash',
-    'Rewards land in your normal balance. There is no payout form or minimum.',
-  ],
-  [
-    InfinityIcon,
-    'No cap on referrals',
-    'Refer as many people as you like. Every new account that pays counts.',
-  ],
-  [
-    Clock,
-    '30 days to decide',
-    'Your link is remembered for 30 days in the browser they clicked from.',
-  ],
-  [
-    ShieldCheck,
     'One reward per person',
     'Each account earns signup and purchase credit once. Self-referral does not count.',
   ],
@@ -261,11 +231,8 @@ export const AffiliatesView = () => {
           <h2 class="lb-h2">If people listen to you, this works</h2>
           <ul class="lb-aff-audiences">
             <For each={AUDIENCES}>
-              {([Glyph, title, body]) => (
+              {([title, body]) => (
                 <li class="lb-aff-audience">
-                  <span class="lb-aff-glyph">
-                    <Glyph size={18} aria-hidden />
-                  </span>
                   <h3>{title}</h3>
                   <p>{body}</p>
                 </li>
@@ -280,11 +247,8 @@ export const AffiliatesView = () => {
           <h2 class="lb-h2">Simple terms, written down</h2>
           <ul class="lb-aff-terms">
             <For each={TERMS}>
-              {([Glyph, title, body]) => (
+              {([title, body]) => (
                 <li>
-                  <span class="lb-aff-term-glyph">
-                    <Glyph size={16} aria-hidden />
-                  </span>
                   <h3>{title}</h3>
                   <p>{body}</p>
                 </li>

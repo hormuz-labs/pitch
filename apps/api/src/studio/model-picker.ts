@@ -56,7 +56,8 @@ export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
   [AZURE_ASTRA_SPEC]: 2,
 }
 
-const LABELS: Record<string, string> = {
+/** Display names; the public pricing table quotes these (tests/model-credit-rates.test.ts). */
+export const STUDIO_MODEL_LABELS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Gemini 3.8 Flash',
   [GEMINI_31_PRO_SPEC]: 'Gemini 3.1 Pro',
   [GEMMA_4_31B_SPEC]: 'Gemma 4 31B',
@@ -70,6 +71,53 @@ const LABELS: Record<string, string> = {
   [AZURE_GPT_6_LUNA_SPEC]: 'GPT-6 Luna',
   [AZURE_GPT_6_SOL_SPEC]: 'GPT-6 Sol',
   [AZURE_ASTRA_SPEC]: 'Astra',
+}
+
+/** One-line descriptions for the public pricing table. */
+export const STUDIO_MODEL_DETAILS: Record<string, string> = {
+  [GEMINI_38_FLASH_SPEC]: 'Fast multimodal production',
+  [GEMINI_31_PRO_SPEC]: 'Complex multimodal projects',
+  [GEMMA_4_31B_SPEC]: 'Creative open-weight model',
+  [GEMMA_4_26B_SPEC]: 'Efficient open-weight model',
+  [GPT_54_MINI_SPEC]: 'Fast everyday production',
+  [GPT_54_SPEC]: 'Complex planning and execution',
+  [AZURE_GPT_55_SPEC]: 'Deep planning and complex production',
+  [AZURE_LUNA_SPEC]: 'Fast drafts and lightweight edits',
+  [AZURE_TERRA_SPEC]: 'Everyday production work',
+  [AZURE_SOL_SPEC]: 'Advanced video generation',
+  [AZURE_GPT_6_LUNA_SPEC]: 'Next-generation fast drafts',
+  [AZURE_GPT_6_SOL_SPEC]: 'Next-generation everyday production',
+  [AZURE_ASTRA_SPEC]: 'Highest-capability video generation',
+}
+
+export interface PublicModelRate {
+  spec: string
+  name: string
+  detail: string
+  /** Typical credits for one generation; video models: up to 30 seconds. */
+  credits: number
+  unit: 'typical generation' | 'up to 30 seconds'
+  /** 'all' runs on every account; 'request' needs model access switched on. */
+  access: 'all' | 'request'
+}
+
+/**
+ * The pricing page's model table, computed from the same allowlist, multipliers,
+ * margin and video prices the studio bills with (env overrides included), so a
+ * price change here is a price change there. Needs no model runtime.
+ */
+export function publicModelRates(specs = studioModelSpecs()): PublicModelRate[] {
+  return specs.map(spec => {
+    const estimate = estimatedModelCredits(spec)
+    return {
+      spec,
+      name: STUDIO_MODEL_LABELS[spec] ?? parseModelSpec(spec).id,
+      detail: STUDIO_MODEL_DETAILS[spec] ?? '',
+      credits: estimate.total,
+      unit: estimate.video ? 'up to 30 seconds' : 'typical generation',
+      access: canUseStudioModel(spec, false) ? 'all' : 'request',
+    }
+  })
 }
 
 export interface PickerModel {
@@ -260,7 +308,7 @@ export function assembleStudioPicker(
       const estimate = estimatedModelCredits(spec, 30, opts.creditMultipliers)
       bySpec.set(spec, {
         spec,
-        label: LABELS[spec] || m.name || m.id,
+        label: STUDIO_MODEL_LABELS[spec] || m.name || m.id,
         creditMultiplier: modelCreditMultiplier(spec, opts.creditMultipliers),
         estimatedCredits: estimate.total,
         harnessCredits: estimate.harness,

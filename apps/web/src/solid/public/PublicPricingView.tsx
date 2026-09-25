@@ -4,8 +4,7 @@ import {
   type Cadence,
   demoVideos,
   forCadence,
-  generationsFor,
-  MODEL_CREDIT_RATES,
+  type ModelRate,
   nonCreditFeatures,
   PLANS,
   type Plan,
@@ -61,6 +60,48 @@ export const PublicPricingView = () => {
       // Account status is non-blocking; checkout still works.
     }
   })
+  // Model prices come from the API (the same numbers the studio bills with),
+  // never a copy in this file. A signal, not createResource: a resource would
+  // suspend into the app-root Suspense and blank the whole page while it loads.
+  const [rates, setRates] = createSignal<ModelRate[] | null>(null)
+  onMount(async () => {
+    try {
+      const response = await fetch(`${API_URL}/pricing/models`)
+      if (response.ok) setRates((await response.json()).models)
+      else setRates([])
+    } catch {
+      setRates([])
+    }
+  })
+  // The headline cards summarise the table instead of naming every model.
+  const range = (unit: ModelRate['unit']) => {
+    const credits = (rates() ?? []).filter(r => r.unit === unit).map(r => r.credits)
+    return credits.length ? { min: Math.min(...credits), max: Math.max(...credits) } : null
+  }
+  const tiers = () => {
+    const general = range('typical generation')
+    const video = range('up to 30 seconds')
+    return [
+      {
+        label: 'Everyday work',
+        value: general ? `from ${general.min.toLocaleString()}` : '—',
+        unit: 'credits per generation',
+        copy: 'Fast models for drafts, edits and volume. Your balance stretches furthest here.',
+      },
+      {
+        label: 'Complex projects',
+        value: general ? `up to ${general.max.toLocaleString()}` : '—',
+        unit: 'credits per generation',
+        copy: 'Frontier reasoning for research-heavy films, long demos and full decks.',
+      },
+      {
+        label: 'Video generation',
+        value: video ? `from ${video.min.toLocaleString()}` : '—',
+        unit: 'credits per 30 seconds',
+        copy: 'Sol and Astra, the video models, priced by length. Switched on per account on request.',
+      },
+    ]
+  }
   const subscriptionPlans = PLANS.filter(plan => plan.kind !== 'topup')
   const topup = PLANS.find(plan => plan.kind === 'topup')!
   const keyFor = (plan: Plan) =>
@@ -268,62 +309,33 @@ export const PublicPricingView = () => {
           <div class="public-pricing-usage-head">
             <div>
               <p>One balance, every model</p>
-              <h2>What your credits can make</h2>
+              <h2>Frontier models, one balance</h2>
             </div>
             <p>
-              Credits are shared across the studio. Pick a faster model for volume or spend more
-              credits when the work needs deeper reasoning and higher-end generation.
+              Gemini, Gemma and GPT models share the same credits. Use a fast model for volume, and
+              spend more when the work needs deeper reasoning or generated video.
             </p>
           </div>
-          <div class="public-pricing-usage-table-wrap">
-            <table class="public-pricing-usage-table">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th>Credit rate</th>
-                  <th>Flex · 800</th>
-                  <th>Pro · 2,500</th>
-                  <th>Max · 5,000</th>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={MODEL_CREDIT_RATES}>
-                  {(rate, index) => (
-                    <tr style={{ '--model-index': index() }}>
-                      <th>
-                        <span class="model-rate-identity">
-                          <i aria-hidden="true">{rate.name.slice(0, 1)}</i>
-                          <span>
-                            <strong>{rate.name}</strong>
-                            <small>{rate.detail}</small>
-                          </span>
-                        </span>
-                      </th>
-                      <td data-label="Credit rate">
-                        <strong>{rate.credits.toLocaleString()}</strong>
-                        <small>credits · {rate.unit}</small>
-                      </td>
-                      <td data-label="Flex">
-                        <strong>{generationsFor(800, rate.credits)}</strong>
-                        <small>videos</small>
-                      </td>
-                      <td class="is-pro" data-label="Pro">
-                        <strong>{generationsFor(2500, rate.credits)}</strong>
-                        <small>videos</small>
-                      </td>
-                      <td data-label="Max">
-                        <strong>{generationsFor(5000, rate.credits)}</strong>
-                        <small>videos</small>
-                      </td>
-                    </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
+          <div class="public-pricing-tiers">
+            <For each={tiers()}>
+              {tier => (
+                <article>
+                  <p class="public-pricing-tiers__label">{tier.label}</p>
+                  <p class="public-pricing-tiers__value">
+                    {tier.value}
+                    <small>{tier.unit}</small>
+                  </p>
+                  <p class="public-pricing-tiers__copy">{tier.copy}</p>
+                </article>
+              )}
+            </For>
           </div>
           <p class="public-pricing-note">
-            Counts are estimates. Sol and Astra use a 30-second minimum and scale with selected
-            duration. Actual metered work may cost more when provider or compute usage spikes.
+            Credits are estimates; billing is metered on the work actually done. Gemini and Gemma
+            models are on every account; the GPT models, including Sol and Astra, are switched on
+            per account, so <a href="mailto:support@trypitch.co?subject=Model%20access">ask us</a>.
+            Video models use a 30-second minimum and scale with duration. Actual metered work may
+            cost more when provider or compute usage spikes.
           </p>
         </section>
         <section class="public-pricing-faq">

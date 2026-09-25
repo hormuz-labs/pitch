@@ -8,9 +8,11 @@
  */
 
 .lb-aff-hero { padding-top: clamp(56px, 9vh, 96px); }
-.lb-aff-title { max-width: 15ch; }
-.lb-aff-lede { max-width: 60ch; margin-top: 18px; font-size: 1.05rem; }
-.lb-aff-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+/* the headline block is centred; the stats and the referral panel below keep full width */
+.lb-aff-hero .lb-chy { justify-content: center; text-align: center; }
+.lb-aff-title { max-width: 15ch; margin-inline: auto; text-align: center; }
+.lb-aff-lede { max-width: 60ch; margin: 18px auto 0; font-size: 1.05rem; text-align: center; }
+.lb-aff-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 30px; }
 
 /* The four facts, as a row of hairline-separated columns rather than cards —
    they are one statement read across, not four things to compare. */
@@ -188,7 +190,7 @@
   color: var(--lb-ink-2);
 }
 
-/* ── audiences: three cards, one border each, an icon where the step number sits ── */
+/* ── audiences: three cards, one border each ── */
 .lb-aff-audiences {
   margin: 34px 0 0;
   padding: 0;
@@ -205,18 +207,8 @@
   transition: border-color 0.15s var(--ease-out);
 }
 .lb-aff-audience:hover { border-color: var(--lb-line-2); }
-.lb-aff-glyph {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--lb-line);
-  border-radius: 10px;
-  background: var(--lb-bg);
-  color: var(--lb-accent);
-}
 .lb-aff-audience h3 {
-  margin: 18px 0 8px;
+  margin: 0 0 8px;
   font-family: var(--lb-sans);
   font-weight: 400;
   font-size: 1.1rem;
@@ -239,18 +231,6 @@
   overflow: hidden;
 }
 .lb-aff-terms li { background: var(--lb-bg); padding: 22px 22px 24px; }
-.lb-aff-term-glyph {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  margin-bottom: 14px;
-  border-radius: 8px;
-  background: var(--lb-surface-2);
-  color: var(--lb-ink-2);
-}
-/* the two reward terms carry the numbers, so they get the accent */
-.lb-aff-terms li:nth-child(-n + 2) .lb-aff-term-glyph { color: var(--lb-accent); }
 .lb-aff-terms h3 {
   margin: 0 0 8px;
   font-family: var(--lb-sans);
