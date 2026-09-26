@@ -29,7 +29,7 @@ const PRODUCT_FAQ: readonly AccordionItemData[] = [
     value: 'faq-4',
     title: 'What does a video cost?',
     content:
-      'Credits are shared across every model and tool. A typical Luna generation is about 94 credits, Terra is about 125, GPT-5.5 is about 188, Sol is 1,250 for up to 30 seconds, and Astra is 2,500. Longer Sol and Astra videos scale with duration; actual metered work can vary with reasoning, tool use, and render time.',
+      'You pay for the work a video actually takes, in credits shared across every model and tool. Faster models cost the least per step and the most capable ones, like Astra, the most; the pricing page lists a typical cost for each model, taken from the same prices we bill with. The sandbox and renders cost the same on every model, AI-generated footage is billed per second only when a clip is actually generated, and a job can start with as few as 40 credits.',
   },
   {
     value: 'faq-5',

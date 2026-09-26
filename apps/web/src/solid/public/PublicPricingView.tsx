@@ -81,7 +81,6 @@ export const PublicPricingView = () => {
   }
   const tiers = () => {
     const general = range('typical generation')
-    const video = range('up to 30 seconds')
     return [
       {
         label: 'Everyday work',
@@ -96,10 +95,10 @@ export const PublicPricingView = () => {
         copy: 'Frontier reasoning for research-heavy films, long demos and full decks.',
       },
       {
-        label: 'Video generation',
-        value: video ? `from ${video.min.toLocaleString()}` : null,
-        unit: 'credits per 30 seconds',
-        copy: 'Sol and Astra, the video models, priced by length. Switched on per account on request.',
+        label: 'Generated footage',
+        value: null,
+        unit: '',
+        copy: 'AI-generated clips are metered per second of video actually generated, at the same rate on every model.',
       },
     ]
   }
@@ -339,8 +338,8 @@ export const PublicPricingView = () => {
             Credits are estimates; billing is metered on the work actually done. Gemini and Gemma
             models are on every account; the GPT models, including Sol and Astra, are switched on
             per account, so <a href="mailto:support@trypitch.co?subject=Model%20access">ask us</a>.
-            Video models use a 30-second minimum and scale with duration. Actual metered work may
-            cost more when provider or compute usage spikes.
+            The sandbox and renders cost the same on every model; generated footage is billed per
+            second only when a clip is actually generated.
           </p>
         </section>
         <section class="public-pricing-faq">

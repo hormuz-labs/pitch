@@ -26,9 +26,9 @@
     "format": "biome format --write",
     "check": "biome check",
     "check:fix": "biome check --write",
-    "test": "vitest run --project unit",
+    "test": "vitest run --project unit --project media",
     "test:web": "vitest run --project web",
-    "test:watch": "vitest --project unit",
+    "test:watch": "vitest --project unit --project media",
     "test:integration": "vitest run --project integration",
     "dev:api": "bun --filter api dev",
     "dev:discord": "bun --filter @pitch/discord-bot dev"

@@ -21,7 +21,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import { execFileAsync } from '../render/media.js'
-import { registerHostAction } from '../studio/host-actions.js'
+import { recordProviderUsd, registerHostAction } from '../studio/host-actions.js'
 import type { Workspace } from '../studio/paths.js'
 import { insideWorkspace } from './media.js'
 
@@ -36,6 +36,50 @@ const TIMEOUT_MS = Number(process.env.OMNI_TIMEOUT_MS ?? 15 * 60_000)
 const ASPECTS = new Set(['16:9', '9:16'])
 const RESOLUTIONS = new Set(['360p', '720p', '1080p', '4k'])
 const TASKS = new Set(['text_to_video', 'image_to_video', 'reference_to_video', 'edit', 'extend'])
+
+/**
+ * What the provider charges per second of generated video, by resolution.
+ * This is the only third-party cost a generation turn has: the chat model
+ * driving the agent is metered by its own tokens, so picking a different model
+ * never changes what a clip costs. Override with OMNI_USD_PER_SECOND, a JSON
+ * map such as {"720p":0.12}.
+ */
+export const DEFAULT_OMNI_USD_PER_SECOND: Record<string, number> = {
+  '360p': 0.05,
+  '720p': 0.1,
+  '1080p': 0.15,
+  '4k': 0.4,
+}
+
+/** Billed when the clip cannot be probed: the provider's typical clip length. */
+export const FALLBACK_CLIP_SECONDS = 8
+
+export function omniUsdPerSecond(raw = process.env.OMNI_USD_PER_SECOND): Record<string, number> {
+  if (!raw?.trim()) return DEFAULT_OMNI_USD_PER_SECOND
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const configured: Record<string, number> = {}
+    for (const [resolution, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0)
+        configured[resolution] = value
+    }
+    return { ...DEFAULT_OMNI_USD_PER_SECOND, ...configured }
+  } catch {
+    return DEFAULT_OMNI_USD_PER_SECOND
+  }
+}
+
+/** Provider cost of one generated clip; an unknown length bills the typical clip. */
+export function generatedClipUsd(
+  resolution: string,
+  seconds: number | null,
+  rates = omniUsdPerSecond(),
+): number {
+  const perSecond = rates[resolution] ?? rates['720p'] ?? 0
+  const billed =
+    seconds && Number.isFinite(seconds) && seconds > 0 ? seconds : FALLBACK_CLIP_SECONDS
+  return perSecond * billed
+}
 
 const MIME: Record<string, string> = {
   '.png': 'image/png',
@@ -111,7 +155,10 @@ async function download(uri: string, dest: string, signal: AbortSignal): Promise
   await writeFile(dest, Buffer.from(await res.arrayBuffer()))
 }
 
-async function describeFile(file: string, rel: string): Promise<string> {
+async function describeFile(
+  file: string,
+  rel: string,
+): Promise<{ text: string; seconds: number | null }> {
   const { size } = await stat(file)
   try {
     const { stdout } = await execFileAsync(
@@ -134,9 +181,12 @@ async function describeFile(file: string, rel: string): Promise<string> {
     const probe = JSON.parse(stdout)
     const stream = probe.streams?.[0] ?? {}
     const seconds = Number(probe.format?.duration ?? 0)
-    return `${rel} — ${stream.width}×${stream.height}, ${seconds.toFixed(1)}s, ${(size / 1e6).toFixed(1)} MB`
+    return {
+      text: `${rel} — ${stream.width}×${stream.height}, ${seconds.toFixed(1)}s, ${(size / 1e6).toFixed(1)} MB`,
+      seconds: seconds > 0 ? seconds : null,
+    }
   } catch {
-    return `${rel} — ${(size / 1e6).toFixed(1)} MB`
+    return { text: `${rel} — ${(size / 1e6).toFixed(1)} MB`, seconds: null }
   }
 }
 
@@ -223,6 +273,10 @@ registerHostAction('video_generate', async (ws, params, ctx) => {
   const seconds = (Date.now() - started) / 1000
 
   if (!existsSync(out)) throw new Error(`generation reported success but ${outRel} was not written`)
+  const file = await describeFile(out, outRel)
+  // The clip exists, so the provider billed for it: meter it now, before
+  // anything below can fail and hide a cost that was really incurred.
+  recordProviderUsd(ws.internal, generatedClipUsd(resolution, file.seconds))
   const interactionId = String(result?.id ?? '')
   await writeFile(
     sidecarFor(out),
@@ -232,7 +286,7 @@ registerHostAction('video_generate', async (ws, params, ctx) => {
 
   const usage = describeUsage(result?.usage)
   return [
-    `Generated ${await describeFile(out, outRel)} in ${seconds.toFixed(0)}s${usage ? ` (${usage})` : ''}.`,
+    `Generated ${file.text} in ${seconds.toFixed(0)}s${usage ? ` (${usage})` : ''}.`,
     'It has its own audio track — mute or replace it if the film has a music bed.',
     `To refine this shot rather than start a new one, call video_generate again with continues: "${outRel}".`,
   ].join(' ')

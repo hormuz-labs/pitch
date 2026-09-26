@@ -69,6 +69,29 @@ export function peekComputeSeconds(internal: string): number {
   return (spent.get(internal) ?? 0) + running
 }
 
+/**
+ * Third-party spend, in dollars, per workspace: what a host action paid a
+ * provider for (a generated clip). Recorded by the action that made the call,
+ * because only it knows what came back, and drained with compute when the
+ * turn bills. Nothing is recorded for an action that did not reach a provider.
+ */
+const providerSpent = new Map<string, number>()
+
+export function recordProviderUsd(internal: string, usd: number): void {
+  if (!Number.isFinite(usd) || usd <= 0) return
+  providerSpent.set(internal, (providerSpent.get(internal) ?? 0) + usd)
+}
+
+export function takeProviderUsd(internal: string): number {
+  const usd = providerSpent.get(internal) ?? 0
+  providerSpent.delete(internal)
+  return usd
+}
+
+export function peekProviderUsd(internal: string): number {
+  return providerSpent.get(internal) ?? 0
+}
+
 export function abortHostActions(internal: string): void {
   for (const call of active.get(internal) ?? []) call.controller.abort()
 }

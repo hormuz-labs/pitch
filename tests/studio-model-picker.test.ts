@@ -9,6 +9,7 @@ import {
   AZURE_TERRA_SPEC,
   assembleStudioPicker,
   DEFAULT_STUDIO_MODELS,
+  DEFAULT_TYPICAL_TURN,
   estimatedModelCredits,
   GEMINI_31_PRO_SPEC,
   GEMINI_38_FLASH_SPEC,
@@ -22,9 +23,16 @@ import {
   platformMargin,
   selectStudioModel,
   studioModelSpecs,
+  tokenPriceOf,
+  typicalTurn,
 } from '../apps/api/src/studio/model-picker.js'
 
-const model = (provider: string, id: string, name: string) => ({ provider, id, name })
+const model = (
+  provider: string,
+  id: string,
+  name: string,
+  cost?: { input: number; output: number },
+) => ({ provider, id, name, ...(cost ? { cost } : {}) })
 
 describe('parseModelSpec', () => {
   it('splits provider and model id', () => {
@@ -86,33 +94,104 @@ describe('model credit pricing', () => {
     expect(platformMargin('0.5')).toBe(1.25)
   })
 
-  it('adds duration-priced video cost to the harness estimate', () => {
-    expect(estimatedModelCredits(AZURE_SOL_SPEC, 15, { [AZURE_SOL_SPEC]: 1 })).toEqual({
-      total: 1250,
-      harness: 125,
-      video: 1250,
+  // Prices below are the runtime catalog's ($ per million tokens in / out).
+  const TERRA = { input: 2, output: 12 }
+  const SOL = { input: 4, output: 20 }
+  const ASTRA = { input: 10, output: 50 }
+  const FREE = { input: 0, output: 0 }
+
+  it("prices a typical turn from the model's real token price, rate and margin", () => {
+    // Terra: (50k × $2 + 12.5k × $12) / 1M = $0.25 of tokens × 1
+    //        + 30 s × $0.002 = $0.06 of machine time → $0.31 × 1.25 = $0.3875 → 155
+    expect(estimatedModelCredits(AZURE_TERRA_SPEC, { price: TERRA })).toEqual({
+      total: 155,
+      harness: 155,
     })
-    expect(estimatedModelCredits(AZURE_ASTRA_SPEC, 30, { [AZURE_ASTRA_SPEC]: 2 })).toEqual({
-      total: 2500,
-      harness: 250,
-      video: 2500,
+    // Sol:   $0.45 × 1 + $0.06 = $0.51 × 1.25 → 255
+    expect(estimatedModelCredits(AZURE_SOL_SPEC, { price: SOL }).total).toBe(255)
+    // Astra: $1.125 × 2 + $0.06 = $2.31 × 1.25 → 1,155
+    expect(estimatedModelCredits(AZURE_ASTRA_SPEC, { price: ASTRA }).total).toBe(1155)
+  })
+
+  it('ranks models by what their tokens really cost, not by label', () => {
+    const terra = estimatedModelCredits(AZURE_TERRA_SPEC, { price: TERRA }).total
+    const sol = estimatedModelCredits(AZURE_SOL_SPEC, { price: SOL }).total
+    const astra = estimatedModelCredits(AZURE_ASTRA_SPEC, { price: ASTRA }).total
+    expect(sol).toBeGreaterThan(terra)
+    expect(astra).toBeGreaterThan(sol * 4)
+  })
+
+  it('never quotes a model as free: machine time costs the same on every model', () => {
+    // Gemma's tokens are $0 in the catalog; 30 s × $0.002 × 1.25 = 30 credits.
+    expect(estimatedModelCredits(GEMMA_4_31B_SPEC, { price: FREE }).total).toBe(30)
+    expect(estimatedModelCredits(GEMMA_4_26B_SPEC, { price: FREE }).total).toBe(30)
+  })
+
+  it('quotes an unknown price as a mid-market model, not as free', () => {
+    expect(estimatedModelCredits('custom/unknown').total).toBe(
+      estimatedModelCredits(AZURE_TERRA_SPEC, { price: TERRA }).total,
+    )
+  })
+
+  it("follows a deployment's rate and typical-turn overrides", () => {
+    expect(
+      estimatedModelCredits(AZURE_ASTRA_SPEC, {
+        price: ASTRA,
+        multipliers: { [AZURE_ASTRA_SPEC]: 1 },
+      }).total,
+      // $1.125 + $0.06 = $1.185 × 1.25 → 593
+    ).toBe(593)
+    expect(
+      estimatedModelCredits(AZURE_TERRA_SPEC, {
+        price: TERRA,
+        turn: { inputTokens: 100_000, outputTokens: 25_000, computeSeconds: 0 },
+      }).total,
+      // $0.50 × 1.25 → 250
+    ).toBe(250)
+  })
+
+  it('parses STUDIO_TYPICAL_TURN, keeping defaults for missing or bad fields', () => {
+    expect(typicalTurn(undefined)).toEqual(DEFAULT_TYPICAL_TURN)
+    expect(typicalTurn('{"inputTokens":80000,"outputTokens":-1,"computeSeconds":"x"}')).toEqual({
+      ...DEFAULT_TYPICAL_TURN,
+      inputTokens: 80_000,
     })
-    expect(estimatedModelCredits(AZURE_ASTRA_SPEC, 60, { [AZURE_ASTRA_SPEC]: 2 }).total).toBe(5000)
+    expect(typicalTurn('not json')).toEqual(DEFAULT_TYPICAL_TURN)
+  })
+
+  it("reads a runtime model's cost table, ignoring missing or broken ones", () => {
+    expect(tokenPriceOf({ cost: { input: 4, output: 20 } })).toEqual(SOL)
+    expect(tokenPriceOf({ cost: { input: 0, output: 0 } })).toEqual(FREE)
+    expect(tokenPriceOf({})).toBeUndefined()
+    expect(tokenPriceOf({ cost: { input: 'x', output: 1 } })).toBeUndefined()
+    expect(tokenPriceOf(undefined)).toBeUndefined()
+  })
+
+  it('quotes Sol and Astra per turn in the picker, with no per-30-seconds price', () => {
+    const out = assembleStudioPicker(
+      [
+        model('azure-apim', 'gpt-5.6-sol', 'Sol', SOL),
+        model('azure-apim', 'gpt-6-astra', 'Astra', ASTRA),
+      ],
+      { specs: [AZURE_SOL_SPEC, AZURE_ASTRA_SPEC], gptEnabled: true },
+    )
+    expect(out.map(m => m.estimatedCredits)).toEqual([255, 1155])
+    for (const m of out) expect(m).not.toHaveProperty('videoCreditsPer30Seconds')
   })
 })
 
 describe('assembleStudioPicker', () => {
   const catalog = [
     model('google', 'gemini-2.5-flash', 'Gemini 2.5 Flash'),
-    model('google', 'gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
-    model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash'),
-    model('google', 'gemma-4-31b-it', 'Gemma 4 31B IT'),
-    model('google', 'gemma-4-26b-a4b-it', 'Gemma 4 26B A4B IT'),
+    model('google', 'gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview', { input: 2, output: 12 }),
+    model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash', { input: 0.75, output: 3.75 }),
+    model('google', 'gemma-4-31b-it', 'Gemma 4 31B IT', { input: 0, output: 0 }),
+    model('google', 'gemma-4-26b-a4b-it', 'Gemma 4 26B A4B IT', { input: 0, output: 0 }),
     model('openrouter', 'z-ai/glm-5.3-flash', 'Z.ai: GLM 5.3 Flash'),
     model('openrouter', 'moonshotai/kimi-k3', 'MoonshotAI: Kimi K3'),
     model('openrouter', 'openai/gpt-4o', 'GPT-4o'),
-    model('openai', 'gpt-5.4', 'GPT-5.4'),
-    model('openai', 'gpt-5.4-mini', 'GPT-5.4 mini'),
+    model('openai', 'gpt-5.4', 'GPT-5.4', { input: 2.5, output: 15 }),
+    model('openai', 'gpt-5.4-mini', 'GPT-5.4 mini', { input: 0.75, output: 4.5 }),
   ]
 
   it('lists only the allowlist, with short labels, and ignores the rest', () => {
@@ -126,43 +205,43 @@ describe('assembleStudioPicker', () => {
         spec: GEMINI_38_FLASH_SPEC,
         label: 'Gemini 3.8 Flash',
         creditMultiplier: 1,
-        estimatedCredits: 125,
-        harnessCredits: 125,
+        estimatedCredits: 73,
+        harnessCredits: 73,
       },
       {
         spec: GEMINI_31_PRO_SPEC,
         label: 'Gemini 3.1 Pro',
         creditMultiplier: 2,
-        estimatedCredits: 250,
-        harnessCredits: 250,
+        estimatedCredits: 280,
+        harnessCredits: 280,
       },
       {
         spec: GEMMA_4_31B_SPEC,
         label: 'Gemma 4 31B',
         creditMultiplier: 1,
-        estimatedCredits: 125,
-        harnessCredits: 125,
+        estimatedCredits: 30,
+        harnessCredits: 30,
       },
       {
         spec: GEMMA_4_26B_SPEC,
         label: 'Gemma 4 26B',
         creditMultiplier: 0.75,
-        estimatedCredits: 94,
-        harnessCredits: 94,
+        estimatedCredits: 30,
+        harnessCredits: 30,
       },
       {
         spec: GPT_54_MINI_SPEC,
         label: 'GPT-5.4 mini',
         creditMultiplier: 1,
-        estimatedCredits: 125,
-        harnessCredits: 125,
+        estimatedCredits: 77,
+        harnessCredits: 77,
       },
       {
         spec: GPT_54_SPEC,
         label: 'GPT-5.4',
         creditMultiplier: 2,
-        estimatedCredits: 250,
-        harnessCredits: 250,
+        estimatedCredits: 343,
+        harnessCredits: 343,
       },
     ])
   })

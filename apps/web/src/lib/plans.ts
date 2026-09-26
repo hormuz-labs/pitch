@@ -8,6 +8,26 @@
  * are the numbers we show.
  */
 
+/**
+ * The balance a new job needs to start. Must equal MIN_BALANCE in
+ * apps/api/src/projects/usage.ts (pinned by tests/credit-start-minimum.test.ts).
+ * A job already under way is not held to it: it runs until the balance is 0.
+ */
+export const START_MIN_CREDITS = 40
+
+/**
+ * The one-time Discord welcome grant. Must equal DISCORD_WELCOME_CREDITS in
+ * packages/db (pinned by tests/credit-start-minimum.test.ts); screens that
+ * have the API's live value show that instead.
+ */
+export const DISCORD_WELCOME_CREDITS = 750
+
+/** How many more credits a new job needs; 0 when it can start (or when unknown). */
+export function creditsNeededToStart(balance: number | null): number {
+  if (balance === null) return 0
+  return Math.max(0, START_MIN_CREDITS - Math.max(0, balance))
+}
+
 /** Credits a typical demo video consumes, used for the "about N videos" copy. */
 export const CREDITS_PER_DEMO_VIDEO = 120
 
@@ -17,7 +37,7 @@ export interface ModelRate {
   name: string
   detail: string
   credits: number
-  unit: 'typical generation' | 'up to 30 seconds'
+  unit: 'typical generation'
   access: 'all' | 'request'
 }
 

@@ -16,21 +16,33 @@ interface Session {
   name: string
   bytes: Buffer[]
   received: number
+  /** Running CRC state over the bytes accepted so far. */
+  crc: number
 }
 
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n
   for (let k = 0; k < 8; k++) c = c & 1 ? 0x82f63b78 ^ (c >>> 1) : c >>> 1
   return c >>> 0
 })
-/** Castagnoli CRC, base64 big-endian — what Cloud Storage reports as `crc32c`. */
-const crc32c = (data: Buffer) => {
-  let c = 0xffffffff
-  for (const byte of data) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8)
+const CRC_START = 0xffffffff
+/**
+ * Castagnoli CRC, fed a chunk at a time the way Cloud Storage accumulates it.
+ * Keeping it incremental matters: the driver's request timeout is 1 s here,
+ * and a whole-object pass at the final chunk (1.6 s for 20 MiB with a
+ * byte-iterator loop) made every completion time out and retry forever.
+ */
+const crc32cUpdate = (c: number, data: Buffer) => {
+  for (let i = 0; i < data.length; i++) c = CRC_TABLE[(c ^ data[i]) & 0xff] ^ (c >>> 8)
+  return c
+}
+/** Finished CRC, base64 big-endian — what Cloud Storage reports as `crc32c`. */
+const crc32cDigest = (c: number) => {
   const out = Buffer.alloc(4)
   out.writeUInt32BE((c ^ 0xffffffff) >>> 0)
   return out.toString('base64')
 }
+const crc32c = (data: Buffer) => crc32cDigest(crc32cUpdate(CRC_START, data))
 
 const readBody = async (req: IncomingMessage) => {
   const chunks: Buffer[] = []
@@ -48,13 +60,13 @@ describe('gcs driver', () => {
   const stalled: number[] = []
   let origin = ''
 
-  const metadata = (bucket: string, name: string, data: Buffer) => ({
+  const metadata = (bucket: string, name: string, data: Buffer, crc = crc32c(data)) => ({
     kind: 'storage#object',
     bucket,
     name,
     size: String(data.length),
     md5Hash: createHash('md5').update(data).digest('base64'),
-    crc32c: crc32c(data),
+    crc32c: crc,
   })
 
   beforeAll(async () => {
@@ -77,6 +89,7 @@ describe('gcs driver', () => {
           name: `${start[1]}/${meta.name ?? url.searchParams.get('name')}`,
           bytes: [],
           received: 0,
+          crc: CRC_START,
         })
         res.writeHead(200, { location: `${origin}/session/${id}` })
         return res.end()
@@ -116,11 +129,12 @@ describe('gcs driver', () => {
           return json(400, { error: { code: 400, message: `expected ${s.received}` } })
         s.bytes.push(body)
         s.received += body.length
+        s.crc = crc32cUpdate(s.crc, body)
         if (m[3] !== '*' && s.received === Number(m[3])) {
           const data = Buffer.concat(s.bytes)
           objects.set(s.name, data)
           const [bucket, ...name] = s.name.split('/')
-          return json(200, metadata(bucket, name.join('/'), data))
+          return json(200, metadata(bucket, name.join('/'), data, crc32cDigest(s.crc)))
         }
         return json(308, {}, committed())
       }

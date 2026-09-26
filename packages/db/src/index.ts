@@ -96,14 +96,22 @@ export async function reserveCredits(input: {
   kind: string
   durationSeconds?: number
   credits: number
+  /**
+   * When set, a balance below `credits` but at least this much still starts:
+   * the hold shrinks to what is available. The hold is an affordability check,
+   * not a price, and live metering stops the turn if real spend outruns it.
+   */
+  minCredits?: number
 }) {
   return prisma.$transaction(async tx => {
     await lockCreditAccount(tx, input.userId)
     const existing = await tx.creditReservation.findUnique({ where: { key: input.key } })
     if (existing?.status === 'pending' || existing?.status === 'settled') return existing
     const available = await getAvailableCreditBalance(input.userId, tx)
-    if (available < input.credits)
-      throw new Error(`Insufficient credits: balance is ${available}, need ${input.credits}`)
+    const required = Math.min(input.credits, input.minCredits ?? input.credits)
+    if (available < required)
+      throw new Error(`Insufficient credits: balance is ${available}, need ${required}`)
+    const credits = Math.min(input.credits, available)
     if (existing)
       return tx.creditReservation.update({
         where: { id: existing.id },
@@ -111,7 +119,7 @@ export async function reserveCredits(input: {
           channel: input.channel ?? 'product',
           kind: input.kind,
           durationSeconds: input.durationSeconds,
-          credits: input.credits,
+          credits,
           status: 'pending',
           settledCredits: null,
         },
@@ -124,7 +132,7 @@ export async function reserveCredits(input: {
         channel: input.channel ?? 'product',
         kind: input.kind,
         durationSeconds: input.durationSeconds,
-        credits: input.credits,
+        credits,
       },
     })
   })
@@ -134,7 +142,16 @@ export async function getCreditReservation(key: string) {
   return prisma.creditReservation.findUnique({ where: { key } })
 }
 
-export async function settleCreditReservation(key: string, credits: number): Promise<number> {
+/**
+ * Settle a hold for what the work measured. With `capAtAvailable`, a turn that
+ * overran the balance between live checks takes the balance to zero and the
+ * rest is written off, instead of failing and leaving the hold pending.
+ */
+export async function settleCreditReservation(
+  key: string,
+  credits: number,
+  opts: { capAtAvailable?: boolean } = {},
+): Promise<number> {
   return prisma.$transaction(async tx => {
     const reservation = await tx.creditReservation.findUnique({ where: { key } })
     if (!reservation) throw new Error(`Credit reservation not found: ${key}`)
@@ -152,13 +169,14 @@ export async function settleCreditReservation(key: string, credits: number): Pro
       }),
     ])
     const available = balance - (otherHeld._sum.credits ?? 0)
-    if (amount > available)
+    if (amount > available && !opts.capAtAvailable)
       throw new Error(`Insufficient credits: balance is ${available}, need ${amount}`)
-    if (amount > 0)
+    const charged = Math.min(amount, Math.max(0, available))
+    if (charged > 0)
       await tx.creditTransaction.create({
         data: {
           userId: current.userId,
-          delta: -amount,
+          delta: -charged,
           type: 'usage',
           description: `Generation: ${current.kind}`,
           projectId: current.projectId,
@@ -168,9 +186,9 @@ export async function settleCreditReservation(key: string, credits: number): Pro
       })
     await tx.creditReservation.update({
       where: { id: current.id },
-      data: { status: 'settled', settledCredits: amount },
+      data: { status: 'settled', settledCredits: charged },
     })
-    return amount
+    return charged
   })
 }
 
@@ -265,7 +283,8 @@ export async function addCredits(
 }
 
 export const DISCORD_WELCOME_CAMPAIGN = 'discord-welcome-v1'
-export const DISCORD_WELCOME_CREDITS = 250
+/** About one finished teaser (~630 credits on Flash), so a new user sees a whole video. */
+export const DISCORD_WELCOME_CREDITS = 750
 
 export async function getDiscordWelcomeClaim(userId: string, discordUserId: string | null) {
   const campaignId = DISCORD_WELCOME_CAMPAIGN
@@ -368,6 +387,7 @@ export async function deductCredit(
   },
 ): Promise<number> {
   const result = await prisma.$transaction(async tx => {
+    await lockCreditAccount(tx, userId)
     const channel = opts?.channel ?? 'product'
     // Compute current balance inside the transaction to prevent races
     const agg = await tx.creditTransaction.aggregate({
@@ -400,6 +420,43 @@ export async function deductCredit(
 
   console.log(`[Credits] -${amount} (usage) for user ${userId}. New balance: ${result}`)
   return result
+}
+
+/**
+ * Charge up to `amount`: whatever the account can still spend, down to zero,
+ * and return what was charged. Runs under the account lock and counts other
+ * jobs' holds as spent, so two turns finishing at once can never take the
+ * balance below zero or spend credits another job is holding.
+ */
+export async function deductUpTo(
+  userId: string,
+  amount: number,
+  description: string,
+  opts?: { projectId?: string; channel?: CreditChannel },
+): Promise<number> {
+  const wanted = Math.max(0, Math.floor(amount))
+  if (!wanted) return 0
+  return prisma.$transaction(async tx => {
+    await lockCreditAccount(tx, userId)
+    const channel = opts?.channel ?? 'product'
+    const available =
+      channel === 'discord'
+        ? await getDiscordCreditBalance(userId, tx)
+        : await getAvailableCreditBalance(userId, tx)
+    const charged = Math.min(wanted, Math.max(0, available))
+    if (charged > 0)
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          delta: -charged,
+          type: 'usage',
+          description,
+          projectId: opts?.projectId,
+          channel,
+        },
+      })
+    return charged
+  })
 }
 
 /**

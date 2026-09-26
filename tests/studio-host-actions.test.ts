@@ -3,9 +3,12 @@ import {
   abortHostActions,
   callHostAction,
   peekComputeSeconds,
+  peekProviderUsd,
+  recordProviderUsd,
   registerHostAction,
   setHostActionGuard,
   takeComputeSeconds,
+  takeProviderUsd,
 } from '../apps/api/src/studio/host-actions.js'
 import { workspaceFor } from '../apps/api/src/studio/paths.js'
 
@@ -65,5 +68,30 @@ describe('host action cancellation', () => {
 
     await expect(running).rejects.toMatchObject({ name: 'AbortError' })
     expect(peekComputeSeconds(ws.internal)).toBeGreaterThan(0)
+  })
+})
+
+describe('provider spend meter', () => {
+  it('accumulates what actions paid a provider and drains it once', () => {
+    takeProviderUsd(ws.internal)
+    recordProviderUsd(ws.internal, 0.8)
+    recordProviderUsd(ws.internal, 1.2)
+    expect(peekProviderUsd(ws.internal)).toBeCloseTo(2)
+    expect(takeProviderUsd(ws.internal)).toBeCloseTo(2)
+    expect(takeProviderUsd(ws.internal)).toBe(0)
+  })
+
+  it('ignores zero, negative and non-finite amounts', () => {
+    recordProviderUsd(ws.internal, 0)
+    recordProviderUsd(ws.internal, -3)
+    recordProviderUsd(ws.internal, Number.NaN)
+    expect(takeProviderUsd(ws.internal)).toBe(0)
+  })
+
+  it('keeps workspaces apart', () => {
+    const other = workspaceFor('studio', 'user_test', 'host-action-other')
+    recordProviderUsd(other.internal, 5)
+    expect(peekProviderUsd(ws.internal)).toBe(0)
+    expect(takeProviderUsd(other.internal)).toBe(5)
   })
 })

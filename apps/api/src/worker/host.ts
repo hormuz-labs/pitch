@@ -61,20 +61,26 @@ import {
 import { publishShareArtifact } from '../projects/share-artifact.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import {
+  CREDIT_LIMIT_MESSAGE,
+  canStartTurn,
   chargeTurn,
-  creditLimitMessage,
   effectiveModelMultiplier,
-  generationReservationFromEstimate,
+  generationReservationCredits,
+  MIN_BALANCE,
   projectedCreditsOwed,
 } from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
-import { type HostContext, peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
+import {
+  type HostContext,
+  peekComputeSeconds,
+  peekProviderUsd,
+  setHostActionGuard,
+} from '../studio/host-actions.js'
 import {
   estimatedModelCredits,
   modelCreditMultiplier,
   selectStudioModel,
-  videoGenerationCostUsd,
 } from '../studio/model-picker.js'
 import { PROJECTS_DIR, type Workspace } from '../studio/paths.js'
 import {
@@ -93,6 +99,7 @@ import {
   rollbackSession,
   steerQueuedPrompt,
   stopSession,
+  studioModelPrice,
 } from '../studio/session.js'
 import {
   pruneCheckpoints,
@@ -136,8 +143,8 @@ setHostActionGuard(async (ws, name) => {
   if (existing?.status === 'settled') return
   const model = String(p.options.model ?? '')
   const duration = Number(p.options.durationSeconds ?? 30)
-  const credits = generationReservationFromEstimate(
-    estimatedModelCredits(model, duration),
+  const credits = generationReservationCredits(
+    estimatedModelCredits(model, { price: studioModelPrice(model) }).harness,
     kind,
     duration,
   )
@@ -150,12 +157,13 @@ setHostActionGuard(async (ws, name) => {
       kind,
       durationSeconds: duration,
       credits,
+      minCredits: MIN_BALANCE,
     })
     activatedReservations.add(key)
   } catch {
     emitProjectEvent(p.id, {
       type: 'credit_exhausted',
-      message: 'You need more credits to start generation.',
+      message: 'You need more credits to start. Top up to keep going.',
     })
     throw new Error('Insufficient credits. Add a one-time top-up to continue.')
   }
@@ -427,8 +435,8 @@ export async function prompt(
     const existing = await db.getCreditReservation(reservationKey)
     if (!existing || existing.status === 'released') {
       const duration = Number(p.options.durationSeconds ?? 30)
-      const credits = generationReservationFromEstimate(
-        estimatedModelCredits(model, duration),
+      const credits = generationReservationCredits(
+        estimatedModelCredits(model, { price: studioModelPrice(model) }).harness,
         resolvedKind,
         duration,
       )
@@ -441,6 +449,7 @@ export async function prompt(
           kind: resolvedKind,
           durationSeconds: duration,
           credits,
+          minCredits: MIN_BALANCE,
         })
       } catch {
         const balance = await db.getAvailableCreditBalance(p.userId)
@@ -450,6 +459,15 @@ export async function prompt(
         })
       }
     }
+  }
+  const hold = reservationKey ? await db.getCreditReservation(reservationKey) : null
+  if (hold?.status !== 'pending') {
+    const balance = await db.getAvailableCreditBalance(p.userId)
+    if (!canStartTurn(balance, false))
+      throw Object.assign(new Error(`Insufficient credits (balance: ${balance})`), {
+        status: 402,
+        balance,
+      })
   }
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
@@ -574,6 +592,7 @@ function guardTurnCredits(
         {
           modelUsd: peekModelCost(p.id),
           computeSeconds: peekComputeSeconds(workspaceOf(p).internal),
+          providerUsd: peekProviderUsd(workspaceOf(p).internal),
         },
         multiplier,
       )
@@ -603,7 +622,7 @@ function guardTurnCredits(
       )
       emitProjectEvent(p.id, {
         type: 'credit_exhausted',
-        message: creditLimitMessage(owed, allowance, usedProvidedSkill),
+        message: CREDIT_LIMIT_MESSAGE,
       })
       await stopSession(p.id)
     } catch (err) {
@@ -618,8 +637,8 @@ function guardTurnCredits(
 
 /**
  * Bill the turn when it settles. Nothing was charged to open the project, so
- * this is where the money is: the model spend it used plus the machine time
- * its host actions burned.
+ * this is where the money is: the model spend it used, the machine time its
+ * host actions burned, and whatever those actions paid a provider for.
  */
 function billTurn(
   p: ProjectRow,
@@ -641,22 +660,9 @@ function billTurn(
         activatedReservations.has(reservationKey)
           ? reservationKey
           : undefined
-      const providerUsd =
-        pendingKey && model
-          ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30))
-          : 0
       if (reservationKey && reservation?.status === 'pending' && !pendingKey)
         await db.releaseCreditReservation(reservationKey)
-      await chargeTurn(
-        p,
-        modelUsd,
-        channel,
-        model,
-        providerUsd,
-        pendingKey ? (reservation?.credits ?? 0) : 0,
-        pendingKey,
-        usedProvidedSkill,
-      )
+      await chargeTurn(p, modelUsd, channel, model, pendingKey, usedProvidedSkill)
       emitProjectEvent(p.id, {
         type: 'credit_balance',
         balance: await db.getAvailableCreditBalance(p.userId),

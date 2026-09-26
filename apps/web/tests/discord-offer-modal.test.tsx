@@ -34,11 +34,24 @@ describe('DiscordOfferModal', () => {
     expect(screen.queryByRole('button', { name: 'Buy credits' })).toBeNull()
     expect(
       screen
-        .getByRole('button', { name: 'Join Discord and get 250 credits' })
+        .getByRole('button', { name: 'Join Discord and get 750 credits' })
         .classList.contains('discord-offer__primary'),
     ).toBe(true)
     expect(screen.getByRole('button', { name: 'Not now' })).toBeTruthy()
     expect(screen.getByText('Get help and swap ideas with other creators')).toBeTruthy()
     expect(screen.getByText('Share your work and see what others are making')).toBeTruthy()
+  })
+
+  it("shows the API's welcome amount when the caller has it", () => {
+    render(() => (
+      <DiscordOfferModal
+        mode="no-credits"
+        credits={1200}
+        onClose={vi.fn()}
+        onBuyCredits={vi.fn()}
+        onClaimReward={vi.fn()}
+      />
+    ))
+    expect(screen.getByText(/get 1,200 welcome credits/)).toBeTruthy()
   })
 })
