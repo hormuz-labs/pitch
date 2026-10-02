@@ -7,8 +7,9 @@
    film layout. Use icon-library for familiar tools, and capture a real product
    detail only when needed (`pitch motion screenshot --url <url> --out <file>`).
 2. Explore candidates from the skill's effect inventory before locking the
-   storyboard. Compare their notes and frame strips; use `references/continuity.md`
-   to plan connections between scenes.
+   storyboard. Compare their notes and frame strips; `references/mechanisms.md`
+   maps moves from professional launch films to the product situations they fit
+   and the closest lab studies, and `references/continuity.md` plans connections.
 3. For a narrated film, complete `references/audio/narration.md`'s script and
    recording steps before the shot table. Write a short `direction.md`:
    audience takeaway, visual idea, included content, treatment, chosen motion

@@ -10,6 +10,18 @@ must be a finished composition). Read each sheet once, looking for: text over a
 busy picture without a backing (aim for 4.5:1 contrast on essential copy), text
 colliding with other text, the same layout repeated in neighbouring shots, and
 whether the pictures alone, muted, say what changed.
+
+Defects that pass every automatic check and still get films rejected:
+
+- A wipe that splices two titles into one word: the outgoing title leaves
+  before the wipe, the incoming one enters after it.
+- A card or panel that goes blank between states: crossfade its contents in place.
+- Text travelling through other text during a move: fade out, then in at the destination.
+- An overlay that drifts off its anchor because its parent has a slow push:
+  give the overlay the same push.
+- A label or caption that names the wrong thing, often one tween targeting two variants.
+- Rows and lists with unequal spacing or ragged left edges.
+- A dark or empty first image, or a lone element on an empty field.
 Compare the important motion choices with the selected references: did the
 adaptation preserve the mechanism, or collapse into repetitive entrances?
 Settled frames cannot answer this. For a signature transition or handoff whose

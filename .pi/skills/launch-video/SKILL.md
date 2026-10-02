@@ -89,6 +89,7 @@ Paths are relative to this skill directory. Load only what the current task need
 |---|---|
 | Study a reference video the user supplied, before planning | `references/reference-video.md` |
 | Source the product and author new shots | `references/authoring.md` |
+| Choose how a scene works or joins: moves seen in professional launch films | `references/mechanisms.md` |
 | Adapt an effects-lab implementation | `references/effects.md` |
 | Plan how scenes connect, including transitions and object handoffs | `references/continuity.md` |
 | Resolve a pacing problem | `references/pacing.md` |
