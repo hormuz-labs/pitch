@@ -17,6 +17,7 @@ import { promisify } from 'node:util'
 import AdmZip from 'adm-zip'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { buildEditablePackage } from '../apps/api/src/projects/editable-package.js'
+import { MEDIA_TEST_TIMEOUT_MS } from './media-timeouts.js'
 
 const exec = promisify(execFile)
 let root: string
@@ -732,7 +733,10 @@ it('rejects non-square pixels, rotation and HDR rather than changing display app
   await movie('sar.mp4', ['-vf', 'setsar=2'])
   // Tag the colorimetry in the filter graph: output-side -color_* flags stopped
   // reaching libx264's stream metadata in FFmpeg 9.
-  await movie('hdr.mp4', ['-vf', 'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc'])
+  await movie('hdr.mp4', [
+    '-vf',
+    'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
+  ])
   const source = await movie()
   await exec('ffmpeg', [
     '-v',
@@ -857,39 +861,43 @@ it('enforces the 30-minute duration and 8192-pixel dimension caps before decodin
   }
 })
 
-it('rejects audio expansion beyond the 192-MiB combined archive-media cap', async () => {
-  await exec('ffmpeg', [
-    '-v',
-    'error',
-    '-f',
-    'lavfi',
-    '-i',
-    'color=size=16x16:rate=1',
-    '-f',
-    'lavfi',
-    '-i',
-    'anullsrc=r=48000:cl=stereo',
-    '-t',
-    '710',
-    '-c:v',
-    'libx264',
-    '-threads',
-    '1',
-    '-c:a',
-    'alac',
-    join(workspaceDir, 'expanded.mov'),
-  ])
-  await expect(
-    buildEditablePackage({
-      workspaceDir,
-      outputDir,
-      videoRel: 'expanded.mov',
-      format: 'premiere',
-      title: 'Expansion',
-    }),
-  ).rejects.toThrow(/192 MiB/)
-  expect(await readdir(outputDir)).toEqual([])
-}, 30_000)
+it(
+  'rejects audio expansion beyond the 192-MiB combined archive-media cap',
+  async () => {
+    await exec('ffmpeg', [
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=size=16x16:rate=1',
+      '-f',
+      'lavfi',
+      '-i',
+      'anullsrc=r=48000:cl=stereo',
+      '-t',
+      '710',
+      '-c:v',
+      'libx264',
+      '-threads',
+      '1',
+      '-c:a',
+      'alac',
+      join(workspaceDir, 'expanded.mov'),
+    ])
+    await expect(
+      buildEditablePackage({
+        workspaceDir,
+        outputDir,
+        videoRel: 'expanded.mov',
+        format: 'premiere',
+        title: 'Expansion',
+      }),
+    ).rejects.toThrow(/192 MiB/)
+    expect(await readdir(outputDir)).toEqual([])
+  },
+  MEDIA_TEST_TIMEOUT_MS,
+)
 
 it('does not follow playlist references to other media or accept corrupt movies', async () => {
   const source = await movie()
@@ -923,48 +931,52 @@ it('rejects ambiguous multiple-video movies instead of silently selecting a view
   ).rejects.toThrow(/one video|1 video|multiple video/i)
 })
 
-it('preserves HEVC pixels and typical integer and NTSC CFR frame counts', async () => {
-  for (const rate of ['24', '30', '60', '24000/1001', '60000/1001']) {
-    await movie('rate.mp4', [], rate, 12)
-    const { manifest } = await buildEditablePackage({
+it(
+  'preserves HEVC pixels and typical integer and NTSC CFR frame counts',
+  async () => {
+    for (const rate of ['24', '30', '60', '24000/1001', '60000/1001']) {
+      await movie('rate.mp4', [], rate, 12)
+      const { manifest } = await buildEditablePackage({
+        workspaceDir,
+        outputDir,
+        videoRel: 'rate.mp4',
+        format: 'premiere',
+        title: rate,
+      })
+      expect(manifest.video.frames).toBe(12)
+      const [num, den = 1] = rate.split('/').map(Number)
+      expect(manifest.video.fps).toEqual({ num, den })
+    }
+    const hevc = join(workspaceDir, 'hevc.mov')
+    await exec('ffmpeg', [
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc2=size=64x48:rate=24',
+      '-frames:v',
+      '12',
+      '-c:v',
+      'libx265',
+      '-x265-params',
+      'pools=none:frame-threads=1:log-level=error',
+      hevc,
+    ])
+    const { file, manifest } = await buildEditablePackage({
       workspaceDir,
       outputDir,
-      videoRel: 'rate.mp4',
+      videoRel: 'hevc.mov',
       format: 'premiere',
-      title: rate,
+      title: 'HEVC',
     })
     expect(manifest.video.frames).toBe(12)
-    const [num, den = 1] = rate.split('/').map(Number)
-    expect(manifest.video.fps).toEqual({ num, den })
-  }
-  const hevc = join(workspaceDir, 'hevc.mov')
-  await exec('ffmpeg', [
-    '-v',
-    'error',
-    '-f',
-    'lavfi',
-    '-i',
-    'testsrc2=size=64x48:rate=24',
-    '-frames:v',
-    '12',
-    '-c:v',
-    'libx265',
-    '-x265-params',
-    'pools=none:frame-threads=1:log-level=error',
-    hevc,
-  ])
-  const { file, manifest } = await buildEditablePackage({
-    workspaceDir,
-    outputDir,
-    videoRel: 'hevc.mov',
-    format: 'premiere',
-    title: 'HEVC',
-  })
-  expect(manifest.video.frames).toBe(12)
-  const packaged = join(root, 'hevc.mp4')
-  await writeFile(packaged, new AdmZip(await readFile(file)).readFile('media/video.mp4')!)
-  expect(await pixels(packaged)).toBe(await pixels(hevc))
-}, 30_000)
+    const packaged = join(root, 'hevc.mp4')
+    await writeFile(packaged, new AdmZip(await readFile(file)).readFile('media/video.mp4')!)
+    expect(await pixels(packaged)).toBe(await pixels(hevc))
+  },
+  MEDIA_TEST_TIMEOUT_MS,
+)
 
 it('rejects a video starting after the container origin rather than shifting its audio against the picture', async () => {
   await movie('offset.mov', [

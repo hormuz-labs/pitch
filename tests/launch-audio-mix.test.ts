@@ -11,6 +11,7 @@ import {
   measureAudioWindows,
 } from '../.pi/scripts/launch-video/lib/audio-levels.mjs'
 import { correctiveBedDb, correctiveSfxDb } from '../apps/api/src/lib/mix.js'
+import { MEDIA_TEST_TIMEOUT_MS } from './media-timeouts.js'
 
 const exec = promisify(execFile)
 const mixScript = path.resolve('.pi/scripts/launch-video/mix.mjs')
@@ -64,7 +65,7 @@ afterAll(async () => {
   if (ws) await rm(ws, { recursive: true, force: true })
 })
 
-describe('launch audio regression', { timeout: 35000 }, () => {
+describe('launch audio regression', { timeout: MEDIA_TEST_TIMEOUT_MS }, () => {
   it('finds conventional audio files when music-only callers omit input flags', async () => {
     const { stdout } = await exec(
       'node',

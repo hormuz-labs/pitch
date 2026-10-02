@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js'
 import { API_URL } from '../../../config'
+import { DISCORD_WELCOME_CREDITS } from '../../../lib/plans'
 import { useAuth, useClerk, useUser } from '../../core/auth'
 import { DiscordIcon } from '../../public/brand'
 import { DISCORD_INVITE_URL } from '../../public/socials'
@@ -133,8 +134,9 @@ export function DiscordConnectionSection() {
         <span>
           <strong>Discord</strong>
           <small>
-            Connect your Discord and join the Pitch server: {reward()?.credits ?? 250} welcome
-            credits land in your balance on their own.
+            Connect your Discord and join the Pitch server:{' '}
+            {reward()?.credits ?? DISCORD_WELCOME_CREDITS} welcome credits land in your balance on
+            their own.
           </small>
         </span>
         <Show

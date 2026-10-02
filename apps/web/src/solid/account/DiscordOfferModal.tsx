@@ -1,4 +1,5 @@
 import { Clapperboard, Gift, MessageCircle, X } from 'lucide-solid'
+import { DISCORD_WELCOME_CREDITS } from '../../lib/plans'
 import { DiscordIcon } from '../public/brand'
 import '../../styles/discord-offer.css'
 
@@ -7,8 +8,11 @@ export function DiscordOfferModal(props: {
   onClose: () => void
   onClaimReward: () => void
   onBuyCredits?: () => void
+  /** The API's welcome amount, when the caller has it. */
+  credits?: number
 }) {
   const announcement = () => props.mode === 'announcement'
+  const credits = () => (props.credits ?? DISCORD_WELCOME_CREDITS).toLocaleString('en-US')
   return (
     <div
       class="discord-offer"
@@ -41,13 +45,13 @@ export function DiscordOfferModal(props: {
                 <Clapperboard size={17} /> Share your work and see what others are making
               </p>
               <p>
-                <Gift size={17} /> Get 250 credits when you connect and join
+                <Gift size={17} /> Get {credits()} credits when you connect and join
               </p>
             </div>
           ) : (
             <p>
-              Buy credits to continue, or join our Discord and get 250 welcome credits if you
-              haven’t already.
+              Buy credits to continue, or join our Discord and get {credits()} welcome credits if
+              you haven’t already.
             </p>
           )}
           <div class="discord-offer__actions">
@@ -60,7 +64,7 @@ export function DiscordOfferModal(props: {
               class={announcement() ? 'discord-offer__primary' : 'discord-offer__secondary'}
               onClick={props.onClaimReward}
             >
-              {announcement() ? 'Join Discord and get 250 credits' : 'Get welcome credits'}
+              {announcement() ? `Join Discord and get ${credits()} credits` : 'Get welcome credits'}
             </button>
             {announcement() && (
               <button class="discord-offer__quiet" onClick={props.onClose}>

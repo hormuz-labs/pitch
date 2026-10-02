@@ -11,7 +11,7 @@ Pitch does not charge a fixed amount for every prompt. It measures the work done
 billable cost USD = (
   model API cost USD * model multiplier
   + host compute seconds * $0.002
-  + generated-video provider cost USD
+  + provider cost USD * ($0.0025 / $0.0128)
 ) * platform margin
 
 total credits earned by project = floor(total billable cost USD / $0.0025)
@@ -26,7 +26,7 @@ Current constants:
 | `CREDIT_USD` | $0.0025 | Billable cost represented by one credit |
 | `COMPUTE_USD_PER_SEC` | $0.002 | Host-action compute cost per second |
 | `STUDIO_PLATFORM_MARGIN` | 1.25x | 25% platform margin |
-| `BASE_GENERATION_CREDITS` | 100 | Pre-margin frontend estimate for a typical generation |
+| `DEFAULT_TYPICAL_TURN` | 50k in / 12.5k out tokens, 30 s | One typical turn, priced per model for estimates |
 
 The platform margin is a multiplier, not a 25-credit fixed fee. A turn with a
 raw cost of $0.20 on a 2x model is billed as:
@@ -39,6 +39,56 @@ $0.50 / $0.0025 = 200 credits
 Usage accumulates on the project before rounding. This avoids rounding every
 small prompt up to one credit.
 
+Each component is billed when it happens, never from what the user selected:
+
+- **The chat model only changes the token price.** The sandbox, renders and
+  recordings cost the same on every model. Picking Sol or Astra does not add a
+  video charge.
+- **Provider cost is what a host action actually paid a third party.** Today
+  that is `video_generate` (Gemini Omni), recorded per clip from the clip's
+  probed length and resolution (`OMNI_USD_PER_SECOND`; 8 seconds is billed if
+  the clip cannot be probed). A turn that animates in code, or uses library
+  music, has no provider cost.
+- **Provider cost is passed through near cost.** It is scaled by
+  `$0.0025 / $0.0128` so a dollar of provider spend becomes the credits that
+  earn one dollar on the cheapest plan (Max annual), plus the platform margin —
+  not the 5x the credit rate applies to model and compute.
+
+A 60-second 720p generated clip, for example:
+
+```text
+provider cost = 60s * $0.10 = $6.00
+billable     = $6.00 * (0.0025 / 0.0128) * 1.25 = $1.465
+credits      = floor($1.465 / $0.0025) = 585 credits (≈ $7.49 on Max annual)
+```
+
+## Reservations
+
+An actionable turn places a hold before the model runs, sized by the model's
+harness estimate, the video kind and the requested duration
+(`generationReservationCredits`). The hold only checks the user can afford a
+meaningful slice of the work. When the turn settles, the reservation is settled
+for exactly the credits the turn measured, which can be less than the hold (or
+zero). A turn that only asks a question releases its hold.
+
+The hold is capped at the available balance: any account with at least
+`MIN_BALANCE` (40) credits can start, including a 750-credit Discord welcome
+account asking for a film whose estimate is higher. The live check stops a turn
+once its measured cost passes the balance; if the last step overshoots, the
+settlement takes the balance to exactly zero and the remainder is written off
+(it is not carried into the next turn).
+
+A job under way is not held to the 40-credit minimum. Later messages on a
+project need a balance above zero (not 40), so work can finish on whatever is
+left, but an empty account cannot run a step that would only be written off.
+
+Every ledger write (`reserveCredits`, `settleCreditReservation`, `deductUpTo`,
+`deductCredit`) runs under the account row lock and counts other jobs' pending
+holds as spent, so concurrent turns can never take a balance below zero.
+`tests/integration/credit-ledger.integration.test.ts` proves this against
+PostgreSQL; the end-to-end job cases are in `tests/billing.e2e.test.ts`. The
+full case list and reasoning are in `docs/pitch-credit-pricing.pdf`.
+
 ## Model pricing
 
 The model multiplier is configured with `STUDIO_MODEL_CREDIT_MULTIPLIERS`.
@@ -48,61 +98,54 @@ already included in reported model usage, so there is no second reasoning-level
 surcharge.
 
 Every runnable model is shown regardless of plan. Selecting one does not deduct
-credits. The composer warns when the balance is below the model-and-duration
-estimate, and project creation performs the authoritative balance check before
+credits. The composer warns when the balance is below the model's estimate, and project creation performs the authoritative balance check before
 generation starts.
 
 The Free plan means no active subscription; it does not make model usage free.
 Free users can generate only with credits already in their balance from rewards,
 promotions, or earlier purchases.
 
-| Model | Harness | Video provider cost | 30s estimate |
+| Model | Token price ($/M in / out) | Rate | Typical turn |
 |---|---:|---:|---:|
-| Gemini 3.8 Flash | 125 credits | None configured | 125 credits |
-| Gemini 3.1 Pro | 250 credits | None configured | 250 credits |
-| Gemma 4 26B | 94 credits | None configured | 94 credits |
-| Gemma 4 31B | 125 credits | None configured | 125 credits |
-| GPT-5.4 mini | 125 credits | None configured | 125 credits |
-| GPT-5.4 | 250 credits | None configured | 250 credits |
-| GPT-5.5 | 188 credits | None configured | 188 credits |
-| Luna | 94 credits | None configured | 94 credits |
-| Terra | 125 credits | None configured | 125 credits |
-| Sol | Included | $7/30s | 1,250 credits |
-| Astra | Included | $10/30s | 2,500 credits |
+| Gemini 3.8 Flash | 0.75 / 3.75 | 1x | 73 credits |
+| Gemini 3.1 Pro | 2 / 12 | 2x | 280 credits |
+| Gemma 4 31B | 0 / 0 | 1x | 30 credits |
+| Gemma 4 26B | 0 / 0 | 0.75x | 30 credits |
+| GPT-5.4 mini | 0.75 / 4.5 | 1x | 77 credits |
+| GPT-5.4 | 2.5 / 15 | 2x | 343 credits |
+| GPT-5.5 | 5 / 30 | 1.5x | 499 credits |
+| Luna / GPT-6 Luna | 0.2 / 1.2 | 0.75x | 40 credits |
+| Terra | 2 / 12 | 1x | 155 credits |
+| Sol / GPT-6 Sol | 4 / 20 | 1x | 255 credits |
+| Astra | 10 / 50 | 2x | 1,155 credits |
 
-The harness estimate includes the platform margin:
-
-```text
-estimated credits = ceil(100 * model multiplier * 1.25)
-```
-
-Therefore:
+The estimate prices one typical turn the way billing prices it: the turn's
+tokens at the model's real token price (the runtime's cost table, the same one
+that turns each message's usage into its cost) and credit rate, plus machine
+time that costs the same on every model, times the margin:
 
 ```text
-1x model: ceil(100 * 1 * 1.25) = 125 credits
-2x model: ceil(100 * 2 * 1.25) = 250 credits
+token USD    = (50,000 input × input price + 12,500 output × output price) / 1,000,000
+machine USD  = 30 s × $0.002
+credits      = ceil((token USD × model rate + machine USD) × 1.25 / $0.0025)
+
+Terra:  ($0.25 × 1 + $0.06) × 1.25 = $0.3875 → 155 credits
+Astra:  ($1.125 × 2 + $0.06) × 1.25 = $2.8875 → 1,155 credits
+Gemma:  ($0 + $0.06) × 1.25 = $0.075 → 30 credits (its tokens are priced $0)
 ```
+
+The typical turn is configurable with `STUDIO_TYPICAL_TURN`
+(`{"inputTokens":50000,"outputTokens":12500,"computeSeconds":30}`) so it can be
+calibrated from real projects. A model the runtime has no price for is quoted
+at $2 / $12 so it is never shown as free. The built-in skill rate and generated
+footage are not in the estimate: they depend on what the turn does, not on the
+model. Holds (see Reservations) are sized from this estimate.
 
 The UI's `N left` value is:
 
 ```text
 generations left = floor(current credit balance / estimated credits)
 ```
-
-Duration-priced video models add:
-
-```text
-billable duration = max(30 seconds, selected duration)
-video credits = fixed credits per 30s * billable duration / 30
-normal charge = video credits (includes the harness allowance)
-no-loss floor = ceil(actual billable cost / $0.0128)
-final charge = max(normal charge, no-loss floor)
-```
-
-| Model | 6s or 15s | 30s | 60s |
-|---|---:|---:|---:|
-| Sol | 1,250 | 1,250 | 2,500 |
-| Astra | 2,500 | 2,500 | 5,000 |
 
 This is an estimate. Actual billing can be lower or higher because token usage,
 tool calls, rendering time, and recording time vary between requests.
@@ -112,8 +155,6 @@ Current Azure pricing configuration:
 ```env
 STUDIO_MODEL_CREDIT_MULTIPLIERS='{"azure-apim/gpt-5.6-sol":1,"azure-apim/gpt-6-astra":2}'
 STUDIO_PLATFORM_MARGIN=1.25
-STUDIO_VIDEO_MODEL_COSTS_USD_30S='{"azure-apim/gpt-5.6-sol":7,"azure-apim/gpt-6-astra":10}'
-STUDIO_VIDEO_MODEL_CREDITS_30S='{"azure-apim/gpt-5.6-sol":1250,"azure-apim/gpt-6-astra":2500}'
 ```
 
 The identifiers match the Azure APIM models in `.pi/models.json`.
@@ -145,32 +186,33 @@ activated or renewed. Flex is a one-time add-on available only while Pro or Max
 is active; the API enforces this requirement. Unused subscription credits are
 forfeited when the subscription ends; purchased top-up credits remain.
 
-## Estimated generations by plan
+## Estimated turns by plan
 
-These counts use a 30-second selection: 125/250 credits for ordinary 1x/2x
-models, 1,250 for Sol, and 2,500 for Astra.
+These counts divide the plan's credits by the typical-turn estimate. A finished
+film takes many turns, so it is a ceiling, not a film count. Generated footage
+is extra and billed per second actually generated.
 
-| Plan | Credits | 1x model | 2x model | Sol 30s | Astra 30s |
+| Plan | Credits | Flash (73) | Terra (155) | Sol (255) | Astra (1,155) |
 |---|---:|---:|---:|---:|---:|
 | Free | 0 recurring | 0 | 0 | 0 | 0 |
-| Flex add-on | 800 | 6 | 3 | 0 | 0 |
-| Pro monthly | 2,500 | 20 | 10 | 2 | 1 |
-| Max monthly | 5,000 | 40 | 20 | 4 | 2 |
-| Pro annual | 30,000 | 240 | 120 | 24 | 12 |
-| Max annual | 60,000 | 480 | 240 | 48 | 24 |
+| Flex add-on | 800 | 10 | 5 | 3 | 0 |
+| Pro monthly | 2,500 | 34 | 16 | 9 | 2 |
+| Max monthly | 5,000 | 68 | 32 | 19 | 4 |
+| Pro annual | 30,000 | 410 | 193 | 117 | 25 |
+| Max annual | 60,000 | 821 | 387 | 235 | 51 |
 
-## Estimated customer price per generation
+## Estimated customer price per turn
 
 This is the effective customer price based on the plan's price per credit. It is
 not the provider API cost.
 
-| Plan | 1x model, 125 credits | 2x model, 250 credits |
-|---|---:|---:|
-| Flex | $3.13 | $6.25 |
-| Pro monthly | $2.25 | $4.50 |
-| Max monthly | $2.00 | $4.00 |
-| Pro annual | $1.80 | $3.60 |
-| Max annual | $1.60 | $3.20 |
+| Plan | Flash, 73 | Terra, 155 | Sol, 255 | Astra, 1,155 |
+|---|---:|---:|---:|---:|
+| Flex | $1.83 | $3.88 | $6.38 | $28.88 |
+| Pro monthly | $1.31 | $2.79 | $4.59 | $20.79 |
+| Max monthly | $1.17 | $2.48 | $4.08 | $18.48 |
+| Pro annual | $1.05 | $2.23 | $3.67 | $16.63 |
+| Max annual | $0.93 | $1.98 | $3.26 | $14.78 |
 
 ## Internal cost versus customer price
 

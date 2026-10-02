@@ -27,8 +27,22 @@ const dedupedAliases = {
   ...(fs.existsSync(generatedPrismaClient) ? { '@prisma/client': generatedPrismaClient } : {}),
 }
 
-// Two test tiers in ONE config, via vitest projects:
+/**
+ * ffmpeg-heavy suites. Their tests spawn multi-threaded encoders, and with a
+ * file per core several of them side by side starved one another 2–5× past
+ * their limits. These run one file at a time in their own lane; the longest
+ * (video-editing, ~3.5 min alone) stays in the unit tier, so at most two run
+ * at once. The full unit + media run takes about 6.5 minutes on 8 cores.
+ */
+const MEDIA_SERIAL = [
+  'tests/editable-package.test.ts',
+  'tests/launch-audio-mix.test.ts',
+  'tests/capture-encoder.test.ts',
+]
+
+// Test tiers in ONE config, via vitest projects:
 //   • unit        — fast, pure, no browser (everything except tests/integration/)
+//   • media       — the ffmpeg-heavy files in MEDIA_SERIAL, one at a time
 //   • integration — browser-driven (real Chromium), slow, serial
 // Select with `vitest --project unit` / `--project integration` (see package.json
 // scripts). Running bare `vitest` runs both.
@@ -42,8 +56,20 @@ export default defineConfig({
           globals: true,
           environment: 'node',
           include: ['tests/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, 'tests/integration/**'],
+          exclude: [...configDefaults.exclude, 'tests/integration/**', ...MEDIA_SERIAL],
           // Run sequentially — many share mocked module state.
+          sequence: { concurrent: false },
+          testTimeout: 15000,
+        },
+      },
+      {
+        resolve: { alias: dedupedAliases },
+        test: {
+          name: 'media',
+          globals: true,
+          environment: 'node',
+          include: MEDIA_SERIAL,
+          fileParallelism: false,
           sequence: { concurrent: false },
           testTimeout: 15000,
         },

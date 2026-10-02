@@ -40,7 +40,7 @@ describe.skipIf(!databaseUrl)('Discord welcome reward PostgreSQL guarantees', ()
       ),
     )
     expect(results.filter(result => result.granted)).toHaveLength(1)
-    expect(await db.getCreditBalance(id)).toBe(120)
+    expect(await db.getCreditBalance(id)).toBe(db.DISCORD_WELCOME_CREDITS)
     expect(await db.prisma.discordRewardClaim.count({ where: { userId: id } })).toBe(1)
     expect(await db.prisma.creditTransaction.count({ where: { userId: id } })).toBe(1)
   })
@@ -52,7 +52,7 @@ describe.skipIf(!databaseUrl)('Discord welcome reward PostgreSQL guarantees', ()
     )
     expect(results.filter(result => result.granted)).toHaveLength(1)
     const balances = await Promise.all(ids.map(id => db.getCreditBalance(id)))
-    expect(balances.sort((a, b) => a - b)).toEqual([0, 120])
+    expect(balances.sort((a, b) => a - b)).toEqual([0, db.DISCORD_WELCOME_CREDITS])
   })
 
   it('lets a Pitch account claim only once while two Discord links race', async () => {
@@ -62,7 +62,7 @@ describe.skipIf(!databaseUrl)('Discord welcome reward PostgreSQL guarantees', ()
       db.grantDiscordWelcomeReward(id, `${prefix}_link2`, 'guild'),
     ])
     expect(results.filter(result => result.granted)).toHaveLength(1)
-    expect(await db.getCreditBalance(id)).toBe(120)
+    expect(await db.getCreditBalance(id)).toBe(db.DISCORD_WELCOME_CREDITS)
   })
 
   it('rolls back the credit write if receipt creation fails, allowing a clean retry', async () => {
@@ -75,7 +75,7 @@ describe.skipIf(!databaseUrl)('Discord welcome reward PostgreSQL guarantees', ()
     expect((await db.grantDiscordWelcomeReward(id, `${prefix}_rollback`, 'guild')).granted).toBe(
       true,
     )
-    expect(await db.getCreditBalance(id)).toBe(120)
+    expect(await db.getCreditBalance(id)).toBe(db.DISCORD_WELCOME_CREDITS)
   })
 
   it('retains the Discord claim after account deletion and blocks reuse', async () => {

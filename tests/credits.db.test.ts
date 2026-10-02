@@ -44,7 +44,9 @@ vi.mock('dotenv', () => ({ config: vi.fn(), default: { config: vi.fn() } }))
 import { PrismaClient } from '@prisma/client'
 import {
   addCredits,
+  DISCORD_WELCOME_CREDITS,
   deductCredit,
+  deductUpTo,
   endSubscription,
   getAvailableCreditBalance,
   getCreditBalance,
@@ -150,6 +152,38 @@ describe('credit reservations', () => {
     expect(reservation.create).not.toHaveBeenCalled()
   })
 
+  const holdFor = async (balance: number, credits: number, minCredits?: number) => {
+    const reservation = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { credits: 0 } }),
+      create: vi.fn(async ({ data }: any) => data),
+      update: vi.fn(),
+    }
+    mockPrisma.$transaction = makeTx({
+      aggregate: vi.fn().mockResolvedValue({ _sum: { delta: balance } }),
+      creditReservation: reservation,
+    })
+    return reserveCredits({
+      key: 'project:1',
+      userId: 'user_1',
+      projectId: 'project_1',
+      kind: 'cinematic',
+      credits,
+      minCredits,
+    })
+  }
+
+  it('shrinks the hold to the balance instead of refusing a user who can start', async () => {
+    // Reported: 231 credits, a 313-credit estimate, and the film never started.
+    await expect(holdFor(231, 313, 40)).resolves.toMatchObject({ credits: 231 })
+    await expect(holdFor(1000, 313, 40)).resolves.toMatchObject({ credits: 313 })
+  })
+
+  it('still refuses below the minimum, and a strict hold stays strict', async () => {
+    await expect(holdFor(30, 313, 40)).rejects.toThrow('need 40')
+    await expect(holdFor(231, 313)).rejects.toThrow('need 313')
+  })
+
   it('settles a reservation idempotently', async () => {
     const settled = { id: 'hold_1', key: 'project:1', status: 'settled', settledCredits: 22 }
     const reservation = { findUnique: vi.fn().mockResolvedValue(settled) }
@@ -181,6 +215,36 @@ describe('credit reservations', () => {
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({ delta: -90, idempotencyKey: 'settlement:hold_1' }),
     })
+  })
+
+  it('takes an overshoot to zero when asked to, instead of failing', async () => {
+    const pending = {
+      id: 'hold_1',
+      key: 'project:1',
+      userId: 'user_1',
+      status: 'pending',
+      credits: 40,
+    }
+    const creditReservation = {
+      findUnique: vi.fn().mockResolvedValue(pending),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { credits: 0 } }),
+      update: vi.fn(),
+    }
+    const create = vi.fn()
+    mockPrisma.$transaction = makeTx({
+      aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 60 } }),
+      create,
+      creditReservation,
+    })
+
+    await expect(settleCreditReservation('project:1', 90)).rejects.toThrow('Insufficient')
+    await expect(settleCreditReservation('project:1', 90, { capAtAvailable: true })).resolves.toBe(
+      60,
+    )
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ delta: -60 }) })
+    expect(creditReservation.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'settled', settledCredits: 60 } }),
+    )
   })
 })
 
@@ -301,7 +365,7 @@ describe('Discord welcome reward', () => {
     })
     expect(creditTransaction.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        delta: 250,
+        delta: DISCORD_WELCOME_CREDITS,
         channel: 'product',
         type: 'promo',
         userId: 'user_1',
@@ -369,6 +433,61 @@ describe('project refunds', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+describe('deductUpTo', () => {
+  function ledger(balance: number, heldCredits = 0) {
+    const create = vi.fn().mockResolvedValue({})
+    const $queryRaw = vi.fn()
+    mockPrisma.$transaction = vi.fn(async (cb: any) =>
+      cb({
+        $queryRaw,
+        creditTransaction: {
+          aggregate: vi.fn().mockResolvedValue({ _sum: { delta: balance } }),
+          create,
+        },
+        creditReservation: {
+          aggregate: vi.fn().mockResolvedValue({ _sum: { credits: heldCredits } }),
+        },
+      }),
+    )
+    return { create, $queryRaw }
+  }
+
+  it('charges the full amount when the account can pay it', async () => {
+    const { create, $queryRaw } = ledger(500)
+    expect(await deductUpTo('user_1', 120, 'Usage: film', { projectId: 'p1' })).toBe(120)
+    expect($queryRaw).toHaveBeenCalled() // the account lock
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ delta: -120, projectId: 'p1', channel: 'product' }),
+    })
+  })
+
+  it('charges down to zero, never below', async () => {
+    const { create } = ledger(30)
+    expect(await deductUpTo('user_1', 120, 'Usage: film')).toBe(30)
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ delta: -30 }) })
+  })
+
+  it("leaves another job's hold alone", async () => {
+    const { create } = ledger(100, 70)
+    expect(await deductUpTo('user_1', 50, 'Usage: film')).toBe(30)
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ delta: -30 }) })
+  })
+
+  it('writes nothing at zero, for a zero amount, or for a fraction of a credit', async () => {
+    const { create } = ledger(0)
+    expect(await deductUpTo('user_1', 50, 'Usage: film')).toBe(0)
+    expect(await deductUpTo('user_1', 0, 'Usage: film')).toBe(0)
+    expect(await deductUpTo('user_1', 0.9, 'Usage: film')).toBe(0)
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('treats an overdrawn account as empty', async () => {
+    const { create } = ledger(-5)
+    expect(await deductUpTo('user_1', 50, 'Usage: film')).toBe(0)
+    expect(create).not.toHaveBeenCalled()
+  })
+})
+
 describe('deductCredit', () => {
   it('deducts inside a transaction and returns the new balance', async () => {
     const aggregateMock = vi.fn().mockResolvedValue({ _sum: { delta: 5 } })

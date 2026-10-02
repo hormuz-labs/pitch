@@ -1,3 +1,5 @@
+import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/rates.js'
+
 /**
  * The composer's model menu is a short allowlist. Google exposes dozens of ids;
  * the product runs Google models and opt-in GPT models below.
@@ -84,37 +86,41 @@ export const STUDIO_MODEL_DETAILS: Record<string, string> = {
   [AZURE_GPT_55_SPEC]: 'Deep planning and complex production',
   [AZURE_LUNA_SPEC]: 'Fast drafts and lightweight edits',
   [AZURE_TERRA_SPEC]: 'Everyday production work',
-  [AZURE_SOL_SPEC]: 'Advanced video generation',
+  [AZURE_SOL_SPEC]: 'Advanced production work',
   [AZURE_GPT_6_LUNA_SPEC]: 'Next-generation fast drafts',
   [AZURE_GPT_6_SOL_SPEC]: 'Next-generation everyday production',
-  [AZURE_ASTRA_SPEC]: 'Highest-capability video generation',
+  [AZURE_ASTRA_SPEC]: 'Highest-capability production work',
 }
 
 export interface PublicModelRate {
   spec: string
   name: string
   detail: string
-  /** Typical credits for one generation; video models: up to 30 seconds. */
+  /** Typical credits for one generation. */
   credits: number
-  unit: 'typical generation' | 'up to 30 seconds'
+  unit: 'typical generation'
   /** 'all' runs on every account; 'request' needs model access switched on. */
   access: 'all' | 'request'
 }
 
 /**
- * The pricing page's model table, computed from the same allowlist, multipliers,
- * margin and video prices the studio bills with (env overrides included), so a
- * price change here is a price change there. Needs no model runtime.
+ * The pricing page's model table, computed from the same allowlist, token
+ * prices, multipliers and margin the studio bills with (env overrides
+ * included), so a price change here is a price change there. `prices` comes
+ * from the model runtime (session.ts studioModelPrices); a model missing from
+ * it is quoted at FALLBACK_TOKEN_PRICE.
  */
-export function publicModelRates(specs = studioModelSpecs()): PublicModelRate[] {
+export function publicModelRates(
+  specs = studioModelSpecs(),
+  prices: Record<string, TokenPrice | undefined> = {},
+): PublicModelRate[] {
   return specs.map(spec => {
-    const estimate = estimatedModelCredits(spec)
     return {
       spec,
       name: STUDIO_MODEL_LABELS[spec] ?? parseModelSpec(spec).id,
       detail: STUDIO_MODEL_DETAILS[spec] ?? '',
-      credits: estimate.total,
-      unit: estimate.video ? 'up to 30 seconds' : 'typical generation',
+      credits: estimatedModelCredits(spec, { price: prices[spec] }).total,
+      unit: 'typical generation',
       access: canUseStudioModel(spec, false) ? 'all' : 'request',
     }
   })
@@ -126,93 +132,91 @@ export interface PickerModel {
   creditMultiplier: number
   estimatedCredits: number
   harnessCredits: number
-  videoCreditsPer30Seconds?: number
 }
 
-export const BASE_GENERATION_CREDITS = 100
+/** A model's token price in USD per million tokens, as the runtime bills it. */
+export interface TokenPrice {
+  input: number
+  output: number
+}
+
+/**
+ * What one typical turn uses: tokens (priced per model) plus machine time (the
+ * same on every model). 50k in / 12.5k out is $0.25 at a $2/$12 model, the
+ * reference the older flat 100-credit base assumed. Calibrate it from real
+ * projects with STUDIO_TYPICAL_TURN, e.g. {"inputTokens":80000}.
+ */
+export interface TypicalTurn {
+  inputTokens: number
+  outputTokens: number
+  computeSeconds: number
+}
+
+export const DEFAULT_TYPICAL_TURN: TypicalTurn = {
+  inputTokens: 50_000,
+  outputTokens: 12_500,
+  computeSeconds: 30,
+}
+
+/** Quoted for a model the runtime has no price for, so it is never shown as free. */
+export const FALLBACK_TOKEN_PRICE: TokenPrice = { input: 2, output: 12 }
+
+export function typicalTurn(raw = process.env.STUDIO_TYPICAL_TURN): TypicalTurn {
+  if (!raw?.trim()) return DEFAULT_TYPICAL_TURN
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const turn = { ...DEFAULT_TYPICAL_TURN }
+    for (const key of Object.keys(turn) as (keyof TypicalTurn)[]) {
+      const value = parsed[key]
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) turn[key] = value
+    }
+    return turn
+  } catch {
+    return DEFAULT_TYPICAL_TURN
+  }
+}
+
+/** A runtime model's `cost` (per million tokens) as a TokenPrice, if it has one. */
+export function tokenPriceOf(model: { cost?: { input?: unknown; output?: unknown } } | undefined) {
+  const input = Number(model?.cost?.input)
+  const output = Number(model?.cost?.output)
+  return Number.isFinite(input) && Number.isFinite(output) && input >= 0 && output >= 0
+    ? { input, output }
+    : undefined
+}
+
 export const DEFAULT_PLATFORM_MARGIN = 1.25
-export const DEFAULT_VIDEO_MODEL_COSTS_USD_30S: Record<string, number> = {
-  [AZURE_SOL_SPEC]: 7,
-  [AZURE_ASTRA_SPEC]: 10,
-}
-export const DEFAULT_VIDEO_MODEL_CREDITS_30S: Record<string, number> = {
-  [AZURE_SOL_SPEC]: 1250,
-  [AZURE_ASTRA_SPEC]: 2500,
-}
-
 export function platformMargin(raw = process.env.STUDIO_PLATFORM_MARGIN): number {
   const value = Number(raw)
   return Number.isFinite(value) && value >= 1 ? value : DEFAULT_PLATFORM_MARGIN
 }
 
-export function videoModelCosts(
-  raw = process.env.STUDIO_VIDEO_MODEL_COSTS_USD_30S,
-): Record<string, number> {
-  if (!raw?.trim()) return DEFAULT_VIDEO_MODEL_COSTS_USD_30S
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const configured: Record<string, number> = {}
-    for (const [spec, value] of Object.entries(parsed)) {
-      if (typeof value === 'number' && Number.isFinite(value) && value > 0) configured[spec] = value
-    }
-    return { ...DEFAULT_VIDEO_MODEL_COSTS_USD_30S, ...configured }
-  } catch {
-    return DEFAULT_VIDEO_MODEL_COSTS_USD_30S
-  }
-}
-
-export function videoModelCredits(
-  raw = process.env.STUDIO_VIDEO_MODEL_CREDITS_30S,
-): Record<string, number> {
-  if (!raw?.trim()) return DEFAULT_VIDEO_MODEL_CREDITS_30S
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const configured: Record<string, number> = {}
-    for (const [spec, value] of Object.entries(parsed)) {
-      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-        configured[spec] = Math.ceil(value)
-      }
-    }
-    return { ...DEFAULT_VIDEO_MODEL_CREDITS_30S, ...configured }
-  } catch {
-    return DEFAULT_VIDEO_MODEL_CREDITS_30S
-  }
-}
-
-export function videoGenerationCredits(
-  spec: string,
-  durationSeconds: number,
-  prices = videoModelCredits(),
-): number {
-  const per30 = prices[spec]
-  return per30 ? Math.ceil(per30 * (Math.max(30, durationSeconds) / 30)) : 0
-}
-
-/** Provider cost for the selected final duration, with a 30-second minimum. */
-export function videoGenerationCostUsd(
-  spec: string,
-  durationSeconds: number,
-  costs = videoModelCosts(),
-): number {
-  const per30 = costs[spec]
-  if (!per30) return 0
-  return per30 * (Math.max(30, durationSeconds) / 30)
-}
-
+/**
+ * Typical credits for one turn on `spec`, priced the way billing prices it
+ * (projects/usage.ts): the turn's tokens at this model's real token price and
+ * credit rate, plus machine time that costs the same on every model, times
+ * the margin. The built-in skill rate and generated footage are not included:
+ * they depend on what the turn does, not on the model. An estimate, never a
+ * charge or a gate.
+ */
 export function estimatedModelCredits(
   spec: string,
-  durationSeconds = 30,
-  multipliers = modelCreditMultipliers(),
-  costs = videoModelCosts(),
-): { total: number; harness: number; video?: number } {
-  const margin = platformMargin()
-  const harness = Math.ceil(
-    BASE_GENERATION_CREDITS * modelCreditMultiplier(spec, multipliers) * margin,
-  )
-  const providerUsd = videoGenerationCostUsd(spec, durationSeconds, costs)
-  if (!providerUsd) return { total: harness, harness }
-  const video = videoGenerationCredits(spec, durationSeconds)
-  return { total: video, harness, video }
+  opts: {
+    price?: TokenPrice
+    multipliers?: Record<string, number>
+    turn?: TypicalTurn
+  } = {},
+): { total: number; harness: number } {
+  const price = opts.price ?? FALLBACK_TOKEN_PRICE
+  const turn = opts.turn ?? typicalTurn()
+  const tokenUsd = (turn.inputTokens * price.input + turn.outputTokens * price.output) / 1_000_000
+  const billableUsd =
+    (tokenUsd * modelCreditMultiplier(spec, opts.multipliers ?? modelCreditMultipliers()) +
+      turn.computeSeconds * COMPUTE_USD_PER_SEC) *
+    platformMargin()
+  // Rounded to a cent of credit first so float noise cannot tip a whole credit.
+  const credits = Math.ceil(Math.round((billableUsd / CREDIT_USD) * 100) / 100)
+  return { total: credits, harness: credits }
 }
 
 export function modelCreditMultipliers(
@@ -292,7 +296,12 @@ export function selectStudioModel(
 }
 
 export function assembleStudioPicker(
-  available: Iterable<{ provider: string; id: string; name?: string }>,
+  available: Iterable<{
+    provider: string
+    id: string
+    name?: string
+    cost?: { input?: unknown; output?: unknown }
+  }>,
   opts: {
     specs: string[]
     defaultSpec?: string
@@ -305,14 +314,16 @@ export function assembleStudioPicker(
   for (const m of available) {
     const spec = `${m.provider}/${m.id}`
     if (!bySpec.has(spec)) {
-      const estimate = estimatedModelCredits(spec, 30, opts.creditMultipliers)
+      const estimate = estimatedModelCredits(spec, {
+        price: tokenPriceOf(m),
+        multipliers: opts.creditMultipliers,
+      })
       bySpec.set(spec, {
         spec,
         label: STUDIO_MODEL_LABELS[spec] || m.name || m.id,
         creditMultiplier: modelCreditMultiplier(spec, opts.creditMultipliers),
         estimatedCredits: estimate.total,
         harnessCredits: estimate.harness,
-        ...(estimate.video ? { videoCreditsPer30Seconds: estimate.video } : {}),
       })
     }
   }

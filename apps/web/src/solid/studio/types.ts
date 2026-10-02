@@ -118,7 +118,6 @@ export interface StudioModel {
   creditMultiplier: number
   estimatedCredits: number
   harnessCredits: number
-  videoCreditsPer30Seconds?: number
 }
 export interface MusicTrack {
   name: string

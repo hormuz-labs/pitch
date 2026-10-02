@@ -44,6 +44,8 @@ import {
   type PickerModel,
   parseModelSpec,
   studioModelSpecs,
+  type TokenPrice,
+  tokenPriceOf,
 } from './model-picker.js'
 import { PI_DIR, PI_EXTENSIONS_DIR, SKILLS_DIR, type Workspace } from './paths.js'
 import { unwatchWorkspace, watchWorkspace } from './watch.js'
@@ -883,6 +885,23 @@ export async function listStudioModels(userId?: string): Promise<PickerModel[]> 
     specs: ALLOWED_SPECS,
     gptEnabled: profile?.gptEnabled === true,
   })
+}
+
+/**
+ * The token prices the runtime bills each model at (the same table that turns
+ * a message's usage into its cost), for quoting estimates. Every allowlisted
+ * model is included whether or not this deployment can run it.
+ */
+export async function studioModelPrices(): Promise<Record<string, TokenPrice | undefined>> {
+  await initStudio()
+  return Object.fromEntries(ALLOWED_SPECS.map(spec => [spec, studioModelPrice(spec)]))
+}
+
+/** One model's token price; undefined before the runtime is up or when unknown. */
+export function studioModelPrice(spec: string): TokenPrice | undefined {
+  if (!modelRuntime) return undefined
+  const { provider, id } = parseModelSpec(spec)
+  return tokenPriceOf(modelRuntime.getModel(provider, id))
 }
 
 /**

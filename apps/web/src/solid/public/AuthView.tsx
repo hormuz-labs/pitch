@@ -76,10 +76,13 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
     setError('')
   })
 
+  // New accounts are made with Google only. Sign-in keeps email and GitHub so
+  // the accounts made that way before still get in.
+  const signingUp = () => tab() === 'sign-up'
+
   const complete = async (sessionId: string | null) => {
     if (!sessionId) throw new Error('Authentication completed without a session.')
-    const setActive = tab() === 'sign-in' ? signIn.setActive : signUp.setActive
-    await setActive({ session: sessionId })
+    await signIn.setActive({ session: sessionId })
     navigate(redirectTo(), { replace: true })
   }
 
@@ -88,26 +91,16 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
     setLoading(true)
     setError('')
     try {
+      const resource = signIn.signIn()
+      if (!resource) throw new Error('Sign-in is not ready yet.')
       if (verifying()) {
-        if (tab() === 'sign-in') {
-          const resource = signIn.signIn()
-          if (!resource) throw new Error('Sign-in is not ready yet.')
-          const result = await resource.attemptFirstFactor({
-            strategy: 'email_code',
-            code: code().trim(),
-          })
-          if (result.status !== 'complete') throw new Error('That code could not be verified.')
-          await complete(result.createdSessionId)
-        } else {
-          const resource = signUp.signUp()
-          if (!resource) throw new Error('Sign-up is not ready yet.')
-          const result = await resource.attemptEmailAddressVerification({ code: code().trim() })
-          if (result.status !== 'complete') throw new Error('That code could not be verified.')
-          await complete(result.createdSessionId)
-        }
-      } else if (tab() === 'sign-in') {
-        const resource = signIn.signIn()
-        if (!resource) throw new Error('Sign-in is not ready yet.')
+        const result = await resource.attemptFirstFactor({
+          strategy: 'email_code',
+          code: code().trim(),
+        })
+        if (result.status !== 'complete') throw new Error('That code could not be verified.')
+        await complete(result.createdSessionId)
+      } else {
         const result = await resource.create({
           identifier: email().trim(),
           password: password(),
@@ -130,15 +123,6 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
         } else {
           throw new Error('This account needs an additional verification method.')
         }
-      } else {
-        const resource = signUp.signUp()
-        if (!resource) throw new Error('Sign-up is not ready yet.')
-        const result = await resource.create({ emailAddress: email().trim(), password: password() })
-        if (result.status === 'complete') await complete(result.createdSessionId)
-        else {
-          await result.prepareEmailAddressVerification({ strategy: 'email_code' })
-          setVerifying(true)
-        }
       }
     } catch (cause) {
       setError(errorMessage(cause))
@@ -152,7 +136,7 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
     setOauthPending(strategy)
     setError('')
     try {
-      const resource = tab() === 'sign-in' ? signIn.signIn() : signUp.signUp()
+      const resource = signingUp() ? signUp.signUp() : signIn.signIn()
       if (!resource) throw new Error('Authentication is not ready yet.')
       await resource.authenticateWithRedirect({
         strategy,
@@ -193,14 +177,14 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
             <h2>
               {verifying()
                 ? 'Check your email'
-                : tab() === 'sign-up'
+                : signingUp()
                   ? 'Create your account'
                   : 'Sign in to Pitch'}
             </h2>
             <p>
               {verifying()
                 ? `Enter the verification code sent to ${email()}.`
-                : tab() === 'sign-up'
+                : signingUp()
                   ? 'Start creating your first standout pitch.'
                   : 'Continue creating something remarkable.'}
             </p>
@@ -223,98 +207,103 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
                 <span>
                   {oauthPending() === 'oauth_google'
                     ? 'Connecting to Google…'
-                    : `${tab() === 'sign-up' ? 'Sign up' : 'Continue'} with Google`}
+                    : `${signingUp() ? 'Sign up' : 'Continue'} with Google`}
                 </span>
               </button>
-              <button
-                class="auth-oauth-btn"
-                type="button"
-                onClick={() => void oauth('oauth_github')}
-                disabled={loading()}
-              >
-                <Show
-                  when={oauthPending() !== 'oauth_github'}
-                  fallback={<span class="auth-spinner" />}
+              <Show when={!signingUp()}>
+                <button
+                  class="auth-oauth-btn"
+                  type="button"
+                  onClick={() => void oauth('oauth_github')}
+                  disabled={loading()}
                 >
-                  <GithubIcon />
-                </Show>
-                <span>
-                  {oauthPending() === 'oauth_github'
-                    ? 'Connecting to GitHub…'
-                    : `${tab() === 'sign-up' ? 'Sign up' : 'Continue'} with GitHub`}
-                </span>
-              </button>
+                  <Show
+                    when={oauthPending() !== 'oauth_github'}
+                    fallback={<span class="auth-spinner" />}
+                  >
+                    <GithubIcon />
+                  </Show>
+                  <span>
+                    {oauthPending() === 'oauth_github'
+                      ? 'Connecting to GitHub…'
+                      : 'Continue with GitHub'}
+                  </span>
+                </button>
+              </Show>
             </div>
+          </Show>
+
+          <Show when={!signingUp() && !verifying()}>
             <div class="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[.12em] text-neutral-400 before:h-px before:flex-1 before:bg-neutral-200 after:h-px after:flex-1 after:bg-neutral-200">
               or
             </div>
           </Show>
 
-          <form class="space-y-3" onSubmit={submit}>
-            <Show when={!verifying()}>
-              <label class="block text-xs font-medium text-neutral-700">
-                Email address
-                <input
-                  type="email"
-                  autocomplete="email"
-                  required
-                  value={email()}
-                  onInput={event => setEmail(event.currentTarget.value)}
-                  class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
-                />
-              </label>
-              <label class="block text-xs font-medium text-neutral-700">
-                Password
-                <input
-                  type="password"
-                  autocomplete={tab() === 'sign-in' ? 'current-password' : 'new-password'}
-                  minlength={8}
-                  required
-                  value={password()}
-                  onInput={event => setPassword(event.currentTarget.value)}
-                  class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
-                />
-              </label>
-            </Show>
-            <Show when={verifying()}>
-              <label class="block text-xs font-medium text-neutral-700">
-                Verification code
-                <input
-                  type="text"
-                  inputmode="numeric"
-                  autocomplete="one-time-code"
-                  required
-                  autofocus
-                  value={code()}
-                  onInput={event => setCode(event.currentTarget.value)}
-                  class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-center text-lg tracking-[.3em] outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
-                />
-              </label>
-            </Show>
-            <div id="clerk-captcha" />
-            <Show when={error()}>
-              {message => (
-                <p class="auth-error" role="alert">
-                  {message()}
-                </p>
-              )}
-            </Show>
-            <button
-              type="submit"
-              disabled={loading()}
-              class="mt-2 flex h-12 w-full items-center justify-center rounded-full border-0 bg-neutral-900 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-wait disabled:opacity-70"
-            >
-              {loading() ? (
-                <span class="auth-spinner border-neutral-600 border-t-white" />
-              ) : verifying() ? (
-                'Verify email'
-              ) : tab() === 'sign-up' ? (
-                'Create account'
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
+          <Show when={!signingUp()}>
+            <form class="space-y-3" onSubmit={submit}>
+              <Show when={!verifying()}>
+                <label class="block text-xs font-medium text-neutral-700">
+                  Email address
+                  <input
+                    type="email"
+                    autocomplete="email"
+                    required
+                    value={email()}
+                    onInput={event => setEmail(event.currentTarget.value)}
+                    class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+                  />
+                </label>
+                <label class="block text-xs font-medium text-neutral-700">
+                  Password
+                  <input
+                    type="password"
+                    autocomplete="current-password"
+                    minlength={8}
+                    required
+                    value={password()}
+                    onInput={event => setPassword(event.currentTarget.value)}
+                    class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+                  />
+                </label>
+              </Show>
+              <Show when={verifying()}>
+                <label class="block text-xs font-medium text-neutral-700">
+                  Verification code
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    required
+                    autofocus
+                    value={code()}
+                    onInput={event => setCode(event.currentTarget.value)}
+                    class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-center text-lg tracking-[.3em] outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+                  />
+                </label>
+              </Show>
+              <button
+                type="submit"
+                disabled={loading()}
+                class="mt-2 flex h-12 w-full items-center justify-center rounded-full border-0 bg-neutral-900 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-wait disabled:opacity-70"
+              >
+                {loading() ? (
+                  <span class="auth-spinner border-neutral-600 border-t-white" />
+                ) : verifying() ? (
+                  'Verify email'
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
+          </Show>
+          <div id="clerk-captcha" />
+          <Show when={error()}>
+            {message => (
+              <p class="auth-error" role="alert">
+                {message()}
+              </p>
+            )}
+          </Show>
 
           <Show when={verifying()}>
             <p class="auth-switch">

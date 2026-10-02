@@ -20,6 +20,7 @@ import { GenerateButton } from '../../components/ui/generate-button'
 import { API_URL } from '../../config'
 import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
+import { creditsNeededToStart } from '../../lib/plans'
 import {
   createProject,
   listStudioModels,
@@ -106,17 +107,13 @@ export function NewProjectView(props: {
   let textarea!: HTMLTextAreaElement
   const activeSkill = createMemo(() => SKILLS.find(item => item.id === skill()))
   const selectedModel = createMemo(() => models().find(item => item.spec === model()))
-  const selectedModelCost = createMemo(() => {
-    const selected = selectedModel()
-    if (!selected) return 0
-    if (!selected.videoCreditsPer30Seconds) return selected.estimatedCredits
-    return Math.ceil(selected.videoCreditsPer30Seconds * (Math.max(30, duration() ?? 30) / 30))
-  })
-  const insufficientCredits = createMemo(() => {
-    const balance = credits()
-    const cost = selectedModelCost()
-    return balance !== null && cost > balance ? cost - balance : 0
-  })
+  // A job starts on any balance that covers the server's minimum (MIN_BALANCE
+  // in projects/usage.ts) and runs until it reaches zero, so the estimate is
+  // never a gate.
+  // At 0 the "No credits left" notice shows instead (outOfCredits below).
+  const insufficientCredits = createMemo(() =>
+    credits() === 0 ? 0 : creditsNeededToStart(credits()),
+  )
   const outOfCredits = createMemo(() => credits() === 0)
   const selectDeckTemplate = (template: (typeof DECK_TEMPLATES)[number]) => {
     setDeckTemplate(template)
@@ -374,6 +371,7 @@ export function NewProjectView(props: {
       <Show when={creditOfferOpen()}>
         <DiscordOfferModal
           mode="no-credits"
+          credits={discordWelcome()?.credits}
           onClose={() => setCreditOfferOpen(false)}
           onBuyCredits={() => {
             setCreditOfferOpen(false)

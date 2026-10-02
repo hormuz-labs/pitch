@@ -34,7 +34,7 @@ import {
   resolveIn,
   workspaceOf,
 } from '../lib/paths.ts'
-import { runInSandbox, sandboxEnv } from '../lib/sandbox.ts'
+import { runInSandbox, sandboxEnv, shellTimeout } from '../lib/sandbox.ts'
 import { rewriteBlock } from '../lib/shell.ts'
 
 const BWRAP = process.env.STUDIO_BWRAP || 'bwrap'
@@ -45,7 +45,9 @@ const BASH_DESCRIPTION =
   'skills and asset libraries are readable). You have bash, node, python and `pitch` — the ' +
   "studio's command line, which runs outside this shell with a real browser, ffmpeg and " +
   'network: recon, screenshots, audio, the lab, review and rendering are all `pitch` commands ' +
-  '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. Correct invalid ' +
+  '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. A `pitch` command can ' +
+  'wait minutes for a render worker; the studio bounds it, so a timeout you set does not apply ' +
+  'to a command that runs `pitch` — let it finish rather than re-running it. Correct invalid ' +
   'arguments using the returned help; fix validation failures in your source and re-run the gate. ' +
   'For unavailable host services or dependencies, report what failed and stop. Never hand-write a ' +
   'file a command produces (vo-words.json, cues.json, brand-tokens.json) — those are ' +
@@ -73,7 +75,7 @@ function bwrapBashOps(workspace: () => string): BashOperations {
         bwrap: BWRAP,
         onData: onData as (chunk: Buffer) => void,
         signal,
-        timeout,
+        timeout: shellTimeout(command, timeout),
       })
     },
   }
