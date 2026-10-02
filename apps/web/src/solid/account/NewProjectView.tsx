@@ -19,6 +19,12 @@ import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
 import { GenerateButton } from '../../components/ui/generate-button'
 import { API_URL } from '../../config'
 import { isApiError } from '../../lib/api'
+import {
+  ASSET_ACCEPT,
+  attachmentLimitError,
+  clipboardFiles,
+  UPLOAD_LIMITS_LABEL,
+} from '../../lib/attachments'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import { creditsNeededToStart } from '../../lib/plans'
 import {
@@ -49,8 +55,6 @@ import { VoicePicker } from './VoicePicker'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
 
-const ACCEPT =
-  '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
 const RATIOS = ['16:9', '9:16', '1:1', '4:5'] as const
 const FLOW_TO_SKILL: Record<string, Skill> = {
   deck: 'slide-deck',
@@ -289,12 +293,12 @@ export function NewProjectView(props: {
     window.dispatchEvent(new Event('credits-changed'))
     await openStudioProject(project.id, navigate, studioRouteReady)
   }
-  const pick = async (list: FileList | null, openAfter = false, reference = false) => {
+  const pick = async (list: FileList | File[] | null, openAfter = false, reference = false) => {
     if (!list?.length || uploading() || submitting()) return
     const picked = [...list]
-    const oversized = picked.find(file => file.size > 500 * 1024 * 1024)
-    if (oversized) {
-      setError(`${oversized.name} is over 500 MB`)
+    const sizeError = attachmentLimitError(picked, files().length)
+    if (sizeError) {
+      setError(sizeError)
       return
     }
     setUploading(true)
@@ -351,6 +355,12 @@ export function NewProjectView(props: {
     <div
       ref={pageRoot}
       class={`lv-studio new-project-page ${dragging() ? 'dropping' : ''}`}
+      onPaste={event => {
+        const picked = clipboardFiles(event.clipboardData)
+        if (!picked.length) return
+        event.preventDefault()
+        void pick(picked)
+      }}
       onDragOver={event => event.preventDefault()}
       onDragEnter={event => {
         if (!event.dataTransfer?.types.includes('Files')) return
@@ -414,7 +424,7 @@ export function NewProjectView(props: {
                   type="file"
                   hidden
                   multiple
-                  accept={ACCEPT}
+                  accept={ASSET_ACCEPT}
                   onChange={event => void pick(event.currentTarget.files)}
                 />
                 <input
@@ -438,6 +448,7 @@ export function NewProjectView(props: {
                 >
                   <button
                     role="menuitem"
+                    title={UPLOAD_LIMITS_LABEL}
                     disabled={uploading() || submitting()}
                     onClick={() => input.click()}
                   >

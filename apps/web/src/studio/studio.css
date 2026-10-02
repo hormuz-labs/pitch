@@ -666,6 +666,43 @@
 .lv-studio .music-picker-list {
   max-height: 390px;
 }
+.lv-studio .music-picker-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.lv-studio .music-picker-upload.is-dropping {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+.lv-studio .music-picker-upload button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--panel-2);
+}
+.lv-studio .music-picker-upload > span,
+.lv-studio .music-picker-personal {
+  color: var(--muted);
+  font-size: 11px;
+}
+.lv-studio .music-picker-personal {
+  flex: none;
+  white-space: nowrap;
+}
+.lv-studio .music-picker-error {
+  margin-bottom: 12px;
+  color: var(--danger);
+  font-size: 12px;
+}
 .lv-studio .music-picker-choice {
   display: flex;
   align-items: center;
@@ -5716,6 +5753,16 @@
   color: var(--danger);
   font-size: 12px;
   line-height: 1.35;
+}
+.lv-studio .job-composer.is-dropping .job-composer-box {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.lv-studio .composer-drop-hint {
+  padding: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  text-align: center;
 }
 .lv-studio:not(.new-project-page) .feed-jump-latest:hover { background: var(--control-hover); transform: translateX(-50%) translateY(-2px); }
 .lv-studio:not(.new-project-page) .feed-jump-latest:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }

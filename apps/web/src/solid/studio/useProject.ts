@@ -1,4 +1,5 @@
 import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
+import { attachmentLimitError } from '../../lib/attachments'
 import { useAuth } from '../core/auth'
 import {
   adminMediaPath,
@@ -125,11 +126,14 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
   const addAssets = async (files: FileList | File[]) => {
     writable()
     if (!id || !files.length) return
+    const error = attachmentLimitError(Array.from(files))
+    if (error) throw new Error(error)
     const form = new FormData()
     for (const f of Array.from(files)) form.append('files', f)
     const uploaded = await studio.upload(await getToken(), form)
-    await studio.addAssets(await getToken(), id, uploaded)
+    const added = await studio.addAssets(await getToken(), id, uploaded)
     await refreshAssets()
+    return added
   }
   const deleteAsset = async (path: string) => {
     writable()
@@ -384,6 +388,8 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
   })
   const upload = async (files: File[]) => {
     writable()
+    const error = attachmentLimitError(files)
+    if (error) throw new Error(error)
     const form = new FormData()
     for (const f of files) form.append('files', f)
     return studio.upload(await getToken(), form)

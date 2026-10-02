@@ -34,7 +34,7 @@ describe('DiscordOfferModal', () => {
     expect(screen.queryByRole('button', { name: 'Buy credits' })).toBeNull()
     expect(
       screen
-        .getByRole('button', { name: 'Join Discord and get 750 credits' })
+        .getByRole('button', { name: 'Join Discord and get 1,500 credits' })
         .classList.contains('discord-offer__primary'),
     ).toBe(true)
     expect(screen.getByRole('button', { name: 'Not now' })).toBeTruthy()

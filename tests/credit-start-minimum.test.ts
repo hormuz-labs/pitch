@@ -19,7 +19,7 @@ describe('start minimum', () => {
 
   it('advertises the Discord welcome amount the server actually grants', () => {
     expect(WEB_WELCOME).toBe(DISCORD_WELCOME_CREDITS)
-    expect(DISCORD_WELCOME_CREDITS).toBe(750)
+    expect(DISCORD_WELCOME_CREDITS).toBe(1500)
   })
 
   it('asks for the difference only below the minimum', () => {

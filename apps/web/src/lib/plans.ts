@@ -20,7 +20,7 @@ export const START_MIN_CREDITS = 40
  * packages/db (pinned by tests/credit-start-minimum.test.ts); screens that
  * have the API's live value show that instead.
  */
-export const DISCORD_WELCOME_CREDITS = 750
+export const DISCORD_WELCOME_CREDITS = 1500
 
 /** How many more credits a new job needs; 0 when it can start (or when unknown). */
 export function creditsNeededToStart(balance: number | null): number {

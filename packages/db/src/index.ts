@@ -283,8 +283,8 @@ export async function addCredits(
 }
 
 export const DISCORD_WELCOME_CAMPAIGN = 'discord-welcome-v1'
-/** About one finished teaser (~630 credits on Flash), so a new user sees a whole video. */
-export const DISCORD_WELCOME_CREDITS = 750
+/** Regular Pitch credits granted once for connecting Discord and joining the community. */
+export const DISCORD_WELCOME_CREDITS = 1500
 
 export async function getDiscordWelcomeClaim(userId: string, discordUserId: string | null) {
   const campaignId = DISCORD_WELCOME_CAMPAIGN

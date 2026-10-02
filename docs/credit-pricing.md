@@ -72,7 +72,7 @@ for exactly the credits the turn measured, which can be less than the hold (or
 zero). A turn that only asks a question releases its hold.
 
 The hold is capped at the available balance: any account with at least
-`MIN_BALANCE` (40) credits can start, including a 750-credit Discord welcome
+`MIN_BALANCE` (40) credits can start, including a 1,500-credit Discord welcome
 account asking for a film whose estimate is higher. The live check stops a turn
 once its measured cost passes the balance; if the last step overshoots, the
 settlement takes the balance to exactly zero and the remainder is written off

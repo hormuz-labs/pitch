@@ -416,7 +416,7 @@ describe('A. starting a job', () => {
   })
 })
 
-// ── A′. The Discord welcome account (750 free credits) ─────────────────────
+// ── A′. The Discord welcome account (1,500 free credits) ─────────────────────
 describe('A′. a Discord welcome account', () => {
   const welcome = async () => {
     const { DISCORD_WELCOME_CREDITS } = await import('../packages/db/src/index.js')
@@ -432,17 +432,17 @@ describe('A′. a Discord welcome account', () => {
   }
 
   it('W1 starts a 60 s cinematic Sol film with its full 638-credit hold', async () => {
-    expect(await welcome()).toBe(750)
+    expect(await welcome()).toBe(1500)
     makeProject('w1', film('azure-apim/gpt-5.6-sol'))
     await expect(host.prompt('w1', 'make the film')).resolves.toMatchObject({ delivery: 'started' })
     expect(holdOf('w1')?.credits).toBe(638)
   })
 
-  it('W2 starts on Astra, whose 2,888 hold shrinks to the 750 it has', async () => {
+  it('W2 starts on Astra, whose hold is capped at the 1,500-credit balance', async () => {
     await welcome()
     makeProject('w2', film('azure-apim/gpt-6-astra'))
     await host.prompt('w2', 'make the film')
-    expect(holdOf('w2')?.credits).toBe(750)
+    expect(holdOf('w2')?.credits).toBe(1500)
   })
 
   it('W3 finishes one typical teaser (about 630 credits) and keeps the rest', async () => {
@@ -451,7 +451,7 @@ describe('A′. a Discord welcome account', () => {
     const { turn } = await host.prompt('w3', 'make a teaser')
     usesATool('w3')
     await finishTurn('w3', turn, 1.26) // $1.26 × 1.25 = $1.575 → 630 credits
-    expect(balance()).toBe(120)
+    expect(balance()).toBe(870)
   })
 
   it('W4 runs a bigger film to exactly zero, stops it, and refuses the next message', async () => {
@@ -460,9 +460,9 @@ describe('A′. a Discord welcome account', () => {
     watchExhausted('w4')
     const { turn } = await host.prompt('w4', 'make the film')
     usesATool('w4')
-    session.liveModelUsd = 2 // 1,000 credits of work against 750
+    session.liveModelUsd = 4 // 2,000 credits of work against 1,500
     await vi.waitFor(() => expect(session.stopped).toEqual(['w4']), { timeout: 3000 })
-    await finishTurn('w4', turn, 2)
+    await finishTurn('w4', turn, 4)
     expect(balance()).toBe(0)
     expect(exhausted).toEqual([CREDIT_LIMIT_MESSAGE])
     await expect(host.prompt('w4', 'keep going')).rejects.toMatchObject({ status: 402 })
