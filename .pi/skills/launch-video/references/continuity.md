@@ -1,15 +1,26 @@
 # Continuity — connecting scenes
 
 Continuity is the viewer understanding why the next scene follows this one.
-Build it through the sequence of ideas, consistent visual language, matched
-framing or motion, and sound that carries across a cut. A question followed
-by its answer or a feature followed by its result can connect with a clean
-cut. Neither a persistent object nor a particular transition is required.
+Consistent visual language and sound that carries across a cut help; the joins
+themselves come in three kinds, often mixed in one film:
 
-Two reference films measured frame by frame use object
-handoffs especially well: a 33s SaaS launch ad with no cut and a 40s promo
-with thirty whole-frame turnovers. These are examples of one approach,
-not a requirement that every launch film keep a shape on screen.
+- **The outgoing subject becomes the transition.** A title, logo or object moves
+  toward the camera or across the frame while the next scene already waits
+  underneath ("The transition is the next subject", below).
+- **One object carries across shots** and keeps its identity, so separate
+  scenes read as one piece (the handoff fields, below).
+- **A match cut.** A hard cut reads as continuous when something matches on
+  both sides: size, position, direction of movement, or the subject itself. A
+  question followed by its answer matches in meaning. A cut where nothing
+  matches reads as a new start: right for a new chapter, jarring mid-thought.
+
+A carried or matched element lands on the same pixels on both sides of the cut.
+Check the frames just before and after it, not only the settled shots. No join
+is required everywhere; a persistent object is one approach, not the rule.
+
+Two reference films measured frame by frame use object handoffs especially
+well: a 33s SaaS launch ad with no cut and a 40s promo with thirty whole-frame
+turnovers.
 
 ## Make transformation a useful part of the film
 
@@ -79,9 +90,8 @@ later scenes that do not name it. Prefer an explicit `out` or `into` when its
 job ends. A dot, line or shape whose only job is to remain visible is not an
 object handoff; leave it out.
 
-The checker has no minimum number of actor-linked cuts. Pick hard cuts,
-dissolves, wipes, punches or object handoffs for what the viewer should see
-next, then review the actual transition and composition.
+The checker has no minimum number of actor-linked cuts. Choose each join for
+what the viewer should see next, then review the actual transition.
 
 ## Case study: a line built in phrases
 

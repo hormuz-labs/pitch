@@ -16,7 +16,7 @@ not by keeping every feature. A shorter complete film needs no padding.
 ## Attention and reading time come first
 
 Plan each beat as **reveal → readable hold → clear or transform**. Write the
-single focal subject and those times in `direction.md`. A feature grid that
+lead and those times in `direction.md`. A feature grid that
 builds quickly and remains on screen is not sequential storytelling: it leaves
 the viewer deciding what to read. Show the first point, let it land, then
 replace it with the next. Keep only the context needed to understand the focus.
@@ -80,7 +80,7 @@ solely to increase the event count.
 | Seek determinism and scene visibility | Fix actual rendering errors. These fail the audit. |
 | Quiet stretches and event rate | Review against the treatment, not a universal density target. |
 | UI readability | An overview may stay wide. Enlarge the relevant detail when it needs to be read. |
-| Attention | One dominant subject and one new idea at a time, including during transitions. Remove or subordinate competing content. |
+| Attention | One lead movement and one new idea at a time, including during transitions; secondary motion stays under it. A composition may hold several elements. |
 | Reading windows | Essential text is fully visible and stable long enough to read at normal speed; entrances and exits are additional time. |
 | Continuity | Review meaning, composition, movement and sound; cuts need no persistent actor. |
 | Clipping and palette | Fix unintended clipping and undeclared palette differences. An intentional image crop is a composition choice. |

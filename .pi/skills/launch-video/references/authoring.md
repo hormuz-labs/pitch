@@ -12,9 +12,12 @@
 3. For a narrated film, complete `references/audio/narration.md`'s script and
    recording steps before the shot table. Write a short `direction.md`:
    audience takeaway, visual idea, included content, treatment, chosen motion
-   language/references and sound choice, then
-   `id | focal visual/action | essential copy | duration | connection`.
-   Describe the complete visible state; derive narrated shot timing from the read.
+   language/references and sound choice, the film's signature moments in plain
+   words (what a viewer would describe afterwards, without effect names), then
+   `id | purpose | lead visual/action | essential copy | duration | exit → next`.
+   `purpose` is what the moment does for the viewer; a shot without one goes.
+   `exit → next` is how it leaves and what, if anything, carries into the next
+   shot. Describe the complete visible state; derive narrated shot timing from the read.
 4. Before adapting selected implementations, read `references/effects.md` and
    `pitch effects show <id> --source`.
    Cite `lab` only for inspected implementations, with a distinct effect ID per shot.

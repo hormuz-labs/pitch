@@ -24,6 +24,12 @@
       "prompt": "Create a launch film for a product that brings scattered work into one coordinated workspace. You decide the visual direction. Make the animation feel considered and connected.",
       "expected_output": "Uses the complete inventory in the launch skill to select relevant and contrasting effects directly, without first needing a families/list/search call. Before locking the storyboard, compares candidate notes and frame strips and records a product-specific motion language and scene connections in direction.md. Exploration can continue as needed; source is loaded for chosen implementations. Preserves their mechanisms during adaptation and checks important transitions rather than reducing every shot to the same entrance.",
       "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Make a 30-second launch film for our invoicing app. I uploaded uploads/reference.mp4 — I love how the shots flow into each other. Use the numbers from our site.",
+      "expected_output": "Reads references/reference-video.md before planning: probes the upload, takes an overview contact sheet and dense sheets around its transitions with pitch video frames, and records in direction.md what each key moment does and how it could serve this product, without copying its footage, layout or music. The shot table carries purpose and exit → next, and the signature moments are named in plain words. On-screen figures come only from inspect/recon of the site; nothing invented. Finish checks frame one with --times 0 and the report separates checked items from what still needs a person.",
+      "files": []
     }
   ]
 }

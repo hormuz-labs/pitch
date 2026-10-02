@@ -37,10 +37,37 @@ For an edit, keep the established treatment unless the user changes it.
 
 Stay within the selected story. Use icon-library for recognizable tools; show
 product actions and results with a short label where useful. Extract the site's
-facts and identity, not its crowded layout. One focal subject should carry
-the viewer through the shot and into the next. Give essential copy time to read.
+facts and identity, not its crowded layout. Give essential copy time to read.
 Runtime is approximate unless explicitly exact or capped; simplify excess
 content rather than cramming or padding. Report the actual length.
+
+Every number, name, quote, customer logo and claim on screen comes from the
+product's own sources (inspect, recon, the user's files). Never invent a
+testimonial, rating, price, saving or result. Generated imagery is a concept
+plate, never the product, a real customer or a finished job.
+
+## Motion craft
+
+These hold whatever the treatment. They describe how motion reads, not a look:
+
+- **One lead movement at a time.** Secondary motion starts a little after it,
+  stays smaller and overlaps it, so the frame never stops or starts all at once.
+  A composition can have several elements; only one leads.
+- **Speed always changes.** Things arrive decelerating, rest long enough to
+  read, and leave accelerating; no linear arrivals or exits. A continuous loop
+  (a ticker, a drifting ground) and a ported effect keep their own easing.
+- **Every action has a visible result.** A tap makes a new state, a scan makes
+  findings, a request makes a confirmation. An action with no consequence is decoration.
+- **Vary the scale and the layout.** Move between close, wide and full-frame
+  type; a heading over cards three shots running is one layout repeated.
+- **Type is motion and must stay readable.** Words over a busy picture get a
+  backing, a scrim or a quiet area; text never collides with or passes through
+  other text.
+- **Frame one is a finished picture.** The first frame is the thumbnail and the
+  autoplay still: a composed state, not a word halfway through its entrance.
+
+How shots join (the outgoing subject becoming the transition, match cuts,
+carried objects) is in `references/continuity.md`.
 
 ## Choose motion before locking the storyboard
 
@@ -60,6 +87,7 @@ Paths are relative to this skill directory. Load only what the current task need
 
 | Task now | Read |
 |---|---|
+| Study a reference video the user supplied, before planning | `references/reference-video.md` |
 | Source the product and author new shots | `references/authoring.md` |
 | Adapt an effects-lab implementation | `references/effects.md` |
 | Plan how scenes connect, including transitions and object handoffs | `references/continuity.md` |
