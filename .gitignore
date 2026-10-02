@@ -90,3 +90,6 @@ output.pdf
 # Raw SFX source packs — hundreds of MB, and the SOURCE for the vendored library.
 # What gets committed is assets/sfx-lib/ (~9MB, produced by scripts/sfx-vendor.mjs).
 assets/1000+UR.FASTEDITOR SFX/
+
+__pycache__/
+*.pyc

@@ -138,6 +138,48 @@ within a look.
 Brand colours come from recon; a look's "neon" is the brand's accent pushed
 bright, declared in `brand.palette` as an authored choice.
 
+## Typography
+
+In an ad most frames are words over footage, so the type is half the
+picture. Set it like a poster, never like a web page: no 110px h1 with a
+kicker above it, no gradient headline, no default sans at weight 700.
+
+- **Choose a type system once, before the first shot**, and write it in
+  direction.md: a **display** face for the shouts (a condensed or tight
+  grotesk, heavy), a **contrast** face for the whispers and the emphasis (a
+  serif italic, or the same grotesk light), and at most one **wild** face for
+  one moment (a blackletter, a neon, a strobe landing). Start from the
+  brand's own faces (`pitch motion recon` saves them to `assets/fonts/`);
+  fill the gaps from the library in `/assets/fonts` (Sharp Grotesk, Atlas
+  Grotesk, Sorts Mill Goudy). Declare every face in `brand.fonts` — a family
+  the page cannot load silently becomes a system font in the render.
+- **Big type is set tight, small type is set open.** Shouts: uppercase,
+  weight 800–900, `tracking: "-0.03em"` to `"-0.05em"`, `leading` 0.82–0.9 so
+  a stack reads as one block. Whispers and tags: `case: "none"` or lower,
+  weight 400–500, `tracking: "0.02em"` to `"0.08em"`, a third of the size or
+  less. Never set a word big with loose tracking or small with tight.
+- **Contrast is the design.** Every phrase has one loud word and lets the
+  rest step down — in size (3–6× between the biggest and smallest word on
+  screen), in weight (900 against 300–400) or in face (grotesk against serif
+  italic). A phrase where every word has the same size, weight and face is a
+  subtitle; change at least one axis.
+- **Shape the stack.** Break lines on meaning, not on width: no line of one
+  short word under a long one ("the" alone on a line), no widow at the end of
+  a phrase. Left-aligned stacks hang on a clean edge; ragged centre stacks
+  are for single words. Keep two to four lines; a fifth line is a new phrase.
+- **Set it against the picture.** White with a soft shadow over footage;
+  flat ink with `shadow: false` on a colour field; the brand accent for one
+  word per phrase at most. On a 9:16 frame keep the shout at `size` 0.12–0.3
+  and nothing under 0.035 — the smallest word must still read on a phone at
+  arm's length.
+- **One face per job, all film long.** The display face is always the
+  display face; the wild face appears once. Swapping faces between shots
+  for variety reads as a template; vary scale, position and weight instead.
+
+Look at the review sheet as a page of posters: if three frames running
+could be the same slide with new words, or a frame looks like a website
+hero, reset that phrase's scale, face or stack before anything else.
+
 ## Captions
 
 The film-wide `captions` track (`pitch motion schema --section captions`):
@@ -229,6 +271,8 @@ below.
   without a short hold.
 - No two consecutive caption phrases in the same position; no subtitle tier.
 - Every caption readable at phone size for its time on screen.
+- The type system in direction.md is the one on screen: every face declared
+  in `brand.fonts`, shouts tight, whispers open, one loud word per phrase.
 - `audio.pace: "ad"`; the read 2.7–3.5 words/s after `pitch motion tighten`.
 - `pitch motion audit --max_quiet 2.5`: holds are intentional; bursts must
   still resolve into readable frames.

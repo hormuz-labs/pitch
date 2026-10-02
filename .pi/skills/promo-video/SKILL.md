@@ -49,7 +49,9 @@ has five studied ads beat by beat; read the one nearest the brief.
 4. **direction.md.** Takeaway, audience, placement, look, the script, the
    claim ledger (each fact → its source), the footage ledger (each clip →
    file, origin, licence), the **sound score** (voice character, each beat's
-   feeling, music sections and drops on named words, the sounds) and the shot
+   feeling, music sections and drops on named words, the sounds), the **type
+   system** (display, contrast and wild faces, their weights and tracking —
+   social-ad.md → Typography) and the shot
    table
    `id | spoken words (cue) | density (BURST / HOLD / INTERRUPT) | picture | source | caption | sound`.
    Alternate densities: a burst in the first 3 seconds, an interrupt every
@@ -65,8 +67,11 @@ has five studied ads beat by beat; read the one nearest the brief.
    the special shots from [recipes.md](references/recipes.md); the
    skeleton in [example-ad.md](references/example-ad.md) shows the pieces
    together. Scaffold, then add shots in small batches with `pitch motion check`.
-6. **Words on screen.** The `captions` track — keywords only, mixed type,
-   and **placement that moves**: every phrase lands somewhere new (social-ad.md
+6. **Words on screen.** Set the type like a poster, not a web page
+   ([social-ad.md](references/social-ad.md) → Typography): the faces
+   declared in `brand.fonts`, shouts tight and heavy, whispers small and
+   open, one loud word per phrase. The `captions` track — keywords only,
+   mixed type, and **placement that moves**: every phrase lands somewhere new (social-ad.md
    → Captions that jump). **No `subtitles` tier** unless the user asks for
    one (`pitch motion schema --section captions`) — then `pitch motion sync
    --write` for cued shots.
@@ -133,6 +138,10 @@ has five studied ads beat by beat; read the one nearest the brief.
   (`pitch motion voices`).
 - **Flashes are brief.** Bursts of hard cuts and one-frame flashes last under
   a second and never strobe for longer; `glitch` marks act changes only.
+- **Type is designed, not defaulted.** One type system for the film,
+  chosen from the brand's faces and the library, every face self-hosted in
+  `brand.fonts`; never a default sans, a web-hero headline or a phrase
+  where every word has the same size, weight and face.
 - **Readable at phone size.** Keywords stay inside the safe area (middle 80%
   of the width, above the bottom fifth); every caption holds long enough to
   read.
