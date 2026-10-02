@@ -78,6 +78,18 @@ export function progressFromLine(line: string): { stage: string; progress?: numb
   return null
 }
 
+/** capture.mjs's closing `⏱ timings {…}` line: seconds per phase, for the job log. */
+export function timingsFromLine(line: string): Record<string, unknown> | null {
+  const m = line.match(/⏱ timings (\{.*\})\s*$/)
+  if (!m) return null
+  try {
+    const parsed = JSON.parse(m[1])
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
 /** The line in a failed renderer's tail that says why. */
 export function errorFromTail(tail: string[], code: number | null): string {
   const rev = [...tail].reverse()
@@ -94,8 +106,9 @@ function capture(
   res: RenderRes,
   watermark: boolean,
   ctx: HostContext,
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
+): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve, reject) => {
+    let timings: Record<string, unknown> | null = null
     const proc = spawn(
       nodeBinary(),
       [
@@ -115,6 +128,7 @@ function capture(
       if (!s) return
       tail.push(s)
       if (tail.length > 30) tail.shift()
+      timings = timingsFromLine(s) ?? timings
       const p = progressFromLine(s)
       if (p) ctx.progress?.(p.stage, p.progress)
     }
@@ -138,7 +152,7 @@ function capture(
       if (buf.out) onLine(buf.out)
       if (buf.err) onLine(buf.err)
       if (ctx.signal?.aborted) return reject(new Error('cancelled'))
-      if (code === 0 && existsSync(path.join(cwd, outFile))) return resolve()
+      if (code === 0 && existsSync(path.join(cwd, outFile))) return resolve(timings)
       reject(new Error(errorFromTail(tail, code)))
     })
   })
@@ -157,12 +171,20 @@ registerHostAction(
     if (!existsSync(path.join(ws.dir, 'index.html'))) throw new Error('nothing to render yet')
     if (!existsSync(CAPTURE)) throw new Error('capture script not found')
     const outFile = renderFile(res)
+    const began = Date.now()
     ctx.progress?.('mixing')
     await ensureMix(ws.dir)
     if (ctx.signal?.aborted) throw new Error('cancelled')
+    const mixS = (Date.now() - began) / 1000
     ctx.progress?.('starting')
     const watermark = await shouldWatermarkVideo(ws.userId)
-    await capture(ws.dir, outFile, res, watermark, ctx)
+    const rendering = Date.now()
+    const timings = await capture(ws.dir, outFile, res, watermark, ctx)
+    // Where an export's time goes, per phase, so speed work is aimed by numbers.
+    logger.info(
+      { workspace: ws.internal, res, mixS, renderS: (Date.now() - rendering) / 1000, ...timings },
+      'launch export timings',
+    )
     const marker = path.join(ws.dir, cleanMarker(outFile))
     if (watermark) await rm(marker, { force: true })
     else await writeFile(marker, '')

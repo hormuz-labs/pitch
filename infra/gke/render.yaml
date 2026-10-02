@@ -50,25 +50,46 @@ spec:
           value: 'true'
           effect: NoSchedule
       initContainers:
-        - name: prepare-state
+        # A native sidecar (restartPolicy: Always), not a blocking init: the
+        # transcription model is 1.6 GB from HuggingFace, ~45 s that used to
+        # sit in front of every cold render, and a film export never reads it.
+        # The render container starts at once; whisper callers wait while
+        # `<model>.part` is still growing (.pi/lib/whisper.ts awaitWhisperModel,
+        # align.mjs). A failed fetch exits, and the kubelet restarts it.
+        - name: whisper-model
           image: pitch-api
+          restartPolicy: Always
           command:
             - sh
-            - -ec
+            - -c
             - |
               mkdir -p /state/projects /state/pi /state/whisper
-              # The transcription model, fetched per pod (the disk is scratch).
-              # Not baked into the image on purpose (see Makefile → whisper-model).
+              # Fetched per pod (the disk is scratch). Not baked into the
+              # image on purpose (see Makefile → whisper-model).
               target="/state/whisper/$WHISPER_MODEL_FILE"
+              pid=
+              trap '[ -n "$pid" ] && kill "$pid" 2>/dev/null; rm -f "$target.part"; exit 0' TERM INT
               if [ ! -s "$target" ]; then
                 echo "fetching $WHISPER_MODEL_FILE"
-                curl -fsSL --retry 5 --retry-delay 5 -o "$target.part" "$WHISPER_MODEL_BASE_URL/$WHISPER_MODEL_FILE"
-                mv "$target.part" "$target"
+                : > "$target.part"
+                curl -fsSL --retry 5 --retry-delay 5 -o "$target.part" "$WHISPER_MODEL_BASE_URL/$WHISPER_MODEL_FILE" &
+                pid=$!
+                if wait "$pid"; then
+                  mv "$target.part" "$target"
+                  echo "fetched $WHISPER_MODEL_FILE"
+                else
+                  rm -f "$target.part"
+                  exit 1
+                fi
               fi
+              # A sidecar that exits is restarted; this one has nothing left to do.
+              sleep infinity &
+              pid=$!
+              wait "$pid"
           envFrom:
             - configMapRef: { name: pitch-config }
           resources:
-            requests: { cpu: 100m, memory: 128Mi }
+            requests: { cpu: 50m, memory: 64Mi }
             limits: { cpu: '1', memory: 512Mi }
           volumeMounts:
             - name: state

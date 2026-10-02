@@ -15,7 +15,7 @@
  * Output: audio/vo-words.json — { file, duration, text, matched, words:[{w,n,s,e,src}] }
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { availableParallelism, cpus, homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { normWord, speechGaps, tokenize, wordsPathFor } from "./lib/vo-words.mjs";
@@ -89,6 +89,23 @@ function findModel() {
     }
   }
   return null;
+}
+// A render pod takes jobs while its whisper sidecar is still fetching the
+// model into `<model>.part` (infra/gke/render.yaml): wait while that file
+// grows, and treat one that has stalled for a minute as no model at all.
+function pendingModel() {
+  const explicit = flag("model", process.env.WHISPER_MODEL || null);
+  if (!explicit) return false;
+  try {
+    return Date.now() - statSync(`${explicit.replace(/^~/, homedir())}.part`).mtimeMs < 60_000;
+  } catch {
+    return false;
+  }
+}
+const waitUntil = Date.now() + 10 * 60_000;
+if (!findModel() && pendingModel()) console.log("⏳ the whisper model is still downloading on this host — waiting for it");
+while (!findModel() && pendingModel() && Date.now() < waitUntil) {
+  await new Promise(r => setTimeout(r, 1000));
 }
 const MODEL = findModel();
 if (!MODEL) {

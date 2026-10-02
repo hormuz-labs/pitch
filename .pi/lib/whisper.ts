@@ -8,7 +8,7 @@
  * recording tools posted audio to, doing the same job with a different model.
  */
 import { execFile } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { availableParallelism, cpus, homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -54,6 +54,38 @@ export function findWhisperModel(): string | null {
     }
   }
   return null
+}
+
+/**
+ * A model still downloading, or null. A render pod starts taking jobs while
+ * its whisper sidecar (infra/gke/render.yaml) is still fetching the model
+ * into `<model>.part`; a part file that has not grown for a minute is a dead
+ * download, not a pending one.
+ */
+export function pendingWhisperModel(now = Date.now()): string | null {
+  const explicit = process.env.WHISPER_MODEL?.replace(/^~/, homedir())
+  const candidates = [
+    ...(explicit ? [explicit] : []),
+    ...CACHE_DIRS.flatMap(dir => MODELS.map(m => path.join(dir, m))),
+  ]
+  for (const model of candidates) {
+    try {
+      if (now - statSync(`${model}.part`).mtimeMs < 60_000) return model
+    } catch {}
+  }
+  return null
+}
+
+/** findWhisperModel, after waiting out a download the pod is still making. */
+export async function awaitWhisperModel(
+  opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<string | null> {
+  const deadline = Date.now() + (opts.timeoutMs ?? 10 * 60_000)
+  while (!findWhisperModel() && pendingWhisperModel() && Date.now() < deadline) {
+    opts.signal?.throwIfAborted()
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  return findWhisperModel()
 }
 
 /**
@@ -174,7 +206,7 @@ export async function transcribeWav(
   }
   const bin = opts.bin ?? process.env.WHISPER_CLI ?? 'whisper-cli'
   const threads = opts.threads ?? defaultWhisperThreads()
-  const model = findWhisperModel()
+  const model = await awaitWhisperModel({ signal: opts.signal })
   if (!model) {
     throw new Error(
       'no whisper.cpp model on the host (expected a ggml model in the whisper cache volume, ' +

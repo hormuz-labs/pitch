@@ -2,11 +2,16 @@
  * The one transcriber: whisper.cpp's word tokens into the transcript shape
  * the recording tools have always saved.
  */
+import { mkdtempSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  awaitWhisperModel,
   defaultWhisperThreads,
   findWhisperModel,
   parseWhisperJson,
+  pendingWhisperModel,
   speechWindows,
   wordsToSegments,
 } from '../.pi/lib/whisper'
@@ -102,6 +107,47 @@ describe('findWhisperModel', () => {
       else delete process.env.WHISPER_MODEL
     }
   })
+})
+
+describe('a model the render pod is still downloading', () => {
+  const withModel = async (fn: (model: string) => Promise<void> | void) => {
+    const orig = process.env.WHISPER_MODEL
+    const dir = mkdtempSync(path.join(tmpdir(), 'whisper-pending-'))
+    process.env.WHISPER_MODEL = path.join(dir, 'ggml-test.bin')
+    try {
+      await fn(process.env.WHISPER_MODEL)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+      if (orig !== undefined) process.env.WHISPER_MODEL = orig
+      else delete process.env.WHISPER_MODEL
+    }
+  }
+
+  it('counts a growing part file as pending and a stalled one as dead', () =>
+    withModel(model => {
+      expect(pendingWhisperModel()).toBeNull()
+      writeFileSync(`${model}.part`, '')
+      expect(pendingWhisperModel()).toBe(model)
+      const stale = new Date(Date.now() - 120_000)
+      utimesSync(`${model}.part`, stale, stale)
+      expect(pendingWhisperModel()).toBeNull()
+    }))
+
+  // Only meaningful where no other model is installed for findWhisperModel to fall back to.
+  const installed = (() => {
+    const orig = process.env.WHISPER_MODEL
+    delete process.env.WHISPER_MODEL
+    const found = findWhisperModel()
+    if (orig !== undefined) process.env.WHISPER_MODEL = orig
+    return found
+  })()
+  it.skipIf(installed)('waits for the download to land', () =>
+    withModel(async model => {
+      writeFileSync(`${model}.part`, '')
+      setTimeout(() => renameSync(`${model}.part`, model), 1200)
+      expect(await awaitWhisperModel({ timeoutMs: 10_000 })).toBe(model)
+    }),
+  )
 })
 
 describe('defaultWhisperThreads', () => {

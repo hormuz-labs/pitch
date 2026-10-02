@@ -151,6 +151,8 @@ rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
+// Phase clocks for the `⏱ timings` line the export logs (export.ts).
+const launchMs = Date.now();
 const studio = await openStudioBrowser({ deviceScaleFactor: scale });
 
 const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
@@ -286,6 +288,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
 
 await Promise.all(tasks);
 await studio.close();
+const captureEndMs = Date.now();
 
 const rawVideo = resolve(`_temp_video_${process.pid}.mp4`);
 
@@ -347,6 +350,7 @@ try {
   rmSync(tmp, { recursive: true, force: true });
 }
 
+const encodeEndMs = Date.now();
 if (!isSegment && existsSync("audio/mix.wav")) {
   console.log("\n🔊 Muxing Audio Mix (Voiceovers + Music + SFX) into final deliverable...");
   execFileSync("ffmpeg", [
@@ -358,6 +362,7 @@ if (!isSegment && existsSync("audio/mix.wav")) {
   execFileSync("mv", [rawVideo, resolve(out)]);
 }
 
+const muxEndMs = Date.now();
 const finalOut = resolve(out);
 const sourceStat = await stat(finalOut);
 const timeline = renderTimeline(cues, {
@@ -408,4 +413,19 @@ try {
   rmSync(layersTmp, { force: true });
 }
 
+const secs = (a, b) => Math.round((b - a) / 100) / 10;
+console.log(`⏱ timings ${JSON.stringify({
+  setupS: secs(launchMs, startMs),
+  captureS: secs(startMs, captureEndMs),
+  encodeS: secs(captureEndMs, encodeEndMs),
+  muxS: secs(encodeEndMs, muxEndMs),
+  sidecarsS: secs(muxEndMs, Date.now()),
+  frames: total,
+  captures,
+  workers,
+  fps,
+  width: renderW,
+  height: renderH,
+  encoder,
+})}`);
 console.log(`\n✨ DONE! Deliverable Ready: ${out}\n`);
