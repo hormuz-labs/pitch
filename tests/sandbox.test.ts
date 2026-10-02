@@ -19,6 +19,7 @@ import {
   sandboxMode,
   seatbeltCommand,
   seatbeltProfile,
+  shellTimeout,
   unconfinedCommand,
 } from '../.pi/lib/sandbox'
 
@@ -143,6 +144,38 @@ describe('the line to `pitch`', () => {
     )
     expect(cmd.env.PATH).toBe('/app/.pi/guest:/opt:/usr/bin')
     expect(cmd.env.PITCH_SOCKET).toBe('/tmp/pitch-abc/sock')
+  })
+})
+
+describe("the shell's timeout and `pitch`", () => {
+  // The run this came from: both calls carried a model-chosen timeout, align
+  // was queued for a render pod that had to boot, and the timeout withdrew it.
+  it.each([
+    'pitch motion align --vo audio/vo.wav --script audio/vo.txt',
+    'ls -la audio && ls -la && pitch motion align --vo audio/vo.wav --script audio/vo.txt',
+    "mkdir -p audio && cat > audio/vo.txt <<'EOF'\nDebt can feel endless.\nEOF\npitch motion align",
+    'cd audio; pitch motion tts --script vo.txt',
+    'pitch motion check | tail -20',
+    '(pitch motion audit)',
+    'WHISPER_THREADS=4 pitch motion align',
+    'echo "$(pitch motion align)"',
+  ])('lifts it for a command that runs pitch: %s', command => {
+    expect(shellTimeout(command, 120)).toBeUndefined()
+  })
+
+  it.each([
+    'sleep 300',
+    'node build.mjs',
+    'grep -rn pitch notes.md',
+    'cat pitch.txt',
+    'ls pitch-deck/',
+    'echo pitching',
+  ])('keeps it for shell work: %s', command => {
+    expect(shellTimeout(command, 120)).toBe(120)
+  })
+
+  it('leaves no timeout alone', () => {
+    expect(shellTimeout('sleep 1', undefined)).toBeUndefined()
   })
 })
 

@@ -84,6 +84,26 @@ export const GUEST_PITCH_BIN = '/opt/pitch'
 export const GUEST_PITCH_RUN = '/run/pitch'
 export const GUEST_NODE_BIN = '/opt/node'
 
+/** A command that runs `pitch` — at the start, or after a `;`, `&&`, `|`, `(` or newline. */
+const CALLS_PITCH = /(^|[\n;&|(`]|\$\()\s*(?:\S+=\S*\s+)*pitch(?=\s|$|[;&|)`])/
+
+/**
+ * The timeout the shell may put on a command, in seconds.
+ *
+ * The model picks bash's timeout, and it picks it for a shell: a minute or
+ * two. A `pitch` command is not shell work. It may checkpoint the workspace,
+ * queue a render job and wait for a render pod to boot before whisper reads a
+ * word, and the host bounds all of that with its own budgets. A shell timeout
+ * kills the guest client, which closes the socket, which aborts the action and
+ * withdraws its job — so a retry pays the cold start again, times out again,
+ * and the agent gives up on a step it could not get wrong ("the alignment
+ * command timed out twice"). Whatever runs `pitch` keeps no shell timeout;
+ * the user's stop still cancels it.
+ */
+export function shellTimeout(command: string, timeout: number | undefined): number | undefined {
+  return CALLS_PITCH.test(command) ? undefined : timeout
+}
+
 /** The environment with `pitch` on the PATH and its socket named. */
 function pitchEnv(
   env: Record<string, string>,
