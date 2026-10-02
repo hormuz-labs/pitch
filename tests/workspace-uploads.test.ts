@@ -74,6 +74,17 @@ describe('workspace uploads', () => {
     expect(http).not.toHaveBeenCalled()
   })
 
+  it('uses a personal soundtrack added through the shelf when it is applied in the next turn', async () => {
+    driver.get.mockImplementation(async () => Readable.from([Buffer.from('personal soundtrack')]))
+    const added = await addAssets(ws, 'project_1', [
+      { ...upload, name: 'my song.mp3', type: 'audio/mpeg' },
+    ])
+    expect(added[0]).toMatchObject({ path: 'uploads/my_song.mp3', kind: 'audio', origin: 'upload' })
+    await prepareWorkspace(ws, { music: added[0].path }, [])
+    expect(await readFile(path.join(ws.dir, 'audio/music.mp3'), 'utf8')).toBe('personal soundtrack')
+    expect(await buildContext(ws, { first: false })).toContain('music: uploads/my_song.mp3')
+  })
+
   it('keeps normalized filenames and replaces the previous recording input', async () => {
     await prepareWorkspace(ws, {}, [{ ...upload, name: 'old.mp4' }])
     await writeFile(path.join(ws.dir, 'recording/demo-state.json'), '{}')

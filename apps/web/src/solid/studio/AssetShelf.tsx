@@ -1,12 +1,11 @@
 import { Maximize, Minus, Plus } from 'lucide-solid'
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
+import { ASSET_ACCEPT, attachmentLimitError, UPLOAD_LIMITS_LABEL } from '../../lib/attachments'
 import { AudioPlayer } from './AudioPlayer'
 import type { Asset } from './types'
 import type { ProjectStore } from './useProject'
 
-const ACCEPT =
-  '.pdf,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a,.aac,.ogg'
 const GLYPH: Record<string, string> = { image: '▣', video: '▶', audio: '♪', pdf: '❐', other: '◇' },
   ORIGIN: Record<string, string> = {
     upload: 'yours',
@@ -389,7 +388,12 @@ export function AssetShelf(props: { store: ProjectStore }) {
     depth = 0
   const chosen = () => new Set(props.store.targets.map(t => t.asset).filter(Boolean))
   const add = async (files: FileList | File[] | null) => {
-    if (!files) return
+    if (!files?.length || adding()) return
+    const limitError = attachmentLimitError(Array.from(files))
+    if (limitError) {
+      setError(limitError)
+      return
+    }
     setAdding(true)
     setError(null)
     try {
@@ -434,11 +438,16 @@ export function AssetShelf(props: { store: ProjectStore }) {
           type="file"
           hidden
           multiple
-          accept={ACCEPT}
+          accept={ASSET_ACCEPT}
           onChange={e => void add(e.currentTarget.files)}
         />
         <Show when={!props.store.readOnly}>
-          <button class="asset-add" disabled={adding()} onClick={() => input?.click()}>
+          <button
+            class="asset-add"
+            title={UPLOAD_LIMITS_LABEL}
+            disabled={adding()}
+            onClick={() => input?.click()}
+          >
             {adding() ? 'Adding…' : '+ Add'}
           </button>
         </Show>

@@ -882,7 +882,7 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                       </p>
                     }
                   >
-                    <Composer store={s} />
+                    <Composer store={s} attachmentTarget={() => side} />
                   </Show>
                 </div>
               </aside>
@@ -1075,6 +1075,16 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                 }
                 getToken={s.getToken}
                 mediaUrl={s.mediaUrl}
+                assets={s.assets}
+                onUpload={async file => {
+                  const added = await s.addAssets([file])
+                  const asset = added?.find(asset => asset.kind === 'audio')
+                  if (!asset)
+                    throw new Error(
+                      'Could not attach this audio file. Use MP3, WAV, M4A, AAC, OGG or FLAC.',
+                    )
+                  return { name: asset.name, file: asset.path, url: asset.url, duration: null }
+                }}
                 onClose={() => setMusicOpen(false)}
                 onApply={track => {
                   setMusicOpen(false)

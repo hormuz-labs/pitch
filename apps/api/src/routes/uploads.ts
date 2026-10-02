@@ -5,36 +5,39 @@ import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { type RequestHandler, Router } from 'express'
 import multer from 'multer'
+import {
+  MAX_UPLOAD_FILE_MB,
+  MAX_UPLOAD_FILES,
+  uploadLimitError,
+} from '../../../../packages/shared/src/upload-limits.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('studio:uploads')
 
-const MAX_FILES = 50
-// Videos for recording edits are the big ones; decks and images are small.
-const MAX_FILE_SIZE_MB = 500
-
-// Accept PDFs, decks, images and screen recordings. We match on mime type OR
+// Accept PDFs, decks, images, audio and screen recordings. We match on mime type OR
 // file extension: browsers / OSes sometimes report a file as
 // `application/octet-stream` (or omit the type), which would otherwise reject
 // a perfectly good file.
 const ALLOWED_EXT =
-  /\.(pdf|pptx?|png|jpe?g|webp|gif|avif|bmp|svg|heic|heif|tiff?|mp4|webm|mov|mkv|avi)$/i
+  /\.(pdf|pptx?|png|jpe?g|webp|gif|avif|bmp|svg|heic|heif|tiff?|mp4|webm|mov|mkv|avi|mp3|wav|m4a|aac|ogg|flac)$/i
 function isSupported(file: Express.Multer.File): boolean {
   const mt = (file.mimetype || '').toLowerCase()
   return (
     mt === 'application/pdf' ||
     mt.startsWith('image/') ||
     mt.startsWith('video/') ||
+    mt.startsWith('audio/') ||
     ALLOWED_EXT.test(file.originalname)
   )
 }
 
 const upload = multer({
-  // Disk, not memory: a 500 MB recording must not live in the heap.
+  // Disk, not memory: a 512 MB recording must not live in the heap.
   storage: multer.diskStorage({ destination: os.tmpdir() }),
   limits: {
-    files: MAX_FILES,
-    fileSize: MAX_FILE_SIZE_MB * 1024 * 1024,
+    files: MAX_UPLOAD_FILES,
+    // Multer rejects at the boundary; allow exactly 512 MB, then validate below.
+    fileSize: MAX_UPLOAD_FILE_MB * 1024 * 1024 + 1,
   },
   fileFilter: (_req, file, cb) => {
     // Skip unsupported files (cb(null, false)) rather than erroring — one odd
@@ -54,13 +57,14 @@ export const router = Router()
 // Wrap multer so its limit errors (too many / too large) surface as 400s with a
 // clear, logged reason instead of falling through to the default 500 handler.
 const parseFiles: RequestHandler = (req, res, next) => {
-  upload.array('files', MAX_FILES)(req, res, (err: any) => {
+  upload.array('files', MAX_UPLOAD_FILES)(req, res, (err: any) => {
     if (err) {
       const code = err?.code
       let message = err?.message || 'Invalid upload'
-      if (code === 'LIMIT_FILE_SIZE') message = `Each file must be under ${MAX_FILE_SIZE_MB} MB`
+      if (code === 'LIMIT_FILE_SIZE')
+        message = `Each file must be ${MAX_UPLOAD_FILE_MB} MB or smaller`
       else if (code === 'LIMIT_FILE_COUNT' || code === 'LIMIT_UNEXPECTED_FILE')
-        message = `Too many files (max ${MAX_FILES})`
+        message = `Too many files (max ${MAX_UPLOAD_FILES})`
       logger.warn({ code, err: err?.message }, 'Upload rejected by multer')
       return res.status(400).json({ error: message, code })
     }
@@ -70,16 +74,24 @@ const parseFiles: RequestHandler = (req, res, next) => {
 
 router.post('/', parseFiles, async (req, res) => {
   const userId = requireAuth(req, res)
-  if (!userId) return
+  if (!userId) {
+    if (Array.isArray(req.files))
+      await Promise.all(req.files.map(file => rm(file.path, { force: true }).catch(() => {})))
+    return
+  }
 
   const files = req.files
   if (!Array.isArray(files) || files.length === 0) {
-    return res
-      .status(400)
-      .json({ error: 'No supported files uploaded — allowed: images, PDFs, decks and videos.' })
+    return res.status(400).json({
+      error: 'No supported files uploaded — allowed: images, PDFs, decks, videos and audio.',
+    })
   }
 
   try {
+    const limitError = uploadLimitError(
+      files.map(file => ({ name: file.originalname, type: file.mimetype, size: file.size })),
+    )
+    if (limitError) return res.status(400).json({ error: limitError })
     const prefix = `pitch/${userId}/uploads`
     const results = await Promise.all(
       files.map(async file => {
@@ -102,5 +114,7 @@ router.post('/', parseFiles, async (req, res) => {
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to upload files')
     res.status(502).json({ error: 'Upload failed. Please try again.' })
+  } finally {
+    await Promise.all(files.map(file => rm(file.path, { force: true }).catch(() => {})))
   }
 })

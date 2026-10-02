@@ -5,7 +5,7 @@
  */
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readdir, rename, rm } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, realpath, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { MUSIC_DIR, type Workspace } from '../studio/paths.js'
@@ -51,7 +51,17 @@ export function musicUrl(file: string): string {
 /** Replace the workspace's canonical bed without exposing a partially copied file. */
 export async function stageMusic(ws: Workspace, music: string): Promise<string | null> {
   const file = path.basename(music)
-  const src = path.join(MUSIC_DIR, file)
+  if (!AUDIO_EXT.has(path.extname(file).toLowerCase())) return null
+  let src: string
+  if (music.startsWith('uploads/')) {
+    // Personal tracks are addressed by their workspace path, never a host path.
+    const root = await realpath(path.join(ws.dir, 'uploads')).catch(() => null)
+    const resolved = await realpath(path.resolve(ws.dir, music)).catch(() => null)
+    if (!root || !resolved?.startsWith(`${root}${path.sep}`)) return null
+    src = resolved
+  } else {
+    src = path.join(MUSIC_DIR, file)
+  }
   if (!existsSync(src)) return null
   const audioDir = path.join(ws.dir, 'audio')
   const destination = `music${path.extname(file).toLowerCase()}`

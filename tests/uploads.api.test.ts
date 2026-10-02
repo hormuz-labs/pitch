@@ -157,4 +157,78 @@ describe('POST /uploads', () => {
     expect(res.body.error).toBe('Upload failed. Please try again.')
     expect(res.body.error).not.toContain('minio')
   })
+
+  it('accepts soundtrack audio including downloads with a generic MIME type', async () => {
+    const res = await request(buildApp())
+      .post('/uploads')
+      .attach('files', Buffer.from('audio'), { filename: 'song.mp3', contentType: 'audio/mpeg' })
+      .attach('files', Buffer.from('audio'), {
+        filename: 'song.flac',
+        contentType: 'application/octet-stream',
+      })
+    expect(res.status).toBe(201)
+    expect(res.body.map((file: any) => file.name)).toEqual(['song.mp3', 'song.flac'])
+  })
+
+  it('accepts audio at the 50 MB limit', async () => {
+    const res = await request(buildApp())
+      .post('/uploads')
+      .attach('files', Buffer.alloc(50 * 1024 * 1024), {
+        filename: 'song.wav',
+        contentType: 'audio/wav',
+      })
+    expect(res.status).toBe(201)
+    expect(res.body[0].size).toBe(50 * 1024 * 1024)
+  })
+
+  it('rejects an oversized audio batch before putting any files in storage', async () => {
+    const res = await request(buildApp())
+      .post('/uploads')
+      .attach('files', PNG_1x1, { filename: 'logo.png', contentType: 'image/png' })
+      .attach('files', Buffer.alloc(50 * 1024 * 1024 + 1), {
+        filename: 'song.mp3',
+        contentType: 'application/octet-stream',
+      })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('50 MB')
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('accepts images at 20 MB and rejects generic-MIME images above it', async () => {
+    const accepted = await request(buildApp())
+      .post('/uploads')
+      .attach('files', Buffer.alloc(20 * 1024 * 1024), {
+        filename: 'photo.png',
+        contentType: 'image/png',
+      })
+    expect(accepted.status).toBe(201)
+    uploadFile.mockClear()
+
+    const rejected = await request(buildApp())
+      .post('/uploads')
+      .attach('files', Buffer.alloc(20 * 1024 * 1024 + 1), {
+        filename: 'photo.png',
+        contentType: 'application/octet-stream',
+      })
+    expect(rejected.status).toBe(400)
+    expect(rejected.body.error).toContain('20 MB')
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('accepts 20 files and rejects a batch of 21 before uploading to storage', async () => {
+    const accepted = request(buildApp()).post('/uploads')
+    for (let i = 0; i < 20; i++)
+      accepted.attach('files', PNG_1x1, { filename: `photo-${i}.png`, contentType: 'image/png' })
+    expect((await accepted).status).toBe(201)
+    expect(uploadFile).toHaveBeenCalledTimes(20)
+    uploadFile.mockClear()
+
+    const rejected = request(buildApp()).post('/uploads')
+    for (let i = 0; i < 21; i++)
+      rejected.attach('files', PNG_1x1, { filename: `photo-${i}.png`, contentType: 'image/png' })
+    const result = await rejected
+    expect(result.status).toBe(400)
+    expect(result.body.error).toContain('max 20')
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
 })

@@ -2,6 +2,12 @@ import { useNavigate } from '@solidjs/router'
 import { ArrowUp, ChevronDown, Plus, Square } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
+import {
+  ASSET_ACCEPT,
+  attachmentLimitError,
+  clipboardFiles,
+  UPLOAD_LIMITS_LABEL,
+} from '../../lib/attachments'
 import { firstUrlInText, isAuthenticatedFor } from '../../lib/authOrigins'
 import { ModelCatalog } from '../account/ModelCatalog'
 import { ComposerShell } from '../common/ComposerShell'
@@ -59,10 +65,15 @@ function suggestions(targets: Target[], where: string | null) {
     ]
   return []
 }
-export function Composer(props: { store: ProjectStore }) {
+export function Composer(props: {
+  store: ProjectStore
+  attachmentTarget?: () => HTMLElement | undefined
+}) {
   const s = props.store,
     [files, setFiles] = createSignal<File[]>([]),
     [uploading, setUploading] = createSignal(false),
+    [dragging, setDragging] = createSignal(false),
+    [attachmentError, setAttachmentError] = createSignal(''),
     [dismissed, setDismissed] = createSignal<string | null>(null),
     [models, setModels] = createSignal<
       {
@@ -79,11 +90,20 @@ export function Composer(props: { store: ProjectStore }) {
     [stopping, setStopping] = createSignal(false),
     [stopError, setStopError] = createSignal<string | null>(null)
   let modelEl: HTMLDivElement | undefined,
+    root: HTMLDivElement | undefined,
     modelMenuEl: HTMLDivElement | undefined,
     fileInput: HTMLInputElement | undefined,
     timer = 0
   const navigate = useNavigate(),
     profile = useBrowserProfile()
+  const attach = (picked: File[]) => {
+    if (uploading() || !picked.length) return
+    const error = attachmentLimitError(picked, files().length)
+    setAttachmentError(error ?? '')
+    if (error) return
+    setFiles(current => [...current, ...picked])
+    s.composerRef.current?.focus()
+  }
   createEffect(() => {
     clearTimeout(timer)
     const candidate = firstUrlInText(s.draft)
@@ -91,6 +111,48 @@ export function Composer(props: { store: ProjectStore }) {
   })
   onCleanup(() => clearTimeout(timer))
   onMount(() => {
+    const target = props.attachmentTarget?.() ?? root!
+    let dragDepth = 0
+    const enter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return
+      event.preventDefault()
+      dragDepth++
+      setDragging(true)
+    }
+    const over = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = uploading() ? 'none' : 'copy'
+    }
+    const leave = () => {
+      dragDepth = Math.max(0, dragDepth - 1)
+      if (!dragDepth) setDragging(false)
+    }
+    const drop = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files') && !event.dataTransfer?.files.length) return
+      event.preventDefault()
+      dragDepth = 0
+      setDragging(false)
+      attach(Array.from(event.dataTransfer.files))
+    }
+    const paste = (event: ClipboardEvent) => {
+      const picked = clipboardFiles(event.clipboardData)
+      if (!picked.length) return
+      event.preventDefault()
+      attach(picked)
+    }
+    target.addEventListener('dragenter', enter)
+    target.addEventListener('dragover', over)
+    target.addEventListener('dragleave', leave)
+    target.addEventListener('drop', drop)
+    target.addEventListener('paste', paste)
+    onCleanup(() => {
+      target.removeEventListener('dragenter', enter)
+      target.removeEventListener('dragover', over)
+      target.removeEventListener('dragleave', leave)
+      target.removeEventListener('drop', drop)
+      target.removeEventListener('paste', paste)
+    })
     const saved = s.id && sessionStorage.getItem(`pitch:project-auth-draft:${s.id}`)
     if (saved) {
       s.setDraft(saved)
@@ -174,8 +236,13 @@ export function Composer(props: { store: ProjectStore }) {
               ? 'Ask for a change…'
               : 'Describe what you want…'
   return (
-    <div class="job-composer">
+    <div class="job-composer" ref={root} classList={{ 'is-dropping': dragging() }}>
       <PendingMessages entries={s.entries} busy={s.busy} onSteer={s.steerQueued} />
+      <Show when={dragging()}>
+        <div class="composer-drop-hint" role="status">
+          Drop files to attach to your message
+        </div>
+      </Show>
       <ComposerShell
         class="job-composer-box"
         footerClass="job-composer-footer"
@@ -188,6 +255,7 @@ export function Composer(props: { store: ProjectStore }) {
               disabled={uploading()}
               onClick={() => fileInput?.click()}
               aria-label="Attach files"
+              title={UPLOAD_LIMITS_LABEL}
             >
               {uploading() ? <span class="spinner" /> : <Plus size={18} />}
             </button>
@@ -195,8 +263,12 @@ export function Composer(props: { store: ProjectStore }) {
               ref={fileInput}
               type="file"
               multiple
+              accept={ASSET_ACCEPT}
               hidden
-              onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
+              onChange={e => {
+                attach(Array.from(e.currentTarget.files ?? []))
+                e.currentTarget.value = ''
+              }}
             />
             <CreditMarker store={s} />
           </>
@@ -347,7 +419,12 @@ export function Composer(props: { store: ProjectStore }) {
                   <span class="element-chip-text">{f.name}</span>
                   <button
                     class="scene-chip-clear"
-                    onClick={() => setFiles(v => v.filter((_, j) => j !== i()))}
+                    aria-label={`Remove ${f.name}`}
+                    disabled={uploading()}
+                    onClick={() => {
+                      setFiles(v => v.filter((_, j) => j !== i()))
+                      setAttachmentError('')
+                    }}
                   >
                     ×
                   </button>
@@ -392,6 +469,11 @@ export function Composer(props: { store: ProjectStore }) {
         <Show when={stopError()}>
           <div class="composer-stop-error" role="alert">
             {stopError()}
+          </div>
+        </Show>
+        <Show when={attachmentError()}>
+          <div class="composer-stop-error" role="alert">
+            {attachmentError()}
           </div>
         </Show>
         <textarea

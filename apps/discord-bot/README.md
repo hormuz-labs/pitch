@@ -100,10 +100,14 @@ never creates a Clerk/Pitch user automatically.
 
 ## Community welcome reward
 
-Joining the Pitch server earns **120 regular Pitch credits, once**. Existing
-members can claim too. Connect Discord in Pitch, join the server and accept
-its rules, then select **Claim welcome credits** in Settings → Discord (also
-available under Rewards).
+Connecting Discord and joining the Pitch server earns **1,500 regular Pitch
+credits, once**. Existing members are eligible too. Connect Discord in Pitch
+under **Settings → Connections**. With the `guilds.join` OAuth scope, Pitch
+attempts to join the server on your behalf; otherwise, use the server invite.
+Accept any server rules, then return to Pitch: credits are awarded automatically.
+The Connections screen checks every five seconds while visible, for up to
+15 minutes, and checks again on focus during that window. The New Project page
+also checks when opened or refocused.
 
 The API reads the linked identity directly from Clerk, verifies membership in
 `DISCORD_GUILD_ID` using Discord's Get Guild Member endpoint, and atomically
@@ -119,7 +123,7 @@ in its old ledger channel and is not converted into regular credits.
 
 `/video` spends the member's **regular Pitch credits**, just like creating on
 the website. Video costs vary with the work; the welcome grant is a credit
-amount, not a guarantee that every requested video costs exactly 120 credits.
+amount, not a guarantee of a particular number of finished videos.
 
 Configure the bot's model with:
 
@@ -153,9 +157,12 @@ ORDER BY "claimedAt" DESC;
    agree. The old `DISCORD_DAILY_VIDEO_LIMIT` and `DISCORD_FREE_VIDEO_CREDITS`
    environment variables are no longer used.
 
-API endpoints (Pitch sign-in required): `GET /credits/discord` for claim state
-and `POST /credits/discord/claim` to verify membership and grant. The client
-does not supply the Discord ID, server ID, or credit amount.
+API endpoints (Pitch sign-in required): `GET /credits/discord` verifies
+membership, grants an eligible reward, and returns claim state;
+`POST /credits/discord/claim` also supports an explicit claim. The client does
+not supply the Discord ID, server ID, or credit amount. The campaign remains
+`discord-welcome-v1`: the increased amount applies to new claims, without
+re-awarding or topping up existing claims.
 
 ## Discord Developer Portal setup
 

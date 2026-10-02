@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -47,5 +47,43 @@ describe('stageMusic', () => {
     }
 
     await expect(stageMusic(ws, '../missing.mp3')).resolves.toBeNull()
+  })
+
+  it('stages an uploaded soundtrack and replaces the old canonical bed', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'stage-music-'))
+    dirs.push(dir)
+    await mkdir(path.join(dir, 'uploads'))
+    await mkdir(path.join(dir, 'audio'))
+    await writeFile(path.join(dir, 'uploads', 'my-song.wav'), 'personal audio')
+    await writeFile(path.join(dir, 'audio', 'music.mp3'), 'old bed')
+    const ws = {
+      flow: 'studio',
+      userId: 'user',
+      name: 'project',
+      internal: 'project',
+      dir,
+    } as Workspace
+
+    await expect(stageMusic(ws, 'uploads/my-song.wav')).resolves.toBe('music.wav')
+    expect(await readFile(path.join(dir, 'audio', 'music.wav'), 'utf8')).toBe('personal audio')
+    await expect(readFile(path.join(dir, 'audio', 'music.mp3'))).rejects.toThrow()
+    expect(await readFile(path.join(dir, 'uploads', 'my-song.wav'), 'utf8')).toBe('personal audio')
+  })
+
+  it('rejects traversal and symlinks out of project uploads', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'stage-music-'))
+    dirs.push(dir)
+    await mkdir(path.join(dir, 'uploads'))
+    await writeFile(path.join(dir, 'private.mp3'), 'outside uploads')
+    await symlink(path.join(dir, 'private.mp3'), path.join(dir, 'uploads', 'link.mp3'))
+    const ws = {
+      flow: 'studio',
+      userId: 'user',
+      name: 'project',
+      internal: 'project',
+      dir,
+    } as Workspace
+    await expect(stageMusic(ws, 'uploads/../private.mp3')).resolves.toBeNull()
+    await expect(stageMusic(ws, 'uploads/link.mp3')).resolves.toBeNull()
   })
 })

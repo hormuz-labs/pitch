@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@solidjs/testing-library'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   createProject: vi.fn(),
@@ -45,12 +45,18 @@ vi.mock('../src/solid/studio/useBrowserProfile', () => ({
 import { NewProjectView } from '../src/solid/account/NewProjectView'
 
 beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify({ balance: 100 }))),
+  )
   mocks.params = {}
   mocks.createProject.mockReset().mockResolvedValue({ id: 'asset-project' })
   mocks.navigate.mockReset()
   mocks.openStudioProject.mockClear()
   mocks.uploadFiles.mockReset().mockResolvedValue([])
 })
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('/new asset demo outcome', () => {
   it('preselects the asset demo from a shareable /new URL', () => {
@@ -116,5 +122,51 @@ describe('/new asset demo outcome', () => {
         options: expect.objectContaining({ skill: 'asset-demo' }),
       }),
     )
+  })
+
+  it('attaches a pasted image to the new chat without starting generation', async () => {
+    const upload = { url: '/image.png', name: 'image.png', type: 'image/png', size: 5 }
+    mocks.uploadFiles.mockResolvedValue([upload])
+    render(() => <NewProjectView />)
+    const image = new File(['image'], 'image.png', { type: 'image/png' })
+    fireEvent.paste(screen.getByRole('textbox', { name: 'Describe your project' }), {
+      clipboardData: { items: [{ kind: 'file', getAsFile: () => image }], files: [image] },
+    })
+    await waitFor(() => expect(mocks.uploadFiles).toHaveBeenCalledOnce())
+    expect(screen.getByRole('img', { name: 'image.png' })).toBeTruthy()
+    expect(mocks.createProject).not.toHaveBeenCalled()
+  })
+
+  it('rejects audio over 50 MB before uploading it in a new chat', () => {
+    const { container } = render(() => <NewProjectView />)
+    const file = new File(['audio'], 'large.mp3', { type: 'audio/mpeg' })
+    Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 + 1 })
+    fireEvent.drop(container.querySelector('.new-project-page')!, {
+      dataTransfer: { types: ['Files'], files: [file] },
+    })
+    expect(screen.getByText('large.mp3 is over 50 MB')).toBeTruthy()
+    expect(mocks.uploadFiles).not.toHaveBeenCalled()
+  })
+
+  it('counts previously uploaded attachments when checking the 20-file limit', async () => {
+    mocks.uploadFiles.mockResolvedValue(
+      Array.from({ length: 20 }, (_, i) => ({
+        url: `/photo-${i}.png`,
+        name: `photo-${i}.png`,
+        type: 'image/png',
+        size: 5,
+      })),
+    )
+    const { container } = render(() => <NewProjectView />)
+    const image = new File(['image'], 'image.png', { type: 'image/png' })
+    fireEvent.paste(screen.getByRole('textbox', { name: 'Describe your project' }), {
+      clipboardData: { items: [{ kind: 'file', getAsFile: () => image }], files: [image] },
+    })
+    await screen.findByRole('img', { name: 'photo-19.png' })
+    fireEvent.drop(container.querySelector('.new-project-page')!, {
+      dataTransfer: { types: ['Files'], files: [image] },
+    })
+    expect(screen.getByText(/You can attach up to 20 files/)).toBeTruthy()
+    expect(mocks.uploadFiles).toHaveBeenCalledOnce()
   })
 })

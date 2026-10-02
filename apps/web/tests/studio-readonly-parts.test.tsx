@@ -81,4 +81,22 @@ describe('AssetShelf', () => {
     })
     expect(store.addAssets).toHaveBeenCalledTimes(times)
   })
+
+  it('rejects oversized images and batches above 20 files before adding to the shelf', () => {
+    const store = shelfStore(false)
+    const { container } = render(() => <AssetShelf store={store} />)
+    const shelf = container.querySelector('.asset-shelf')!
+    const file = new File(['image'], 'large.png', { type: 'application/octet-stream' })
+    Object.defineProperty(file, 'size', { value: 20 * 1024 * 1024 + 1 })
+    fireEvent.drop(shelf, { dataTransfer: { types: ['Files'], files: [file] } })
+    expect(screen.getByText('large.png is over 20 MB')).toBeTruthy()
+
+    const files = Array.from(
+      { length: 21 },
+      (_, i) => new File(['image'], `photo-${i}.png`, { type: 'image/png' }),
+    )
+    fireEvent.drop(shelf, { dataTransfer: { types: ['Files'], files } })
+    expect(screen.getByText(/You can attach up to 20 files/)).toBeTruthy()
+    expect(store.addAssets).not.toHaveBeenCalled()
+  })
 })
