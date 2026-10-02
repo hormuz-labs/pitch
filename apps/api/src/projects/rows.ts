@@ -165,18 +165,26 @@ export async function addOutput(userId: string, id: string, output: Output): Pro
   publishProjectEvent(id, { type: 'project', project: updated })
   void dispatchProjectWebhooks(updated)
 
+  // One email for the project's first output of a kind; re-exports, other sizes
+  // and deck saves are Discord only. The row is the record, so this holds
+  // across pods and restarts, which the in-memory dedupe does not.
+  const firstOfKind = !p.outputs.some(o => o.kind === output.kind)
   if (output.kind === 'video') {
     void notifyVideoRenderReady(updated, output.url, {
       resolution: output.res,
       label: output.label,
+      email: firstOfKind,
     }).catch(err => logger.warn({ err, projectId: id }, 'video ready notification failed'))
-    void notifyProjectCompleted(updated, { resultUrl: output.url, output }).catch(err =>
-      logger.warn({ err, projectId: id }, 'project completed notification failed'),
+    // The video-ready email already told the user; this is the admins' result link.
+    void notifyProjectCompleted(updated, { resultUrl: output.url, output, email: false }).catch(
+      err => logger.warn({ err, projectId: id }, 'project completed notification failed'),
     )
   } else if (output.kind === 'pdf' || output.kind === 'html') {
-    void notifyProjectCompleted(updated, { resultUrl: output.url, output }).catch(err =>
-      logger.warn({ err, projectId: id }, 'project completed notification failed'),
-    )
+    void notifyProjectCompleted(updated, {
+      resultUrl: output.url,
+      output,
+      email: firstOfKind,
+    }).catch(err => logger.warn({ err, projectId: id }, 'project completed notification failed'))
   }
 
   return updated

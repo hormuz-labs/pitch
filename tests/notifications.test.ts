@@ -103,7 +103,7 @@ describe('Project Notifications', () => {
   })
 
   describe('notifyProjectStarted', () => {
-    it('sends Discord alert to admins and email to user on project start', async () => {
+    it('sends a Discord alert to admins and no email on project start', async () => {
       const p = makeProjectRow()
       await notifyProjectStarted(p, { prompt: 'Make a killer demo' })
 
@@ -121,32 +121,7 @@ describe('Project Notifications', () => {
         ]),
       )
 
-      // User email notification
-      expect(mocks.sendJobStartEmail).toHaveBeenCalledTimes(1)
-      expect(mocks.sendJobStartEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: 'user@example.com',
-          firstName: 'Alex',
-          jobId: 'proj_test_1',
-          title: 'Test Launch Film',
-          prompt: 'Make a killer demo',
-          projectUrl: expect.stringContaining('/projects/proj_test_1'),
-        }),
-      )
-    })
-
-    it('does not send user email when emailNotifications is false, but still sends Discord alert', async () => {
-      mocks.userProfileFindUnique.mockResolvedValue({
-        id: 'user_123',
-        email: 'user@example.com',
-        firstName: 'Alex',
-        emailNotifications: false,
-      })
-
-      const p = makeProjectRow()
-      await notifyProjectStarted(p)
-
-      expect(mocks.sendDiscordMessage).toHaveBeenCalledTimes(1)
+      // The user just pressed the button: no email (Resend quota)
       expect(mocks.sendJobStartEmail).not.toHaveBeenCalled()
     })
 
@@ -156,7 +131,7 @@ describe('Project Notifications', () => {
       await notifyProjectStarted(p)
 
       expect(mocks.sendDiscordMessage).toHaveBeenCalledTimes(1)
-      expect(mocks.sendJobStartEmail).toHaveBeenCalledTimes(1)
+      expect(mocks.sendJobStartEmail).not.toHaveBeenCalled()
     })
   })
 
@@ -202,6 +177,13 @@ describe('Project Notifications', () => {
       )
     })
 
+    it('alerts Discord but sends no email when email is false', async () => {
+      await notifyProjectCompleted(makeProjectRow(), { email: false })
+
+      expect(mocks.sendDiscordMessage).toHaveBeenCalledTimes(1)
+      expect(mocks.sendJobCompleteEmail).not.toHaveBeenCalled()
+    })
+
     it('deduplicates completed notifications for the same project', async () => {
       const p = makeProjectRow()
       await notifyProjectCompleted(p)
@@ -238,6 +220,16 @@ describe('Project Notifications', () => {
           resolution: '1080p',
         }),
       )
+    })
+
+    it('alerts Discord but sends no email for a re-export', async () => {
+      await notifyVideoRenderReady(makeProjectRow(), 'https://x/4k.mp4', {
+        resolution: '4k',
+        email: false,
+      })
+
+      expect(mocks.sendDiscordMessage).toHaveBeenCalledTimes(1)
+      expect(mocks.sendVideoRenderReadyEmail).not.toHaveBeenCalled()
     })
   })
 })

@@ -1,21 +1,18 @@
 /**
  * Unified notification service for Pitch projects.
  *
- * Sends:
- * - Project start email to the user & alert to admin Discord
- * - Project completion email to the user & alert with final result link to admin Discord
- * - Video render ready email to the user & alert to admin Discord
+ * Admins hear about everything on Discord (free). Users get at most two emails
+ * per project, because Resend's quota is small and the user is usually
+ * watching the studio anyway:
+ * - when the first turn produces something (they may have walked away)
+ * - when the project's first video is ready
+ * A project start, a re-export and an export's "completed" echo are Discord only.
  *
  * Honors UserProfile.emailNotifications preferences and deduplicates notifications.
  */
 
 import * as db from '@saas/db'
-import {
-  getClerkUserEmail,
-  sendJobCompleteEmail,
-  sendJobStartEmail,
-  sendVideoRenderReadyEmail,
-} from '@saas/email'
+import { getClerkUserEmail, sendJobCompleteEmail, sendVideoRenderReadyEmail } from '@saas/email'
 import { createLogger, DISCORD_COLORS, sendDiscordMessage } from '@saas/shared'
 import type { Output } from '../flows/types.js'
 import type { ProjectRow } from './rows.js'
@@ -59,7 +56,8 @@ export async function resolveUserInfo(userId: string): Promise<NotificationUserI
 }
 
 /**
- * Notifies the user and admins that a project / generation job has started.
+ * Tells admins that a project has started. The user just pressed the button,
+ * so they get no email.
  */
 export async function notifyProjectStarted(
   p: ProjectRow,
@@ -92,26 +90,15 @@ export async function notifyProjectStarted(
       },
     ],
   }).catch(err => logger.warn({ err, projectId: p.id }, 'discord start alert failed'))
-
-  // 2. User transactional email
-  if (userInfo.email && userInfo.emailNotifications) {
-    sendJobStartEmail({
-      to: userInfo.email,
-      firstName: userInfo.firstName,
-      jobId: p.id,
-      title: p.title,
-      prompt: opts?.prompt ?? p.prompt,
-      projectUrl: studioUrl,
-    }).catch(err => logger.warn({ err, projectId: p.id }, 'user start email failed'))
-  }
 }
 
 /**
- * Notifies the user and admins that a project has completed, with its final result link.
+ * Notifies admins that a project has completed, with its final result link, and
+ * emails the user unless `email: false`.
  */
 export async function notifyProjectCompleted(
   p: ProjectRow,
-  opts?: { resultUrl?: string; output?: Output },
+  opts?: { resultUrl?: string; output?: Output; email?: boolean },
 ): Promise<void> {
   if (notifiedCompleted.has(p.id)) return
   notifiedCompleted.add(p.id)
@@ -155,7 +142,7 @@ export async function notifyProjectCompleted(
   }).catch(err => logger.warn({ err, projectId: p.id }, 'discord completion alert failed'))
 
   // 2. User transactional email
-  if (userInfo.email && userInfo.emailNotifications) {
+  if (opts?.email !== false && userInfo.email && userInfo.emailNotifications) {
     sendJobCompleteEmail({
       to: userInfo.email,
       firstName: userInfo.firstName,
@@ -168,12 +155,13 @@ export async function notifyProjectCompleted(
 }
 
 /**
- * Notifies the user and admins when an MP4 video has rendered and is ready to export.
+ * Notifies admins when an MP4 video has rendered, and emails the user unless
+ * `email: false`.
  */
 export async function notifyVideoRenderReady(
   p: ProjectRow,
   videoUrl: string,
-  opts?: { resolution?: string; label?: string },
+  opts?: { resolution?: string; label?: string; email?: boolean },
 ): Promise<void> {
   const renderKey = `${p.id}:${opts?.resolution || videoUrl}`
   if (notifiedVideoReady.has(renderKey)) return
@@ -211,7 +199,7 @@ export async function notifyVideoRenderReady(
   }).catch(err => logger.warn({ err, projectId: p.id }, 'discord video ready alert failed'))
 
   // 2. User transactional email
-  if (userInfo.email && userInfo.emailNotifications) {
+  if (opts?.email !== false && userInfo.email && userInfo.emailNotifications) {
     sendVideoRenderReadyEmail({
       to: userInfo.email,
       firstName: userInfo.firstName,
