@@ -83,7 +83,11 @@ async function send(input: string, init: RequestInit): Promise<Response> {
     throw err
   }
 
-  if (UNREACHABLE_STATUSES.has(res.status)) {
+  // Our own server answers in JSON, even with a gateway status (an upload whose
+  // storage write failed is a 502 with a message); only something in front of
+  // it answers otherwise.
+  const fromApi = res.headers.get('content-type')?.includes('application/json')
+  if (UNREACHABLE_STATUSES.has(res.status) && !fromApi) {
     const err: ApiError = new Error(`Pitch API unreachable (HTTP ${res.status})`)
     err.status = res.status
     err.unreachable = true
