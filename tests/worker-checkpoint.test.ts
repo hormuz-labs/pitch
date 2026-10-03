@@ -20,6 +20,8 @@ const objects = new Map<string, Buffer>()
 let stallUpload = false
 let uploadAborted = false
 let truncateUpload = false
+/** The archive (`workspace.tar`, `history.tar`) refused the way an expired login is. */
+let refuseUpload: string | null = null
 vi.mock('@saas/storage', () => ({
   privateBucket: () => ({
     async put(
@@ -33,6 +35,10 @@ vi.mock('@saas/storage', () => ({
         objects.set(key, body)
         return
       }
+      if (refuseUpload && key.endsWith(`/${refuseUpload}`))
+        throw Object.assign(new Error('invalid_grant'), {
+          response: { data: { error: 'invalid_grant', error_description: 'reauth related error' } },
+        })
       const chunks: Buffer[] = []
       for await (const c of body) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
       const whole = Buffer.concat(chunks)
@@ -88,9 +94,18 @@ beforeEach(async () => {
   stallUpload = false
   uploadAborted = false
   truncateUpload = false
+  refuseUpload = null
   await rm(ws.dir, { recursive: true, force: true })
   await rm(historyDir(ws.dir), { recursive: true, force: true })
 })
+
+const historyRoot = () => path.dirname(historyDir(ws.dir))
+async function uploadArchives(): Promise<string[]> {
+  const { readdir } = await import('node:fs/promises')
+  const names = async (dir: string) =>
+    (await readdir(dir).catch(() => [] as string[])).filter(f => f.includes('.upload-'))
+  return [...(await names(projectsDir)), ...(await names(historyRoot()))].sort()
+}
 
 async function seed() {
   await mkdir(path.join(ws.dir, 'renders'), { recursive: true })
@@ -140,6 +155,79 @@ describe('workspace checkpoints', () => {
     expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
     const { readdir } = await import('node:fs/promises')
     expect((await readdir(projectsDir)).filter(f => f.includes('.upload-'))).toEqual([])
+  })
+
+  it('removes its archive when the bucket refuses the login', async () => {
+    for (const file of ['workspace.tar', 'history.tar']) {
+      await seed()
+      refuseUpload = file
+      const failed = await checkpoint
+        .uploadCheckpoint({ projectId, ws, version: 1, sessionFile: null, artifactKind: null })
+        .catch(err => err)
+      expect(failed).toBeInstanceOf(Error)
+      expect(failed.message).toBe('invalid_grant')
+      expect(checkpoint.storageCredentialsRejected(failed)).toBe(true)
+      expect(objects.has('workspaces/proj_1/1/manifest.json')).toBe(false)
+      expect(await uploadArchives()).toEqual([])
+      await rm(ws.dir, { recursive: true, force: true })
+      await rm(historyDir(ws.dir), { recursive: true, force: true })
+    }
+  })
+
+  it('sweeps the archives a dead process left behind, never one still in flight', async () => {
+    await seed()
+    const leftovers = [
+      path.join(projectsDir, `.${ws.internal}.workspace.tar.upload-mus99i9470bz`),
+      path.join(historyRoot(), `.${ws.internal}.history.tar.upload-musox51r8ke4`),
+    ]
+    for (const file of leftovers) await writeFile(file, Buffer.alloc(2048))
+    // A turn rollback stages beside the workspace too; that is not ours to sweep.
+    const bystanders = ['restore', 'backup'].map(kind =>
+      path.join(projectsDir, `.${ws.internal}.${kind}-0b7c2f7e-4c1d-4f6a-9d2e-8a1b3c4d5e6f`),
+    )
+    for (const dir of bystanders) await mkdir(dir, { recursive: true })
+
+    stallUpload = true
+    const controller = new AbortController()
+    const progress = vi.fn()
+    const pending = checkpoint
+      .uploadCheckpoint({
+        projectId,
+        ws,
+        version: 1,
+        sessionFile: null,
+        artifactKind: null,
+        signal: controller.signal,
+        progress,
+      })
+      .catch(err => err)
+    await vi.waitFor(() =>
+      expect(progress).toHaveBeenCalledWith('checkpoint: uploading workspace.tar', 0),
+    )
+    const inFlight = (await uploadArchives()).filter(
+      f => !leftovers.some(l => path.basename(l) === f),
+    )
+    expect(inFlight).toHaveLength(1)
+
+    expect(await checkpoint.sweepUploadArchives()).toBe(2)
+    expect(await uploadArchives()).toEqual(inFlight)
+    for (const file of bystanders) await expect(stat(file)).resolves.toBeTruthy()
+
+    controller.abort(new Error('stop'))
+    expect(await pending).toBeInstanceOf(Error)
+    expect(await uploadArchives()).toEqual([])
+    for (const dir of bystanders) await rm(dir, { recursive: true, force: true })
+  })
+
+  it('tells a refused login from any other storage failure', () => {
+    const rejected = checkpoint.storageCredentialsRejected
+    expect(rejected(new Error('invalid_grant'))).toBe(true)
+    expect(rejected(Object.assign(new Error('expired'), { name: 'ExpiredToken' }))).toBe(true)
+    expect(rejected(Object.assign(new Error('nope'), { status: 401 }))).toBe(true)
+    expect(rejected(new Error('upload failed', { cause: new Error('invalid_rapt') }))).toBe(true)
+    expect(rejected(new Error('Workspace checkpoint timed out after 300000ms'))).toBe(false)
+    expect(rejected(new Error('checkpoint workspace.tar upload is incomplete'))).toBe(false)
+    expect(rejected(null)).toBe(false)
   })
 
   it('does not upload or publish a cancelled checkpoint', async () => {

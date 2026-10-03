@@ -59,9 +59,50 @@ export function bucket(): PrivateObjectStore {
   return store
 }
 
+/**
+ * The bucket refused who we are (an expired or revoked login, a bad key),
+ * not what we sent: no retry helps until the credentials are refreshed.
+ */
+const CREDENTIALS_REJECTED =
+  /invalid_grant|invalid_rapt|invalid_client|unauthorized_client|reauth|could not load the default credentials|ExpiredToken|InvalidAccessKeyId|SignatureDoesNotMatch|InvalidToken/i
+export function storageCredentialsRejected(err: unknown): boolean {
+  for (let e = err as any, depth = 0; e && depth < 3; e = e.cause, depth++) {
+    if (e.status === 401 || e.code === 401 || e.$metadata?.httpStatusCode === 401) return true
+    const said = [e.message, e.code, e.name, e.response?.data?.error].filter(Boolean).join(' ')
+    if (CREDENTIALS_REJECTED.test(said)) return true
+  }
+  return false
+}
+
 const keyOf = (projectId: string, version: number, file: string) =>
   `workspaces/${projectId}/${version}/${file}`
 const coverKey = (projectId: string) => `workspaces/${projectId}/cover.jpg`
+
+/** `.<name>.<file>.upload-<tag>`: what `put` below packs a workspace into. */
+const UPLOAD_ARCHIVE = /^\..+\.tar\.upload-[0-9a-z]+$/
+/** Upload archives this process is writing or sending right now. */
+const uploading = new Set<string>()
+
+/**
+ * Remove upload archives a checkpoint left behind. A checkpoint removes its
+ * own whether the upload worked or not, but not when the process dies under
+ * it — a restart, a crash, the drain deadline — and each one is a whole copy
+ * of a workspace. Archives this process still has in flight are left alone.
+ */
+export async function sweepUploadArchives(): Promise<number> {
+  let removed = 0
+  const historyRoot = path.dirname(historyDir(path.join(PROJECTS_DIR, 'any')))
+  for (const dir of [PROJECTS_DIR, historyRoot]) {
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      const file = path.join(dir, name)
+      if (!UPLOAD_ARCHIVE.test(name) || uploading.has(file)) continue
+      await rm(file, { force: true })
+      logger.info({ file }, 'removed a leftover checkpoint archive')
+      removed++
+    }
+  }
+  return removed
+}
 
 export async function readMarker(dir: string): Promise<Marker | null> {
   try {
@@ -210,6 +251,7 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
       // Beside `name`, never inside it, so it is not archived with it.
       const archive = path.join(parent, `.${name}.${file}.upload-${tag}`)
       const key = keyOf(projectId, version, file)
+      uploading.add(archive)
       try {
         const size = await tarToFile(parent, name, archive, signal)
         input.progress?.(`checkpoint: uploading ${file}`, 0)
@@ -230,7 +272,8 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
           )
         logger.info({ projectId, version, file, bytes: size }, 'checkpoint archive finished')
       } catch (error) {
-        logger.warn(
+        // The caller reports the failure; this only says which archive it was.
+        logger.debug(
           { err: error, projectId, version, file, ms: Date.now() - started },
           'checkpoint archive failed',
         )
@@ -238,6 +281,7 @@ export async function uploadCheckpoint(input: CheckpointInput): Promise<Manifest
         throw error
       } finally {
         await rm(archive, { force: true })
+        uploading.delete(archive)
       }
     }
     await put('workspace.tar', PROJECTS_DIR, ws.internal)

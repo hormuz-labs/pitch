@@ -101,10 +101,13 @@ import {
   stopSession,
   studioModelPrice,
 } from '../studio/session.js'
+import { Backoff } from './backoff.js'
 import {
   pruneCheckpoints,
   readMarker,
   restoreCheckpoint,
+  storageCredentialsRejected,
+  sweepUploadArchives,
   uploadCheckpoint,
   writeMarker,
 } from './checkpoint.js'
@@ -188,6 +191,8 @@ interface Held {
   /** Open event streams; a project with an audience is never released as idle. */
   subscribers: number
   checkpointing: Promise<void> | null
+  /** Paces the loops while checkpoints keep failing; any success resets it. */
+  retry: Backoff
   off: () => void
 }
 
@@ -324,6 +329,7 @@ async function open(row: ProjectRow, epoch: number): Promise<{ h: Held; row: Pro
     lastActivity: Date.now(),
     subscribers: 0,
     checkpointing: null,
+    retry: new Backoff(),
     off: () => {},
   }
   h.off = onProjectEvent(row.id, ev => onEvent(h, ev))
@@ -1029,10 +1035,35 @@ async function checkpointNow(h: Held, ctx: HostContext = {}): Promise<void> {
         activeRenders.map(job => job.workspaceVersion),
       )
     })().catch(err => logger.warn({ err, projectId: h.id }, 'could not prune old checkpoints'))
-  })().finally(() => {
-    h.checkpointing = null
-  })
+  })()
+    .then(
+      () => {
+        const failures = h.retry.succeed()
+        if (failures) logger.info({ projectId: h.id, failures }, 'workspace checkpoint recovered')
+      },
+      err => {
+        // A caller giving up is not the bucket failing.
+        if (!ctx.signal?.aborted) noteCheckpointFailure(h, err)
+        throw err
+      },
+    )
+    .finally(() => {
+      h.checkpointing = null
+    })
   return h.checkpointing
+}
+
+/**
+ * Count a failed checkpoint against the project's backoff and say so: at
+ * error the first time, at debug while the same failure repeats.
+ */
+function noteCheckpointFailure(h: Held, err: unknown): void {
+  const { repeat, delayMs } = h.retry.fail(err)
+  const fields = { err, projectId: h.id, failures: h.retry.failures, retryInMs: delayMs }
+  if (repeat) logger.debug(fields, 'workspace checkpoint failed again')
+  else if (storageCredentialsRejected(err))
+    logger.error(fields, 'workspace checkpoint failed: storage credentials rejected — refresh them')
+  else logger.error(fields, 'workspace checkpoint failed')
 }
 
 /**
@@ -1206,12 +1237,11 @@ let loops: NodeJS.Timeout[] = []
 async function checkpointTick(): Promise<void> {
   const now = Date.now()
   for (const h of held.values()) {
-    if (!h.dirtyAt || h.checkpointing) continue
+    if (!h.dirtyAt || h.checkpointing || h.retry.waiting(now)) continue
     if (now - h.lastActivity < CHECKPOINT_SETTLE_MS) continue
     if (isBusy(h.id) || exportRunning(h.id)) continue
-    await checkpointNow(h).catch(err =>
-      logger.warn({ err, projectId: h.id }, 'workspace checkpoint failed'),
-    )
+    // checkpointNow has logged the failure and set when to try again.
+    await checkpointNow(h).catch(() => {})
   }
 }
 
@@ -1219,14 +1249,20 @@ async function idleTick(): Promise<void> {
   const now = Date.now()
   for (const h of [...held.values()]) {
     if (h.subscribers > 0 || h.checkpointing) continue
+    // Releasing checkpoints first; that is what is failing.
+    if (h.dirtyAt && h.retry.waiting(now)) continue
     if (now - h.lastActivity < IDLE_RELEASE_MS) continue
     if (isBusy(h.id) || exportRunning(h.id)) continue
     await release(h.id).catch(err => logger.warn({ err, projectId: h.id }, 'idle release failed'))
   }
 }
 
-/** Finish cleanup for projects deleted while this worker was unreachable. */
+/**
+ * Finish cleanup for projects deleted while this worker was unreachable, and
+ * for checkpoints a previous process died in the middle of.
+ */
 async function orphanTick(): Promise<void> {
+  await sweepUploadArchives()
   const entries = await readdir(PROJECTS_DIR, { withFileTypes: true }).catch(() => [])
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith('.')) continue
