@@ -8,7 +8,8 @@
  * into a scene strip, which is what makes a video editable by selection:
  * pick the moment, say what should change.
  */
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import { readFile, rename, stat, writeFile } from 'node:fs/promises'
 
 export interface Beat {
@@ -27,6 +28,8 @@ export interface Timeline {
   /** Optional identity of the exact rendered movie this sidecar describes. */
   sourceBytes?: number
   sourceMtimeMs?: number
+  /** Content digest of that movie: mtimes do not survive a trip through tar. */
+  sourceSha256?: string
 }
 
 /** A scene as the studio's Description.scenes wants it (flows/types.ts). */
@@ -48,15 +51,21 @@ export function timelineFileFor(videoPath: string): string {
 }
 
 export async function writeTimeline(videoPath: string, timeline: Timeline): Promise<void> {
-  const source = await stat(videoPath)
+  const [source, sourceSha256] = await Promise.all([stat(videoPath), sha256File(videoPath)])
   const file = timelineFileFor(videoPath)
   const temp = `${file}.${randomUUID()}.tmp`
   await writeFile(
     temp,
-    `${JSON.stringify({ ...timeline, sourceBytes: source.size, sourceMtimeMs: source.mtimeMs }, null, 2)}\n`,
+    `${JSON.stringify({ ...timeline, sourceBytes: source.size, sourceMtimeMs: source.mtimeMs, sourceSha256 }, null, 2)}\n`,
     'utf8',
   )
   await rename(temp, file)
+}
+
+export async function sha256File(file: string): Promise<string> {
+  const hash = createHash('sha256')
+  for await (const chunk of createReadStream(file)) hash.update(chunk)
+  return hash.digest('hex')
 }
 
 export async function readTimeline(videoPath: string): Promise<Timeline | null> {

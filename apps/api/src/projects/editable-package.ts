@@ -63,7 +63,6 @@ export async function buildEditablePackage({
     return result.stdout
   }
   let snapshotBytes = 0
-  let snapshotMtimeMs = 0
   let snapshotSha256: Buffer | undefined
   try {
     const workspace = await realpath(workspaceDir)
@@ -90,7 +89,6 @@ export async function buildEditablePackage({
     try {
       const before = await handle.stat({ bigint: true })
       snapshotBytes = Number(before.size)
-      snapshotMtimeMs = Number(before.mtimeNs) / 1_000_000
       if (before.size === 0n || before.size > 128n * 1024n * 1024n) {
         throw new Error('Selected movie is empty or exceeds the 128 MiB input cap.')
       }
@@ -352,9 +350,9 @@ export async function buildEditablePackage({
     let nativeWarning: string | undefined
     if (nativeLayers) {
       try {
+        // The digest is the identity: tar drops the mtime's sub-second part.
         if (
           nativeLayers.sourceBytes !== snapshotBytes ||
-          Math.abs(nativeLayers.sourceMtimeMs - snapshotMtimeMs) > 0.01 ||
           !snapshotSha256 ||
           !/^[\da-f]{64}$/.test(nativeLayers.sourceSha256) ||
           !timingSafeEqual(snapshotSha256, Buffer.from(nativeLayers.sourceSha256, 'hex'))

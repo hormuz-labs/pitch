@@ -2,7 +2,7 @@ import { constants } from 'node:fs'
 import { chmod, mkdir, mkdtemp, open, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { newestMtime, renderFile, sourceTargets } from '../flows/launch-video/describe.js'
-import { readTimeline } from '../render/utils/beats.js'
+import { readTimeline, sha256File } from '../render/utils/beats.js'
 import { fileUrl, slugify } from '../studio/paths.js'
 import type { EditableFormat, NativeLayerSidecar } from './editable-formats.js'
 import { buildEditablePackage } from './editable-package.js'
@@ -24,6 +24,37 @@ interface Job extends ExportStatus {
 const jobs = new Map<string, Job>()
 let running = 0
 const MTIME_TOLERANCE_MS = 0.01
+/**
+ * A render pod's output reaches the worker through tar, which keeps whole
+ * seconds only, so a recorded mtime can trail the restored file by up to 1s.
+ */
+const TAR_MTIME_SLACK_MS = 1000
+
+interface SourceIdentity {
+  sourceBytes?: number
+  sourceMtimeMs?: number
+  sourceSha256?: string
+}
+
+/**
+ * Whether a sidecar describes this exact movie. The digest decides when the
+ * sidecar has one; older sidecars fall back to size and mtime, with tar's
+ * slack. `digest` is shared so one export hashes the movie at most once.
+ */
+async function describesMovie(
+  sidecar: SourceIdentity,
+  video: { size: number; mtimeMs: number },
+  digest: () => Promise<string>,
+): Promise<boolean> {
+  if (sidecar.sourceBytes === undefined || sidecar.sourceBytes !== video.size) return false
+  if (sidecar.sourceSha256 !== undefined)
+    return /^[\da-f]{64}$/.test(sidecar.sourceSha256) && sidecar.sourceSha256 === (await digest())
+  return (
+    typeof sidecar.sourceMtimeMs === 'number' &&
+    Number.isFinite(sidecar.sourceMtimeMs) &&
+    Math.abs(sidecar.sourceMtimeMs - video.mtimeMs) < TAR_MTIME_SLACK_MS
+  )
+}
 
 const publicStatus = (job: Job): ExportStatus => {
   const { controller: _controller, staging: _staging, ...status } = job
@@ -50,19 +81,16 @@ function conflict(message: string, status = 409): never {
   throw Object.assign(new Error(message), { status })
 }
 
-async function trustedMarks(video: string) {
+async function trustedMarks(video: string, digest: () => Promise<string>) {
   const [timeline, videoStat] = await Promise.all([readTimeline(video), stat(video)])
-  if (!timeline) return undefined
-  const identityMatches =
-    timeline.sourceBytes !== undefined &&
-    timeline.sourceMtimeMs !== undefined &&
-    timeline.sourceBytes === videoStat.size &&
-    Math.abs(timeline.sourceMtimeMs - videoStat.mtimeMs) <= MTIME_TOLERANCE_MS
-  if (!identityMatches) return undefined
+  if (!timeline || !(await describesMovie(timeline, videoStat, digest))) return undefined
   return timeline.beats.map(beat => ({ start: beat.start, label: beat.text }))
 }
 
-async function trustedNativeLayers(video: string): Promise<{
+async function trustedNativeLayers(
+  video: string,
+  digest: () => Promise<string>,
+): Promise<{
   nativeLayers?: NativeLayerSidecar
   packageWarnings?: string[]
 }> {
@@ -89,10 +117,8 @@ async function trustedNativeLayers(video: string): Promise<{
     const videoStat = await stat(video)
     if (
       parsed?.version !== 1 ||
-      parsed.sourceBytes !== videoStat.size ||
-      !Number.isFinite(parsed.sourceMtimeMs) ||
-      Math.abs(parsed.sourceMtimeMs - videoStat.mtimeMs) > MTIME_TOLERANCE_MS ||
-      !/^[\da-f]{64}$/.test(parsed.sourceSha256)
+      typeof parsed.sourceSha256 !== 'string' ||
+      !(await describesMovie(parsed, videoStat, digest))
     )
       return {
         packageWarnings: [
@@ -182,8 +208,14 @@ export async function startEditableExport(
       const staging = await mkdtemp(path.join(ws.dir, 'renders', '.editable-'))
       job.staging = staging
       await chmod(staging, 0o700)
-      const marks = await trustedMarks(path.join(ws.dir, videoRel))
-      const native = launch ? await trustedNativeLayers(path.join(ws.dir, videoRel)) : {}
+      const movie = path.join(ws.dir, videoRel)
+      let hashing: Promise<string> | undefined
+      const digest = () => {
+        hashing ??= sha256File(movie)
+        return hashing
+      }
+      const marks = await trustedMarks(movie, digest)
+      const native = launch ? await trustedNativeLayers(movie, digest) : {}
       const result = await buildEditablePackage({
         workspaceDir: ws.dir,
         videoRel,

@@ -233,7 +233,8 @@ it('packages only image native layers and assets for Premiere while text remains
       fps: 30,
       frames: 30,
       sourceBytes: sourceIdentity.size,
-      sourceMtimeMs: sourceIdentity.mtimeMs,
+      // The digest decides: a tar round trip moves the mtime by up to a second.
+      sourceMtimeMs: sourceIdentity.mtimeMs + 456.789,
       sourceSha256: await sha256(source),
       layers: [textLayer(), imageLayer(createHash('sha256').update(imageBytes).digest('hex'))],
       warnings: [],

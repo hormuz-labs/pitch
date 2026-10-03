@@ -365,12 +365,18 @@ if (!isSegment && existsSync("audio/mix.wav")) {
 const muxEndMs = Date.now();
 const finalOut = resolve(out);
 const sourceStat = await stat(finalOut);
-const timeline = renderTimeline(cues, {
-  from,
-  to,
-  sourceBytes: sourceStat.size,
-  sourceMtimeMs: sourceStat.mtimeMs,
-});
+// The digest, not the mtime, binds these sidecars to the movie: a render pod
+// ships its output back through tar, which keeps whole seconds only.
+const sourceSha256 = await sha256File(finalOut);
+const timeline = {
+  ...renderTimeline(cues, {
+    from,
+    to,
+    sourceBytes: sourceStat.size,
+    sourceMtimeMs: sourceStat.mtimeMs,
+  }),
+  sourceSha256,
+};
 const timelineOut = finalOut.replace(/\.[^./]+$/, "") + ".timeline.json";
 const timelineTmp = `${timelineOut}.${process.pid}.tmp`;
 try {
@@ -395,7 +401,6 @@ try {
     assetPath[candidate.source] = workspacePath.split("\\").join("/");
     assetSha256[candidate.source] = await sha256File(local);
   }
-  const sourceSha256 = await sha256File(finalOut);
   const discovery = nativeCaptureError
     ? { candidates: [], warnings: [...nativeDiscovery.warnings, nativeCaptureError] }
     : nativeDiscovery;

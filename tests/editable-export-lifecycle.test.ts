@@ -207,6 +207,77 @@ describe('editable export lifecycle', () => {
     expect(packageCalls[3].packageWarnings?.join('\n')).toMatch(/does not match/i)
   })
 
+  it('trusts sidecars by digest after a render pod ships the movie back through tar', async () => {
+    const dir = await project('tar-trip')
+    artifacts.set('studio--user_1--tar-trip', { kind: 'launch', rel: 'index.html', at: 1 })
+    const sources = new Date(Date.now() - 60_000)
+    for (const name of ['index.html', 'shots.js']) {
+      await writeFile(join(dir, name), 'source')
+      await utimes(join(dir, name), sources, sources)
+    }
+    const video = join(dir, 'renders', 'launch-1080p.mp4')
+    await writeFile(video, 'movie')
+    // The pod recorded a sub-second mtime; tar restored whole seconds only.
+    const whole = new Date(Math.floor(Date.now() / 1000) * 1000)
+    await utimes(video, whole, whole)
+    const recorded = whole.getTime() + 456.789
+    const sourceSha256 = createHash('sha256').update('movie').digest('hex')
+    await writeFile(
+      join(dir, 'renders', 'launch-1080p.timeline.json'),
+      JSON.stringify({
+        durationSec: 1,
+        sourceBytes: 5,
+        sourceMtimeMs: recorded,
+        sourceSha256,
+        beats: [{ start: 0.5, dur: 0.5, text: 'Shot' }],
+      }),
+    )
+    await writeFile(
+      join(dir, 'renders', 'launch-1080p.layers.json'),
+      JSON.stringify({
+        version: 1,
+        sourceBytes: 5,
+        sourceMtimeMs: recorded,
+        sourceSha256,
+        stage: { width: 10, height: 10 },
+        fps: 30,
+        frames: 1,
+        layers: [],
+        warnings: [],
+      }),
+    )
+
+    await exportProject('user_1', 'tar-trip', { format: 'premiere' })
+    await vi.waitFor(() => expect(getExport('tar-trip').stage).toBe('done'))
+    expect(packageCalls[0].marks).toEqual([{ start: 0.5, label: 'Shot' }])
+    expect(packageCalls[0].nativeLayers).toMatchObject({ version: 1, sourceSha256 })
+    expect(packageCalls[0].packageWarnings).toBeUndefined()
+  })
+
+  it('omits marks whose digest names a different movie of the same size', async () => {
+    const dir = await project('digest-mismatch')
+    await writeFile(join(dir, 'renders', 'video.mp4'), 'movie')
+    const source = await stat(join(dir, 'renders', 'video.mp4'))
+    await writeFile(
+      join(dir, 'renders', 'video.timeline.json'),
+      JSON.stringify({
+        durationSec: 1,
+        sourceBytes: source.size,
+        sourceMtimeMs: source.mtimeMs,
+        sourceSha256: createHash('sha256').update('other').digest('hex'),
+        beats: [{ start: 0.3, dur: 0.5, text: 'Other movie' }],
+      }),
+    )
+    artifacts.set('studio--user_1--digest-mismatch', {
+      kind: 'video',
+      rel: 'renders/video.mp4',
+      at: 1,
+    })
+    await exportProject('user_1', 'digest-mismatch', { format: 'premiere' })
+    await vi.waitFor(() => expect(getExport('digest-mismatch').stage).toBe('done'))
+    expect(packageCalls[0].marks).toBeUndefined()
+  })
+
   it('rejects native metadata with a non-lowercase SHA-256 digest before packaging', async () => {
     const dir = await project('native-hash')
     artifacts.set('studio--user_1--native-hash', { kind: 'launch', rel: 'index.html', at: 1 })
