@@ -334,7 +334,7 @@ router.get('/status', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
 
-  const subscriptionId = req.query.subscription_id as string | undefined
+  let subscriptionId = req.query.subscription_id as string | undefined
   const paymentId = req.query.payment_id as string | undefined
   const sessionId = req.query.session_id as string | undefined
 
@@ -357,7 +357,7 @@ router.get('/status', async (req, res) => {
     // --- One-time top-up (payment_id) ---
     // recordTopUp is idempotent, so we always fetch from Dodo to build the
     // receipt and (re)attempt the grant; a late webhook is a harmless no-op.
-    if (paymentId) {
+    if (paymentId && !subscriptionId) {
       const payment = await dodoClient().payments.retrieve(paymentId)
 
       if (payment.status !== 'succeeded') {
@@ -376,20 +376,29 @@ router.get('/status', async (req, res) => {
         return res.status(403).json({ error: 'Payment does not belong to this user' })
       }
 
-      if (credits > 0) {
-        const pack = TOPUP_PACKS[packKey]
-        await recordTopUp({
-          userId: payUserId,
-          dodoPaymentId: paymentId,
-          packKey: packKey || 'flex',
-          credits,
-          amountUsd: pack?.priceUsd ?? credits * CREDIT_RETAIL_USD,
-        })
-      }
+      if (payment.subscription_id) {
+        // Some redirects only contain payment_id. Use the subscription grant
+        // below so its webhook cannot also credit this purchase as a top-up.
+        subscriptionId = payment.subscription_id
+      } else {
+        if (metadata.type !== 'topup') {
+          return res.status(400).json({ error: 'Payment is not a credit top-up' })
+        }
+        if (credits > 0) {
+          const pack = TOPUP_PACKS[packKey]
+          await recordTopUp({
+            userId: payUserId,
+            dodoPaymentId: paymentId,
+            packKey: packKey || 'flex',
+            credits,
+            amountUsd: pack?.priceUsd ?? credits * CREDIT_RETAIL_USD,
+          })
+        }
 
-      const balance = await getCreditBalance(payUserId)
-      const receipt = buildPaymentReceipt(payment, balance)
-      return res.json({ status: 'succeeded', credits_granted: credits, receipt })
+        const balance = await getCreditBalance(payUserId)
+        const receipt = buildPaymentReceipt(payment, balance)
+        return res.json({ status: 'succeeded', credits_granted: credits, receipt })
+      }
     }
 
     // --- Subscription (subscription_id) ---
@@ -405,7 +414,7 @@ router.get('/status', async (req, res) => {
         return res.status(403).json({ error: 'Subscription does not belong to this user' })
       }
 
-      if (subscription.status === 'active' || subscription.status === 'on_hold') {
+      if (subscription.status === 'active') {
         if (!subUserId) {
           return res.status(400).json({ error: 'Subscription metadata missing clerk_user_id' })
         }
@@ -453,7 +462,7 @@ router.get('/status', async (req, res) => {
     // --- Only had a session_id — confirm grant landed, no receipt details ---
     if (sessionId) {
       const tx = await prisma.creditTransaction.findFirst({
-        where: { OR: [{ idempotencyKey: { contains: `:${sessionId}` } }] },
+        where: { userId, OR: [{ idempotencyKey: { contains: `:${sessionId}` } }] },
       })
       if (tx) return res.json({ status: 'succeeded' })
     }

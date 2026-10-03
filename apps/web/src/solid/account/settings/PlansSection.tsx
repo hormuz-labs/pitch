@@ -9,6 +9,7 @@ import {
   formatCredits,
   PLANS,
   type Plan,
+  planDescription,
   pricePerCredit,
 } from '../../../lib/plans'
 import { useAuth } from '../../core/auth'
@@ -200,7 +201,7 @@ export function PlansSection() {
                     <span class="settings-plan-saving">Save {savings}% vs. monthly</span>
                   </Show>
                 </Show>
-                <p>{plan.description}</p>
+                <p>{planDescription(plan, cadence())}</p>
                 <Show
                   when={plan.kind === 'contact'}
                   fallback={

@@ -1,4 +1,4 @@
-import { PLANS } from '../../lib/plans'
+import { formatCredits, PLAN_CREDITS_SUMMARY, PLANS } from '../../lib/plans'
 
 const SITE = 'https://trypitch.co'
 
@@ -23,7 +23,9 @@ export const SOFTWARE_APPLICATION = {
     name: plan.name,
     price: String(plan.priceUsd),
     priceCurrency: 'USD',
-    description: plan.description,
+    description: plan.credits
+      ? `${formatCredits(plan.credits)} credits ${plan.kind === 'subscription' ? 'per month' : 'per purchase'}. ${plan.description}`
+      : plan.description,
     url: `${SITE}/pricing`,
     ...(plan.kind === 'subscription'
       ? {
@@ -82,6 +84,11 @@ export const LANDING_JSON_LD = {
       mainEntity: [
         {
           '@type': 'Question',
+          name: 'How many credits does each plan include?',
+          acceptedAnswer: { '@type': 'Answer', text: PLAN_CREDITS_SUMMARY },
+        },
+        {
+          '@type': 'Question',
           name: 'How is Pitch different from Loom or other screen recorders?',
           acceptedAnswer: {
             '@type': 'Answer',
@@ -109,7 +116,7 @@ export const LANDING_JSON_LD = {
           name: 'What does a video cost?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'A full AI-generated demo video uses about 120 credits. Flex ($20 for 800 credits) puts a credit at $0.025, so a video is around $3. On Pro ($45/mo for 2,500 credits) a credit is $0.018 and a video works out to about $2.16. You are billed for what the work actually costs, so a quick edit costs far less than a 4K render.',
+            text: 'A full AI-generated demo video uses about 120 credits. Flex ($20 for 5,000 credits) puts a credit at $0.004, so a video is around $0.48. On Pro ($45/mo for 10,000 credits) a credit is $0.0045 and a video works out to about $0.54. You are billed for what the work actually costs, so a quick edit costs far less than a 4K render.',
           },
         },
         {

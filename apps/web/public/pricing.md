@@ -1,6 +1,6 @@
 # Pitch — Pricing
 
-> Machine-readable pricing for trypitch.co. Last updated: 2026-09-25.
+> Machine-readable pricing for trypitch.co. Last updated: 2026-10-03.
 
 **Currency:** USD
 **Billing:** Monthly or annual auto-renewing subscriptions (Pro, Max), plus Flex, a one-time credit add-on that requires an active Pro or Max plan. Free accounts can explore the studio and start projects.
@@ -11,12 +11,12 @@
 
 | Plan       | Price        | Credits        | $/credit | Videos (~) | Watermark | Notes                                       |
 |------------|--------------|----------------|----------|------------|-----------|---------------------------------------------|
-| Flex       | $20 one-time | 800            | $0.025   | Metered    | —         | Add-on credits; requires an active Pro or Max plan |
-| Pro        | $45 / month  | 2,500 / month  | $0.018   | Metered    | Removed   | Up to 4K, Flex add-on credits               |
-| Max        | $80 / month  | 5,000 / month  | $0.016   | Metered    | Removed   | Up to 4K, lowest price per credit           |
+| Flex       | $20 one-time | 5,000          | $0.004   | Metered    | —         | Add-on credits; requires an active Pro or Max plan |
+| Pro        | $45 / month  | 10,000 / month | $0.0045  | Metered    | Removed   | Up to 4K, Flex add-on credits               |
+| Max        | $80 / month  | 30,000 / month | ~$0.0027 | Metered    | Removed   | Up to 4K, lowest price per credit           |
 | Enterprise | Custom       | Custom         | Custom   | Custom     | Removed   | Volume pricing, dedicated account manager   |
 
-Annual billing: Pro $432 / year (30,000 credits), Max $768 / year (60,000 credits), 20% less than monthly.
+Annual billing: Pro $432 / year (120,000 credits), Max $768 / year (360,000 credits), 20% less than monthly. Annual credits are granted upfront.
 
 ## Indicative costs
 

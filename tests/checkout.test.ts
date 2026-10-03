@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => {
     createSession: vi.fn().mockResolvedValue({ checkout_url: 'https://dodo.test/checkout/abc' }),
     getActiveSubscription: vi.fn().mockResolvedValue(null),
     retrieveSubscription: vi.fn(),
+    retrievePayment: vi.fn(),
+    recordTopUp: vi.fn().mockResolvedValue({}),
     upsertSubscription: vi.fn().mockResolvedValue({}),
     getCreditBalance: vi.fn().mockResolvedValue(2500),
     subscriptionFindUnique: vi.fn().mockResolvedValue(null),
@@ -31,12 +33,13 @@ vi.mock('dodopayments', () => ({
   default: class {
     checkoutSessions = { create: mocks.createSession }
     subscriptions = { retrieve: mocks.retrieveSubscription }
+    payments = { retrieve: mocks.retrievePayment }
   },
 }))
 vi.mock('@saas/db', () => ({
   getActiveSubscription: mocks.getActiveSubscription,
   upsertSubscription: mocks.upsertSubscription,
-  recordTopUp: vi.fn(),
+  recordTopUp: mocks.recordTopUp,
   getCreditBalance: mocks.getCreditBalance,
   prisma: {
     affiliateClick: { findFirst: vi.fn() },
@@ -77,7 +80,7 @@ describe('POST /checkout', () => {
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         product_cart: [{ product_id: 'pdt_flex', quantity: 1 }],
-        metadata: expect.objectContaining({ credits: '800', pack: 'flex', type: 'topup' }),
+        metadata: expect.objectContaining({ credits: '5000', pack: 'flex', type: 'topup' }),
       }),
     )
   })
@@ -111,7 +114,7 @@ describe('POST /checkout', () => {
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         product_cart: [{ product_id: 'pdt_pro_annual', quantity: 1 }],
-        metadata: expect.objectContaining({ credits: '30000', pack: 'pro_annual' }),
+        metadata: expect.objectContaining({ credits: '120000', pack: 'pro_annual' }),
       }),
     )
   })
@@ -123,12 +126,86 @@ describe('POST /checkout', () => {
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         return_url: 'https://trypitch.co/checkout/return?checkout=success',
+        metadata: expect.objectContaining({ credits: '10000', pack: 'pro' }),
       }),
     )
   })
 })
 
 describe('GET /checkout/status', () => {
+  it('confirms a new Pro purchase with the real receipt and new allowance', async () => {
+    mocks.subscriptionFindUnique.mockResolvedValue(null)
+    mocks.retrieveSubscription.mockResolvedValue({
+      subscription_id: 'sub_new',
+      status: 'active',
+      metadata: { clerk_user_id: 'user_1', pack: 'pro', credits: '10000' },
+      recurring_pre_tax_amount: 4500,
+      currency: 'USD',
+      created_at: '2026-10-03T00:00:00Z',
+      customer: { name: 'Ada Lovelace', email: 'ada@example.com' },
+    })
+    const res = await request(app).get('/checkout/status?subscription_id=sub_new')
+    expect(res.body.receipt).toMatchObject({
+      amount: '$45.00',
+      credits: 10000,
+      name: 'Ada Lovelace',
+    })
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ creditsPerCycle: 10000 }),
+    )
+  })
+
+  it('does not grant or celebrate an on-hold subscription', async () => {
+    mocks.retrieveSubscription.mockResolvedValue({
+      status: 'on_hold',
+      metadata: { clerk_user_id: 'user_1' },
+    })
+    const res = await request(app).get('/checkout/status?subscription_id=sub_hold')
+    expect(res.body.status).toBe('on_hold')
+    expect(res.body.receipt).toBeUndefined()
+    expect(mocks.upsertSubscription).not.toHaveBeenCalled()
+  })
+
+  it('routes subscription payment redirects through the subscription grant', async () => {
+    mocks.subscriptionFindUnique.mockResolvedValue(null)
+    mocks.retrievePayment.mockResolvedValue({
+      status: 'succeeded',
+      subscription_id: 'sub_paid',
+      metadata: { clerk_user_id: 'user_1' },
+    })
+    mocks.retrieveSubscription.mockResolvedValue({
+      subscription_id: 'sub_paid',
+      status: 'active',
+      metadata: { clerk_user_id: 'user_1', pack: 'max', credits: '30000' },
+      recurring_pre_tax_amount: 8000,
+      currency: 'USD',
+      created_at: '2026-10-03T00:00:00Z',
+    })
+    const res = await request(app).get('/checkout/status?payment_id=pay_sub')
+    expect(res.body.credits_granted).toBe(30000)
+    expect(mocks.recordTopUp).not.toHaveBeenCalled()
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ creditsPerCycle: 30000 }),
+    )
+  })
+
+  it('confirms Flex with 5,000 credits and the actual payment method', async () => {
+    mocks.retrievePayment.mockResolvedValue({
+      payment_id: 'pay_flex',
+      status: 'succeeded',
+      metadata: { clerk_user_id: 'user_1', type: 'topup', pack: 'flex', credits: '5000' },
+      total_amount: 2000,
+      currency: 'USD',
+      payment_method: 'upi',
+      created_at: '2026-10-03T00:00:00Z',
+    })
+    const res = await request(app).get('/checkout/status?payment_id=pay_flex')
+    expect(res.body.receipt).toMatchObject({ credits: 5000, amount: '$20.00', method: 'UPI' })
+    expect(mocks.recordTopUp).toHaveBeenCalledWith(
+      expect.objectContaining({ credits: 5000, dodoPaymentId: 'pay_flex' }),
+    )
+  })
+
   it('grants initial credits with sub_grant:<id>:initial when subscription is not in DB yet', async () => {
     mocks.subscriptionFindUnique.mockResolvedValue(null)
     mocks.retrieveSubscription.mockResolvedValue({

@@ -152,7 +152,7 @@ describe('settings modal UI', () => {
     const { container } = render(() => <BuyCreditsSection openUsage={openUsage} />)
 
     expect((await screen.findAllByText('4,200')).length).toBe(2)
-    expect(screen.getByText('800 credits')).toBeTruthy()
+    expect(screen.getByText('5,000 credits')).toBeTruthy()
     expect(screen.getByText('$20')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Buy credits' })).toBeTruthy()
     expect(screen.getByText('800 used')).toBeTruthy()

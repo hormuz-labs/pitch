@@ -1,5 +1,6 @@
 import { Minus, Plus } from 'lucide-solid'
 import { createSignal, For, Show } from 'solid-js'
+import { PLAN_CREDITS_SUMMARY } from '../../lib/plans'
 
 export interface AccordionItemData {
   value: string
@@ -7,6 +8,11 @@ export interface AccordionItemData {
   content: string
 }
 const PRODUCT_FAQ: readonly AccordionItemData[] = [
+  {
+    value: 'faq-credits',
+    title: 'How many credits does each plan include?',
+    content: PLAN_CREDITS_SUMMARY,
+  },
   {
     value: 'faq-1',
     title: 'How is Pitch different from Loom?',

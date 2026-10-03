@@ -8,6 +8,7 @@ import {
   nonCreditFeatures,
   PLANS,
   type Plan,
+  planDescription,
   planIncludesLabel,
   pricePerCredit,
 } from '../../lib/plans'
@@ -226,7 +227,7 @@ export const PublicPricingView = () => {
                         </small>
                       </p>
                       <p class="public-pricing-eyebrow">{eyebrows[p.key]}</p>
-                      <p class="public-pricing-description">{p.description}</p>
+                      <p class="public-pricing-description">{planDescription(p, cadence())}</p>
                     </div>
                     <p class="public-pricing-includes">{planIncludesLabel(p)}</p>
                     <ul>
@@ -277,6 +278,9 @@ export const PublicPricingView = () => {
             </For>
           </div>
           <p class="public-pricing-note">
+            <Show when={cadence() === 'annual'}>
+              Annual credits are granted in full upfront, then renewed each year.{' '}
+            </Show>
             Secure payments. Credits remain yours until used, including after a subscription ends.{' '}
             <a href="mailto:support@trypitch.co">Talk to us</a>.
           </p>
@@ -286,7 +290,8 @@ export const PublicPricingView = () => {
             <p>Add-on credits</p>
             <h2>{topup.name}</h2>
             <span>
-              {topup.credits?.toLocaleString()} credits · ${topup.priceUsd} one time
+              {topup.credits?.toLocaleString()} credits · ${topup.priceUsd} one time ·{' '}
+              {pricePerCredit(topup)} per credit
             </span>
           </div>
           <p>

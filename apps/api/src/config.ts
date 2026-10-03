@@ -44,31 +44,31 @@ const PRODUCT_IDS =
  * the user's balance after cancellation; only plan-specific capabilities end.
  */
 export const CREDIT_PACKS = {
-  pro: { credits: 2500, priceUsd: 45, label: '2,500 Credits/mo', productId: PRODUCT_IDS.pro },
-  max: { credits: 5000, priceUsd: 80, label: '5,000 Credits/mo', productId: PRODUCT_IDS.max },
+  pro: { credits: 10_000, priceUsd: 45, label: '10,000 Credits/mo', productId: PRODUCT_IDS.pro },
+  max: { credits: 30_000, priceUsd: 80, label: '30,000 Credits/mo', productId: PRODUCT_IDS.max },
   pro_annual: {
-    credits: 30_000,
+    credits: 120_000,
     priceUsd: 432,
-    label: '30,000 Credits/yr',
+    label: '120,000 Credits/yr',
     productId: PRODUCT_IDS.proAnnual,
   },
   max_annual: {
-    credits: 60_000,
+    credits: 360_000,
     priceUsd: 768,
-    label: '60,000 Credits/yr',
+    label: '360,000 Credits/yr',
     productId: PRODUCT_IDS.maxAnnual,
   },
 } as const
 
 /** Entry retail price of a credit, used where a pack price is unavailable. */
-export const CREDIT_RETAIL_USD = 0.025
+export const CREDIT_RETAIL_USD = 0.004
 
 /** One-time purchases. Flex is an add-on: checkout requires an active Pro or Max plan. */
 export const TOPUP_PACKS = {
   flex: {
-    credits: 800,
+    credits: 5000,
     priceUsd: 20,
-    label: '800 Credits (One-time)',
+    label: '5,000 Credits (One-time)',
     productId: PRODUCT_IDS.flex,
   },
 } as const

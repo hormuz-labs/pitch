@@ -55,7 +55,7 @@ export function canStartTurn(available: number, holdPending: boolean): boolean {
   return holdPending || available > 0
 }
 
-/** Lowest current customer revenue per credit (Max annual: $768 / 60,000). */
+/** Provider conversion baseline, retained independently of promotional plan allowances. */
 export const MIN_REVENUE_USD_PER_CREDIT = 0.0128
 
 /**

@@ -718,7 +718,7 @@ const credits: DocPage = {
   "plan": "pro",
   "transactions": [
     { "amount": -120, "reason": "Usage: Demo video (trypitch.co)", "projectId": "cm4x...", "createdAt": "..." },
-    { "amount": 2500, "reason": "Subscription renewal", "createdAt": "..." }
+    { "amount": 10000, "reason": "Subscription renewal", "createdAt": "..." }
   ]
 }`,
     },

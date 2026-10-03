@@ -94,7 +94,13 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const subscriptionId: string = data.subscription_id
       const planKey = metadata.pack || 'pro'
       const pack = planEntitlement(planKey)
-      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
+      // Current checkouts snapshot their allowance in metadata. Honour that
+      // snapshot so an in-flight checkout and its polling fallback agree.
+      const metadataCredits = Number(metadata.credits)
+      const credits =
+        planKey in CREDIT_PACKS && Number.isSafeInteger(metadataCredits) && metadataCredits > 0
+          ? metadataCredits
+          : (pack?.credits ?? 0)
 
       // Determine billing period. Dodo provides previous_billing_date / next_billing_date
       // (or current_period_start / current_period_end). Fall back to now / +30d if not present.
@@ -219,7 +225,11 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const packKey = metadata.pack as keyof typeof TOPUP_PACKS
       const pack =
         TOPUP_PACKS[packKey] ?? LEGACY_TOPUP_PACKS[packKey as keyof typeof LEGACY_TOPUP_PACKS]
-      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
+      const metadataCredits = Number(metadata.credits)
+      const credits =
+        packKey in TOPUP_PACKS && Number.isSafeInteger(metadataCredits) && metadataCredits > 0
+          ? metadataCredits
+          : (pack?.credits ?? 0)
       const amountUsd = (data.total_amount || 0) / 100
 
       await db.recordTopUp({

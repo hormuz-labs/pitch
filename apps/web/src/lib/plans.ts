@@ -112,10 +112,10 @@ export const PLANS: readonly Plan[] = [
     name: 'Flex',
     kind: 'topup',
     priceUsd: 20,
-    credits: 800,
+    credits: 5000,
     description: 'Add-on credits for Pro and Max, for when a project needs more runway.',
     features: [
-      '800 credits',
+      '5,000 credits',
       'Requires an active Pro or Max plan',
       'One-time purchase',
       'Credits stay yours until used',
@@ -126,31 +126,31 @@ export const PLANS: readonly Plan[] = [
     name: 'Pro',
     kind: 'subscription',
     priceUsd: 45,
-    credits: 2500,
+    credits: 10_000,
     description: 'Regular launches and demos, with a fresh credit allowance every month.',
     features: [
-      '2,500 credits per month',
+      '10,000 credits per month',
       'Watermark-free exports',
       'Up to 4K exports',
       'Flex add-on credits when you need more',
     ],
     popular: true,
-    annual: { key: 'pro_annual', priceUsd: 432, credits: 30_000 },
+    annual: { key: 'pro_annual', priceUsd: 432, credits: 120_000 },
   },
   {
     key: 'max',
     name: 'Max',
     kind: 'subscription',
     priceUsd: 80,
-    credits: 5000,
+    credits: 30_000,
     description: 'Higher monthly volume for teams and solo creators publishing often.',
     features: [
-      '5,000 credits per month',
+      '30,000 credits per month',
       'Watermark-free exports',
       'Up to 4K exports',
       'Lowest price per credit',
     ],
-    annual: { key: 'max_annual', priceUsd: 768, credits: 60_000 },
+    annual: { key: 'max_annual', priceUsd: 768, credits: 360_000 },
   },
   {
     key: 'enterprise',
@@ -170,18 +170,37 @@ export const PLANS: readonly Plan[] = [
 
 export const planByKey = (key: string) => PLANS.find(plan => plan.key === key)
 
-/** Price of a single credit, in dollars — e.g. `$0.025`. Works for any cadence. */
+export const formatCredits = (credits: number) => credits.toLocaleString('en-US')
+
+/** Keep annual cards explicit about when the full allowance arrives. */
+export function planDescription(plan: Plan, cadence: Cadence): string {
+  if (cadence === 'annual' && plan.annual) {
+    return `${formatCredits(plan.annual.credits)} credits upfront each year for your launches, demos, and edits.`
+  }
+  return plan.description
+}
+
+// Shared by visible FAQs and structured data so both follow the plan catalogue.
+export const PLAN_CREDITS_SUMMARY = PLANS.filter(
+  plan => plan.kind === 'subscription' || plan.kind === 'topup',
+)
+  .map(plan =>
+    plan.kind === 'subscription'
+      ? `${plan.name} includes ${formatCredits(plan.credits!)} credits per month for $${plan.priceUsd}.`
+      : `${plan.name} adds ${formatCredits(plan.credits!)} credits for a one-time $${plan.priceUsd} purchase with an active Pro or Max plan.`,
+  )
+  .join(' ')
+
+/** Price of a single credit, in dollars — e.g. `$0.0045`. Works for any cadence. */
 export function pricePerCredit(plan: {
   priceUsd: number | null
   credits: number | null
 }): string | null {
   if (!plan.priceUsd || !plan.credits) return null
-  return `$${(plan.priceUsd / plan.credits).toFixed(3)}`
+  return `$${(plan.priceUsd / plan.credits).toFixed(4).replace(/0+$/, '')}`
 }
 
 /** Roughly how many demo videos a plan's credits buy. Works for any cadence. */
 export function demoVideos(plan: { credits: number | null }): number | null {
   return plan.credits ? Math.floor(plan.credits / CREDITS_PER_DEMO_VIDEO) : null
 }
-
-export const formatCredits = (credits: number) => credits.toLocaleString('en-US')

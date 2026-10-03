@@ -3,7 +3,7 @@
  *
  * Credits were redenominated x40, and the plan catalogue was replaced at the
  * same time. `pro` now names both the retired $40 plan (2,000 credits at
- * today's scale) and the current $45 one (2,500), so these tests pin down which
+ * today's scale) and the current $45 one (10,000), so these tests pin down which
  * allowance a given event pays out.
  */
 
@@ -76,19 +76,27 @@ describe('subscription.renewed', () => {
     await post()
 
     expect(mocks.upsertSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({ creditsPerCycle: 2500 }),
+      expect.objectContaining({ creditsPerCycle: 10_000 }),
     )
   })
 })
 
 describe('subscription.active', () => {
+  it('honours an in-flight checkout allowance just like the polling fallback', async () => {
+    mocks.verify.mockReturnValue(event('subscription.active', 'pro', '2500', 'sub_inflight'))
+    await post()
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ creditsPerCycle: 2500 }),
+    )
+  })
+
   it('grants the current allowance for a plan we sell', async () => {
-    mocks.verify.mockReturnValue(event('subscription.active', 'max', '5000', 'sub_new'))
+    mocks.verify.mockReturnValue(event('subscription.active', 'max', '30000', 'sub_new'))
 
     await post()
 
     expect(mocks.upsertSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({ planKey: 'max', creditsPerCycle: 5000 }),
+      expect.objectContaining({ planKey: 'max', creditsPerCycle: 30_000 }),
     )
   })
 
@@ -106,12 +114,12 @@ describe('subscription.active', () => {
   it('grants a full year of credits upfront for an annual plan', async () => {
     // No monthly-renewal event exists for a year-billed subscription, so the
     // whole year's allowance is granted on activation.
-    mocks.verify.mockReturnValue(event('subscription.active', 'pro_annual', '30000', 'sub_annual'))
+    mocks.verify.mockReturnValue(event('subscription.active', 'pro_annual', '120000', 'sub_annual'))
 
     await post()
 
     expect(mocks.upsertSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({ planKey: 'pro_annual', creditsPerCycle: 30_000 }),
+      expect.objectContaining({ planKey: 'pro_annual', creditsPerCycle: 120_000 }),
     )
   })
 
