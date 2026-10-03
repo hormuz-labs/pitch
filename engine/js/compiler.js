@@ -1472,8 +1472,15 @@
     };
     // Resolves once every visible video shows the frame for `t` (capture.mjs,
     // the audit and the review await it); nothing to wait for without footage.
+    // A frame at t shows what has happened BY t. GSAP arriving forward at
+    // exactly a nested timeline's start leaves its zero-duration sets at 0
+    // unrendered, so a shot's first frame showed its finished layout before
+    // its `tl.set` start state applied: a one-frame flash at every cut, and
+    // export lands on cuts exactly (5.8s is frame 174 at 30fps). A tenth of a
+    // millisecond is far below a frame and puts the playhead past them.
+    const SEEK_PAST = 1e-4;
     window.__SEEK = (t) => {
-      master.seek(t, false);
+      master.seek(t + SEEK_PAST, false);
       syncShotPointerEvents();
       syncMedia();
       return window.__FOOTAGE ? window.__FOOTAGE.settle() : null;

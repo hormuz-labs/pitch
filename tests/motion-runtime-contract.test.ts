@@ -16,6 +16,26 @@ describe('motion runtime diagnostics', () => {
     expect(matches[1]).toBe(second)
   })
 
+  it('aims a cursor at the element it clicks, from the laid-out page', () => {
+    const source = readFileSync('engine/js/factories.js', 'utf8')
+    const window: Record<string, any> = {}
+    const rect = (left: number, top: number, width: number, height: number) => ({
+      getBoundingClientRect: () => ({ left, top, width, height }),
+    })
+    // The stage drawn at half size: page pixels are twice the screen's.
+    const document = { getElementById: () => rect(0, 0, 960, 540) }
+    const gsap = { getProperty: (el: any, axis: string) => el.at[axis] }
+    vm.runInNewContext(source, { window, document, gsap })
+
+    const cursor = { ...rect(400, 300, 12, 12), at: { x: 30, y: 0 } }
+    const button = rect(100, 200, 100, 20)
+    expect(window.ShotKit.aim(cursor, button)).toEqual({ x: 30 - 500, y: -180 })
+    expect(window.ShotKit.aim(cursor, button, { at: [0, 0], tip: [0.5, 0.5] })).toEqual({
+      x: 30 - 612,
+      y: -212,
+    })
+  })
+
   it('surfaces compiler boot exceptions instead of only timing out', () => {
     const compiler = readFileSync('engine/js/compiler.js', 'utf8')
     const check = readFileSync('.pi/scripts/launch-video/cues.mjs', 'utf8')

@@ -420,7 +420,12 @@ Shorten it to `D * .2`, start earlier, or omit the repeat. For a staggered
 group include the last target's stagger offset, and check the returned
 timeline's total duration. Fractions of `D` alone do not prevent overruns.
 
-`window.ShotKit` also exposes `revealWords(tl, root, at, {each})` and
+`window.ShotKit` also exposes `aim(mover, target, { at?, tip? })`, the
+`{ x, y }` that lands a cursor's tip (`tip`, default `[0, 0]`) on a point of
+the element it clicks (`at`, default its centre `[0.5, 0.5]`), measured from
+the page: call it in `animate` before any `tl.set` start state and tween the
+cursor to it (`tl.to(cursor, { ...ShotKit.aim(cursor, button) }, 1.2)`), never
+to typed numbers. Also `revealWords(tl, root, at, {each})` and
 `scatterWords(tl, root, at, seed)` for the word-by-word cadence, the canvas
 and asset helpers below, and the
 compiler registers every GSAP plugin the thin shell loads: CustomEase (named

@@ -52,6 +52,8 @@ Defects that pass every automatic check and still get films rejected:
 - Rows and lists with unequal spacing or ragged left edges.
 - A dark or empty first image, or a lone element on an empty field.
 - Motion bolted onto a finished shot (pulses, kicks, shakes) that shows nothing.
+- A click that lands beside its button: sample the frame of the click.
+- A logo that is not the product's file: a redrawn or approximated mark.
 
 ## The audit's numbers
 

@@ -67,7 +67,7 @@ An edit loads only what that change needs and keeps the established direction.
    matches in meaning. A cut where nothing matches is a new chapter.
 6. **Every action has a visible result.** A tap makes a new state, a scan
    makes findings, a request makes a confirmation. An action with no
-   consequence is decoration.
+   consequence is decoration, and a click lands on the thing it clicks.
 7. **Type is motion.** Big words enter from opposite sides, reveal the next
    scene, arrive in phrases fully formed, and never sit over a busy picture
    without something behind them. Text never collides with or travels
@@ -81,13 +81,12 @@ And for every frame:
   is about scale, not count: several things may share a large frame.
 - **Frame one is a finished picture.** It is the thumbnail and the autoplay
   still, never a word halfway through flying in.
-- **Set the film on the product's ground.** The background and surfaces are
-  colours recon measured (`recon/brand-tokens.md`) or the user gave you. A
-  colour that is not there is not the product's, whatever you call it ("its
-  IDE canvas"). Go dark only when recon measured a dark site or the user asks;
-  a mood (power, speed, energy, premium, cinematic) is not a reason. Dark
-  grey-blue with glowing lines is the stock "tech film" look, and the audit
-  notes it.
+- **Build the palette from the brand.** Grounds, surfaces and accents come
+  from what recon measured (`recon/brand-tokens.md`: background, surfaces,
+  theme colour, accent) or what the user gave you. Light or dark is your call,
+  but a dark film is the brand's own dark (its theme colour, its dark
+  surfaces) with its accent, not an invented navy. Dark grey-blue with glowing
+  lines is the stock "tech film" look, and the audit notes it.
 - **Design for the MP4.** Video keeps colour at half resolution, so thin text
   that differs from its ground only in hue (red code on navy) smears on export.
   Essential text carries light-dark contrast and is sized to read on a phone:
@@ -99,6 +98,10 @@ the difference.
 
 ## Honesty
 
+- The logo is the product's own file (`assets/logo/` from recon, or the
+  user's), placed as it is: never redrawn, retyped or approximated as a path.
+  If the film needs the mark alone and only the full logo exists, use the full
+  logo or ask the user for the mark.
 - On screen goes only what `facts.md` holds: no invented testimonial, rating,
   price, saving, warranty, customer or result.
 - Build in code first. A generated image (`pitch motion image`) or clip is a

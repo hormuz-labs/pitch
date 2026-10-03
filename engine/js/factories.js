@@ -1682,8 +1682,27 @@
   }
   function cardAnimate() { return gsap.timeline(); }
 
+  /**
+   * Where to move `mover` so its tip lands on `target`: the { x, y } to tween
+   * it to. A cursor aimed by hand-typed numbers clicks beside its button; this
+   * measures both from the laid-out page. Call it in animate() BEFORE setting
+   * start states, or a start offset on the target is measured too. `at` is
+   * the point on the target ([0.5, 0.5], its centre), `tip` the point of the
+   * mover that touches it ([0, 0], a cursor arrow's top-left tip).
+   */
+  function aim(mover, target, { at = [0.5, 0.5], tip = [0, 0] } = {}) {
+    const vp = document.getElementById("viewport");
+    const k = vp ? vp.getBoundingClientRect().width / STAGE.w || 1 : 1;
+    const m = mover.getBoundingClientRect();
+    const t = target.getBoundingClientRect();
+    return {
+      x: Number(gsap.getProperty(mover, "x")) + (t.left + t.width * at[0] - (m.left + m.width * tip[0])) / k,
+      y: Number(gsap.getProperty(mover, "y")) + (t.top + t.height * at[1] - (m.top + m.height * tip[1])) / k,
+    };
+  }
+
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, stage: STAGE, looks: LOOKS };
+  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, aim, stage: STAGE, looks: LOOKS };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },

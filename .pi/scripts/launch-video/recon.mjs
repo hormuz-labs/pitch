@@ -270,9 +270,16 @@ const data = await page.evaluate(() => {
   // aria-label), and the mark is the one inside the link home when there is one.
   const ICON_NAME = /^(windows|apple|mac(os)?|linux|ubuntu|android|ios|github|gitlab|x|twitter|discord|slack|linkedin|youtube|facebook|instagram|reddit|mastodon|bluesky|rss|menu|hamburger|search|close|sun|moon|dark|light|theme|arrow|chevron|external)( (icon|logo|mark))?$/i;
   const nameOf = (el) => (el.tagName.toLowerCase() === "svg" ? (el.querySelector("title")?.textContent || "") : el.getAttribute("alt") || "").trim() || (el.getAttribute("aria-label") || el.closest("a")?.getAttribute("aria-label") || el.closest("a")?.getAttribute("title") || "").trim();
+  // A mark inside a link to another site is that site's (the social row's
+  // X and YouTube icons), not the product's.
+  const host = (h) => h.replace(/^www\./, "");
+  const offsite = (el) => {
+    const a = el.closest("a[href]");
+    return !!a && !!a.hostname && host(a.hostname) !== host(location.hostname);
+  };
   const logoCandidates = Array.from(document.querySelectorAll('header img, header svg, nav img, nav svg, a[href="/"] img, a[href="/"] svg, img[alt*="logo" i], img[src*="logo" i]'))
     .filter(visible)
-    .filter((el) => !ICON_NAME.test(nameOf(el)))
+    .filter((el) => !ICON_NAME.test(nameOf(el)) && !offsite(el))
     .sort((a, b) => Number(!!b.closest('a[href="/"]')) - Number(!!a.closest('a[href="/"]')))
     .slice(0, 6)
     .map((el) => ({ tag: el.tagName.toLowerCase(), alt: el.getAttribute("alt") || "", name: nameOf(el), home: !!el.closest('a[href="/"]'), src: el.tagName.toLowerCase() === "img" ? (el.currentSrc || el.src || "").slice(0, 600) : "", svg: el.tagName.toLowerCase() === "svg" ? el.outerHTML.slice(0, 400000) : null, w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));

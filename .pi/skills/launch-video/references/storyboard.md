@@ -56,8 +56,7 @@ between two or three directions before you storyboard one. Most users cannot
 name the film they want; they can recognise it.
 
 - Each direction is a different idea from the mechanism, not the same idea in
-  three palettes. All of them are on the product's measured ground and type:
-  directions differ in what happens, never in light versus dark.
+  three palettes. Every one uses the brand's measured colours and type.
 - Give each one a still of its **opening frame**: a static page at the film's
   size, `directions/<a|b|c>.html` (the stills land on the asset shelf), using the brand fonts and colours from
   recon, then capture them all in one call:
