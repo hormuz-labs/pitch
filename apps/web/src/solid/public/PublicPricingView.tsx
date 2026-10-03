@@ -318,8 +318,8 @@ export const PublicPricingView = () => {
               <h2>Frontier models, one balance</h2>
             </div>
             <p>
-              Gemini, Gemma and GPT models share the same credits. Use a fast model for volume, and
-              spend more when the work needs deeper reasoning or generated video.
+              Gemini and GPT models share the same credits. Use a fast model for volume, and spend
+              more when the work needs deeper reasoning or generated video.
             </p>
           </div>
           <div class="public-pricing-tiers" data-ready={rates() !== null ? '' : undefined}>
@@ -340,11 +340,11 @@ export const PublicPricingView = () => {
             </For>
           </div>
           <p class="public-pricing-note">
-            Credits are estimates; billing is metered on the work actually done. Gemini and Gemma
-            models are on every account; the GPT models, including Sol and Astra, are switched on
-            per account, so <a href="mailto:support@trypitch.co?subject=Model%20access">ask us</a>.
-            The sandbox and renders cost the same on every model; generated footage is billed per
-            second only when a clip is actually generated.
+            Credits are estimates; billing is metered on the work actually done. Gemini models are
+            on every account; the GPT models, including Sol and Astra, are switched on per account,
+            so <a href="mailto:support@trypitch.co?subject=Model%20access">ask us</a>. The sandbox
+            and renders cost the same on every model; generated footage is billed per second only
+            when a clip is actually generated.
           </p>
         </section>
         <section class="public-pricing-faq">

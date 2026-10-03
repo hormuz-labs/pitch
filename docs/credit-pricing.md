@@ -92,10 +92,11 @@ full case list and reasoning are in `docs/pitch-credit-pricing.pdf`.
 ## Model pricing
 
 The model multiplier is configured with `STUDIO_MODEL_CREDIT_MULTIPLIERS`.
-Azure APIM provides GPT-5.5, GPT-5.6 Luna/Terra/Sol, and GPT-6
-Luna/Sol/Astra. The studio defaults reasoning to `medium`; reasoning tokens are
-already included in reported model usage, so there is no second reasoning-level
-surcharge.
+Azure APIM provides GPT-5.5, GPT-5.6 Luna/Terra/Sol, GPT-6 Sol/Astra and
+GPT-6.1 Sol, all with image input. (GPT-6 Luna is deployed but text-only, so it
+is not offered: the studio agent reads screenshots and review frames.) The
+studio defaults reasoning to `medium`; reasoning tokens are already included in
+reported model usage, so there is no second reasoning-level surcharge.
 
 Every runnable model is shown regardless of plan. Selecting one does not deduct
 credits. The composer warns when the balance is below the model's estimate, and project creation performs the authoritative balance check before
@@ -109,14 +110,12 @@ promotions, or earlier purchases.
 |---|---:|---:|---:|
 | Gemini 3.8 Flash | 0.75 / 3.75 | 1x | 73 credits |
 | Gemini 3.1 Pro | 2 / 12 | 2x | 280 credits |
-| Gemma 4 31B | 0 / 0 | 1x | 30 credits |
-| Gemma 4 26B | 0 / 0 | 0.75x | 30 credits |
 | GPT-5.4 mini | 0.75 / 4.5 | 1x | 77 credits |
 | GPT-5.4 | 2.5 / 15 | 2x | 343 credits |
 | GPT-5.5 | 5 / 30 | 1.5x | 499 credits |
-| Luna / GPT-6 Luna | 0.2 / 1.2 | 0.75x | 40 credits |
+| Luna | 0.2 / 1.2 | 0.75x | 40 credits |
 | Terra | 2 / 12 | 1x | 155 credits |
-| Sol / GPT-6 Sol | 4 / 20 | 1x | 255 credits |
+| Sol / GPT-6 Sol / GPT-6.1 Sol | 4 / 20 | 1x | 255 credits |
 | Astra | 10 / 50 | 2x | 1,155 credits |
 
 The estimate prices one typical turn the way billing prices it: the turn's
@@ -131,7 +130,6 @@ credits      = ceil((token USD × model rate + machine USD) × 1.25 / $0.0025)
 
 Terra:  ($0.25 × 1 + $0.06) × 1.25 = $0.3875 → 155 credits
 Astra:  ($1.125 × 2 + $0.06) × 1.25 = $2.8875 → 1,155 credits
-Gemma:  ($0 + $0.06) × 1.25 = $0.075 → 30 credits (its tokens are priced $0)
 ```
 
 The typical turn is configurable with `STUDIO_TYPICAL_TURN`

@@ -9,8 +9,6 @@ import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/rates.js'
 
 export const GEMINI_38_FLASH_SPEC = 'google/gemini-3.8-flash'
 export const GEMINI_31_PRO_SPEC = 'google/gemini-3.1-pro-preview'
-export const GEMMA_4_31B_SPEC = 'google/gemma-4-31b-it'
-export const GEMMA_4_26B_SPEC = 'google/gemma-4-26b-a4b-it'
 
 export const GPT_54_SPEC = 'openai/gpt-5.4'
 export const GPT_54_MINI_SPEC = 'openai/gpt-5.4-mini'
@@ -18,24 +16,22 @@ export const AZURE_GPT_55_SPEC = 'azure-apim/gpt-5.5'
 export const AZURE_LUNA_SPEC = 'azure-apim/gpt-5.6-luna'
 export const AZURE_TERRA_SPEC = 'azure-apim/gpt-5.6-terra'
 export const AZURE_SOL_SPEC = 'azure-apim/gpt-5.6-sol'
-export const AZURE_GPT_6_LUNA_SPEC = 'azure-apim/gpt-6-luna'
 export const AZURE_GPT_6_SOL_SPEC = 'azure-apim/gpt-6-sol'
+export const AZURE_GPT_61_SOL_SPEC = 'azure-apim/gpt-6.1-sol'
 export const AZURE_ASTRA_SPEC = 'azure-apim/gpt-6-astra'
 
 /** Menu order. The first runnable entry is also the studio default. */
 export const DEFAULT_STUDIO_MODELS = [
   GEMINI_38_FLASH_SPEC,
   GEMINI_31_PRO_SPEC,
-  GEMMA_4_31B_SPEC,
-  GEMMA_4_26B_SPEC,
   GPT_54_MINI_SPEC,
   GPT_54_SPEC,
   AZURE_GPT_55_SPEC,
   AZURE_LUNA_SPEC,
   AZURE_TERRA_SPEC,
   AZURE_SOL_SPEC,
-  AZURE_GPT_6_LUNA_SPEC,
   AZURE_GPT_6_SOL_SPEC,
+  AZURE_GPT_61_SOL_SPEC,
   AZURE_ASTRA_SPEC,
 ] as const
 
@@ -45,16 +41,14 @@ export const DEFAULT_STUDIO_MODEL = GEMINI_38_FLASH_SPEC
 export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
   [GEMINI_38_FLASH_SPEC]: 1,
   [GEMINI_31_PRO_SPEC]: 2,
-  [GEMMA_4_31B_SPEC]: 1,
-  [GEMMA_4_26B_SPEC]: 0.75,
   [GPT_54_MINI_SPEC]: 1,
   [GPT_54_SPEC]: 2,
   [AZURE_GPT_55_SPEC]: 1.5,
   [AZURE_LUNA_SPEC]: 0.75,
   [AZURE_TERRA_SPEC]: 1,
   [AZURE_SOL_SPEC]: 1,
-  [AZURE_GPT_6_LUNA_SPEC]: 0.75,
   [AZURE_GPT_6_SOL_SPEC]: 1,
+  [AZURE_GPT_61_SOL_SPEC]: 1,
   [AZURE_ASTRA_SPEC]: 2,
 }
 
@@ -62,16 +56,14 @@ export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
 export const STUDIO_MODEL_LABELS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Gemini 3.8 Flash',
   [GEMINI_31_PRO_SPEC]: 'Gemini 3.1 Pro',
-  [GEMMA_4_31B_SPEC]: 'Gemma 4 31B',
-  [GEMMA_4_26B_SPEC]: 'Gemma 4 26B',
   [GPT_54_SPEC]: 'GPT-5.4',
   [GPT_54_MINI_SPEC]: 'GPT-5.4 mini',
   [AZURE_GPT_55_SPEC]: 'GPT-5.5',
   [AZURE_LUNA_SPEC]: 'Luna',
   [AZURE_TERRA_SPEC]: 'Terra',
   [AZURE_SOL_SPEC]: 'Sol',
-  [AZURE_GPT_6_LUNA_SPEC]: 'GPT-6 Luna',
   [AZURE_GPT_6_SOL_SPEC]: 'GPT-6 Sol',
+  [AZURE_GPT_61_SOL_SPEC]: 'GPT-6.1 Sol',
   [AZURE_ASTRA_SPEC]: 'Astra',
 }
 
@@ -79,16 +71,14 @@ export const STUDIO_MODEL_LABELS: Record<string, string> = {
 export const STUDIO_MODEL_DETAILS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Fast multimodal production',
   [GEMINI_31_PRO_SPEC]: 'Complex multimodal projects',
-  [GEMMA_4_31B_SPEC]: 'Creative open-weight model',
-  [GEMMA_4_26B_SPEC]: 'Efficient open-weight model',
   [GPT_54_MINI_SPEC]: 'Fast everyday production',
   [GPT_54_SPEC]: 'Complex planning and execution',
   [AZURE_GPT_55_SPEC]: 'Deep planning and complex production',
   [AZURE_LUNA_SPEC]: 'Fast drafts and lightweight edits',
   [AZURE_TERRA_SPEC]: 'Everyday production work',
   [AZURE_SOL_SPEC]: 'Advanced production work',
-  [AZURE_GPT_6_LUNA_SPEC]: 'Next-generation fast drafts',
   [AZURE_GPT_6_SOL_SPEC]: 'Next-generation everyday production',
+  [AZURE_GPT_61_SOL_SPEC]: 'Newest advanced production work',
   [AZURE_ASTRA_SPEC]: 'Highest-capability production work',
 }
 

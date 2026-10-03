@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../apps/api/src/studio/session.js', () => ({
   studioModelPrices: vi.fn(async () => ({
     'google/gemini-3.8-flash': { input: 0.75, output: 3.75 },
-    'google/gemma-4-31b-it': { input: 0, output: 0 },
+    'azure-apim/gpt-6.1-sol': { input: 4, output: 20 },
     'azure-apim/gpt-5.6-terra': { input: 2, output: 12 },
     'azure-apim/gpt-5.6-sol': { input: 4, output: 20 },
     'azure-apim/gpt-6-astra': { input: 10, output: 50 },
@@ -28,9 +28,9 @@ describe('GET /pricing/models', () => {
     )
     expect(credits).toMatchObject({
       'Gemini 3.8 Flash': 73,
-      'Gemma 4 31B': 30,
       Terra: 155,
       Sol: 255,
+      'GPT-6.1 Sol': 255,
       Astra: 1155,
     })
     expect(res.body.models.every((m: { unit: string }) => m.unit === 'typical generation')).toBe(

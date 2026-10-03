@@ -1,9 +1,10 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   AZURE_ASTRA_SPEC,
-  AZURE_GPT_6_LUNA_SPEC,
   AZURE_GPT_6_SOL_SPEC,
   AZURE_GPT_55_SPEC,
+  AZURE_GPT_61_SOL_SPEC,
   AZURE_LUNA_SPEC,
   AZURE_SOL_SPEC,
   AZURE_TERRA_SPEC,
@@ -13,8 +14,6 @@ import {
   estimatedModelCredits,
   GEMINI_31_PRO_SPEC,
   GEMINI_38_FLASH_SPEC,
-  GEMMA_4_26B_SPEC,
-  GEMMA_4_31B_SPEC,
   GPT_54_MINI_SPEC,
   GPT_54_SPEC,
   modelCreditMultiplier,
@@ -44,13 +43,9 @@ describe('parseModelSpec', () => {
       provider: 'google',
       id: 'gemini-3.8-flash',
     })
-    expect(parseModelSpec(GEMMA_4_31B_SPEC)).toEqual({
-      provider: 'google',
-      id: 'gemma-4-31b-it',
-    })
-    expect(parseModelSpec(GEMMA_4_26B_SPEC)).toEqual({
-      provider: 'google',
-      id: 'gemma-4-26b-a4b-it',
+    expect(parseModelSpec(AZURE_GPT_61_SOL_SPEC)).toEqual({
+      provider: 'azure-apim',
+      id: 'gpt-6.1-sol',
     })
   })
 })
@@ -65,10 +60,26 @@ describe('studioModelSpecs', () => {
   })
 
   it('keeps a configured allowlist in order', () => {
-    expect(studioModelSpecs(`${GEMMA_4_31B_SPEC}, ${GEMINI_38_FLASH_SPEC}`)).toEqual([
-      GEMMA_4_31B_SPEC,
+    expect(studioModelSpecs(`${GEMINI_31_PRO_SPEC}, ${GEMINI_38_FLASH_SPEC}`)).toEqual([
+      GEMINI_31_PRO_SPEC,
       GEMINI_38_FLASH_SPEC,
     ])
+  })
+
+  it('every menu model defined in .pi/models.json reads images', () => {
+    // The agent sees uploads, screenshots and review frames through `read`;
+    // pi drops the image for a model whose input lacks it.
+    const config = JSON.parse(readFileSync('.pi/models.json', 'utf8')) as {
+      providers: Record<string, { models: { id: string; input: string[] }[] }>
+    }
+    const defined = Object.entries(config.providers).flatMap(([provider, p]) =>
+      p.models.map(m => ({ spec: `${provider}/${m.id}`, input: m.input })),
+    )
+    for (const spec of DEFAULT_STUDIO_MODELS) {
+      const entry = defined.find(m => m.spec === spec)
+      if (entry) expect(entry.input, spec).toContain('image')
+    }
+    for (const entry of defined) expect(DEFAULT_STUDIO_MODELS, entry.spec).toContain(entry.spec)
   })
 })
 
@@ -122,9 +133,8 @@ describe('model credit pricing', () => {
   })
 
   it('never quotes a model as free: machine time costs the same on every model', () => {
-    // Gemma's tokens are $0 in the catalog; 30 s × $0.002 × 1.25 = 30 credits.
-    expect(estimatedModelCredits(GEMMA_4_31B_SPEC, { price: FREE }).total).toBe(30)
-    expect(estimatedModelCredits(GEMMA_4_26B_SPEC, { price: FREE }).total).toBe(30)
+    // $0 tokens still pay 30 s × $0.002 × 1.25 = 30 credits.
+    expect(estimatedModelCredits('custom/free', { price: FREE }).total).toBe(30)
   })
 
   it('quotes an unknown price as a mid-market model, not as free', () => {
@@ -185,8 +195,6 @@ describe('assembleStudioPicker', () => {
     model('google', 'gemini-2.5-flash', 'Gemini 2.5 Flash'),
     model('google', 'gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview', { input: 2, output: 12 }),
     model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash', { input: 0.75, output: 3.75 }),
-    model('google', 'gemma-4-31b-it', 'Gemma 4 31B IT', { input: 0, output: 0 }),
-    model('google', 'gemma-4-26b-a4b-it', 'Gemma 4 26B A4B IT', { input: 0, output: 0 }),
     model('openrouter', 'z-ai/glm-5.3-flash', 'Z.ai: GLM 5.3 Flash'),
     model('openrouter', 'moonshotai/kimi-k3', 'MoonshotAI: Kimi K3'),
     model('openrouter', 'openai/gpt-4o', 'GPT-4o'),
@@ -216,20 +224,6 @@ describe('assembleStudioPicker', () => {
         harnessCredits: 280,
       },
       {
-        spec: GEMMA_4_31B_SPEC,
-        label: 'Gemma 4 31B',
-        creditMultiplier: 1,
-        estimatedCredits: 30,
-        harnessCredits: 30,
-      },
-      {
-        spec: GEMMA_4_26B_SPEC,
-        label: 'Gemma 4 26B',
-        creditMultiplier: 0.75,
-        estimatedCredits: 30,
-        harnessCredits: 30,
-      },
-      {
         spec: GPT_54_MINI_SPEC,
         label: 'GPT-5.4 mini',
         creditMultiplier: 1,
@@ -248,10 +242,10 @@ describe('assembleStudioPicker', () => {
 
   it('drops allowlist entries that are not authenticated', () => {
     const out = assembleStudioPicker(
-      catalog.filter(m => m.id === 'gemini-3.8-flash' || m.id === 'gemma-4-31b-it'),
+      catalog.filter(m => m.id === 'gemini-3.8-flash' || m.id === 'gemini-3.1-pro-preview'),
       { specs: [...DEFAULT_STUDIO_MODELS] },
     )
-    expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMMA_4_31B_SPEC])
+    expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMINI_31_PRO_SPEC])
   })
 
   it('shows direct GPT models when gptEnabled is true', () => {
@@ -267,12 +261,7 @@ describe('assembleStudioPicker', () => {
       specs: [...DEFAULT_STUDIO_MODELS],
       gptEnabled: false,
     })
-    expect(out.map(m => m.spec)).toEqual([
-      GEMINI_38_FLASH_SPEC,
-      GEMINI_31_PRO_SPEC,
-      GEMMA_4_31B_SPEC,
-      GEMMA_4_26B_SPEC,
-    ])
+    expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMINI_31_PRO_SPEC])
   })
 
   it('gates Azure models behind gptEnabled', () => {
@@ -281,8 +270,8 @@ describe('assembleStudioPicker', () => {
       model('azure-apim', 'gpt-5.6-luna', 'Luna'),
       model('azure-apim', 'gpt-5.6-terra', 'Terra'),
       model('azure-apim', 'gpt-5.6-sol', 'Sol'),
-      model('azure-apim', 'gpt-6-luna', 'GPT-6 Luna'),
       model('azure-apim', 'gpt-6-sol', 'GPT-6 Sol'),
+      model('azure-apim', 'gpt-6.1-sol', 'GPT-6.1 Sol'),
       model('azure-apim', 'gpt-6-astra', 'Astra'),
     ]
     expect(
@@ -302,8 +291,8 @@ describe('assembleStudioPicker', () => {
       AZURE_LUNA_SPEC,
       AZURE_TERRA_SPEC,
       AZURE_SOL_SPEC,
-      AZURE_GPT_6_LUNA_SPEC,
       AZURE_GPT_6_SOL_SPEC,
+      AZURE_GPT_61_SOL_SPEC,
       AZURE_ASTRA_SPEC,
     ])
   })
@@ -377,7 +366,10 @@ describe('assembleStudioPicker', () => {
     expect(selectStudioModel(allowed, undefined, 'openrouter/moonshotai/kimi-k3')).toBe(
       GEMINI_38_FLASH_SPEC,
     )
-    expect(selectStudioModel(allowed, GEMMA_4_31B_SPEC)).toBe(GEMMA_4_31B_SPEC)
+    expect(selectStudioModel(allowed, GEMINI_31_PRO_SPEC)).toBe(GEMINI_31_PRO_SPEC)
+    expect(selectStudioModel(allowed, undefined, 'google/gemma-4-31b-it')).toBe(
+      GEMINI_38_FLASH_SPEC,
+    )
     expect(() => selectStudioModel([])).toThrow('No studio models')
   })
 })

@@ -76,4 +76,27 @@ describe('studio transcript projection', () => {
       tool: { name: 'bash', status: 'error' },
     })
   })
+
+  it('shows the failed model call that ended a turn, not the ones pi retried past', () => {
+    const manager = SessionManager.inMemory('/workspace')
+    const failed = (errorMessage: string, timestamp: number) =>
+      ({
+        ...assistantMessage('', timestamp),
+        content: [],
+        stopReason: 'error',
+        errorMessage,
+      }) as any
+    manager.appendMessage(userMessage('First', 1))
+    manager.appendMessage(failed('overloaded', 2))
+    manager.appendMessage(assistantMessage('Done', 3))
+    manager.appendMessage(userMessage('Second', 4))
+    manager.appendMessage(failed('API key auth failed', 5))
+
+    expect(sessionEntriesFromTranscript(manager, new Map()).map(entry => entry.text)).toEqual([
+      'First',
+      'Done',
+      'Second',
+      '⚠ API key auth failed',
+    ])
+  })
 })

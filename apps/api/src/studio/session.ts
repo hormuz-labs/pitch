@@ -147,6 +147,8 @@ export interface Session {
   thinkingId: string | null
   turn: number
   cost: number
+  /** Why the last model call failed; pi retries, so only the final one is shown. */
+  modelError: string | null
   queue: PendingPrompt[]
   active: PendingPrompt | null
   pendingBindings: Entry[]
@@ -396,7 +398,7 @@ export function sessionEntriesFromTranscript(
   }
 
   const entries: Entry[] = []
-  for (const item of branch) {
+  for (const [index, item] of branch.entries()) {
     if (item.type !== 'message') continue
     const message = item.message as any
     const at = entryTime(item)
@@ -412,7 +414,18 @@ export function sessionEntriesFromTranscript(
       })
       continue
     }
-    if (message.role !== 'assistant' || !Array.isArray(message.content)) continue
+    if (message.role !== 'assistant') continue
+    // A failed call that ended the turn, as the live thread showed it; a
+    // failure pi retried past is followed by another assistant message.
+    const next = branch.slice(index + 1).find(e => e.type === 'message') as any
+    if (message.stopReason === 'error' && next?.message?.role !== 'assistant')
+      entries.push({
+        id: `${item.id}-error`,
+        role: 'assistant',
+        text: `⚠ ${message.errorMessage || 'The model call failed'}`,
+        at,
+      })
+    if (!Array.isArray(message.content)) continue
     for (let i = 0; i < message.content.length; i++) {
       const part = message.content[i]
       if (part?.type === 'text' && part.text) {
@@ -650,6 +663,11 @@ function onPiEvent(s: Session, ev: any): void {
     case 'message_end': {
       const cost = Number(ev.message?.usage?.cost?.total ?? 0)
       if (ev.message?.role === 'assistant' && cost > 0) s.cost += cost
+      if (ev.message?.role === 'assistant')
+        s.modelError =
+          ev.message.stopReason === 'error'
+            ? String(ev.message.errorMessage || 'The model call failed')
+            : null
       // Pi persists the message immediately after notifying subscribers. Bind
       // the UI entry on the next microtask, when its stable transcript id exists.
       if (ev.message?.role === 'user') queueMicrotask(() => bindPersistedUserEntry(s))
@@ -878,6 +896,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       thinkingId: null,
       turn: 0,
       cost: 0,
+      modelError: null,
       queue: [],
       active: null,
       pendingBindings: [],
@@ -1039,7 +1058,13 @@ async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
       ? `<studio-context>\n${context}\n</studio-context>\n\n${request.text}`
       : request.text
     s.pendingBindings.push(request.entry)
+    s.modelError = null
     await s.session.prompt(full)
+    if (s.modelError) {
+      logger.error({ projectId: s.projectId, error: s.modelError }, 'model call failed')
+      emit(s, { type: 'error', message: s.modelError })
+      s.modelError = null
+    }
   } catch (err) {
     failed = true
     s.pendingBindings = s.pendingBindings.filter(entry => entry !== request.entry)

@@ -7,9 +7,9 @@ export interface CatalogModel {
   estimatedCredits: number
 }
 
-type Filter = 'All' | 'Fast' | 'Low cost' | 'Premium' | 'Open-weight'
+type Filter = 'All' | 'Fast' | 'Low cost' | 'Premium'
 
-const filters: Filter[] = ['All', 'Fast', 'Low cost', 'Premium', 'Open-weight']
+const filters: Filter[] = ['All', 'Fast', 'Low cost', 'Premium']
 
 const description = (model: CatalogModel) => {
   const name = model.label.toLowerCase()
@@ -17,7 +17,6 @@ const description = (model: CatalogModel) => {
   if (name.includes('sol')) return 'Advanced planning and polished video production.'
   if (name.includes('terra')) return 'Balanced quality and speed for everyday production.'
   if (name.includes('luna')) return 'Fast, economical drafts and lightweight edits.'
-  if (name.includes('gemma')) return 'Open-weight creative model for flexible production.'
   if (name.includes('pro') || name === 'gpt-5.5' || name === 'gpt-5.4')
     return 'Detailed planning for complex, multi-step projects.'
   return 'Quick multimodal drafts and everyday projects.'
@@ -28,8 +27,7 @@ const matchesFilter = (model: CatalogModel, filter: Filter) => {
   if (filter === 'All') return true
   if (filter === 'Fast') return /flash|mini|luna|terra/.test(name)
   if (filter === 'Low cost') return model.estimatedCredits <= 125
-  if (filter === 'Premium') return /astra|sol|pro|gpt-5\.5|gpt-5\.4$/.test(name)
-  return name.includes('gemma')
+  return /astra|sol|pro|gpt-5\.5|gpt-5\.4$/.test(name)
 }
 
 export function ModelCatalog(props: {
