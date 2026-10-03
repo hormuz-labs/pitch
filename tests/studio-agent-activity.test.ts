@@ -26,7 +26,7 @@ describe('studio agent activity', () => {
     }
     expect(agentActivity([prompt, shell], true)).toBe('searching')
     expect(
-      agentActivity([prompt, { ...shell, text: 'bash · pitch effects search text reveal' }], true),
+      agentActivity([prompt, { ...shell, text: 'bash · pitch icons search slack' }], true),
     ).toBe('searching')
     expect(agentActivity([prompt, { ...shell, text: 'bash · pitch motion render' }], true)).toBe(
       'solving',

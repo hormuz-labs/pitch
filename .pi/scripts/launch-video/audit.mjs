@@ -15,8 +15,8 @@
  *      --event are "events". A quiet gap over --max-quiet or a film under
  *      --min-eps events per second is a ⚠️ pacing note, not a failure: the
  *      numbers come from the reference films, but a held frame can be the
- *      design, and an effect ported whole should not be rebuilt to satisfy a
- *      counter. The agent answers the note or says in direction.md why not.
+ *      design and should not be rebuilt to satisfy a counter. The agent
+ *      answers the note or says in direction.md why not.
  *   3. Scene overlap at every scene midpoint; seek determinism (❌).
  *
  * Screenshots dominate capture time, so samples are taken by several tabs at
@@ -41,7 +41,7 @@ import { pixelDiffRatio } from "./lib/png.mjs";
 import { stockGroundNote } from "./lib/ground.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { paceOf } from "./lib/pace.mjs";
-import { designSummary, extractSpec, lintAd, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
+import { designSummary, extractSpec, lintAd, lintDesign } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -65,14 +65,6 @@ const SCALE = 0.5;
 // Sized to the film's stage once the page reports it (SHOTS.format).
 let stage = { w: 1920, h: 1080, format: "16:9" };
 let shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
-const inspectedEffects = (() => {
-  try {
-    const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
-    return Array.isArray(receipt.effects) ? receipt.effects : [];
-  } catch {
-    return [];
-  }
-})();
 
 if (!only.length) rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -135,7 +127,6 @@ if (!spec) {
   const shots = spec.shots;
   // Timeline validity and content-review hints (lib/design-rules.mjs).
   lint.push(...lintDesign(spec), ...lintAd(spec));
-  lint.push(...lintEffectSources(spec, inspectedEffects));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------
   const legacyClips = shots.filter(s => typeof s.vo === "string").length;
@@ -345,7 +336,7 @@ const fails = [];
 const warns = [];
 for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
 // Pacing is a note, not a gate: the numbers are the reference films', and a
-// held frame or a lab effect kept whole can be the right call — said out loud.
+// held frame can be the right call — said out loud.
 if (longestQuiet > maxQuiet) warns.push(`Pacing: no pixel change above the event threshold for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}. Review against direction.md and reading time. Intentional holds and subtle action are valid; change only an accidental stall. Do not add decorative motion to raise this metric. No re-run is needed for an intentional hold.`);
 // A film-level number, so only a film-level run may raise it: one shot sampled
 // alone is a different measurement, and "over the film" would be a lie about it.

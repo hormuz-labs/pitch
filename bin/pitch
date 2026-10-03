@@ -7,7 +7,7 @@
  * So anything you can debug here is exactly what the agent gets.
  *
  *   bin/pitch --help
- *   bin/pitch effects search a card flipping to reveal a price
+ *   bin/pitch icons search slack messaging
  *   bin/pitch motion check --page index.html
  *
  * Commands run against the current directory as the project workspace, which

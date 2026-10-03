@@ -71,7 +71,7 @@ export function projectFiles(ws: string): ProjectFiles {
 export interface ShellOptions {
   title: string
   rive?: boolean
-  /** p5.js (1MB) for a generative canvas ported from the lab's launch family. */
+  /** p5.js (1MB) for a generative canvas shot. */
   p5?: boolean
   files: ProjectFiles
 }

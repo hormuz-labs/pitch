@@ -36,7 +36,7 @@ export function extractSpec() {
       // what gives a shot a second act without a beat
       more: Array.isArray(x.more) ? x.more.length : 0, items: Array.isArray(x.items) ? x.items.length : 0,
       focus: !!x.focus, cursor: !!x.cursor, clickZoom: !!(x.cursor && x.cursor.zoom), cursors: Array.isArray(x.cursors) ? x.cursors.length : 0,
-      frame: x.frame || null, tilt: !!x.tilt, layers: !!x.layers, html: !!x.html, lab: x.lab || null,
+      frame: x.frame || null, tilt: !!x.tilt, layers: !!x.layers, html: !!x.html,
       src: x.src, rows: x.rows,
       // footage montage: each clip plays `dur` or `every`, the last holds to the end
       every: Number(x.every) > 0 ? Number(x.every) : null,
@@ -59,32 +59,6 @@ export function lintDesign(spec) {
     if (!Number.isFinite(s.dur) || s.dur <= 0) out.push({ level: "fail", code: "duration", msg: `#${s.id}: duration must be a finite, positive number (got ${s.dur}).` });
     if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: review this whole-screen ${s.frame || "browser"} view at delivery size. An overview is valid; if a particular control or label must be read, crop, focus or rebuild that detail.` });
   });
-  return out;
-}
-
-/** A lab citation means the implementation source was inspected in this workspace. */
-export function lintEffectSources(spec, inspected = []) {
-  const seen = new Set(inspected);
-  const used = new Map();
-  const out = [];
-  for (const shot of spec?.shots || []) {
-    if (shot.lab) {
-      if (used.has(shot.lab)) {
-        out.push({
-          level: "fail",
-          code: "lab-repeat",
-          msg: `#${shot.id}: lab "${shot.lab}" is already used by #${used.get(shot.lab)}. Each effect may appear in only one shot per film. Choose a different effect; do not hide reuse by removing or renaming its citation.`,
-        });
-      } else used.set(shot.lab, shot.id);
-    }
-    if (shot.lab && !seen.has(shot.lab)) {
-      out.push({
-        level: "fail",
-        code: "lab-source",
-        msg: `#${shot.id}: lab \"${shot.lab}\" was cited from a code-free study card. Run pitch effects show ${shot.lab} --source, read the implementation, then adapt it or remove the lab citation.`,
-      });
-    }
-  }
   return out;
 }
 
@@ -157,10 +131,6 @@ export function designSummary(spec) {
   if (spec.actors) parts.push(`actors ${spec.actors}`);
   const chapters = new Set(shots.map((s) => s.chapter).filter(Boolean));
   if (chapters.size) parts.push(`chapters ${chapters.size}`);
-  // Only a shot that names its lab id is a lab move; a custom type invented on
-  // the spot is not one, and counting it as one flattered every film.
-  const lab = shots.filter((s) => s.lab).length;
-  parts.push(`lab moves ${lab}`);
   const breaths = shots.reduce((a, s) => a + (s.breaths || 0), 0);
   parts.push(`breaths ${breaths}`);
   return parts.join(" · ");

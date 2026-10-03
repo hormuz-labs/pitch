@@ -24,7 +24,7 @@ import {
 } from '../.pi/lib/sandbox'
 
 const WS = '/app/projects/studio--user_1--acme'
-const SHARED = ['/app/.pi/skills', '/app/assets', '/app/effects']
+const SHARED = ['/app/.pi/skills', '/app/assets']
 const HIDDEN = ['/app/assets/gsap', '/app/assets/three']
 
 describe('the bwrap recipe', () => {

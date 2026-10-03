@@ -7,7 +7,6 @@
     "packages/*"
   ],
   "scripts": {
-    "effects:sync": "bun scripts/sync-effects-skill.ts",
     "setup": "bun run db:up && echo 'Waiting for databases to start...' && sleep 3 && bun run db:deploy",
     "db:up": "docker compose -p pitch up -d postgres minio",
     "db:down": "docker compose -p pitch down",

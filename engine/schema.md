@@ -54,7 +54,7 @@ density or a universal animation pattern.
 An entrance → development → exit sequence is one option. A shot can also
 hold, reveal one change, or continue an action across a cut. Add `beats` only
 when they express something the treatment needs, never to satisfy an event
-counter. Custom factories and adapted lab effects own their timelines.
+counter. Custom factories own their timelines.
 
 ## Actors
 
@@ -130,7 +130,6 @@ and leave dead air between them.
 | `beats` | Mid-shot events — see "Density layer". |
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
 | `ambient` | `false` hides the ambient stage on this shot. |
-| `lab` | The selected `family/slug` id this shot derives from, when applicable. Source attribution only, not a quality score. Record substantial adaptations in direction.md; bespoke and built-in shots need no lab id. |
 | `cue` | The script phrase this shot lands on (`"step two"`). `pitch motion sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
 | `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `pitch motion audit` (fragmented narration). |
 | `drift` | `true` enables slow rest travel; otherwise inherits `motion.drift` (default false). `false` opts out of a film-wide drift. `driftScale` / `driftX` / `driftY` set the target scale and position when drift is enabled. |
@@ -461,8 +460,7 @@ opacity/brightness loops, and every image from `assets/`.
 - Make text readable at delivery size for the time it is on screen. Choose
   its scale, hierarchy, amount and reveal for the composition.
 - Choose cuts, transitions, camera motion and stillness for the treatment.
-  A direct cut needs no actor, carry or added exit. Lab effects may be adapted;
-  a source citation does not require its original composition or duration.
+  A direct cut needs no actor, carry or added exit.
 - Brand identifiers come from recon; self-host the fonts. Declare additional
   treatment colours in `brand.palette` and distinguish creative choices from
   measured brand evidence in direction.md.

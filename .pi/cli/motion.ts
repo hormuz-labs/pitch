@@ -97,7 +97,6 @@ function validateFilm(name: string, args: string[], ws: string, out: string) {
       ...['index.html', 'shots.js', 'js', 'css', 'assets', 'recon', 'uploads', 'vendor'].map(f =>
         join(ws, f),
       ),
-      join(ws, '.studio', 'effect-sources.json'),
       ...args.filter(a => !a.startsWith('--')).map(f => join(ws, f)),
       ...narration,
       ...['gsap', 'three', 'lottie', 'rive', 'p5', 'fonts'].map(f => join(ASSETS_DIR, f)),
@@ -836,7 +835,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'check',
     description:
-      'Fast compile check: links new js/shots/*.js and css/shots/*.css, loads the page and reports errors, valid durations, real shot start times and actionable factory overruns (over 1.1×; over 1.6× fails audit). Flags whole-screen UI for a delivery-size readability review; overviews are valid. For ads (audio.pace "ad") it also warns on pace (picture changes under 1.5/s, a still picture held past 1.5s, a clip reused across beats), a subtitle tier, and captions that sit where the last one did or cover what the shot shows. Does not prescribe lab effects, word entrances or objects crossing cuts. Run after adding shots; address actual build problems and review content notes against the treatment.',
+      'Fast compile check: links new js/shots/*.js and css/shots/*.css, loads the page and reports errors, valid durations, real shot start times and actionable factory overruns (over 1.1×; over 1.6× fails audit). Flags whole-screen UI for a delivery-size readability review; overviews are valid. For ads (audio.pace "ad") it also warns on pace (picture changes under 1.5/s, a still picture held past 1.5s, a clip reused across beats), a subtitle tier, and captions that sit where the last one did or cover what the shot shows. Does not prescribe word entrances or objects crossing cuts. Run after adding shots; address actual build problems and review content notes against the treatment.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -1335,7 +1334,7 @@ export default function motionCommands(): CommandSpec[] {
       'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and a PLACEHOLDER ' +
       "opening shot built from the site's own h1, so the preview is never blank: replace it with your hook and keep adding " +
       'one shot at a time. Call this once instead of writing the page by hand. New type files after that need no ' +
-      'scaffold call: pitch motion check links them. Pass --rive when a shot uses a .riv file, --p5 when a shot ports a p5.js canvas from the lab.',
+      'scaffold call: pitch motion check links them. Pass --rive when a shot uses a .riv file, --p5 when a shot draws a p5.js canvas.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
@@ -1354,8 +1353,7 @@ export default function motionCommands(): CommandSpec[] {
       ),
       p5: Type.Optional(
         Type.Boolean({
-          description:
-            'Load p5.js (1MB) for a generative canvas shot ported from the lab (default false).',
+          description: 'Load p5.js (1MB) for a generative canvas shot (default false).',
         }),
       ),
       format: Type.Optional(

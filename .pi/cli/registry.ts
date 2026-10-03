@@ -22,7 +22,6 @@
 import deck from './deck.ts'
 import demo from './demo.ts'
 import demoFlow from './demo-flow.ts'
-import effects, { families } from './effects.ts'
 import icons from './icons.ts'
 import media from './media.ts'
 import motion from './motion.ts'
@@ -52,25 +51,9 @@ export interface Command extends CommandSpec {
   namespace: string
 }
 
-/**
- * A namespace whose commands can be narrowed by a name that is itself a
- * subcommand: `pitch effects text list` is `pitch effects list --family
- * text`. The names come off disk, so a new family is a new subcommand with
- * no edit anywhere.
- */
-export interface Groups {
-  /** What one of them is called in help: "family". */
-  noun: string
-  /** The parameter the group's name fills on the command it precedes. */
-  param: string
-  /** The names, as they exist right now. */
-  list: () => string[]
-}
-
 interface Namespace {
   /** The modules that fill it, in the order help prints them. */
   modules: (() => CommandSpec[])[]
-  groups?: Groups
 }
 
 /**
@@ -79,10 +62,6 @@ interface Namespace {
  * commands.
  */
 const NAMESPACES: Record<string, Namespace> = {
-  effects: {
-    modules: [effects],
-    groups: { noun: 'family', param: 'family', list: families },
-  },
   motion: { modules: [motion] },
   icons: { modules: [icons] },
   media: { modules: [media] },
@@ -113,9 +92,4 @@ export function findCommand(namespace: string, verb: string): Command | null {
 /** Every namespace, in the order help should print them. */
 export function namespaces(): string[] {
   return Object.keys(NAMESPACES)
-}
-
-/** The groups a namespace can be narrowed by, or null. */
-export function groupsOf(namespace: string): Groups | null {
-  return NAMESPACES[namespace]?.groups ?? null
 }

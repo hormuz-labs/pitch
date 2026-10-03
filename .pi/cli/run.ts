@@ -4,17 +4,16 @@
  * Three programs share it. `bin/pitch` on a developer's terminal, the
  * studio's socket (serve.ts) that the sandboxed shell's `pitch` talks to,
  * and the tests. Whatever the front, this is the one place a command line
- * is read: strip a leading `pitch`, find the namespace, let a group name
- * narrow it (`pitch effects text list`), parse the rest by the command's own
- * schema, run it.
+ * is read: strip a leading `pitch`, find the namespace and the verb, parse
+ * the rest by the command's own schema, run it.
  *
  * It runs ONE command. Several are the shell's business — `a && b` stops at
  * the first failure, a newline does not — and that is why a failed command
  * says so in its exit status, not only in its text.
  */
 import { ArgvError, parseArgs, tokenize } from './argv.ts'
-import { commandHelp, groupHelp, namespaceHelp, topHelp } from './help.ts'
-import { findCommand, groupsOf, namespaces } from './registry.ts'
+import { commandHelp, namespaceHelp, topHelp } from './help.ts'
+import { findCommand, namespaces } from './registry.ts'
 
 export interface RunContext {
   /** The project workspace — every command runs against it. */
@@ -63,30 +62,15 @@ export async function run(input: string | string[], ctx: RunContext): Promise<Ru
   }
   if (!afterFirst.length) return done(namespaceHelp(first))
 
-  // `pitch effects text list`: a group name before the verb narrows it.
-  const groups = groupsOf(first)
-  const preset: Record<string, unknown> = {}
-  let group: string | null = null
-  if (groups?.list().includes(afterFirst[0])) {
-    group = afterFirst.shift() as string
-    preset[groups.param] = group
-    if (!afterFirst.length) return done(groupHelp(first, group))
-  }
   const [verb, ...tail] = afterFirst
-  if (wantsHelp) return done(group ? groupHelp(first, group) : commandHelp(first, verb))
+  if (wantsHelp) return done(commandHelp(first, verb))
 
   const cmd = findCommand(first, verb)
-  if (!cmd) {
-    const where = group ? groupHelp(first, group) : namespaceHelp(first)
-    return failed(`No "pitch ${first} ${verb}".\n\n${where}`)
-  }
-  if (group && !(groups!.param in (cmd.parameters?.properties ?? {}))) {
-    return failed(`pitch ${first} ${verb} takes no ${groups!.noun}.\n\n${groupHelp(first, group)}`)
-  }
+  if (!cmd) return failed(`No "pitch ${first} ${verb}".\n\n${namespaceHelp(first)}`)
 
   let params: Record<string, unknown>
   try {
-    params = { ...preset, ...parseArgs(tail, cmd.parameters ?? {}) }
+    params = parseArgs(tail, cmd.parameters ?? {})
   } catch (err) {
     if (!(err instanceof ArgvError)) throw err
     return failed(`pitch ${first} ${verb}: ${err.message}\n\n${commandHelp(first, verb)}`)

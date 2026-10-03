@@ -178,12 +178,6 @@ Heavy actions are remotely dispatchable and cancellation kills their process
 group. Transcription uses the existing host whisper.cpp action through
 `pitch media transcribe`; the VM installs or executes none of these dependencies.
 
-The launch skill embeds every available effect ID, grouped by family. Agents can
-select candidates directly, compare notes/frame strips, then load selected source
-before implementing. Browsing and search remain optional. `bun run effects:sync`
-regenerates the embedded inventory from the live lab; a unit test catches drift.
-Each lab ID is unique within a film; motion check and audit reject duplicate citations.
-
 `icon-library` is shared across outcomes. `pitch icons search|import` uses the
 offline catalog in `assets/icons/` (pinned Lucide, Simple Icons and SVGL sources).
 Only selected SVGs, licenses and provenance are copied into a project. The skill's

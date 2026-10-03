@@ -109,7 +109,7 @@ has five studied ads beat by beat; read the one nearest the brief.
 | Record the voice (Gemini) | `pitch motion tts --pace ad --provider gemini --model gemini-3.8-flash-tts --voice <name>` (script directed in `{turns}`), `pitch motion tighten`, `pitch motion align`, `pitch motion sync --write` |
 | Music bed and its sections | `pitch motion music --duration … --drop_at … --prompt "…"` (Lyria); `--provider elevenlabs --styles … --sections …`; `pitch motion find-audio` for a library bed; `audio.fx` `thin` / `muffle` / `ring`, `breath` beats |
 | Sound effects, mix | `pitch motion sfx --mode list` / `--mode query --event "whoosh_soft,impact,riser,…"` (the Gakuyen pack first, the default); `pitch motion sfx --mode build`, `pitch motion mix`; `pitch motion sound --prompt "…" --out audio/generated-sfx/<name>.mp3` (ElevenLabs) only for product foley or an ambience |
-| Other motion | `pitch effects search/show` (see launch-video's effects list); cite `lab` only for ported source |
+| Motion a built-in type cannot do | a custom shot type: [build](../launch-video/references/build.md), `pitch motion schema --section "custom shot types"` |
 
 ## Non-negotiable
 

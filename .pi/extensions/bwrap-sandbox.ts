@@ -44,7 +44,7 @@ const BASH_DESCRIPTION =
   "Run a shell command in this project's workspace (your cwd, and the only writable place; the " +
   'skills and asset libraries are readable). You have bash, node, python and `pitch` — the ' +
   "studio's command line, which runs outside this shell with a real browser, ffmpeg and " +
-  'network: recon, screenshots, audio, the lab, review and rendering are all `pitch` commands ' +
+  'network: recon, screenshots, audio, review and rendering are all `pitch` commands ' +
   '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. A `pitch` command can ' +
   'wait minutes for a render worker; the studio bounds it, so a timeout you set does not apply ' +
   'to a command that runs `pitch` — let it finish rather than re-running it. Correct invalid ' +

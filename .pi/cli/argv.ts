@@ -117,8 +117,8 @@ function coerce(name: string, specIn: any, raw: string): unknown {
  * Parse the words after `pitch <namespace> <verb>`.
  *
  * Positionals fill the schema's `required` properties in order, so
- * `pitch effects show text/bold-text-snap` needs no flag name and
- * `pitch effects search a card flipping to reveal a price` reads as English.
+ * `pitch icons import svgl/slack` needs no flag name and
+ * `pitch icons search slack messaging` reads as English.
  * A required string that is last takes every remaining word.
  */
 export function parseArgs(words: string[], schema: Schema): Record<string, unknown> {

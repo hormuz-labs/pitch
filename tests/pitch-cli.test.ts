@@ -14,12 +14,11 @@ const run = async (line: string | string[], c = ctx) => (await dispatch(line, c)
 
 describe('tokenize', () => {
   it('splits on whitespace and keeps quoted phrases whole', () => {
-    expect(tokenize('effects search a card flipping')).toEqual([
-      'effects',
+    expect(tokenize('icons search slack messaging')).toEqual([
+      'icons',
       'search',
-      'a',
-      'card',
-      'flipping',
+      'slack',
+      'messaging',
     ])
     expect(tokenize(`motion tts --script "hello there, world"`)).toEqual([
       'motion',
@@ -140,7 +139,7 @@ describe('the registry', () => {
     expect(all.length).toBeGreaterThan(50)
     expect(findCommand('motion', 'check')).toBeTruthy()
     expect(findCommand('recording', 'grab-frames')).toBeTruthy()
-    expect(findCommand('effects', 'list')).toBeTruthy()
+    expect(findCommand('icons', 'search')).toBeTruthy()
     expect(findCommand('demo', 'record-start')?.namespace).toBe('demo')
   })
 
@@ -271,7 +270,7 @@ describe('help', () => {
 describe('exit status', () => {
   it('is success for help and for a command that ran', async () => {
     expect((await dispatch('help', ctx)).ok).toBe(true)
-    expect((await dispatch('effects families', ctx)).ok).toBe(true)
+    expect((await dispatch('icons collections', ctx)).ok).toBe(true)
   })
 
   it('is failure for an unknown namespace, an unknown command and bad arguments', async () => {
@@ -282,8 +281,8 @@ describe('exit status', () => {
   })
 
   it('takes argv already split, quotes and all', async () => {
-    const out = await run(['effects', 'search', 'a card flipping'], ctx)
-    expect(out).toContain('"a card flipping"')
+    const out = await run(['motion', 'schema', '--section', 'a card flipping'], ctx)
+    expect(out).toContain('No section "a card flipping"')
   })
 })
 
@@ -379,15 +378,14 @@ describe('the socket the sandboxed `pitch` talks to', () => {
         })
         child.on('close', code => resolve({ out, code }))
       })
-    const ok = await guest('effects', 'families')
+    const ok = await guest('icons', 'search', 'slack')
     expect(ok.code).toBe(0)
-    expect(ok.out).toContain('Live discovery index')
-    expect(ok.out).toContain('pitch effects browse')
+    expect(ok.out).toContain('svgl/slack')
     const bad = await guest('sparkle', 'go')
     expect(bad.code).toBe(1)
     expect(bad.out).toContain('Namespaces:')
-    const quoted = await guest('effects', 'search', 'a card flipping')
-    expect(quoted.out).toContain('"a card flipping"')
+    const quoted = await guest('motion', 'schema', '--section', 'a card flipping')
+    expect(quoted.out).toContain('No section "a card flipping"')
   })
 
   it('says so when it has no socket, rather than hanging', async () => {

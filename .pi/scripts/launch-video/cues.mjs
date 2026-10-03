@@ -24,10 +24,10 @@
  * only enters or a whole desktop is heard while the film is being built.
  * Exit 1 on a page error or a page that never becomes ready.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
-import { extractSpec, lintEffectSources, lintWhileBuilding } from "./lib/design-rules.mjs";
+import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
 import { actionableOverruns } from "./lib/overruns.mjs";
 
 const args = process.argv.slice(2);
@@ -35,14 +35,6 @@ const page_ = args.find(a => !a.startsWith("--")) || "index.html";
 const outArg = args.find(a => a.startsWith("--out="));
 const out = outArg ? outArg.slice(6) : "audio/cues.json";
 const CHECK = args.includes("--check");
-const inspectedEffects = (() => {
-  try {
-    const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
-    return Array.isArray(receipt.effects) ? receipt.effects : [];
-  } catch {
-    return [];
-  }
-})();
 
 // Every file the page pulls is served from disk (see lib/browser.mjs).
 const studio = await openStudioBrowser();
@@ -112,11 +104,8 @@ if (overruns.length) console.log("   Include repeats and stagger: a tween at .6*
 if (CHECK) {
   // The shot-list rules, now — the audit says the same things after a render,
   // and a film that hears them there gets rebuilt instead of built.
-  const buildLint = spec ? [...lintWhileBuilding(spec), ...lintEffectSources(spec, inspectedEffects)] : [];
+  const buildLint = spec ? lintWhileBuilding(spec) : [];
   for (const l of buildLint) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
-  if (buildLint.some(l => l.code === "lab-source" || l.code === "lab-repeat")) {
-    process.exit(1);
-  }
 }
 const media = data.media;
 const mediaProblems = media ? [

@@ -9,7 +9,7 @@
  *
  * This replaces shipping all 55 schemas on all 116 requests of a run.
  */
-import { commands, findCommand, groupsOf, namespaces } from './registry.ts'
+import { commands, findCommand, namespaces } from './registry.ts'
 
 /**
  * What each namespace is for. The modules describe individual commands well
@@ -17,7 +17,6 @@ import { commands, findCommand, groupsOf, namespaces } from './registry.ts'
  * look inside is worth writing by hand.
  */
 export const BLURBS: Record<string, string> = {
-  effects: 'the motion lab — every effect on disk, to search, read and port into a film',
   icons: 'offline brand and interface SVGs — search, import selected assets with provenance',
   motion: 'launch films — recon, scaffold, the engine schema, check, review, audio; user exports',
   media: 'ffmpeg, probing any media file, and publishing a finished file to the project',
@@ -68,37 +67,8 @@ export function namespaceHelp(ns: string): string {
   }
   const width = Math.max(...mine.map(c => c.verb.length))
   const rows = mine.map(c => `  pitch ${ns} ${c.verb.padEnd(width)}  ${summarize(c.description)}`)
-  const groups = groupsOf(ns)
-  const narrowing = groups
-    ? [
-        '',
-        `A ${groups.noun} is a subcommand too — pitch ${ns} <${groups.noun}> <command> runs it on that ${groups.noun} only:`,
-        `  ${groups.list().join(', ')}`,
-      ]
-    : []
   return [
     `pitch ${ns} — ${BLURBS[ns] ?? ''}`,
-    '',
-    ...rows,
-    ...narrowing,
-    '',
-    `pitch ${ns} <command> --help for the whole description and its options.`,
-  ].join('\n')
-}
-
-/** Level 2, narrowed: `pitch effects text` — the commands that take a family. */
-export function groupHelp(ns: string, group: string): string {
-  const groups = groupsOf(ns)
-  if (!groups) return namespaceHelp(ns)
-  const mine = commands().filter(
-    c => c.namespace === ns && groups.param in (c.parameters?.properties ?? {}),
-  )
-  const width = Math.max(...mine.map(c => c.verb.length))
-  const rows = mine.map(
-    c => `  pitch ${ns} ${group} ${c.verb.padEnd(width)}  ${summarize(c.description)}`,
-  )
-  return [
-    `pitch ${ns} ${group} — the ${groups.noun} "${group}" only.`,
     '',
     ...rows,
     '',

@@ -295,5 +295,5 @@ swapping in one spot, use a `line` shot's `rotate` instead.
 - Bursts, holds, stills: `footage` with `clips`, `push`, `look`, `flash`.
 - Act changes: `cut: "glitch"`; a tear inside one shot: the `glitch` beat.
 - The brand card: `logo-sting` / `logo-cta` with the brand's logo file.
-- Anything else: search the effects lab (`pitch effects search "…"`), read
-  the chosen source with `--source`, and port its mechanism.
+- Anything else: a custom shot type in the project
+  (`pitch motion schema --section "custom shot types"`).

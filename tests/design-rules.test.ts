@@ -7,7 +7,6 @@ import {
   designSummary,
   lintAd,
   lintDesign,
-  lintEffectSources,
   lintWhileBuilding,
   paceStats,
 } from '../.pi/scripts/launch-video/lib/design-rules.mjs'
@@ -59,9 +58,9 @@ describe('lintDesign', () => {
   })
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined])(
-    'rejects invalid duration %s even when a shot has a lab citation',
+    'rejects invalid duration %s',
     dur => {
-      expect(lintDesign(film([{ dur, lab: 'text/example' }]))).toEqual([
+      expect(lintDesign(film([{ dur }]))).toEqual([
         expect.objectContaining({ level: 'fail', code: 'duration' }),
       ])
     },
@@ -71,13 +70,8 @@ describe('lintDesign', () => {
     expect(lintDesign(film([{ typing: true }, { rippleBeats: 1 }]))).toEqual([])
   })
 
-  it('treats built-in, bespoke and lab-derived shots equally', () => {
-    for (const source of [
-      { type: 'word-cut' },
-      { type: 'line' },
-      { type: 'product-portrait' },
-      { type: 'adapted-reveal', lab: 'brand/example' },
-    ]) {
+  it('treats built-in and bespoke shots equally', () => {
+    for (const source of [{ type: 'word-cut' }, { type: 'line' }, { type: 'product-portrait' }]) {
       expect(lintDesign(film([{ ...source, dur: 12, beats: 0 }]))).toEqual([])
     }
   })
@@ -114,54 +108,13 @@ describe('lintWhileBuilding', () => {
   })
 })
 
-describe('lintEffectSources', () => {
-  it('rejects a repeated effect even when its source was inspected and its factory was renamed', () => {
-    const spec = film([
-      { lab: 'text/bold-text-snap', type: 'opener', chapter: 'intro' },
-      { lab: 'brand/apple-news-plus', type: 'cards' },
-      { lab: 'text/bold-text-snap', type: 'renamed-payoff', chapter: 'outro' },
-    ])
-    expect(lintEffectSources(spec, ['text/bold-text-snap', 'brand/apple-news-plus'])).toEqual([
-      expect.objectContaining({
-        level: 'fail',
-        code: 'lab-repeat',
-        msg: expect.stringMatching(/#s3:.*text\/bold-text-snap.*#s1/),
-      }),
-    ])
-  })
-
-  it('allows distinct effects from the same family and reuse in a separate film', () => {
-    const inspected = ['text/bold-text-snap', 'text/elastic-text']
-    expect(lintEffectSources(film(inspected.map(lab => ({ lab }))), inspected)).toEqual([])
-    expect(lintEffectSources(film([{ lab: inspected[0] }]), inspected)).toEqual([])
-  })
-
-  it('requires source inspection for every cited lab implementation', () => {
-    const spec = film([{ lab: 'text/inspected' }, { lab: 'brand/card-only' }, { type: 'bespoke' }])
-    expect(lintEffectSources(spec, ['text/inspected'])).toEqual([
-      expect.objectContaining({
-        level: 'fail',
-        code: 'lab-source',
-        msg: expect.stringContaining('pitch effects show brand/card-only --source'),
-      }),
-    ])
-    expect(lintEffectSources(spec, ['text/inspected', 'brand/card-only'])).toEqual([])
-  })
-})
-
 describe('designSummary', () => {
-  it('names actors, chapters, lab moves and breaths — a custom type without a lab id is not a lab move', () => {
-    const spec = film(
-      [
-        { chapter: 'a', breaths: 1, lab: 'text/bold-text-snap' },
-        { type: 'my-port' },
-        { chapter: 'a' },
-        {},
-      ],
-      { actors: 2 },
-    )
-    expect(designSummary(spec)).toBe('actors 2 · chapters 1 · lab moves 1 · breaths 1')
-    expect(designSummary({ shots: [] })).toBe('lab moves 0 · breaths 0')
+  it('names actors, chapters and breaths', () => {
+    const spec = film([{ chapter: 'a', breaths: 1 }, { type: 'my-port' }, { chapter: 'a' }, {}], {
+      actors: 2,
+    })
+    expect(designSummary(spec)).toBe('actors 2 · chapters 1 · breaths 1')
+    expect(designSummary({ shots: [] })).toBe('breaths 0')
   })
 })
 

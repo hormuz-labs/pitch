@@ -4,8 +4,7 @@
  *
  * There is no guest/host translation. The agent's shell, its file tools and
  * every host tool see the SAME absolute paths: the project's workspace at its
- * real location, and the four shared references (engine, skills, assets,
- * effects) at
+ * real location, and the shared references (engine, skills, assets) at
  * theirs. The sandbox binds each at the path it already has, so a path in a
  * tool result, a skill listing, an error message or the agent's own `pwd`
  * means one thing everywhere.
@@ -42,7 +41,6 @@ export const GUEST_BIN_DIR = path.join(PI_DIR, 'guest')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
 export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')
-export const EFFECTS_DIR = path.join(REPO_ROOT, 'effects')
 export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'projects')
 
 /**
@@ -54,7 +52,7 @@ export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'pr
  * (135KB) are library code it once read four times in one film. The same
  * goes for the vendor libraries under assets/ — see LIBRARY_DIRS.
  */
-export const SHARED_ROOTS: readonly string[] = [SKILLS_DIR, ASSETS_DIR, EFFECTS_DIR]
+export const SHARED_ROOTS: readonly string[] = [SKILLS_DIR, ASSETS_DIR]
 
 /**
  * Library code inside a shared root that the agent never needs to read:
@@ -128,7 +126,7 @@ export function resolveIn(
   if (LIBRARY_DIRS.some(dir => contains(resolveSymlinks(dir), real))) {
     throw new PathError(
       `${input} is library code the page loads for you — there is nothing in it to read. ` +
-        'The engine is `pitch motion schema`, the effects lab is `pitch effects`.',
+        'The engine is `pitch motion schema`.',
     )
   }
   return abs
@@ -153,10 +151,9 @@ export function describeWorkspace(workspace: string): string {
   return (
     `Current working directory: ${workspace} — this project's workspace, and the only place ` +
     `you can write. Read-only references: your skills at ${SKILLS_DIR}, the music, SFX and ` +
-    `font libraries at ${ASSETS_DIR}, the motion effects lab at ${EFFECTS_DIR}. The engine ` +
-    `and the vendor libraries are not on disk for you: \`pitch motion schema\` and \`pitch effects\` are ` +
-    `their reference. Nothing else on this machine exists for you: no other project, ` +
-    `no network, no environment.`
+    `font libraries at ${ASSETS_DIR}. The engine and the vendor libraries are not on disk ` +
+    `for you: \`pitch motion schema\` is their reference. Nothing else on this machine ` +
+    `exists for you: no other project, no network, no environment.`
   )
 }
 

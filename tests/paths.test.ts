@@ -16,7 +16,6 @@ import {
   ASSETS_DIR,
   contains,
   describeWorkspace,
-  EFFECTS_DIR,
   ENGINE_DIR,
   LIBRARY_DIRS,
   PathError,
@@ -29,7 +28,7 @@ import {
 } from '../.pi/lib/paths'
 
 // A workspace where the projects really are, so the shared references are
-// the real .pi/skills/, assets/ and effects/ and nothing has to be faked.
+// the real .pi/skills/ and assets/ and nothing has to be faked.
 const WS = path.join(path.dirname(ENGINE_DIR), 'projects', 'studio--user_1--acme')
 
 describe('what the agent can reach', () => {
@@ -50,9 +49,6 @@ describe('what the agent can reach', () => {
       path.join(SKILLS_DIR, 'launch-video/SKILL.md'),
     )
     expect(resolveIn(WS, path.join(ASSETS_DIR, 'music'))).toBe(path.join(ASSETS_DIR, 'music'))
-    expect(resolveIn(WS, path.join(EFFECTS_DIR, 'text/bold-text-snap/index.html'))).toBe(
-      path.join(EFFECTS_DIR, 'text/bold-text-snap/index.html'),
-    )
     // The relative spelling the older skills used still lands on the reference.
     expect(resolveIn(WS, '../../assets/music')).toBe(path.join(ASSETS_DIR, 'music'))
   })
