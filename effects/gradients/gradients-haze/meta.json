@@ -1,0 +1,24 @@
+{
+  "move": "five heavily blurred colour blobs circle slowly under drifting fog and grain",
+  "how": "Inside a wrapper with filter blur(70px) saturate(1.2), five 760px radial-gradient blobs circle once per loop on ellipses (radii 300 to 380 by 160 to 260), alternating direction, and breathe scale 1 to 1.25 on one sine; the wrapper rocks 4 degrees. An SVG feTurbulence fog rect in soft-light blend drifts on a 60px circle, a fine-noise grain sits over it at 12% overlay, and an italic serif caption sits at the bottom. All values come from t via gsap.set.",
+  "moves": [
+    "orbit",
+    "pulse",
+    "blur",
+    "fog",
+    "grain"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the five blob colours, the ground colour and the caption; keep single-cycle sines so the 7s loop closes, and keep blur(70px) for the haze.",
+  "port": "mount(el, shot) appends .wrap with blobs, the fog and grain SVGs (unique filter ids) and caption; animate(el, shot, D) returns a timeline with one {t:0->D, ease:none} tween whose onUpdate runs the seek(t) gsap.set calls. Scope '.blob', '#fogRect', '.wrap' to el.",
+  "caveats": [
+    "filter blur(70px) over a 130% wrapper plus two feTurbulence full-frame filters is very slow to render",
+    "SVG filter ids #f and #g are document-level"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

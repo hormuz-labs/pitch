@@ -1,0 +1,26 @@
+{
+  "name": "CodeRabbit Security",
+  "seconds": 12,
+  "move": "red code highlights multiply into a 3D security constellation, cursor-led scans dive through product UI, and warning copy wipes to the launch resolve",
+  "how": "Compressed reconstruction of the reference film. Monospace code, red/green scan cards, perspective dashboard planes, cursor focus rings, graph bars and kinetic warning typography follow the reference's dark orange-red camera language.",
+  "moves": [
+    "code-scan",
+    "panel-constellation",
+    "perspective-camera",
+    "cursor-focus",
+    "dashboard-pan",
+    "text-wipe"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Replace security copy and tables while keeping red risk versus green resolution and cursor-led hierarchy.",
+  "port": "Drive the scoped 3D world and DOM overlays from seek(t).",
+  "caveats": [
+    "Condenses a 77-second film to 12 seconds",
+    "UI is a programmatic facsimile"
+  ],
+  "fidelity": "motion-reconstruction",
+  "loop": false,
+  "size": "1920x1080"
+}

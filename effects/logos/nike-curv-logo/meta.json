@@ -1,0 +1,28 @@
+{
+  "move": "swoosh outline draws along the curve, white flood chases it, gold glint runs the top edge, letters kick in",
+  "how": "An SVG swoosh-like curve: an outline path, a rect flood clipped to the shape, and a gold glint path along the top edge, plus four letter spans. 0-42%: the outline drawSVGs 0->100% (power3.inOut). At 30% the flood rect width grows 0->720 left to right with power3.out over 0.32s, filling the shape white as it chases the stroke; at 45% the stroke fades out. At 50% the glint draws as a 30%-long segment sliding to the end of the curve (drawSVG '0% 0%' -> '70% 100%', power2.in) and blinks off at 80%. Meanwhile the whole SVG settles from rotation -6 scale .92 with expo.out from 30%, and at 55% the letters C-U-R-V rise from yPercent 120 with a 0.05s stagger (expo.out). Exit at 88%: the mark whips up 30px and fades (power3.in) and the letters fade with a 0.015s stagger.",
+  "moves": [
+    "draw-stroke",
+    "flood",
+    "glint",
+    "stagger",
+    "slide-in",
+    "whip-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "clip-path"
+  ],
+  "adapt": "Replace the three paths with the product's own curved mark (outline, clip shape, top edge), the word letters and the gold (#ffcf3a). Keep the 0.42s draw, the flood starting at 30% and the 0.05s letter stagger.",
+  "port": "mount(el, shot) builds the SVG with a uniquely-id'd clipPath and the letter spans inside el; animate(el, shot, D) returns the timeline with draw 0-0.42D, flood at 0.3D, glint at 0.5D, letters at 0.55D, exit at 0.88D. Register DrawSVGPlugin; rename the clipPath id and scope selectors to el; the flood width 720 is in viewBox units and ports unchanged.",
+  "caveats": [
+    "clipPath id 'c' is global and must be unique per instance",
+    "one second total; the letter from() needs immediateRender:false when nested",
+    "ends empty, no return to frame one",
+    "file title is 'CURV Logo' with no Nike mark; the swoosh is an original curve"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

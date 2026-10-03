@@ -1,0 +1,20 @@
+{
+  "name": "Result Card Focus Expansion",
+  "seconds": 5,
+  "move": "compact result card expands into a detailed answer while moving to frame center and resolving focus",
+  "how": "Width and height grow with expoInOut, the card re-centers, blur clears first, and detail copy appears only after the new geometry settles.",
+  "moves": [
+    "card-expand",
+    "focus-pull",
+    "progressive-disclosure"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Replace compact and detailed content.",
+  "port": "Animate geometry before revealing secondary copy.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

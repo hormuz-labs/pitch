@@ -1,0 +1,27 @@
+{
+  "move": "horizontal rules fly into the scanline runs of a word, fly back",
+  "how": "A canvas: in mount, the word 'DATA' is rasterised at 280px and scanned every 7px row into horizontal runs, giving a few hundred short line segments that together form the glyphs. Each segment is assigned a start state on one of 14 long horizontal rules spread over the frame, with a random x, a random length 40 to 540px and a random delay up to 0.25s. seek(t) interpolates each segment's x0, x1 and y from its rule to its glyph position with expo.inOut: assembling over the first 55% (each over 0.3s after its delay), holding until 72%, then flying back over 0.16s. Colour shifts from blue (hsl 205) toward white as p approaches 1, so the word turns solid white when it locks. The frame ends with segments returning to the rules, close to the first frame.",
+  "moves": [
+    "morph",
+    "gather",
+    "scatter",
+    "stagger",
+    "draw-stroke",
+    "colour-shift"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Change the word and font (longer words need a smaller size), the STEP row pitch (thicker or thinner lines), the number of origin rules and the background/line colours. The whole thing is 1s; scale the 0.55/0.72 boundaries with D and keep expo.inOut.",
+  "port": "mount(el, shot) creates the canvas, waits for the font, builds the segment list once with a seeded rng; animate(el, shot, D) returns a gsap.timeline with one proxy tween {t: 0 to D, ease 'none'} whose onUpdate clears and strokes every segment at its interpolated position. Move build() out of the first seek into mount; W/H from the canvas.",
+  "caveats": [
+    "fx.register canvas seek loop must become an onUpdate tween on the returned timeline",
+    "loop nearly closes: segments with the largest delay are still returning at the last frame",
+    "getImageData scan must run once in mount, not in seek",
+    "fixed 1280x720 canvas backing store"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

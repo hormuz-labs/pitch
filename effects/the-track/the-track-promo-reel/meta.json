@@ -1,0 +1,26 @@
+{
+  "move": "four beats: type slams, marquee cut, lime stripes, product spins",
+  "how": "Beat 1 (0-0.15D): shot 1 punches from scale 1.3 to 1.1 with power2.out while the logo and 'Go' snap up from masks and 'Harder' slides in from xPercent 120. Beat 2 (0.15D): hard cut via autoAlpha set to shot 2 which pans xPercent 3→-3 and scales to 1.15 linearly, a marquee bar races in from the right with expo.out, its text scrolls xPercent 0→-30, then the bar exits left with expo.in. Beat 3 (0.32D): a lime solid appears, two stripes slash in from opposite sides, 'Season' snaps up and 'Four' snaps down, then stripes and type shove out with expo.in. Beat 4 (0.49D): shot 3 drifts while an SVG shoe spins in from rotation -30 scale 0.4 y:300 with expo.out, lifts to y:-640 at 0.6D, two stat rows and a CTA rise, the CTA pulses scale 1.04 four times. At 0.93D everything exits and shot 3 fades so the loop hard-cuts back to shot 1.",
+  "moves": [
+    "hard-cut",
+    "punch-in",
+    "mask-text",
+    "marquee",
+    "stripe-wipe",
+    "spin-in",
+    "pulse"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the three shot images and filters, the word pairs per beat, the marquee text, product SVG, stat values and CTA; keep the beat boundaries (1.5, 3.2, 4.9s of 10) and the 0.45s expo.out snaps for the pace.",
+  "port": "mount(el, shot) builds three .shot layers, .solid, stripes, logo, .big words, .bar marquee, .prod, stats and .cta, applying the initial autoAlpha hides; animate(el, shot, D) returns the timeline with beat offsets as fractions of D (1.5/10, 3.2/10, 4.9/10, exit 9.3/10). Scope selectors to el.",
+  "caveats": [
+    "three full-frame background images with CSS filters",
+    "from() tweens need immediateRender:false when rebuilt",
+    "y values (-640, -1400) assume a 1920px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

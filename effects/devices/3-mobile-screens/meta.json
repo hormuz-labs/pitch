@@ -1,0 +1,27 @@
+{
+  "move": "three phones rise staggered, straighten in 3D, screens scroll, drop out",
+  "how": "An aurora background zooms 1.05 to 1.12 with a slight vertical drift over the whole 4s. Three phone mockups rise from y 640 with expo.out over 0.9s, staggered 0, 0.1 and 0.18s, the outer two pre-rotated rotateY +/-18 and pushed inward; a caption fades in at 15%. From 22% the side phones ease to rotateY +/-8 and x 0 with power2.inOut over 1.2s while the row floats up 30px, and each screen's content scrolls up 90-120px with power3.inOut, staggered 0.15s, the dashboard bars growing from scaleY 0 with back.out(1.6). At 82% the phones drop out right-to-left with expo.in and the caption fades.",
+  "moves": [
+    "rise-in",
+    "stagger",
+    "tilt-3d",
+    "scroll",
+    "bar-grow",
+    "drop-exit",
+    "ken-burns"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the three screen mock-ups (any HTML inside .content), the caption and the background image; adjust the scroll distances to the content height; keep the 0.9s expo.out rise, the 0.1s stagger and the 1.2s straighten.",
+  "port": "mount(el, shot) builds the background and three phones from shot.screens; animate returns the timeline with rise at 0, straighten at 0.22D, scroll at 0.25D and drop at 0.82D. Needs perspective on el and preserve-3d on the row; the 640/700px offsets assume a 720px-tall stage so derive from el height; from() tweens need immediateRender:false when composed.",
+  "caveats": [
+    "background uses filter: saturate/brightness on a full-frame image",
+    "wallpaper asset assets/backgrounds/aurora.png must exist",
+    "from() tweens need immediateRender:false when composed"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

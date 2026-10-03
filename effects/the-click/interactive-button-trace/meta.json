@@ -1,0 +1,26 @@
+{
+  "move": "press draws a wobbly ink outline around the button, tick checks, line retracts",
+  "how": "A white hard-shadow button 'Sign me up' in italic serif floats on paper-textured cream. Two rounded-rect SVG paths (red 5px, black 3px) surround it through an feDisplacementMap wobble filter so they look hand-inked; both start at drawSVG 0%. The wrap floats 5px on a 3s yoyo sine. Cursor arrives at 0.3s with power3.out; press at 1.4s (23%) scales 0.96 and shifts the button 4px into its shadow, release at 1.54s rebounds with back.out(2). From 1.5s the red path draws 0% to 100% with power2.inOut over 1.1s and the black path follows 0.2s behind; at 2.5s a red check mark draws in 0.4s and pops from scale 0.6 / -10deg with back.out(3). The cursor leaves at 3.3s; at 4.3s both outlines retract (drawSVG 100% 100%) the way they came over 0.9s and the tick shrinks away, leaving the bare button by 5.3s.",
+  "moves": [
+    "draw-stroke",
+    "cursor-press",
+    "squash",
+    "hand-drawn",
+    "float"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "svg-filter"
+  ],
+  "adapt": "Change the label, the red ink colour and the serif; the trace path coordinates are in a 400x160 viewBox stretched with preserveAspectRatio none so they fit any button size. Keep the 1.1s draw with power2.inOut and the 0.2s offset between the two strokes.",
+  "port": "mount(el, shot) creates the wobble filter defs, paper texture, wrap (btn, trace svg with p1/p2, tick svg) and cursor inside el; register DrawSVGPlugin. animate returns the timeline with press at 0.233D, draw 0.25D to 0.43D, tick 0.417D, retract 0.717D. Filter ids (#wobble, #pp) must be made unique per instance.",
+  "caveats": [
+    "needs DrawSVGPlugin",
+    "feDisplacementMap wobble filter on the stroke svg and an feTurbulence paper layer",
+    "boxShadow tweened as a string"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

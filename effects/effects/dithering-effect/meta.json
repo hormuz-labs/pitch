@@ -1,0 +1,22 @@
+{
+  "move": "ordered Bayer dither to four colours, matrix crawls, lit sphere orbits",
+  "how": "A 320x180 canvas upscaled with image-rendering pixelated draws a scene each frame: a diagonal violet gradient whose midpoint sweeps, a large sphere whose specular highlight circles it once per D while the sphere sways, six small orbs orbiting it, and the word DITHER. The frame is then quantised through a 4x4 Bayer matrix to a four-colour palette (near-black, purple, coral, cream); the matrix offset steps by frame index so the dither pattern crawls like animated noise. All scene motion is periodic in D and the crawl returns to zero at 120 frames.",
+  "moves": [
+    "dither",
+    "orbit",
+    "pixelate",
+    "grain"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Replace drawScene with the product image or logo drawn at low res, change the four palette entries and the word; raise the canvas size for finer dots. Keep the frame-indexed matrix crawl so the pattern feels alive.",
+  "port": "mount(el, shot) creates the low-res canvas and offscreen scene canvas; animate(el, shot, D) returns a timeline with one linear progress tween over D whose onUpdate draws the scene and applies the dither, replacing fx.register. No GSAP is loaded in the original.",
+  "caveats": [
+    "does not load gsap; the port adds it for the progress tween",
+    "per-pixel loop is small at 320x180 but grows quadratically with resolution"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

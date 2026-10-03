@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8">
+<title>Cascading Mobile Screens</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#12131a;font-family:"Atlas Grotesk",sans-serif;perspective:1800px}
+  .bg{position:absolute;inset:-10%;background:url("../../../assets/backgrounds/aurora.png") center/cover;filter:brightness(.4) saturate(1.2)}
+  .cas{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d}
+  .phone{position:absolute;left:-115px;top:-250px;width:230px;height:500px;border-radius:40px;background:#17181d;padding:10px;box-shadow:0 40px 70px rgba(0,0,0,.6),inset 0 0 0 2px #45464d;will-change:transform,opacity}
+  .scr{height:100%;border-radius:31px;overflow:hidden;position:relative;background:#fff;color:#111}
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:80px;height:22px;border-radius:13px;background:#17181d;z-index:5}
+  .body{padding:46px 14px 14px;will-change:transform}
+  .hd{font-size:20px;font-weight:500;letter-spacing:-.02em;margin-bottom:10px}
+  .hd small{display:block;font-size:11px;opacity:.55;font-weight:400}
+  .card{border-radius:14px;padding:12px;margin-bottom:10px;background:rgba(0,0,0,.05)}
+  .card.tall{height:130px;display:flex;align-items:flex-end;font-size:18px;font-weight:500;letter-spacing:-.02em;color:#fff}
+  .rowi{display:flex;gap:10px;align-items:center;padding:7px 0}
+  .rowi i{width:28px;height:28px;border-radius:9px;background:rgba(0,0,0,.12);flex:none}
+  .rowi .t{flex:1}
+  .rowi em{display:block;height:8px;border-radius:4px;background:rgba(0,0,0,.18);width:70%;font-style:normal;margin-bottom:6px}
+  .rowi em+em{width:45%;opacity:.6;margin:0}
+  .btn{height:42px;border-radius:13px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500}
+  .dark .scr{background:#141519;color:#fff}.dark .card{background:rgba(255,255,255,.08)}.dark .rowi i{background:rgba(255,255,255,.15)}.dark .rowi em{background:rgba(255,255,255,.3)}.dark .btn{background:#fff;color:#111}
+  .copy{position:absolute;left:80px;top:50%;transform:translateY(-50%);color:#fff;width:340px}
+  .copy h1{font-family:"Sharp Grotesk",sans-serif;font-size:56px;font-weight:500;letter-spacing:-.03em;line-height:1}
+  .copy h1 span{display:block;overflow:hidden}.copy h1 span b{display:block;font-weight:500}
+  .copy p{margin-top:18px;font-size:16px;line-height:1.5;opacity:.75}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="copy"><h1><span><b>Every</b></span><span><b>screen,</b></span><span><b>in flow.</b></span></h1><p>Six views of Acme, one continuous cascade.</p></div>
+  <div class="cas"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const grads = ['linear-gradient(135deg,#5b6cff,#c46bff)', 'linear-gradient(135deg,#ff8a5c,#ff3d81)', 'linear-gradient(135deg,#1fa86c,#0b6b47)', 'linear-gradient(135deg,#ffd166,#ff7a59)', 'linear-gradient(135deg,#3d5aff,#00d4ff)', 'linear-gradient(135deg,#9d3dff,#ff5c6e)'];
+  const names = [['Home', 'Today'], ['Shop', 'Featured'], ['Health', 'Activity'], ['Wallet', 'Balance'], ['Social', 'Friends'], ['Music', 'Now playing']];
+  const cas = document.querySelector('.cas');
+  const N = 6;
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement('div');
+    p.className = 'phone p' + i + (i % 2 ? ' dark' : '');
+    p.innerHTML = `<div class="scr"><div class="notch"></div><div class="body"><div class="hd"><small>${names[i][0]}</small>${names[i][1]}</div><div class="card tall" style="background:${grads[i]}">${['Morning brief', 'New drop', '8,420 steps', '$2,140.00', '12 online', 'Night drive'][i]}</div><div class="card"><div class="rowi"><i></i><div class="t"><em></em><em></em></div></div><div class="rowi"><i></i><div class="t"><em></em><em></em></div></div><div class="rowi"><i></i><div class="t"><em></em><em></em></div></div></div><div class="btn">Open</div></div></div>`;
+    cas.appendChild(p);
+  }
+  // the cascade: a diagonal staircase from top-left to bottom-right, each step back in depth
+  const step = i => ({ x: 110 + i * 112, y: -100 + i * 40, z: -i * 90, ry: -26 });
+  const tl = fx.timeline({ duration: 10 });
+  tl.fromTo('.bg', { scale: 1.06, xPercent: 1 }, { scale: 1.12, xPercent: -1, duration: 10, ease: 'none' }, 0);
+  gsap.set('.cas', { rotateY: 0 });
+  for (let i = 0; i < N; i++) {
+    const s = step(i);
+    // each phone drops in from above, one after the other, and settles with a hint of overshoot
+    tl.fromTo('.p' + i, { x: s.x, y: s.y - 700, z: s.z, rotateY: s.ry, rotateX: 20, opacity: 0 },
+      { x: s.x, y: s.y, z: s.z, rotateY: s.ry, rotateX: 0, opacity: 1, duration: 1.1, ease: 'back.out(1.2)' }, 0.2 + i * 0.22);
+    // then the screens scroll in a wave down the stairs
+    tl.to(`.p${i} .body`, { y: -110, duration: 1.3, ease: 'power3.inOut' }, 3.0 + i * 0.16)
+      .to(`.p${i} .body`, { y: 0, duration: 1.3, ease: 'power3.inOut' }, 5.6 + i * 0.16);
+  }
+  tl.from('.copy h1 b', { yPercent: 110, stagger: 0.1, duration: 0.8, ease: 'expo.out' }, 0.5)
+    .from('.copy p', { y: 16, opacity: 0, duration: 0.6, ease: 'power3.out' }, 1.0);
+  // the whole staircase slowly slides and turns, then cascades out downward
+  tl.to('.cas', { x: -60, rotateY: 8, duration: 5.5, ease: 'sine.inOut' }, 1.5);
+  for (let i = 0; i < N; i++) tl.to('.p' + i, { y: '+=700', rotateX: -20, opacity: 0, duration: 0.6, ease: 'expo.in' }, 8.4 + i * 0.14);
+  tl.to('.copy', { opacity: 0, x: -30, duration: 0.5, ease: 'power2.in' }, 9.0);
+</script>

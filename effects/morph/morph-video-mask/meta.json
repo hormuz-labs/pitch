@@ -1,0 +1,26 @@
+{
+  "move": "video window morphs dot, blob, flower, full frame, folds back to dot",
+  "how": "A muted video is clipped by an SVG clipPath whose 8-segment cubic ring path starts as a 70px dot; a white stroke copy follows 0.06s behind. At 0.04D the path morphSVGs to a lumpy blob (back.out(1.5), 0.8s), at 0.24D to an 8-petal flower (power3.inOut), at 0.44D to a shape larger than the frame (expo.inOut, 1s) so the video fills the screen, while the mask rotates 0 to 40 degrees (sine.inOut). Title and subtitle rise from yPercent 110 (expo.out) at 0.54D, leave at 0.82D (expo.in), then the mask morphs back to blob and dot and the rotation returns to 0 by D. Video currentTime is set on every seek.",
+  "moves": [
+    "morph",
+    "mask-wipe",
+    "reveal",
+    "slide-in",
+    "rotate"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG",
+    "clip-path"
+  ],
+  "adapt": "Swap the video src, the title/subtitle strings and the stroke colour; change the ring() radius functions for other shapes but keep 8 segments so morphs stay clean; keep the 0.2/1.2/2.2/4.25/4.65 beat structure scaled to D.",
+  "port": "mount(el, shot) creates the video, the clipPath SVG (unique id) and the title in el and returns once loadeddata fires; animate(el, shot, D) returns the timeline plus a {t:0->D} tween whose onUpdate sets video.currentTime (replaces the __fx.seek override). Scope '#mp', '#edge', '.t', '.s' to el.",
+  "caveats": [
+    "clip-path: url(#m) is a document-level id, so multiple instances need unique ids",
+    "video seeking per frame needs the asset preloaded (fx.wait) and is not frame-exact on all browsers",
+    "from() tweens on .t/.s need immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

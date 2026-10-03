@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8">
+<title>Feature List [Apple Event]</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;color:#f5f5f7}
+  .glow{position:absolute;left:50%;top:50%;width:1100px;height:600px;margin:-300px 0 0 -550px;border-radius:50%;background:radial-gradient(closest-side,rgba(120,90,255,.35),rgba(0,0,0,0));filter:blur(40px)}
+  .kicker{position:absolute;left:120px;top:110px;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:22px;letter-spacing:.2em;text-transform:uppercase;color:#a1a1a6}
+  .item{position:absolute;left:120px;top:0;transform-origin:0 50%;font-family:"Atlas Grotesk",-apple-system,"Helvetica Neue",sans-serif;font-weight:500;font-size:74px;letter-spacing:-.035em;line-height:1;white-space:nowrap;will-change:transform,filter,opacity}
+  .item .dot{display:inline-block;width:.32em;height:.32em;border-radius:50%;background:#7c5cff;vertical-align:middle;margin:0 .28em 0 0;transform:translateY(-.06em)}
+  .item .lead{color:#f5f5f7}
+  .item .tail{color:#8e8e93}
+  .rule{position:absolute;left:120px;right:120px;bottom:100px;height:1px;background:rgba(255,255,255,.18);transform-origin:0 50%}
+  .foot{position:absolute;left:120px;bottom:60px;font-family:"Atlas Grotesk",sans-serif;font-size:18px;color:#8e8e93;letter-spacing:.02em}
+</style>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="kicker">Acme Pro. What's new</div>
+  <div class="item" id="i1"><span class="dot"></span><span class="lead">Titanium body.</span> <span class="tail">Half the weight.</span></div>
+  <div class="item" id="i2"><span class="dot"></span><span class="lead">All-day battery.</span> <span class="tail">And then some.</span></div>
+  <div class="item" id="i3"><span class="dot"></span><span class="lead">A17 engine.</span> <span class="tail">Two times faster.</span></div>
+  <div class="rule"></div>
+  <div class="foot">Available this fall</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  const items = ['#i1', '#i2', '#i3'];
+  const HERO_Y = 312;              // where the current feature sits, big
+  const LIST_Y = [180, 232, 284];  // where settled features stack, small
+  gsap.set(items, { y: HERO_Y, opacity: 0, filter: 'blur(18px)', scale: 1 });
+  gsap.set('.rule', { scaleX: 0 });
+  gsap.set('.foot', { opacity: 0 });
+  tl.fromTo('.glow', { x: -80, scale: 0.9 }, { x: 80, scale: 1.1, duration: 4, ease: 'sine.inOut' }, 0);
+  tl.from('.kicker', { opacity: 0, y: 10, duration: 0.6, ease: 'power2.out' }, 0.05);
+  tl.to('.rule', { scaleX: 1, duration: 1.2, ease: 'expo.out' }, 0.2);
+  tl.to('.foot', { opacity: 1, duration: 0.5 }, 0.6);
+  const beat = 1.1, start = 0.35;
+  items.forEach((sel, i) => {
+    const at = start + i * beat;
+    // each feature gets its moment: a measured blur-in, weighted, no bounce
+    tl.to(sel, { opacity: 1, filter: 'blur(0px)', y: HERO_Y, duration: 0.7, ease: 'power3.out' }, at)
+      .from(sel, { x: 40, duration: 0.7, ease: 'power3.out' }, at);
+    // when the next one arrives, this one recedes into the list above
+    if (i < items.length - 1) {
+      tl.to(sel, { y: LIST_Y[i], scale: 0.42, duration: 0.75, ease: 'power3.inOut' }, at + beat - 0.1)
+        .to(sel + ' .lead', { color: '#c7c7cc', duration: 0.5 }, at + beat - 0.1);
+    }
+  });
+  // the last one joins the stack too, then everything eases out for the loop
+  tl.to('#i3', { y: LIST_Y[2], scale: 0.42, duration: 0.6, ease: 'power3.inOut' }, 3.25);
+  tl.to([...items, '.kicker', '.foot'], { opacity: 0, filter: 'blur(10px)', duration: 0.3, ease: 'power2.in', stagger: 0.03 }, 3.6)
+    .to('.rule', { scaleX: 0, transformOrigin: '100% 50%', duration: 0.3, ease: 'power2.in' }, 3.65);
+</script>

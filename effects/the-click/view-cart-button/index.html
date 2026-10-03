@@ -1,0 +1,100 @@
+<!doctype html><meta charset="utf-8">
+<title>View Cart Button</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#eef0f3;display:flex;align-items:center;justify-content:center}
+  .card{position:relative;width:440px;background:#fff;border-radius:28px;padding:26px;box-shadow:0 30px 60px rgba(20,24,40,.12),0 2px 6px rgba(20,24,40,.06)}
+  .img{position:relative;height:250px;border-radius:20px;background:linear-gradient(135deg,#ffd6a5,#ff9f7a);overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .img .shoe{width:190px;height:110px;background:#1a1a1f;border-radius:70px 70px 24px 24px / 90px 90px 24px 24px;position:relative;transform:rotate(-14deg)}
+  .img .shoe::after{content:"";position:absolute;left:24px;right:24px;bottom:18px;height:6px;border-radius:3px;background:#ff9f7a}
+  .img .shoe::before{content:"";position:absolute;left:0;right:0;bottom:-10px;height:16px;border-radius:0 0 14px 14px;background:#fff}
+  .meta{display:flex;justify-content:space-between;align-items:flex-end;margin:22px 4px 18px}
+  .name{font-size:24px;font-weight:500;color:#111;letter-spacing:-.01em}
+  .sub{font-size:15px;color:#7a7f8c;margin-top:4px}
+  .price{font-size:24px;font-weight:500;color:#111}
+  .btn{position:relative;height:64px;border-radius:32px;background:#111;color:#fff;overflow:hidden;font-size:19px;font-weight:500;letter-spacing:.01em;will-change:transform;transform-origin:50% 50%}
+  .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px}
+  .lbl.added{background:#16a34a}
+  .lbl.view{background:#111}
+  .lbl svg{width:20px;height:20px}
+  .cartwrap{position:absolute;top:22px;right:22px;width:52px;height:52px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .cartwrap svg{width:24px;height:24px}
+  .badge{position:absolute;top:-4px;right:-4px;width:22px;height:22px;border-radius:50%;background:#ff4d4f;color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;transform:scale(0)}
+  .fly{position:absolute;width:16px;height:16px;border-radius:50%;background:#16a34a;left:50%;top:50%;margin:-8px 0 0 -8px;opacity:0;box-shadow:0 0 0 4px rgba(22,163,74,.25)}
+  .cursor{position:absolute;left:0;top:0;width:30px;height:30px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25));will-change:transform;z-index:10}
+  .ripple{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid rgba(255,255,255,.9);opacity:0;pointer-events:none}
+</style>
+<div class="stage">
+  <div class="card">
+    <div class="img"><div class="shoe"></div></div>
+    <div class="cartwrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.5"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg>
+      <div class="badge">1</div>
+    </div>
+    <div class="meta">
+      <div><div class="name">Acme Runner</div><div class="sub">Size 42 · Onyx</div></div>
+      <div class="price">$120</div>
+    </div>
+    <div class="btn">
+      <div class="lbl add">Add to cart</div>
+      <div class="lbl added"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M5 12.5l4.5 4.5L19 7"/></svg><span>Added</span></div>
+      <div class="lbl view"><span>View cart</span><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="arrow"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="ripple"></div>
+    </div>
+    <div class="fly"></div>
+  </div>
+  <svg class="cursor" viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.5L9 20z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 6 });
+  // resting positions. the button sits at the card's bottom; the cart in its corner
+  const BX = 640, BY = 360 + 190;   // button center in stage coords (card ~ 440x590 centered)
+  gsap.set('.lbl.added', { yPercent: 110 });
+  gsap.set('.lbl.view', { yPercent: 110 });
+  gsap.set('.fly', { x: 0, y: 190 });
+  gsap.set('.cursor', { x: 1040, y: 640 });
+
+  tl.from('.card', { y: 40, opacity: 0, duration: 0.6, ease: 'expo.out' }, 0)
+    // cursor enters and finds the button
+    .fromTo('.cursor', { x: 1040, y: 640 }, { x: BX + 12, y: BY + 4, duration: 0.8, ease: 'power3.inOut' }, 0.45)
+    // press
+    .to('.btn', { scale: 0.94, duration: 0.12, ease: 'power2.in' }, 1.3)
+    .to('.cursor', { scale: 0.85, duration: 0.1, transformOrigin: '10% 10%' }, 1.3)
+    .to('.btn', { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' }, 1.42)
+    .to('.cursor', { scale: 1, duration: 0.2 }, 1.42)
+    .fromTo('.ripple', { scale: 0.5, opacity: 0.8 }, { scale: 14, opacity: 0, duration: 0.6, ease: 'power2.out' }, 1.4)
+    // label swap: "Add to cart" up and out, "Added" up and in, green floods
+    .to('.lbl.add', { yPercent: -110, duration: 0.4, ease: 'expo.out' }, 1.45)
+    .to('.lbl.added', { yPercent: 0, duration: 0.45, ease: 'expo.out' }, 1.45)
+    .from('.tick', { drawSVG: '0%', duration: 0.35, ease: 'power2.out' }, 1.6)
+    // an item flies from the button into the cart corner along an arc
+    .set('.fly', { opacity: 1 }, 1.5)
+    .to('.fly', { x: 178, duration: 0.55, ease: 'power1.inOut' }, 1.5)
+    .to('.fly', { y: -240, duration: 0.55, ease: 'power2.in' }, 1.5)
+    .to('.fly', { scale: 0.3, opacity: 0, duration: 0.12 }, 2.0)
+    // cart catches it: badge pops, icon nudges
+    .fromTo('.badge', { scale: 0 }, { scale: 1, duration: 0.5, ease: 'back.out(3)' }, 2.05)
+    .to('.cartwrap', { scale: 1.15, duration: 0.12, ease: 'power2.out' }, 2.05)
+    .to('.cartwrap', { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.4)' }, 2.17)
+    .to('.cartwrap svg', { rotation: -12, duration: 0.1 }, 2.05)
+    .to('.cartwrap svg', { rotation: 0, duration: 0.6, ease: 'elastic.out(1,0.35)' }, 2.15)
+    // resolve to the "View cart" state
+    .to('.lbl.added', { yPercent: -110, duration: 0.4, ease: 'expo.inOut' }, 3.0)
+    .to('.lbl.view', { yPercent: 0, duration: 0.45, ease: 'expo.out' }, 3.05)
+    // hover: the arrow beckons
+    .to('.arrow', { x: 5, duration: 0.35, ease: 'power1.inOut', yoyo: true, repeat: 3 }, 3.5)
+    // second click: view cart
+    .to('.btn', { scale: 0.95, duration: 0.12, ease: 'power2.in' }, 4.6)
+    .to('.cursor', { scale: 0.85, duration: 0.1 }, 4.6)
+    .to('.btn', { scale: 1, duration: 0.45, ease: 'elastic.out(1,0.5)' }, 4.72)
+    .to('.cursor', { scale: 1, duration: 0.2 }, 4.72)
+    .fromTo('.ripple', { scale: 0.5, opacity: 0.8 }, { scale: 14, opacity: 0, duration: 0.6, ease: 'power2.out' }, 4.7)
+    // exit: the card commits to the cart page; cursor leaves
+    .to('.card', { y: -50, opacity: 0, duration: 0.45, ease: 'power3.in' }, 5.2)
+    .to('.cursor', { x: 1100, y: 700, opacity: 0, duration: 0.5, ease: 'power2.in' }, 5.3);
+</script>

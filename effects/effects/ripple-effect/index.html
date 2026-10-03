@@ -1,0 +1,82 @@
+<!doctype html><meta charset="utf-8">
+<title>Ripple Effect</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff;pointer-events:none;mix-blend-mode:overlay}
+  .mark b{font-family:"Sharp Grotesk",sans-serif;font-size:120px;font-weight:500;letter-spacing:.08em;line-height:1}
+</style>
+<div class="stage"><canvas id="c" width="640" height="360"></canvas></div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  // half-res displacement, upscaled by the browser: the ripple is a sum of expanding radial waves from three drop points
+  const W = 640, H = 360;
+
+  // procedural footage (pixel access on file:// images taints the canvas, so the "footage" is painted): sky, sun, ridges, sea, a figure
+  function footage(c, w, h, t, pan) {
+    const sky = c.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#2b1d4f'); sky.addColorStop(0.45, '#c9536b'); sky.addColorStop(0.7, '#ffb36b'); sky.addColorStop(1, '#ffe2b0');
+    c.fillStyle = sky; c.fillRect(0, 0, w, h);
+    const sx = w * 0.62 + pan * 0.3, sy = h * 0.5;
+    const sun = c.createRadialGradient(sx, sy, 10, sx, sy, h * 0.42); sun.addColorStop(0, '#fff6d8'); sun.addColorStop(0.25, '#ffcf7a'); sun.addColorStop(1, 'rgba(255,180,100,0)');
+    c.fillStyle = sun; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#ffefc4'; c.beginPath(); c.arc(sx, sy, h * 0.12, 0, Math.PI * 2); c.fill();
+    const ridges = [['#7a3a5a', 0.62, 60, 0.2], ['#4e2547', 0.7, 44, 0.5], ['#2b1630', 0.8, 30, 0.9]];
+    for (const [col, base, amp, par] of ridges) {
+      c.fillStyle = col; c.beginPath(); c.moveTo(0, h);
+      for (let x = 0; x <= w; x += 8) { const u = (x + pan * par) / w * 6; c.lineTo(x, h * base - amp * (Math.sin(u) * 0.6 + Math.sin(u * 2.3 + 1) * 0.3 + Math.sin(u * 5.1) * 0.15)); }
+      c.lineTo(w, h); c.fill();
+    }
+    // the sea: horizontal light bands under the sun, shimmering with time
+    for (let i = 0; i < 26; i++) {
+      const y = h * 0.84 + i * (h * 0.16 / 26);
+      const ww = (h * 0.1 + i * 9) * (0.7 + 0.3 * Math.sin(t * 3 + i * 1.7));
+      c.fillStyle = `rgba(255,220,150,${0.35 - i * 0.01})`; c.fillRect(sx - ww / 2 + 12 * Math.sin(t * 2 + i), y, ww, 2);
+    }
+    // a figure on the near ridge, walking
+    const fx0 = w * 0.3 + pan * 0.9, fy0 = h * 0.8 - 8; c.fillStyle = '#160a18';
+    c.beginPath(); c.arc(fx0, fy0 - h * 0.13, h * 0.025, 0, Math.PI * 2); c.fill();
+    c.fillRect(fx0 - h * 0.018, fy0 - h * 0.11, h * 0.036, h * 0.08);
+    c.save(); c.translate(fx0, fy0 - h * 0.03); c.rotate(0.35 * Math.sin(t * 4)); c.fillRect(-h * 0.008, 0, h * 0.016, h * 0.04); c.rotate(-0.7 * Math.sin(t * 4)); c.fillRect(-h * 0.008, 0, h * 0.016, h * 0.04); c.restore();
+  }
+  const out = document.getElementById('c').getContext('2d');
+  const src = document.createElement('canvas'); src.width = W; src.height = H; const sc = src.getContext('2d');
+  const D = 6;
+  // drops: (x, y, birth time). Every drop's wave has left the frame before it's reborn a loop later
+  const drops = [[220, 150, 0.0], [430, 230, 1.7], [330, 110, 3.4], [160, 280, 4.6]];
+  let sdata = null;
+  fx.register({ duration: D, seek(t) {
+    // draw the source once per seek with a slow drift, then read it
+    footage(sc, W, H, t, 10 * Math.sin(t));
+    // the brand mark lives in the water too, so the ripple visibly warps it
+    sc.fillStyle = 'rgba(255,255,255,.92)'; sc.textAlign = 'center'; sc.textBaseline = 'middle';
+    sc.font = '500 64px "Sharp Grotesk", sans-serif'; sc.fillText('RIPPLE', W / 2, H / 2 - 6);
+    sc.font = '400 12px "Atlas Grotesk", sans-serif'; sc.fillText('N O R T H W I N D   W A T E R', W / 2, H / 2 + 40);
+    sdata = sc.getImageData(0, 0, W, H).data;
+    const o = out.createImageData(W, H), q = o.data;
+    const active = [];
+    for (const [dx, dy, b] of drops) {
+      let age = t - b; if (age < 0) age += D;              // wraps: a drop born at 4.6 is still expanding at t=0.2
+      if (age < 3.2) active.push([dx, dy, age]);
+    }
+    const SPEED = 120, K = 0.16;                          // px/s, wavelength control
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let ox = 0, oy = 0, light = 0;
+      for (const [dx, dy, age] of active) {
+        const rx = x - dx, ry = y - dy, r = Math.sqrt(rx * rx + ry * ry) + 1e-3;
+        const front = age * SPEED; const d = r - front;
+        if (d > 0 || d < -140) continue;                    // only a band behind the wave front
+        const env = Math.exp(d / 45) * (1 - age / 3.2) * Math.exp(-r / 500);
+        const w = Math.sin(d * K) * env * 14;
+        ox += rx / r * w; oy += ry / r * w; light += Math.cos(d * K) * env * 60;
+      }
+      let sx = x + ox, sy = y + oy;
+      sx = sx < 0 ? 0 : sx >= W ? W - 1 : sx; sy = sy < 0 ? 0 : sy >= H ? H - 1 : sy;
+      const si = ((sy | 0) * W + (sx | 0)) * 4, oi = (y * W + x) * 4;
+      q[oi] = sdata[si] + light; q[oi + 1] = sdata[si + 1] + light; q[oi + 2] = sdata[si + 2] + light; q[oi + 3] = 255;
+    }
+    out.putImageData(o, 0, 0);
+  } });
+</script>

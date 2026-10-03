@@ -1,0 +1,25 @@
+{
+  "move": "round mark rolls in like a wheel, name slides out from behind it as the lockup recenters, rolls off",
+  "how": "A flex lockup of a dark circular mark holding a triangle-and-dot SVG and a masked wordmark hidden by an overflow container, offset by half the name width so the mark alone is centred. 0-40%: the mark rolls in from x -420 with rotation -540 (expo.out, 0.8s); at 22% its inner SVG pops from scale 0 with back.out(2). At 27% the name slides from xPercent -125 out from behind the mark while the lockup x eases from nameW/2 to 0 (both expo.out, 0.7s) so the pair ends centred. Exit at 75%: the name retracts and the lockup shifts back (expo.in, 0.35s); at 82% the mark rolls off to x 500 with rotation 540 (power3.in).",
+  "moves": [
+    "roll-in",
+    "spin",
+    "pop",
+    "mask-reveal",
+    "slide-in",
+    "roll-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the mark's inner SVG and the dark/amber colours, the wordmark text and size. Keep the 0.8s expo.out roll with -540deg, the 0.7s recentering slide and the expo.in retract.",
+  "port": "mount(el, shot) builds the lockup inside el and measures the .mask offsetWidth after fonts load; animate(el, shot, D) returns the timeline with the roll at 0, slide at 0.27D-0.62D, retract at 0.75D, roll-off at 0.82D. Scope '.lockup', '.mark', '.name' to el; the from() tweens need immediateRender:false when nested; the roll distances assume a 1280 stage.",
+  "caveats": [
+    "nameW measured from offsetWidth at script time; fonts must be loaded first",
+    "from() tweens need immediateRender:false when nested",
+    "ends with the mark off-frame, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

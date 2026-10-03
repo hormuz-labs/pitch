@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Generative Neural Flow with p5.js</title>
+  <meta name="fx" content="w=1280 h=720">
+  <link rel="stylesheet" href="../../_lib/base.css">
+  <style>
+    .stage {
+      background: #050608;
+      position: relative;
+      overflow: hidden;
+      font-family: "Atlas Grotesk", -apple-system, sans-serif;
+      color: #fff;
+    }
+    #p5-holder {
+      position: absolute;
+      inset: 0;
+      width: 1280px;
+      height: 720px;
+    }
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      text-align: center;
+      z-index: 10;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      margin-bottom: 24px;
+    }
+    .pulse-node {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+    }
+    .headline {
+      font-family: "Sharp Grotesk", sans-serif;
+      font-size: 76px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin: 0;
+      color: #f8fafc;
+      text-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+    }
+    .gradient-word {
+      background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtext {
+      font-size: 20px;
+      color: #94a3b8;
+      margin-top: 20px;
+      max-width: 640px;
+      line-height: 1.5;
+    }
+    .footer-bar {
+      position: absolute;
+      bottom: 32px;
+      left: 64px;
+      right: 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #64748b;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div id="p5-holder"></div>
+    <div class="hud-layer">
+      <div class="badge" id="hudBadge">
+        <span class="pulse-node"></span>
+        <span>Neural Mesh Synthesis</span>
+      </div>
+      <h1 class="headline" id="hudHead">
+        Continuous <span class="gradient-word">Intelligence</span>
+      </h1>
+      <p class="subtext" id="hudSub">
+        Real-time generative vector manifolds computed across millions of concurrent streaming parameters.
+      </p>
+    </div>
+    <div class="footer-bar">
+      <div>p5.js Generative Vector Canvas</div>
+      <div>Deterministic Wave Mechanics · 60 FPS</div>
+    </div>
+  </div>
+
+  <script src="../../../assets/p5/p5.min.js"></script>
+  <script src="../../_lib/anim.js"></script>
+  <script src="../../_lib/fx.js"></script>
+  <script>
+    const D = 5;
+    const hudBadge = document.getElementById('hudBadge');
+    const hudHead = document.getElementById('hudHead');
+    const hudSub = document.getElementById('hudSub');
+
+    let pInst = null;
+    const ready = new Promise(resolve => {
+      pInst = new p5(p => {
+        p.setup = () => {
+          const c = p.createCanvas(1280, 720);
+          c.parent('p5-holder');
+          p.noLoop(); // Deterministic manual seeking!
+          resolve();
+        };
+      });
+    });
+
+    fx.wait(ready);
+
+    function drawGenerativeField(p, t) {
+      p.clear();
+      p.background(5, 6, 8);
+
+      const rows = 28;
+      const cols = 52;
+      const spacingX = 1280 / (cols - 1);
+      const spacingY = 480 / (rows - 1);
+
+      p.strokeWeight(1.2);
+      p.noFill();
+
+      // Flowing wave grid lines
+      for (let r = 0; r < rows; r++) {
+        p.beginShape();
+        for (let c = 0; c < cols; c++) {
+          const x = c * spacingX;
+          const baseY = 180 + r * spacingY;
+
+          // Multi-frequency sinusoidal interference
+          const wave1 = Math.sin(c * 0.14 + t * 2.2 + r * 0.12) * 36;
+          const wave2 = Math.cos(r * 0.22 - t * 1.6 + c * 0.08) * 24;
+          const wave3 = Math.sin((c + r) * 0.06 + t * 3.0) * 14;
+
+          const y = baseY + wave1 + wave2 + wave3;
+
+          // Color calculation based on height and position
+          const normY = (wave1 + wave2 + 60) / 120;
+          const red = Math.round(56 + normY * 120);
+          const green = Math.round(189 + normY * 40);
+          const blue = Math.round(248 - normY * 30);
+          const alpha = 80 + normY * 140;
+
+          p.stroke(red, green, blue, alpha);
+          p.vertex(x, y);
+
+          // Particles along crests
+          if ((c + r) % 7 === 0 && normY > 0.65) {
+            p.fill(255, 255, 255, alpha * 0.8);
+            p.noStroke();
+            p.circle(x, y, 3.5);
+            p.noFill();
+            p.stroke(red, green, blue, alpha);
+          }
+        }
+        p.endShape();
+      }
+    }
+
+    fx.register({
+      duration: D,
+      seek(t) {
+        if (pInst) {
+          drawGenerativeField(pInst, t);
+        }
+
+        // HUD typography property interpolation
+        const badgeOpacity = anim.interpolate(t, [0, 0.5, 4.2, 4.8], [0, 1, 1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const headOpacity = anim.interpolate(t, [0.2, 0.8, 4.1, 4.7], [0, 1, 1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const headScale = anim.interpolate(t, [0.2, 1.2, 4.1, 5.0], [0.92, 1.0, 1.0, 1.05], {
+          output: 'perceptual-scale',
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const subOpacity = anim.interpolate(t, [0.4, 1.0, 4.0, 4.6], [0, 1, 1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        hudBadge.style.opacity = badgeOpacity;
+        hudHead.style.opacity = headOpacity;
+        hudHead.style.transform = `scale(${headScale})`;
+        hudSub.style.opacity = subOpacity;
+      }
+    });
+  </script>
+</body>
+</html>

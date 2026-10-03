@@ -1,0 +1,233 @@
+<!doctype html><meta charset="utf-8">
+<title>Collage Art Promo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#dcdbd6}
+  /* the piece is authored at 1920x1080 and scaled to the 1280x720 stage */
+  #root{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(.666667);transform-origin:0 0;overflow:hidden;background:#dcdbd6;
+    --white:#f6f5f1;--teal:#2a9c8d;--red:#d43a3a;--yellow:#f3d433;--mint:#3db597;--gilt:#c99f36;--gilt2:#7a5a12;
+    --skin:#e6b493;--marble:#efe9dd;--beige:#cfc6b8;--cactus:#8a978a;--cactus2:#5d6a5c}
+  .layer{position:absolute;inset:0}
+  canvas#news{position:absolute;inset:0;width:100%;height:100%}
+  .grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55}
+  #teal{background:var(--teal)}
+  #teal .paperbits{position:absolute;inset:0;background:
+     radial-gradient(ellipse 30% 22% at 12% 70%,#e9e7e1 60%,transparent 61%),
+     radial-gradient(ellipse 26% 30% at 90% 30%,#e9e7e1 60%,transparent 61%),
+     radial-gradient(ellipse 40% 14% at 50% 4%,#e9e7e1 60%,transparent 61%);filter:url(#tear)}
+  #frame{position:absolute;left:660px;top:120px;width:600px;height:840px;transform:rotate(-4deg)}
+  #news-layer{clip-path:polygon(50% 48%,50% 48%,50% 48%)}
+  #news-edge{clip-path:polygon(50% 48%,50% 48%,50% 48%);background:var(--white)}
+  .cut{position:absolute;transform-origin:50% 50%}
+  .cut>.jit{filter:url(#cutout) drop-shadow(6px 8px 6px rgba(0,0,0,.28))}
+  .cut svg{display:block;overflow:visible}
+  .label{padding:8px 22px 10px;font:500 52px/1 "Sharp Grotesk",sans-serif;letter-spacing:.5px;color:var(--white);white-space:nowrap}
+  .label.red{background:var(--red)} .label.yellow{background:var(--yellow);color:#1c1a12} .label.mint{background:var(--mint)}
+  .label.white{background:var(--white);color:#2b2f3a;font:italic 400 48px/1 "Sorts Mill Goudy",Georgia,serif;padding:10px 22px 14px}
+  .label.strip{background:#101010;font:500 40px/1 "Sharp Grotesk",sans-serif;letter-spacing:4px;text-transform:uppercase;padding:12px 26px 14px}
+</style>
+<div class="stage"><div id="root">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <!-- white torn-paper rim around any cutout: dilated alpha, roughened, filled white, source on top -->
+    <filter id="cutout" x="-20%" y="-20%" width="140%" height="140%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="7" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="d" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" result="rough"/>
+      <feFlood flood-color="#f6f5f1" result="w"/><feComposite in="w" in2="rough" operator="in" result="rim"/>
+      <feMerge><feMergeNode in="rim"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="tear" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="40"/>
+    </filter>
+    <filter id="grainf"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .55  0 0 0 0 .55  0 0 0 0 .53  0 0 0 .9 0"/></filter>
+  </defs></svg>
+
+  <!-- shot A: teal paper, gilded frame, the shot that gets torn away -->
+  <div class="layer" id="teal">
+    <div class="paperbits"></div>
+    <div id="frame" class="cut"><div class="jit">
+      <svg width="600" height="840" viewBox="0 0 600 840">
+        <rect width="600" height="840" fill="var(--gilt)"/>
+        <rect x="14" y="14" width="572" height="812" fill="none" stroke="var(--gilt2)" stroke-width="6" stroke-dasharray="18 10"/>
+        <rect x="40" y="40" width="520" height="760" fill="#1f6f78"/>
+        <g fill="#bfe6e2" opacity=".8"><ellipse cx="160" cy="220" rx="120" ry="40"/><ellipse cx="420" cy="560" rx="150" ry="60"/><ellipse cx="300" cy="700" rx="200" ry="40"/></g>
+        <path d="M200 800 Q190 520 300 500 Q410 520 400 800Z" fill="#26304a"/>
+        <g fill="#f6f5f1"><circle cx="230" cy="600" r="6"/><circle cx="290" cy="640" r="6"/><circle cx="350" cy="590" r="6"/><circle cx="260" cy="720" r="6"/><circle cx="340" cy="700" r="6"/></g>
+        <ellipse cx="300" cy="330" rx="130" ry="150" fill="#c9a37e"/><ellipse cx="300" cy="400" rx="80" ry="60" fill="#e9cfae"/>
+        <path d="M240 410 Q300 470 360 410 Q300 440 240 410Z" fill="#f6f5f1" stroke="#7a3b2f" stroke-width="4"/>
+        <rect x="180" y="250" width="110" height="60" rx="10" fill="#e78a3a"/><rect x="310" y="250" width="110" height="60" rx="10" fill="#e78a3a"/><rect x="290" y="270" width="20" height="10" fill="#e78a3a"/>
+        <path d="M215 220 Q170 120 230 150 Z M385 220 Q430 120 370 150Z" fill="#b08b66"/>
+        <g font-family="'Sharp Grotesk',sans-serif" font-weight="500">
+          <rect x="80" y="470" width="480" height="60" fill="#efece4" transform="rotate(-3 300 500)"/><text x="300" y="518" text-anchor="middle" font-size="44" fill="#9a968c" transform="rotate(-3 300 500)">FILTER</text>
+          <rect x="40" y="540" width="560" height="110" fill="#f6f5f1" transform="rotate(2 300 600)"/><text x="300" y="630" text-anchor="middle" font-size="92" fill="#111" transform="rotate(2 300 600)">FREEDOM</text>
+          <rect x="200" y="640" width="200" height="56" fill="#3aa657" transform="rotate(-2 300 668)"/><text x="300" y="684" text-anchor="middle" font-size="44" font-family="'Sorts Mill Goudy',serif" font-style="italic" font-weight="400" fill="#f6f5f1" transform="rotate(-2 300 668)">mood</text>
+          <rect x="60" y="700" width="480" height="60" fill="#efece4" transform="rotate(1 300 730)"/><text x="300" y="748" text-anchor="middle" font-size="44" fill="#9a968c" transform="rotate(1 300 730)">UNLIMITED</text>
+        </g>
+      </svg>
+    </div></div>
+    <div class="cut" style="left:420px;top:560px"><div class="jit">
+      <svg width="300" height="260" viewBox="0 0 300 260"><path d="M20 250 Q0 160 90 130 L200 118 L150 96 Q140 70 170 76 L290 118 Q300 150 270 160 L200 168 L210 200 Q205 230 170 220 L160 250Z" fill="var(--skin)"/></svg>
+    </div></div>
+  </div>
+
+  <!-- shot B: newsprint wall, revealed through a growing torn hole -->
+  <div class="layer" id="news-edge"></div>
+  <div class="layer" id="news-layer">
+    <canvas id="news" width="1920" height="1080"></canvas>
+    <svg class="grain" width="1920" height="1080"><rect width="100%" height="100%" filter="url(#grainf)"/></svg>
+
+    <div class="cut" id="sofa" style="left:600px;top:500px"><div class="jit">
+      <svg width="620" height="330" viewBox="0 0 620 330">
+        <rect x="40" y="60" width="540" height="150" rx="26" fill="var(--beige)"/>
+        <rect x="60" y="80" width="250" height="100" rx="20" fill="#dcd4c7"/><rect x="310" y="80" width="250" height="100" rx="20" fill="#dcd4c7"/>
+        <rect y="150" width="90" height="140" rx="30" fill="#c4bbab"/><rect x="530" y="150" width="90" height="140" rx="30" fill="#c4bbab"/>
+        <rect x="60" y="190" width="500" height="90" rx="20" fill="#d6cdbf"/>
+        <rect x="70" y="280" width="30" height="40" fill="#8b7f6d"/><rect x="520" y="280" width="30" height="40" fill="#8b7f6d"/>
+      </svg>
+    </div></div>
+
+    <div class="cut" id="woman" style="left:640px;top:90px"><div class="jit">
+      <svg width="440" height="720" viewBox="0 0 440 720">
+        <path d="M150 470 L120 640 L90 660 L100 700 L165 700 L180 660 L200 520Z" fill="var(--skin)"/>
+        <path d="M250 470 L270 640 L300 660 L290 700 L225 700 L212 660 L205 520Z" fill="var(--skin)"/>
+        <path d="M60 690 Q60 660 120 655 L175 660 L180 720 L55 720Z" fill="#79a7e0"/><path d="M380 690 Q380 660 320 655 L265 660 L260 720 L385 720Z" fill="#79a7e0"/>
+        <path d="M120 400 L300 400 L320 520 L100 520Z" fill="#2b2b2f"/><path d="M140 250 L280 250 L300 410 L120 410Z" fill="#1d1d21"/>
+        <g fill="#e4b3a2" opacity=".9"><circle cx="170" cy="300" r="10"/><circle cx="240" cy="340" r="12"/><circle cx="200" cy="380" r="8"/></g>
+        <path d="M140 270 Q60 340 100 420 L130 410 Q120 350 170 300Z" fill="var(--skin)"/><path d="M280 270 Q360 340 330 420 L300 410 Q310 350 250 300Z" fill="var(--skin)"/>
+        <g transform="translate(40 300) rotate(-8)">
+          <path d="M0 40 L70 40 L62 140 L8 140Z" fill="#e63b3b"/><path d="M14 40 L26 40 L22 140 L14 140Z M42 40 L54 40 L52 140 L42 140Z" fill="#fff"/>
+          <g fill="#f7e6b0"><circle cx="14" cy="34" r="12"/><circle cx="36" cy="22" r="14"/><circle cx="58" cy="34" r="12"/><circle cx="26" cy="12" r="10"/><circle cx="48" cy="10" r="10"/></g>
+        </g>
+        <g transform="translate(300 380) rotate(14)" font-family="'Sharp Grotesk',sans-serif" font-weight="500">
+          <rect width="120" height="76" fill="#c8a069"/><rect x="6" y="6" width="108" height="64" fill="none" stroke="#5a3d1b" stroke-width="2" stroke-dasharray="4 3"/>
+          <text x="60" y="34" text-anchor="middle" font-size="15" fill="#3a2410">ADMIT ONE</text><text x="60" y="60" text-anchor="middle" font-size="26" fill="#3a2410">P6</text>
+        </g>
+        <path d="M150 260 L270 260 L262 180 L158 180Z" fill="var(--marble)"/><ellipse cx="212" cy="120" rx="90" ry="105" fill="var(--marble)"/>
+        <g fill="#e2d9c8"><circle cx="140" cy="70" r="26"/><circle cx="170" cy="30" r="24"/><circle cx="212" cy="14" r="26"/><circle cx="254" cy="30" r="24"/><circle cx="284" cy="70" r="26"/><circle cx="130" cy="120" r="20"/><circle cx="296" cy="120" r="20"/></g>
+        <path d="M200 120 Q212 150 205 165 Q214 170 224 164" fill="none" stroke="#cfc4ae" stroke-width="5" stroke-linecap="round"/><path d="M190 195 Q212 210 234 195" fill="none" stroke="#cfc4ae" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+    </div></div>
+
+    <div class="cut" id="cactus" style="left:1090px;top:400px"><div class="jit">
+      <svg width="320" height="700" viewBox="0 0 320 700">
+        <g fill="var(--cactus)" stroke="var(--cactus2)" stroke-width="3">
+          <rect x="110" y="120" width="110" height="600" rx="55"/><rect x="20" y="230" width="70" height="260" rx="35"/><rect x="20" y="420" width="120" height="60" rx="30"/>
+          <rect x="230" y="60" width="70" height="330" rx="35"/><rect x="180" y="320" width="120" height="60" rx="30"/><rect x="240" y="440" width="60" height="160" rx="30"/><rect x="200" y="540" width="100" height="50" rx="25"/>
+        </g>
+        <g stroke="var(--cactus2)" stroke-width="3" opacity=".6"><path d="M145 130 V700 M165 125 V700 M185 130 V700 M45 240 V480 M65 235 V480 M255 70 V380 M275 65 V380"/></g>
+        <g id="flowers"></g>
+      </svg>
+    </div></div>
+
+    <div class="cut" id="hand" style="left:70px;top:30px"><div class="jit">
+      <svg width="260" height="340" viewBox="0 0 260 340">
+        <path d="M60 340 L40 220 Q30 150 80 130 L120 70 Q140 40 150 70 L140 120 L150 40 Q165 10 175 40 L172 120 L200 60 Q220 40 222 70 L205 140 L240 110 Q262 110 250 140 L200 210 L170 240 L190 340Z" fill="#a9adb3"/>
+        <path d="M46 300 L60 340 L120 340 L100 300Z" fill="var(--red)"/><path d="M100 210 Q130 200 150 220" fill="none" stroke="#8b9096" stroke-width="4"/>
+      </svg>
+    </div></div>
+    <div class="cut" id="hand2" style="left:1480px;top:130px"><div class="jit">
+      <svg width="260" height="340" viewBox="0 0 260 340" style="transform:scaleX(-1) rotate(120deg)">
+        <path d="M60 340 L40 220 Q30 150 80 130 L120 70 Q140 40 150 70 L140 120 L150 40 Q165 10 175 40 L172 120 L200 60 Q220 40 222 70 L205 140 L240 110 Q262 110 250 140 L200 210 L170 240 L190 340Z" fill="#a9adb3"/>
+        <path d="M46 300 L60 340 L120 340 L100 300Z" fill="#3aa0d8"/>
+      </svg>
+    </div></div>
+
+    <div class="cut" id="phone" style="left:300px;top:680px"><div class="jit">
+      <svg width="200" height="220" viewBox="0 0 200 220">
+        <path d="M30 200 L20 110 Q20 70 60 70 L140 70 Q180 70 180 110 L170 200Z" fill="#1a1a1a"/><path d="M10 60 Q10 30 40 30 L60 60 L140 60 L160 30 Q190 30 190 60 L170 75 L30 75Z" fill="#111"/>
+        <circle cx="100" cy="140" r="44" fill="#2c2c2c"/><circle cx="100" cy="140" r="30" fill="#e6e3dc"/>
+        <g fill="#1a1a1a"><circle cx="100" cy="118" r="5"/><circle cx="118" cy="128" r="5"/><circle cx="122" cy="146" r="5"/><circle cx="110" cy="160" r="5"/><circle cx="90" cy="160" r="5"/><circle cx="78" cy="146" r="5"/><circle cx="82" cy="128" r="5"/></g>
+      </svg>
+    </div></div>
+    <div class="cut" id="cup" style="left:330px;top:250px"><div class="jit">
+      <svg width="220" height="150" viewBox="0 0 220 150" fill="none" stroke="#3c3c3c" stroke-width="4">
+        <ellipse cx="110" cy="128" rx="100" ry="16" fill="#e8e6df"/><path d="M40 40 Q40 110 110 110 Q180 110 180 40Z" fill="#dcd9d0"/>
+        <path d="M180 55 Q215 55 205 85 Q198 100 178 96"/><path d="M60 55 Q110 40 160 55 M70 75 Q110 60 150 75"/>
+      </svg>
+    </div></div>
+
+    <div class="cut" id="welcome" style="left:1170px;top:190px;transform:rotate(-2deg)"><div class="jit"><div class="label red">Welcome</div></div></div>
+    <div class="cut" id="summer"  style="left:1450px;top:640px;transform:rotate(3deg)"><div class="jit"><div class="label yellow">summer</div></div></div>
+    <div class="cut" id="panic"   style="left:620px;top:200px;transform:rotate(-6deg)"><div class="jit"><div class="label strip">Don't panic</div></div></div>
+    <div class="cut" id="healthy" style="left:150px;top:370px;transform:rotate(-1deg)"><div class="jit"><div class="label white">Healthy</div></div></div>
+    <div class="cut" id="callme"  style="left:210px;top:810px;transform:rotate(2deg)"><div class="jit"><div class="label mint">CALL ME</div></div></div>
+  </div>
+</div></div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4;
+  const rnd0 = fx.rng(7), rnd = (a, b) => a + rnd0() * (b - a);
+
+  // newsprint wall: mottled paper, rotated (some mirrored) body columns, big headlines, white-out washes
+  const cv = document.getElementById('news'), cx = cv.getContext('2d');
+  const heads = ['MOLDS DEAL','Yanquis, stay home','Fast impact','stocks & blondes','pork fuel','relief pack','Baseball','Hush-hush on key stats','Museum park tuck','Minor leaguers praise','beyond top','blondes','Fast track','Big deal','Frontier'];
+  cx.fillStyle = '#dcdbd6'; cx.fillRect(0, 0, 1920, 1080);
+  for (let i = 0; i < 60; i++) { cx.fillStyle = `rgba(${rnd0() > .5 ? '255,255,255' : '120,118,112'},${rnd(.04, .12)})`; cx.beginPath(); cx.ellipse(rnd(0, 1920), rnd(0, 1080), rnd(80, 400), rnd(60, 260), rnd(0, 3), 0, 7); cx.fill(); }
+  const body = 'the town council met on tuesday to hear the case of the disputed lots near the river and the mill road, and';
+  for (let i = 0; i < 26; i++) {
+    cx.save(); cx.translate(rnd(-100, 1900), rnd(-100, 1100)); cx.rotate(rnd(-1, 1) * (rnd0() > .6 ? 3.1 : .5));
+    if (rnd0() > .5) cx.scale(1, -1);
+    cx.fillStyle = `rgba(70,70,68,${rnd(.15, .35)})`; cx.font = `${rnd(11, 15) | 0}px "Atlas Grotesk", Georgia, serif`;
+    for (let l = 0; l < 14; l++) cx.fillText(body.slice(rnd(0, 20) | 0), 0, l * 16);
+    cx.restore();
+  }
+  heads.forEach((h, i) => {
+    cx.save(); cx.translate(rnd(0, 1800), rnd(60, 1060)); cx.rotate(rnd(-.15, .15) + (rnd0() > .8 ? 1.57 : 0));
+    if (rnd0() > .6) cx.scale(-1, 1);
+    cx.fillStyle = `rgba(60,60,58,${rnd(.18, .4)})`; cx.font = `${i % 3 ? '500' : 'italic 400'} ${rnd(40, 120) | 0}px ${i % 2 ? '"Sharp Grotesk", sans-serif' : '"Sorts Mill Goudy", Georgia, serif'}`;
+    cx.fillText(h, 0, 0); cx.restore();
+  });
+  for (let i = 0; i < 18; i++) { cx.fillStyle = `rgba(240,239,235,${rnd(.35, .7)})`; cx.beginPath(); cx.ellipse(rnd(0, 1920), rnd(0, 1080), rnd(120, 420), rnd(30, 120), rnd(0, 3), 0, 7); cx.fill(); }
+
+  // sunflowers on the cactus
+  const fl = document.getElementById('flowers');
+  [[150, 160], [270, 470], [60, 440]].forEach(([x, y]) => {
+    let g = `<g transform="translate(${x} ${y})">`;
+    for (let i = 0; i < 14; i++) g += `<ellipse rx="9" ry="26" cy="-30" fill="#f2b622" transform="rotate(${i * 360 / 14})"/>`;
+    fl.insertAdjacentHTML('beforeend', g + `<circle r="20" fill="#5a3416"/><circle r="12" fill="#3a2010"/></g>`);
+  });
+
+  // the torn hole: a jagged polygon that grows fastest toward the bottom-left, like paper peeled from a corner
+  const N = 28, seeds = Array.from({ length: N }, () => rnd(.7, 1.3));
+  const hole = { r: 0, tail: 0 }, CXP = 50, CYP = 48;
+  const newsLayer = document.getElementById('news-layer'), newsEdge = document.getElementById('news-edge');
+  function drawHole() {
+    const pts = [], pts2 = [];
+    for (let i = 0; i < N; i++) {
+      const a = i / N * Math.PI * 2, rr = hole.r * seeds[i] * (1 + hole.tail * Math.max(0, Math.cos(a - 2.4)));
+      const x = Math.cos(a) * rr * .56, y = Math.sin(a) * rr;
+      pts.push(`${CXP + x}% ${CYP + y}%`); pts2.push(`${CXP + x * 1.08}% ${CYP + y * 1.08}%`);
+    }
+    newsLayer.style.clipPath = `polygon(${pts.join(',')})`;
+    newsEdge.style.clipPath = `polygon(${pts2.join(',')})`;
+  }
+  drawHole();
+
+  // timeline: every move on steps() so it reads as cut paper moved frame by frame
+  const cuts = ['#sofa', '#woman', '#cactus', '#hand', '#hand2', '#phone', '#cup', '#welcome', '#summer', '#panic', '#healthy', '#callme'];
+  const tl = gsap.timeline({ paused: true });
+  gsap.set(cuts, { scale: 0 });
+  const popFrom = { '#sofa': [-25, 0, 60], '#hand': [-90, -120, -80], '#cactus': [20, 0, 200], '#woman': [-12, 0, -140], '#hand2': [60, 160, -100], '#welcome': [30, 0, 0, -2], '#summer': [-30, 0, 0, 3], '#panic': [20, 0, 40, -6], '#cup': [-60, 0, 0], '#healthy': [15, 0, 0, -1], '#phone': [40, 0, 120], '#callme': [-20, 0, 0, 2] };
+  const pop = (sel, at) => { const [r, x, y, rTo = 0] = popFrom[sel]; tl.fromTo(sel, { scale: 0, rotation: r, x, y }, { scale: 1, rotation: rTo, x: 0, y: 0, duration: .5, ease: 'steps(6)' }, at); };
+  tl.fromTo('#teal', { scale: 1.06, rotation: 1.5 }, { scale: 1, rotation: 0, duration: 1, ease: 'steps(10)' }, 0)
+    .to(hole, { r: 14, duration: .4, ease: 'steps(5)', onUpdate: drawHole }, .45)
+    .to(hole, { r: 130, tail: 1.4, duration: .6, ease: 'steps(8)', onUpdate: drawHole }, .85);
+  pop('#sofa', .75); pop('#hand', 1.05); pop('#cactus', 1.35); pop('#woman', 1.5); pop('#hand2', 1.55);
+  pop('#welcome', 1.7); pop('#summer', 1.95); pop('#panic', 2.1); pop('#cup', 2.25); pop('#healthy', 2.4); pop('#phone', 2.45); pop('#callme', 2.7);
+  tl.to('#hand', { x: -60, y: -40, rotation: -15, duration: .8, ease: 'steps(9)' }, 2.1)
+    .to('#hand2', { x: 80, y: -60, rotation: 25, duration: .8, ease: 'steps(9)' }, 2.2)
+    .to({}, { duration: D - 3 }, 3);
+
+  // stop-motion jitter at 12fps: a pure function of the frame index, so every seek to t gives the same frame
+  const jits = [...document.querySelectorAll('.jit')];
+  function jitter(t) {
+    const f = Math.floor(t * 12);
+    jits.forEach((j, i) => {
+      const r = fx.rng(f * 131 + i * 17 + 1);
+      j.style.transform = `translate(${(r() - .5) * 6}px,${(r() - .5) * 6}px) rotate(${(r() - .5) * 1.6}deg)`;
+    });
+  }
+  fx.register({ duration: D, loop: false, seek(t) { tl.seek(Math.min(t, tl.duration()), false); jitter(t); } });
+</script>

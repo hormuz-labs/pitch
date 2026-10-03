@@ -1,0 +1,25 @@
+{
+  "move": "post card enters, like/comment/share icons hit in sequence with counters and toast bubbles",
+  "how": "A square Instagram-style post card (avatar, handle, photo, action row) rises in with expo.out over the first 25% of the 2s loop and its three action groups pop from scale 0 with back.out(2.5) staggered 0.1s. At 0.6, 1.0 and 1.35s each icon hits: scale 1.35 with power2.out then elastic.out(1,0.4) back to 1, its count rolls up 28px with back.out(1.6) (1,204 to 1,205 etc.), and a black toast bubble above the row pops in from scale 0.6 with back.out(2) then lifts and fades 0.5s later. The heart also fills red on its hit. At 1.75s (87.5%) the card exits upward with power3.in so the frame empties.",
+  "moves": [
+    "stagger",
+    "pop",
+    "elastic",
+    "counter",
+    "toast"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the handle, photo, the three counters and the toast strings; the hit cadence (0.4s, 0.35s) can be spread for a longer loop. Keep the 0.14s scale hit with the elastic settle.",
+  "port": "mount(el, shot) builds the post (top, pic, acts with three bubbles and three action groups) inside el. animate returns the timeline with entry 0 to 0.25D, hits at 0.3D, 0.5D and 0.675D, exit 0.875D. from() tweens need immediateRender:false; scope selectors to el.",
+  "caveats": [
+    "1080x1080 square canvas, not 16:9",
+    "from() tweens need immediateRender:false",
+    "loads assets/backgrounds/ocean.png",
+    "fill and stroke tweened as colour strings on an svg path"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

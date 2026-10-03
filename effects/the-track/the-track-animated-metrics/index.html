@@ -1,0 +1,80 @@
+<!doctype html><meta charset="utf-8">
+<title>The Track: Animated Metrics</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0c0c0e;color:#fff;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif}
+  .lane{position:absolute;left:-10%;right:-10%;height:3px;background:rgba(255,255,255,.08);transform:rotate(-8deg)}
+  .phone{position:absolute;left:110px;top:50%;width:330px;height:660px;margin-top:-330px;border-radius:48px;background:#151517;border:6px solid #2a2a2e;padding:44px 22px 22px;will-change:transform;font-family:"Atlas Grotesk",sans-serif}
+  .notch{position:absolute;left:50%;top:16px;width:110px;height:26px;margin-left:-55px;border-radius:13px;background:#000}
+  .ph{font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:#8a8a94}
+  .big{font-family:"Sharp Grotesk",sans-serif;font-size:74px;font-weight:500;letter-spacing:-.04em;line-height:1;margin-top:8px;color:#d9ff3d;font-variant-numeric:tabular-nums}
+  .big small{font-size:22px;letter-spacing:0;color:#fff;margin-left:6px}
+  .ringwrap{position:relative;width:200px;height:200px;margin:26px auto 0}
+  .ringwrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ringwrap .lab{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:34px;font-weight:500;font-family:"Sharp Grotesk",sans-serif}
+  .ringwrap .lab small{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#8a8a94;font-family:"Atlas Grotesk",sans-serif}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:90px;margin-top:30px}
+  .bars i{flex:1;background:#2a2a2e;border-radius:4px 4px 0 0;transform-origin:bottom}
+  .bars i.on{background:#d9ff3d}
+  .stats{position:absolute;left:560px;top:110px;display:flex;flex-direction:column;gap:30px}
+  .stat{overflow:hidden}
+  .stat .k{font-family:"Atlas Grotesk",sans-serif;font-size:18px;letter-spacing:.24em;text-transform:uppercase;color:#8a8a94}
+  .stat .v{font-size:120px;font-weight:500;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:14px}
+  .stat .v em{font-style:normal;font-size:30px;color:#d9ff3d;font-family:"Atlas Grotesk",sans-serif;letter-spacing:0}
+  .line{position:absolute;left:560px;right:80px;height:2px;background:#d9ff3d;transform-origin:left}
+  .tag{position:absolute;right:80px;top:56px;padding:8px 14px;border:2px solid #d9ff3d;color:#d9ff3d;font-family:"Atlas Grotesk",sans-serif;font-size:16px;letter-spacing:.2em;text-transform:uppercase}
+</style>
+<div class="stage">
+  <div class="lane" style="top:22%"></div><div class="lane" style="top:50%"></div><div class="lane" style="top:78%"></div>
+  <div class="tag">Northwind Run · Live</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="ph">Distance</div>
+    <div class="big"><span class="dist">0.00</span><small>km</small></div>
+    <div class="ringwrap"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#2a2a2e" stroke-width="9"/><circle class="arc" cx="50" cy="50" r="44" fill="none" stroke="#d9ff3d" stroke-width="9" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5"/></svg><div class="lab"><span class="pct">0%</span><small>of goal</small></div></div>
+    <div class="bars"></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="k">Pace</div><div class="v"><span class="pace">0:00</span><em>/km</em></div></div>
+    <div class="stat"><div class="k">Heart rate</div><div class="v"><span class="hr">0</span><em>bpm</em></div></div>
+    <div class="stat"><div class="k">Calories</div><div class="v"><span class="cal">0</span><em>kcal</em></div></div>
+  </div>
+  <div class="line" style="top:262px"></div><div class="line" style="top:428px"></div><div class="line" style="top:594px"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const rng = fx.rng(5);
+  const bars = document.querySelector('.bars');
+  for (let i = 0; i < 14; i++) { const b = document.createElement('i'); b.style.height = (30 + rng() * 70) + '%'; if (i % 3 === 1) b.classList.add('on'); bars.appendChild(b); }
+  const n = { d: 0, p: 0, hr: 0, cal: 0, pace: 0 };
+  const paint = () => {
+    document.querySelector('.dist').textContent = n.d.toFixed(2);
+    document.querySelector('.pct').textContent = Math.round(n.p) + '%';
+    document.querySelector('.hr').textContent = Math.round(n.hr);
+    document.querySelector('.cal').textContent = Math.round(n.cal);
+    const s = Math.round(n.pace); document.querySelector('.pace').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    gsap.set('.arc', { strokeDashoffset: 276.5 * (1 - n.p / 100) });
+  };
+  const tl = fx.timeline({ duration: 5 });
+  tl.from('.lane', { xPercent: -100, duration: 1.0, stagger: 0.08, ease: 'expo.out' }, 0)
+    .from('.phone', { x: -500, rotation: -10, duration: 0.9, ease: 'expo.out' }, 0.05)
+    .from('.tag', { x: 200, opacity: 0, duration: 0.6, ease: 'expo.out' }, 0.3)
+    .from('.stat', { x: 120, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'expo.out' }, 0.35)
+    .from('.line', { scaleX: 0, duration: 0.8, stagger: 0.1, ease: 'expo.inOut' }, 0.5)
+    .from('.bars i', { scaleY: 0, duration: 0.5, stagger: 0.03, ease: 'back.out(2)' }, 0.8)
+    // every number counts up together, with a ring that fills
+    .to(n, { d: 5.24, p: 87, hr: 162, cal: 418, pace: 4 * 60 + 52, duration: 2.2, ease: 'power3.out', onUpdate: paint }, 0.7)
+    .to('.stat .v', { scale: 1.04, duration: 0.15, stagger: 0.08, yoyo: true, repeat: 1, transformOrigin: 'left center' }, 2.9)
+    // heart rate keeps ticking so nothing rests
+    .to(n, { hr: 168, duration: 0.6, ease: 'sine.inOut', onUpdate: paint }, 3.1)
+    .to(n, { hr: 164, d: 5.31, cal: 424, duration: 0.7, ease: 'sine.inOut', onUpdate: paint }, 3.7)
+    // out
+    .to('.stat', { x: 120, opacity: 0, duration: 0.4, stagger: 0.06, ease: 'expo.in' }, 4.3)
+    .to('.line', { scaleX: 0, transformOrigin: 'right', duration: 0.4, stagger: 0.06, ease: 'expo.in' }, 4.3)
+    .to('.phone', { x: -500, rotation: -10, duration: 0.5, ease: 'expo.in' }, 4.45)
+    .to('.tag', { x: 200, opacity: 0, duration: 0.35, ease: 'expo.in' }, 4.5)
+    .to('.lane', { xPercent: 100, duration: 0.5, stagger: 0.05, ease: 'expo.in' }, 4.5);
+  paint();
+</script>

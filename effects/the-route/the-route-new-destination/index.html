@@ -1,0 +1,87 @@
+<!doctype html><meta charset="utf-8">
+<title>The Route: New Destination</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f3efe6;color:#141414}
+  .map{position:absolute;inset:0;will-change:transform}
+  svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .land{fill:#e4ddcf;stroke:#d2c9b8;stroke-width:1.5}
+  .water{fill:#cfe3ea}
+  .route{fill:none;stroke:#141414;stroke-width:5;stroke-linecap:round;stroke-dasharray:1 16}
+  .route.solid{stroke-dasharray:none;stroke-width:4}
+  .pin{transform-box:fill-box;transform-origin:50% 100%}
+  .lbl{position:absolute;padding:10px 14px;border-radius:12px;background:#141414;color:#fff;font-size:18px;font-weight:500;white-space:nowrap;transform-origin:left bottom;will-change:transform}
+  .lbl.new{background:#ff5a36}
+  .lbl small{display:block;font-size:12px;opacity:.7;font-weight:400}
+  .head{position:absolute;left:72px;top:72px;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.3em;text-transform:uppercase;opacity:.6}
+  .title{position:absolute;left:72px;bottom:96px;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:84px;letter-spacing:-.04em;line-height:.95}
+  .title .row{overflow:hidden}
+  .title span{display:block;will-change:transform}
+  .title .hl{color:#ff5a36}
+  .badge{position:absolute;right:72px;top:72px;padding:12px 18px;border-radius:99px;background:#ff5a36;color:#fff;font-family:"Sharp Grotesk",sans-serif;font-size:16px;letter-spacing:.2em;text-transform:uppercase;transform-origin:center;will-change:transform}
+  .dot{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#141414;will-change:transform}
+</style>
+<div class="stage">
+  <div class="map">
+    <svg viewBox="0 0 1080 1080">
+      <rect class="water" x="0" y="0" width="1080" height="1080"/>
+      <path class="land" d="M-40 -40 H 520 C 560 120, 420 240, 520 340 S 700 420, 620 560 S 360 640, 300 760 S 60 860, -40 820 Z"/>
+      <path class="land" d="M700 -40 H 1120 V 460 C 1020 480, 940 380, 880 300 S 760 140, 700 -40 Z"/>
+      <path class="land" d="M540 760 C 660 700, 860 720, 980 820 S 1120 1000, 1120 1120 H 480 C 440 1000, 460 840, 540 760 Z"/>
+      <path id="p1" class="route" d="M180 300 C 300 240, 380 340, 470 420 S 620 520, 700 440"/>
+      <path id="p2" class="route" d="M700 440 C 760 400, 820 480, 830 560 S 880 720, 800 780"/>
+      <g class="pin a" transform="translate(180 300)"><circle r="18" fill="#141414"/><circle r="7" fill="#fff"/></g>
+      <g class="pin b" transform="translate(700 440)"><circle r="18" fill="#141414"/><circle r="7" fill="#fff"/></g>
+      <g class="pin c" transform="translate(800 780)"><circle r="30" fill="rgba(255,90,54,.3)" class="halo"/><circle r="18" fill="#ff5a36"/><circle r="7" fill="#fff"/></g>
+    </svg>
+    <div class="lbl la" style="left:204px;top:236px">Oslo<small>Hub</small></div>
+    <div class="lbl lb" style="left:724px;top:376px">Berlin<small>Since 2021</small></div>
+    <div class="lbl lc new" style="left:824px;top:716px">Palermo<small>New · from May</small></div>
+    <div class="dot"></div>
+  </div>
+  <div class="head">Northwind Air · Network update</div>
+  <div class="badge">New route</div>
+  <div class="title"><div class="row"><span>Now flying</span></div><div class="row"><span class="hl">to Palermo</span></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin);
+  const tl = fx.timeline({ duration: 10 });
+  gsap.set('#p1, #p2', { drawSVG: '0%' });
+  gsap.set('.pin', { scale: 0 });
+  gsap.set('.lbl', { scale: 0, opacity: 0 });
+  gsap.set('.badge', { scale: 0 });
+  gsap.set('.title span', { yPercent: 110 });
+  gsap.set('.dot', { opacity: 0 });
+  // camera: pull in on the existing route, then pan down-right as the path extends
+  tl.fromTo('.map', { scale: 1.25, x: 120, y: 160 }, { scale: 1.25, x: 100, y: 140, duration: 3.5, ease: 'none' }, 0)
+    .to('.map', { scale: 1.05, x: -20, y: -60, duration: 2.2, ease: 'power2.inOut' }, 3.5)
+    .to('.map', { scale: 1.02, x: -30, y: -70, duration: 3.3, ease: 'none' }, 5.7);
+  // existing route
+  tl.to('.pin.a', { scale: 1, duration: 0.5, ease: 'back.out(3)' }, 0.2)
+    .to('.lbl.la', { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, 0.4)
+    .to('#p1', { drawSVG: '0% 100%', duration: 1.4, ease: 'power2.inOut' }, 0.6)
+    .to('.pin.b', { scale: 1, duration: 0.5, ease: 'back.out(3)' }, 1.8)
+    .to('.lbl.lb', { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, 2.0);
+  // the dot rides the extension: the path extends to reveal the new destination
+  tl.set('.dot', { opacity: 1 }, 3.8)
+    .to('.dot', { motionPath: { path: '#p2', align: '#p2', alignOrigin: [0.5, 0.5] }, duration: 1.8, ease: 'power2.inOut' }, 3.8)
+    .to('#p2', { drawSVG: '0% 100%', duration: 1.8, ease: 'power2.inOut' }, 3.8)
+    .to('.dot', { opacity: 0, duration: 0.2 }, 5.6)
+    .to('.pin.c', { scale: 1, duration: 0.6, ease: 'elastic.out(1,0.5)' }, 5.5)
+    .to('.lbl.lc', { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)' }, 5.8)
+    .to('.badge', { scale: 1, duration: 0.6, ease: 'back.out(2.5)' }, 5.9)
+    .to('.title span', { yPercent: 0, stagger: 0.1, duration: 0.7, ease: 'expo.out' }, 6.1);
+  // the new pin keeps a halo pulse
+  tl.fromTo('.pin.c .halo', { attr: { r: 24 }, opacity: 1 }, { attr: { r: 50 }, opacity: 0, duration: 1, ease: 'power1.out', repeat: 3 }, 6.0);
+  // exit for a clean loop
+  tl.to('.title span', { yPercent: -110, duration: 0.35, ease: 'expo.in', stagger: 0.05 }, 9.2)
+    .to('.badge', { scale: 0, duration: 0.3, ease: 'expo.in' }, 9.3)
+    .to('.lbl', { scale: 0, opacity: 0, duration: 0.3, ease: 'expo.in', stagger: 0.04 }, 9.3)
+    .to('.pin', { scale: 0, duration: 0.3, ease: 'expo.in', stagger: 0.04 }, 9.45)
+    .to('#p1, #p2', { drawSVG: '100% 100%', duration: 0.5, ease: 'expo.in' }, 9.4);
+</script>

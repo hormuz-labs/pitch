@@ -1,0 +1,83 @@
+<!doctype html><meta charset="utf-8">
+<title>The Route: Cities</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#e9e4d8}
+  svg.map{position:absolute;inset:0;width:100%;height:100%}
+  .land{fill:#dcd5c4}
+  .gridl{stroke:#cfc7b4;stroke-width:1}
+  .route{fill:none;stroke:#1b1b1f;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:14 12}
+  .route2{fill:none;stroke:#ff4b2b;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+  .pin circle.o{fill:#fff;stroke:#1b1b1f;stroke-width:4}
+  .pin circle.i{fill:#ff4b2b}
+  .city{position:absolute;font-family:"Atlas Grotesk",sans-serif;font-size:26px;color:#1b1b1f;transform:translate(-50%,0);white-space:nowrap}
+  .city b{display:block;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:34px;letter-spacing:-.02em}
+  .city small{display:block;font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:#7b7566}
+  .city .m{overflow:hidden}.city .m > *{display:block}
+  .head{position:absolute;left:70px;top:64px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:-.03em;color:#1b1b1f;overflow:hidden;height:74px}
+  .head span{display:block}
+  .meta{position:absolute;right:70px;top:80px;text-align:right;font-family:"Atlas Grotesk",sans-serif;font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:#7b7566}
+  .plane{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px}
+  .card{position:absolute;left:70px;right:70px;bottom:64px;background:#1b1b1f;color:#e9e4d8;border-radius:18px;padding:22px 28px;display:flex;justify-content:space-between;font-family:"Atlas Grotesk",sans-serif;font-size:24px}
+  .card b{font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:28px}
+</style>
+<div class="stage">
+  <svg class="map" viewBox="0 0 1080 1080">
+    <g id="grid"></g>
+    <path class="land" d="M-20 300 C 120 240, 260 330, 380 260 S 620 200, 760 300 S 1000 320, 1120 260 L 1120 1120 L -20 1120 Z"/>
+    <path class="land" d="M-20 -20 L 1120 -20 L 1120 120 C 900 200, 700 90, 480 150 S 100 220, -20 140 Z" opacity=".6"/>
+    <path id="route" class="route" d="M140 820 C 220 640, 330 700, 400 560 S 560 380, 700 420 S 880 330, 940 240"/>
+    <path id="route2" class="route2" d="M140 820 C 220 640, 330 700, 400 560 S 560 380, 700 420 S 880 330, 940 240"/>
+    <g class="pin" id="p1" transform="translate(140 820)"><circle class="o" r="16"/><circle class="i" r="7"/></g>
+    <g class="pin" id="p2" transform="translate(400 560)"><circle class="o" r="16"/><circle class="i" r="7"/></g>
+    <g class="pin" id="p3" transform="translate(700 420)"><circle class="o" r="16"/><circle class="i" r="7"/></g>
+    <g class="pin" id="p4" transform="translate(940 240)"><circle class="o" r="16"/><circle class="i" r="7"/></g>
+  </svg>
+  <div class="plane"><svg viewBox="0 0 44 44"><path d="M22 4 l 6 16 l 12 6 v 4 l -12 -2 l -2 8 l 5 3 v 3 l -9 -2 l -9 2 v -3 l 5 -3 l -2 -8 l -12 2 v -4 l 12 -6 z" fill="#1b1b1f"/></svg></div>
+  <div class="city" style="left:140px;top:850px"><div class="m"><b>Lisbon</b></div><div class="m"><small>LIS · 08:40</small></div></div>
+  <div class="city" style="left:400px;top:590px"><div class="m"><b>Marseille</b></div><div class="m"><small>MRS · 12:15</small></div></div>
+  <div class="city" style="left:700px;top:450px"><div class="m"><b>Zurich</b></div><div class="m"><small>ZRH · 15:05</small></div></div>
+  <div class="city" style="left:940px;top:270px"><div class="m"><b>Berlin</b></div><div class="m"><small>BER · 17:30</small></div></div>
+  <div class="head"><span>Four cities, one day.</span></div>
+  <div class="meta">Northwind Air<br>Route 12</div>
+  <div class="card"><span>Total distance</span><b id="km">0 km</b></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin);
+  const g = document.getElementById('grid'); let s = '';
+  for (let i = 0; i <= 1080; i += 60) s += `<line class="gridl" x1="${i}" y1="0" x2="${i}" y2="1080"/><line class="gridl" x1="0" y1="${i}" x2="1080" y2="${i}"/>`;
+  g.innerHTML = s;
+  const tl = fx.timeline({ duration: 6 });
+  const cities = gsap.utils.toArray('.city');
+  tl.from('.head span', { yPercent: 110, duration: .7, ease: 'expo.out' }, 0)
+    .from('.meta', { opacity: 0, duration: .5 }, .3)
+    .from('.card', { y: 40, opacity: 0, duration: .7, ease: 'expo.out' }, .4)
+    .from('.land', { opacity: 0, duration: .8 }, 0);
+  // the dashed path draws ahead as a guide, the solid path follows with the plane on it,
+  // each pin pops when the plane arrives and its city label rises
+  tl.fromTo('#route', { drawSVG: '0%' }, { drawSVG: '100%', duration: 1.6, ease: 'power2.inOut' }, .3)
+    .fromTo('#route2', { drawSVG: '0%' }, { drawSVG: '100%', duration: 3.2, ease: 'power1.inOut' }, .8)
+    .to('.plane', { motionPath: { path: '#route2', align: '#route2', alignOrigin: [.5, .5], autoRotate: 90 }, duration: 3.2, ease: 'power1.inOut' }, .8)
+    .to({ v: 0 }, { v: 2140, duration: 3.2, ease: 'power1.inOut', onUpdate() { document.getElementById('km').textContent = Math.round(this.targets()[0].v).toLocaleString('en-US') + ' km'; } }, .8);
+  const arrive = [.7, 1.85, 2.85, 4.0];
+  ['#p1', '#p2', '#p3', '#p4'].forEach((p, i) => {
+    tl.from(p, { scale: 0, transformOrigin: 'center', duration: .5, ease: 'back.out(3)' }, arrive[i])
+      .fromTo(p + ' .o', { attr: { r: 16 } }, { attr: { r: 30 }, opacity: 0, duration: .8, ease: 'power2.out' }, arrive[i] + .05)
+      .set(p + ' .o', { attr: { r: 16 }, opacity: 1 }, arrive[i] + .9)
+      .from(cities[i].querySelectorAll('.m > *'), { yPercent: 110, duration: .5, ease: 'expo.out', stagger: .06 }, arrive[i] + .1);
+  });
+  // exit: route erases from the start, labels drop, plane leaves
+  tl.to('#route2', { drawSVG: '100% 100%', duration: .6, ease: 'power2.in' }, 5.2)
+    .to('#route', { drawSVG: '100% 100%', duration: .6, ease: 'power2.in' }, 5.25)
+    .to('.plane', { x: '+=200', y: '-=260', opacity: 0, duration: .5, ease: 'power2.in' }, 5.3)
+    .to('.pin', { scale: 0, transformOrigin: 'center', duration: .3, ease: 'back.in(2)', stagger: .06 }, 5.3)
+    .to('.city .m > *', { yPercent: -110, duration: .3, ease: 'expo.in', stagger: .02 }, 5.4)
+    .to('.head span', { yPercent: -110, duration: .35, ease: 'expo.in' }, 5.6)
+    .to('.card', { y: 40, opacity: 0, duration: .35, ease: 'power2.in' }, 5.6)
+    .to('.meta', { opacity: 0, duration: .3 }, 5.65);
+</script>

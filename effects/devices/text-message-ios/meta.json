@@ -1,0 +1,28 @@
+{
+  "move": "iMessage thread: typing dots, bubbles pop in, reply typed and sent",
+  "how": "A 1080x1920 iOS Messages screen with nav, thread, input bar and keyboard. The thread is bottom-anchored and pre-offset by the height of every hidden item, measured at mount; as each item appears the thread tweens y up by that item's height (0.5s power3.out). Incoming bubbles pop from scale 0.4, opacity 0, x -30, y 20 with 0.55s back.out(1.6) (outgoing from x +30); typing bubbles bounce three dots y -8 in a staggered yoyo and are hidden (opacity 0, scale 0.8, then display none) when the real message replaces them; timestamp labels just fade in. Twice, TextPlugin types the reply into the input field over 0.9s (linear), the blue send button springs in with back.out(2), squashes 0.85 on send and the typed text clears as the outgoing bubble pops. Beats land at 2%, 5%, 15%, 20%, 32%, 40%, 51%, 57%, 62%, 74%, 83%; at 94% the whole thread drifts up 120px and fades so the next pass starts clean.",
+  "moves": [
+    "pop-in",
+    "typing-dots",
+    "typewriter",
+    "scroll-up",
+    "stagger",
+    "spring"
+  ],
+  "libs": [
+    "gsap",
+    "TextPlugin"
+  ],
+  "adapt": "Replace the contact name, avatar initial, message strings and timestamps; add or remove items in the thread and re-time the show()/hide()/typeIn()/sendIt() calls. Keep the 0.55s back.out(1.6) pops, the 0.9s linear typing and the 0.5s power3.out thread scroll.",
+  "port": "mount(el, shot) builds the thread from shot.messages and must measure each item's offsetHeight after layout (so the element has to be in the document with real fonts) to compute the bottom-anchored offsets; animate(el, shot, D) returns the timeline with the beats scaled by D/10. TextPlugin must be registered; the .ph/.typed/.send selectors and the thread lookup must be scoped to el; the display:none set() calls are seek-safe because set() reverses.",
+  "caveats": [
+    "catalog lists 16s but the file renders 10s",
+    "portrait 1080x1920 frame, not 16:9",
+    "layout is measured with offsetHeight at mount, so fonts and widths must be final before animate",
+    "backdrop-filter blur(30px) on the nav bar",
+    "loop closes only in that the thread is empty/faded at both ends; the input bar resets"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

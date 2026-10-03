@@ -1,0 +1,185 @@
+[
+ {
+  "name": "5 Stars: Move Up",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "5-stars-move-up",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated five-star rating template where stars rise into frame. Good for rating reveals and customer feedback showcases.",
+  "jitterUrl": "https://jitter.video/template/5-stars-move-up/"
+ },
+ {
+  "name": "5 Stars: Pop",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "5-stars-pop",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated five-star rating template where stars pop into view with a burst effect. Good for testimonial highlights and customer feedback content.",
+  "jitterUrl": "https://jitter.video/template/5-stars-pop/"
+ },
+ {
+  "name": "Adobe After Effects Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "adobe-after-effects-logo",
+  "seconds": 4,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated After Effects logo template. Good for motion design tutorials and animation content where the logo should reflect the craft.",
+  "jitterUrl": "https://jitter.video/template/adobe-after-effects-logo/"
+ },
+ {
+  "name": "Adobe Illustrator Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "adobe-illustrator-logo",
+  "seconds": 4,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Adobe Illustrator logo template. Good for design process videos and Adobe tool presentations.",
+  "jitterUrl": "https://jitter.video/template/adobe-illustrator-logo/"
+ },
+ {
+  "name": "Adobe Photoshop Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "adobe-photoshop-logo",
+  "seconds": 4,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Photoshop logo template. Good for creative software showcases and Adobe-themed content.",
+  "jitterUrl": "https://jitter.video/template/adobe-photoshop-logo/"
+ },
+ {
+  "name": "Adobe Premiere Pro Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "adobe-premiere-pro-logo",
+  "seconds": 4,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Adobe Premiere Pro logo template with a smooth reveal. Good for video editing content and Adobe workflow presentations.",
+  "jitterUrl": "https://jitter.video/template/adobe-premiere-pro-logo/"
+ },
+ {
+  "name": "Adobe XD Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "adobe-xd-logo",
+  "seconds": 4,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Adobe XD logo template with clean motion. Good for design tool content and Adobe-related tutorials and presentations.",
+  "jitterUrl": "https://jitter.video/template/adobe-xd-logo/"
+ },
+ {
+  "name": "Apple Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "apple-logo",
+  "seconds": 3,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Apple logo template with minimal motion. Good for Apple-themed content and tech product presentations.",
+  "jitterUrl": "https://jitter.video/template/apple-logo/"
+ },
+ {
+  "name": "Behance Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "behance-logo",
+  "seconds": 3,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Behance logo template. Good for portfolio launch announcements and creative community content.",
+  "jitterUrl": "https://jitter.video/template/behance-logo/"
+ },
+ {
+  "name": "Bouncy Icons",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "bouncy-icons",
+  "seconds": 4,
+  "tags": [
+   "social-media"
+  ],
+  "description": "An animated icon template where icons bounce into view with springy motion. Perfect for app icon showcases and onboarding screen animations.",
+  "jitterUrl": "https://jitter.video/template/bouncy-icons/"
+ },
+ {
+  "name": "Check Icon",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "check-icon",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated checkmark template that draws itself with a clean stroke. Good for task completion UI and success state presentations.",
+  "jitterUrl": "https://jitter.video/template/check-icon/"
+ },
+ {
+  "name": "Close Icon",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "close-icon",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated close icon template with a clean reveal. Good for modal UI demos and component presentations.",
+  "jitterUrl": "https://jitter.video/template/close-icon/"
+ },
+ {
+  "name": "Cursor",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "cursor",
+  "seconds": 2,
+  "tags": [],
+  "description": "An animated cursor template from Luc Chaissac with custom click states and movement trails. Good for web UI demos and interactive design presentations where the cursor itself is part of the story.",
+  "jitterUrl": "https://jitter.video/template/cursor/"
+ },
+ {
+  "name": "Dislike Icon",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "dislike-icon",
+  "seconds": 3,
+  "tags": [
+   "social-media"
+  ],
+  "description": "An animated dislike icon template with a clear interaction state. Great for feedback UI demos and rating system presentations.",
+  "jitterUrl": "https://jitter.video/template/dislike-icon/"
+ },
+ {
+  "name": "Dribbble Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "dribbble-logo",
+  "seconds": 3,
+  "tags": [
+   "logos"
+  ],
+  "description": "An animated Dribbble logo template. Good for design community posts and portfolio launch announcements.",
+  "jitterUrl": "https://jitter.video/template/dribbble-logo/"
+ },
+ {
+  "name": "Facebook Logo",
+  "family": "Icons",
+  "familySlug": "icons",
+  "slug": "facebook-logo",
+  "seconds": 3,
+  "tags": [
+   "logos",
+   "social-media"
+  ],
+  "description": "An animated Facebook logo template. Works best for social media content and platform-related announcements.",
+  "jitterUrl": "https://jitter.video/template/facebook-logo/"
+ }
+]

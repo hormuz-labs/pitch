@@ -1,0 +1,115 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated iPad Mockup</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#e9e6df;perspective:2000px;font-family:"Atlas Grotesk",sans-serif}
+  .bg{position:absolute;inset:0;background:radial-gradient(60% 70% at 30% 30%,#fff7ea,transparent 70%),radial-gradient(50% 60% at 80% 80%,#d9e4ff,transparent 70%)}
+  .wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d}
+  .ipad{position:relative;width:900px;height:640px;border-radius:38px;background:#1c1d21;padding:22px;box-shadow:0 60px 100px rgba(30,30,60,.35),inset 0 0 0 2px #45464d;transform-style:preserve-3d;will-change:transform}
+  .cam{position:absolute;top:9px;left:50%;width:8px;height:8px;border-radius:50%;background:#2c2d33;transform:translateX(-50%)}
+  .scr{position:relative;height:100%;border-radius:20px;overflow:hidden;background:#f6f7fa;display:flex}
+  .side{width:200px;background:#fff;border-right:1px solid #e6e8ee;padding:22px 16px;flex:none}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:500;font-size:16px;margin-bottom:24px}
+  .logo i{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#ff7a59,#ff3d81)}
+  .nav{padding:9px 12px;border-radius:10px;font-size:14px;color:#5b6070;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+  .nav b{width:14px;height:14px;border-radius:4px;background:#d5d8e0}
+  .nav.on{background:#f1f2f6;color:#111}.nav.on b{background:#ff5c6e}
+  .main{flex:1;padding:24px 28px;position:relative}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+  .top h1{font-size:26px;font-weight:500;letter-spacing:-.02em}
+  .top .btn{padding:10px 16px;border-radius:10px;background:#111;color:#fff;font-size:13px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);will-change:transform}
+  .card small{font-size:12px;color:#8a8f9a;display:block;margin-bottom:6px}
+  .card b{font-size:28px;font-weight:500;letter-spacing:-.02em}
+  .card .up{font-size:12px;color:#1fa86c;margin-left:8px}
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+  .chart{height:260px;position:relative}
+  .chart svg{position:absolute;inset:18px;width:calc(100% - 36px);height:calc(100% - 36px);overflow:visible}
+  .list .rowi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eef0f4;font-size:13px}
+  .list .rowi:last-child{border:0}
+  .list .rowi i{width:28px;height:28px;border-radius:50%;background:#dfe3ec;flex:none}
+  .list .rowi span{flex:1;color:#333}
+  .list .rowi em{font-style:normal;color:#8a8f9a;font-size:12px}
+  .cursor{position:absolute;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.25);border:2px solid #fff;top:0;left:0;z-index:9;will-change:transform}
+  .shadow{position:absolute;left:50%;bottom:-40px;width:80%;height:50px;background:radial-gradient(closest-side,rgba(0,0,0,.35),transparent);transform:translateX(-50%) translateZ(-1px)}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="wrap">
+    <div class="ipad"><div class="cam"></div>
+      <div class="scr">
+        <div class="side">
+          <div class="logo"><i></i>Northwind</div>
+          <div class="nav on"><b></b>Overview</div><div class="nav"><b></b>Customers</div><div class="nav"><b></b>Orders</div><div class="nav"><b></b>Analytics</div><div class="nav"><b></b>Settings</div>
+        </div>
+        <div class="main">
+          <div class="top"><h1>Overview</h1><div class="btn">Export report</div></div>
+          <div class="stats">
+            <div class="card"><small>Revenue</small><b class="n1">$0</b><span class="up">+12%</span></div>
+            <div class="card"><small>Active users</small><b class="n2">0</b><span class="up">+8%</span></div>
+            <div class="card"><small>Conversion</small><b class="n3">0%</b><span class="up">+1.2</span></div>
+          </div>
+          <div class="grid2">
+            <div class="card chart"><svg viewBox="0 0 400 200" preserveAspectRatio="none">
+              <path class="area" d="M0,170 L50,150 L100,155 L150,110 L200,120 L250,70 L300,80 L350,40 L400,30 L400,200 L0,200Z" fill="url(#g)"/>
+              <path class="line" d="M0,170 L50,150 L100,155 L150,110 L200,120 L250,70 L300,80 L350,40 L400,30" fill="none" stroke="#ff5c6e" stroke-width="3" stroke-linejoin="round"/>
+              <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5c6e" stop-opacity=".35"/><stop offset="1" stop-color="#ff5c6e" stop-opacity="0"/></linearGradient></defs>
+            </svg></div>
+            <div class="card list">
+              <div class="rowi"><i></i><span>Ada Lovelace</span><em>$240</em></div>
+              <div class="rowi"><i></i><span>Grace Hopper</span><em>$180</em></div>
+              <div class="rowi"><i></i><span>Alan Turing</span><em>$96</em></div>
+              <div class="rowi"><i></i><span>Linus T.</span><em>$72</em></div>
+              <div class="rowi"><i></i><span>Margaret H.</span><em>$60</em></div>
+            </div>
+          </div>
+          <div class="cursor"></div>
+        </div>
+      </div>
+      <div class="shadow"></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 8 });
+  const nums = { a: 0, b: 0, c: 0 };
+  const fmt = () => {
+    document.querySelector('.n1').textContent = '$' + (nums.a / 1000).toFixed(1) + 'k';
+    document.querySelector('.n2').textContent = Math.round(nums.b).toLocaleString();
+    document.querySelector('.n3').textContent = nums.c.toFixed(1) + '%';
+  };
+  // the tablet: lands from a tilt, then a slow 3D drift, then leaves
+  tl.fromTo('.ipad', { rotateX: 40, rotateY: -18, y: 300, scale: .9, opacity: 0 }, { rotateX: 12, rotateY: -8, y: 0, scale: .9, opacity: 1, duration: 1.2, ease: 'expo.out' }, 0)
+    .to('.ipad', { rotateX: 6, rotateY: 8, duration: 5.2, ease: 'sine.inOut' }, 1.2)
+    .to('.ipad', { rotateX: -30, y: -420, opacity: 0, duration: 0.7, ease: 'expo.in' }, 7.3)
+    // screen content builds in
+    .from('.side .nav, .side .logo', { x: -30, opacity: 0, stagger: 0.06, duration: 0.5, ease: 'power3.out' }, 0.6)
+    .from('.top', { y: -16, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.8)
+    .from('.stats .card', { y: 30, opacity: 0, stagger: 0.1, duration: 0.6, ease: 'back.out(1.7)' }, 0.95)
+    .to(nums, { a: 48200, b: 12480, c: 4.8, duration: 1.4, ease: 'power3.out', onUpdate: fmt }, 1.1)
+    .from('.grid2 .card', { y: 40, opacity: 0, stagger: 0.12, duration: 0.7, ease: 'power3.out' }, 1.3)
+    .fromTo('.chart .line', { drawSVG: '0%' }, { drawSVG: '100%', duration: 1.6, ease: 'power2.inOut' }, 1.6)
+    .from('.chart .area', { opacity: 0, duration: 0.8 }, 2.6)
+    .from('.list .rowi', { x: 20, opacity: 0, stagger: 0.08, duration: 0.5, ease: 'power3.out' }, 1.8)
+    // a cursor walks the nav and switches the highlight
+    .fromTo('.cursor', { x: 420, y: 300, opacity: 0 }, { opacity: 1, duration: 0.3 }, 3.4)
+    .to('.cursor', { x: -100, y: 92, duration: 0.9, ease: 'power3.inOut' }, 3.6)
+    .to('.cursor', { scale: 0.8, duration: 0.12, yoyo: true, repeat: 1 }, 4.5)
+    .to('.nav.on', { backgroundColor: 'rgba(241,242,246,0)', color: '#5b6070', duration: 0.3 }, 4.6)
+    .to('.nav:nth-child(5)', { backgroundColor: '#f1f2f6', color: '#111', duration: 0.3 }, 4.6)
+    .to('.nav:nth-child(5) b', { backgroundColor: '#ff5c6e', duration: 0.3 }, 4.6)
+    .to('.top h1', { opacity: 0, y: -8, duration: 0.2 }, 4.65)
+    .to('.stats .card', { y: -10, opacity: 0, stagger: 0.05, duration: 0.3, ease: 'power2.in' }, 4.65)
+    .from('.stats .card', { y: 30, opacity: 0, stagger: 0.08, duration: 0.5, ease: 'back.out(1.7)', immediateRender: false }, 5.0)
+    .to(nums, { a: 91500, b: 30200, c: 6.4, duration: 1.2, ease: 'power3.out', onUpdate: fmt }, 5.0)
+    .to('.cursor', { x: 300, y: 340, opacity: 0, duration: 1.2, ease: 'power2.inOut' }, 5.2);
+  tl.call(() => { document.querySelector('.top h1').textContent = 'Analytics'; }, null, 4.85);
+  tl.call(() => { document.querySelector('.top h1').textContent = 'Overview'; }, null, 0.01);
+  tl.to('.top h1', { opacity: 1, y: 0, duration: 0.3 }, 4.9);
+</script>

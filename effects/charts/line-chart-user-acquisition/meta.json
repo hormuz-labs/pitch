@@ -1,0 +1,28 @@
+{
+  "move": "growth line draws with a glowing head, milestone flags pop, area fills",
+  "how": "A dark full-bleed stage with eyebrow, title and a big total counter top-right, over a 1120x460 SVG plot: five gridlines, month labels, a smooth green bezier line built from 18 values, an area under it with a vertical green gradient revealed by a clipPath rect, three milestone groups (rounded label box, text, circle) and a green head circle. Text slides up y:20 (power3.out, stagger 0.1) from frame 0; gridlines draw with DrawSVG expo.out (stagger 0.05) at 4-20%. From 12% to 60% the line draws 0 to 100% with power1.inOut while a synced object tween moves the head along line.getPointAtLength, widens the clip rect so the area fills behind, and counts the total to 72,400. Each milestone pops scale 0 to 1 with back.out(2.5) at the moment the line reaches its x. At 60% the head swells r 8 to 14 and fades; milestones bob y:-4 yoyo. Exit at 84%: milestones shrink, the line retracts to its end (drawSVG '100% 100%', expo.in), the clip closes, everything fades.",
+  "moves": [
+    "draw-stroke",
+    "path-follow",
+    "mask-wipe",
+    "counter",
+    "pop",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "clip-path"
+  ],
+  "adapt": "Replace vals (any length), max, the month labels, the miles array of [index, label] and the title/eyebrow/total; change #34d399 in .line/.head/.ms and the gradient; keep the 2.4s power1.inOut draw and the milestone timing derived from index/17.",
+  "port": "mount(el, shot) builds the header, SVG, path, area, grid, labels and milestone groups from shot data; animate(el, shot, D) returns the same timeline with draw at 0.12-0.6 of D and milestone times computed from their index fraction, retract at 0.84. Requires DrawSVGPlugin; SVG ids (g, c, cr, line, head, ms) must be unique per instance; getElementById scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "milestone timing uses index/17 and a 0.92 fudge, assumes 18 points",
+    "SVG gradient/clipPath ids collide across instances",
+    "line retracts and stage fades, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

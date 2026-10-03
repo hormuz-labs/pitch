@@ -22,6 +22,7 @@
 import deck from './deck.ts'
 import demo from './demo.ts'
 import demoFlow from './demo-flow.ts'
+import effects from './effects.ts'
 import icons from './icons.ts'
 import media from './media.ts'
 import motion from './motion.ts'
@@ -63,6 +64,7 @@ interface Namespace {
  */
 const NAMESPACES: Record<string, Namespace> = {
   motion: { modules: [motion] },
+  effects: { modules: [effects] },
   icons: { modules: [icons] },
   media: { modules: [media] },
   video: { modules: [video, videoEditing] },

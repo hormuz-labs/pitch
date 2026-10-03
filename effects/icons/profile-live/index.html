@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8">
+<title>Profile: Live</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  :root{--scale:min(calc(100vw / 1080px), calc(100vh / 1080px))}
+  body{background:#0c0c10}
+  .stage{background:#0c0c10;display:flex;align-items:center;justify-content:center;width:100vw;height:100vh;overflow:hidden}
+  .artboard{position:absolute;width:1080px;height:1080px;background:#0c0c10;overflow:hidden;transform-origin:center center;transform:scale(var(--scale, 1))}
+  .glow{position:absolute;left:50%;top:44%;width:800px;height:800px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,45,85,.22),rgba(255,45,85,0) 65%);will-change:transform}
+  .wrap{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px}
+  .pulse{position:absolute;inset:0;border-radius:50%;border:6px solid #ff2d55;opacity:0;will-change:transform,opacity}
+  .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#ff2d55,#ff6b3d,#ff2d55);will-change:transform}
+  .ring::after{content:"";position:absolute;inset:10px;border-radius:50%;background:#0c0c10}
+  .avatar{position:absolute;inset:22px;border-radius:50%;overflow:hidden;background:#2a2a35;will-change:transform}
+  .avatar .bg{position:absolute;inset:0;background:url("../../../assets/backgrounds/sunset.png") center/cover;will-change:transform}
+  .avatar .person{position:absolute;left:50%;top:60%;width:170px;height:170px;margin-left:-85px;border-radius:50%;background:#ffd6b3}
+  .avatar .body{position:absolute;left:50%;top:100%;width:300px;height:300px;margin:-90px 0 0 -150px;border-radius:50%;background:#21304a}
+  .live{position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);height:56px;padding:0 22px;border-radius:14px;background:#ff2d55;color:#fff;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:28px;letter-spacing:.12em;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(255,45,85,.5);will-change:transform;transform-origin:50% 50%}
+  .live i{width:14px;height:14px;border-radius:50%;background:#fff;display:block;will-change:transform,opacity}
+  .name{position:absolute;left:50%;top:700px;transform:translateX(-50%);text-align:center;font-family:"Atlas Grotesk",sans-serif;color:#fff;white-space:nowrap}
+  .name b{display:block;font-weight:500;font-size:52px;letter-spacing:-.02em}
+  .name span{display:block;font-size:30px;opacity:.6;margin-top:10px}
+  .viewers{position:absolute;left:50%;top:840px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:12px 24px;border-radius:30px;background:rgba(255,255,255,.08);color:#fff;font-family:"Atlas Grotesk",sans-serif;font-size:28px;white-space:nowrap}
+  .viewers .n{display:inline-block;width:80px;text-align:right;overflow:hidden;height:34px;line-height:34px}
+  .viewers .n span{display:block}
+</style>
+<div class="stage">
+  <div class="artboard">
+    <div class="glow"></div>
+    <div class="wrap">
+      <div class="pulse p1"></div><div class="pulse p2"></div><div class="pulse p3"></div>
+      <div class="ring"></div>
+      <div class="avatar"><div class="bg"></div><div class="body"></div><div class="person"></div></div>
+      <div class="live"><i></i>LIVE</div>
+    </div>
+    <div class="name"><b>Mara Kessler</b><span>@marak · Studio session</span></div>
+    <div class="viewers"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="n"><span id="v">2,318</span></span> watching</div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  function updateScale() {
+    const s = Math.min(window.innerWidth / 1080, window.innerHeight / 1080);
+    document.documentElement.style.setProperty('--scale', s);
+  }
+  window.addEventListener('resize', updateScale);
+  updateScale();
+
+  const tl = fx.timeline({ duration: 4 });
+  tl.fromTo('.ring', { rotation: 0 }, { rotation: 360, duration: 4, ease: 'none' }, 0)
+    .fromTo('.avatar .bg', { scale: 1.1, x: -8 }, { scale: 1.18, x: 8, duration: 4, ease: 'none' }, 0)
+    .from('.wrap', { scale: .6, opacity: 0, duration: .8, ease: 'back.out(1.5)' }, 0)
+    .from('.name', { y: 30, opacity: 0, duration: .6, ease: 'expo.out' }, .3)
+    .from('.viewers', { y: 30, opacity: 0, duration: .6, ease: 'expo.out' }, .45)
+    .from('.live', { scale: 0, duration: .5, ease: 'back.out(3)', immediateRender: true }, .5);
+  // the badge pulses on a heartbeat and pushes rings outward every second
+  [1, 2, 3].forEach((t, i) => {
+    tl.to('.live', { scale: 1.16, duration: .14, ease: 'power2.out' }, t)
+      .to('.live', { scale: 1, duration: .55, ease: 'elastic.out(1,.4)' }, t + .14)
+      .to('.glow', { scale: 1.15, duration: .2, ease: 'power2.out' }, t)
+      .to('.glow', { scale: 1, duration: .6, ease: 'power2.inOut' }, t + .2);
+    tl.fromTo('.pulse.p' + (i + 1), { scale: .9, opacity: .9 }, { scale: 1.55, opacity: 0, duration: 1.1, ease: 'power2.out', immediateRender: false }, t);
+  });
+  tl.fromTo('.live i', { opacity: 1, scale: 1 }, { opacity: .35, scale: .7, duration: .25, ease: 'sine.inOut', yoyo: true, repeat: 15, immediateRender: false }, 0);
+  // viewer count ticks
+  [[1.3, '2,341'], [2.3, '2,402'], [3.3, '2,318']].forEach(([t, v]) => {
+    tl.to('#v', { yPercent: -100, duration: .18, ease: 'power2.in' }, t)
+      .set('#v', { textContent: v, yPercent: 100 }, t + .18)
+      .to('#v', { yPercent: 0, duration: .3, ease: 'back.out(1.5)' }, t + .18);
+  });
+</script>

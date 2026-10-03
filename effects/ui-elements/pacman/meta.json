@@ -1,0 +1,23 @@
+{
+  "move": "pacman chomps across a dot row, ghosts bob behind, score counts",
+  "how": "A canvas draws a black maze with blue rails and a border. Pac-Man moves left to right at constant speed so he crosses the whole 14-dot row in one 4s loop; his mouth opens and closes at 6Hz (cosine), dots disappear as his centre passes them, the last power pellet blinks, and the score reads 10 per dot. Three ghosts follow at fixed distances, bobbing y +/-6 on a sine and alternating their skirt frill every eighth of a second. He runs off the right edge at the end so the loop restarts with a fresh row.",
+  "moves": [
+    "travel",
+    "chomp",
+    "bob",
+    "counter",
+    "retro"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Change dot count, spacing, colours and the score label; the ghost list is data; keep the 6Hz chomp and the constant-speed crossing tied to duration.",
+  "port": "mount(el, shot) creates the canvas; animate returns a timeline with one D-long tween whose onUpdate calls the draw(t) function, replacing the fx.register seek loop. Canvas is fixed 1280x720 and uses roundRect, so scale to el and keep the font available.",
+  "caveats": [
+    "canvas seek loop, becomes an onUpdate tween on the timeline",
+    "uses ctx.roundRect, needs a recent Chromium"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

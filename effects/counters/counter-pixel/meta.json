@@ -1,0 +1,25 @@
+{
+  "move": "blocky pixel number counts to 256 over a rippling dot grid",
+  "how": "A 64x36 offscreen canvas renders the three-digit value in Sharp Grotesk so it pixelates honestly; each frame every 20px cell that is lit becomes a yellow square and every other cell a white dot whose radius and alpha follow a two-axis sine wave (integer cycles per loop) scaled by an amplitude that tweens 1 to 0.25 over 2.8s (power2.out) as the number climbs 0 to 256 (power3.out, 2.6s from 0.075D). At 0.72D a pop value enlarges the glyphs 8% for 0.15s and settles with elastic.out(1,0.4); at 0.91D the amplitude ramps back to 1 (power2.in). A monospace caption and HUD score sit at the bottom.",
+  "moves": [
+    "counter",
+    "pixelate",
+    "ripple",
+    "elastic",
+    "dot-grid"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Change TARGET, CELL size, the two colours and the caption strings; keep the amp 1 to 0.25 calming and the 2.6s power3.out count.",
+  "port": "mount(el, shot) creates the canvas and captions; animate(el, shot, D) returns the timeline with an onUpdate on the state tweens that runs the grid paint (the __fx.seek override). Canvas is fixed 1280x720 with COLS/ROWS derived from CELL.",
+  "caveats": [
+    "ends on 256 and starts on 000, so the number does not loop even though the grid wave does",
+    "2304 cells drawn per frame with arcs; acceptable but not free",
+    "canvas font must be loaded before the first frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

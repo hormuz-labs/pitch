@@ -1,0 +1,26 @@
+{
+  "move": "cursor clicks, button squashes and recolours, bell pops in and rings",
+  "how": "A channel row (avatar, name, subscriber count, red Subscribe pill, cursor) rises in with expo.out stagger over the first 15%. At 31% the cursor lands and the button scales to 0.93 then springs back with elastic.out while a white ripple scales 0 to 22 and fades; the pill turns grey (#272727), widens 190 to 210px, and the label slides up (yPercent -110 / 0) to read Subscribed with a check, the count ticking 128K to 129K the same way. At 40% a bell chip scales in with back.out(2.5), then at 48% rotates 24deg through a CustomWiggle ring (7 wiggles, easeOut) while two white rings expand and fade and a red dot pops in. The row lifts out and the cursor fades at 88% so the loop restarts clean.",
+  "moves": [
+    "cursor-click",
+    "squash",
+    "ripple",
+    "label-slide",
+    "wiggle",
+    "pop-in"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase",
+    "CustomWiggle"
+  ],
+  "adapt": "Replace channel name, counts and the Subscribe/Subscribed strings; swap the red (#ff0033) and the avatar gradient for brand colours; keep the 0.1s press / 0.5s elastic release and the wiggle bell ring, which are the feel of the click.",
+  "port": "mount(el, shot) builds the row and cursor from shot.name/shot.count; animate returns the same timeline with every absolute time expressed as a fraction of D (click at 0.31D, bell at 0.4D). The cursor target uses getBoundingClientRect on the button at build time, so compute it relative to el and after layout; scope all selectors to el.",
+  "caveats": [
+    "cursor destination measured with getBoundingClientRect at load, so layout must be settled before building",
+    "assumes a 1280x720 stage for the cursor start position (1060,660)"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

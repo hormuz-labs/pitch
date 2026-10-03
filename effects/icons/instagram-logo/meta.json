@@ -1,0 +1,26 @@
+{
+  "move": "gradient tile bounces in, camera glyph draws itself, shine sweeps, letters rise",
+  "how": "A slowly rotating blurred conic-gradient backdrop, a rounded gradient tile holding an SVG camera (rounded-rect frame, lens circle, dot), a diagonal shine strip and a per-letter wordmark. The backdrop rotates 0->120deg linearly over the whole 3s. 0-27%: the tile scales 0->1 from rotation -35 with back.out(1.6). At 12% the frame drawSVGs 0->100% (power3.inOut, 0.7s), at 22% the lens draws (0.55s), at 35% the dot pops with back.out(4). At 33% the letters rise from yPercent 110 with a 0.04s stagger (expo.out); at 40% the shine strip sweeps xPercent -80->380 (power2.inOut). At 62% the lens pulses 1.12 then elastic.out back. Exit at 83%: letters fly up out (0.02s stagger, power3.in), the tile scales to 0 rotating 25 with back.in(1.6).",
+  "moves": [
+    "pop",
+    "draw-stroke",
+    "shine-sweep",
+    "stagger",
+    "slide-in",
+    "scale-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the Instagram gradient stops and the camera paths with the product's mark and palette, change the wordmark text and the backdrop gradient. Keep the back.out(1.6) landing, the frame-then-lens-then-dot draw order and the 0.04s letter stagger.",
+  "port": "mount(el, shot) builds the backdrop, tile SVG and splits the name into spans inside el; animate(el, shot, D) returns the timeline with positions as fractions of D (tile 0, frame 0.12D, letters 0.33D, shine 0.4D, exit 0.83D). Register DrawSVGPlugin; scope selectors to el; the 1600px blurred backdrop should be sized relative to el.",
+  "caveats": [
+    "filter: blur(120px) on a 1600px conic gradient that rotates every frame, slow to render",
+    "from() tweens need immediateRender:false when nested",
+    "backdrop rotation does not return to 0, and the tile exits, so no clean loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

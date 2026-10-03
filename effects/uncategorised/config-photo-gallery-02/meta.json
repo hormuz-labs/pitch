@@ -1,0 +1,25 @@
+{
+  "move": "accordion strip: wide slide narrows as the next expands, strip slides",
+  "how": "A horizontal strip of seven slots (six slides plus a copy of the first) on a cream stage; one slot is wide (720px) and the rest thin (200px). Every second (D/N) at 0.62s offset, the wide slot's width tweens to 200 while the next slot's width tweens to 720 and the strip x shifts so the new wide slot is centred, all with expo.inOut over 0.7s; the outgoing caption fades down (power2.in 0.25s) and the incoming title and subtitle fade up (expo.out 0.4s). The wide image drifts scale 1.08 to 1 and xPercent -2 to 2 while it holds. A progress bar width fills linearly over the loop and a 01/06 counter is computed from time in a patched seek. The seventh slot is identical to the first so the final frame matches the start.",
+  "moves": [
+    "accordion",
+    "width-morph",
+    "ken-burns",
+    "crossfade",
+    "progress-bar",
+    "counter"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the six skins and titles, the location string, the wide/thin widths and gap. Keep the 0.7s expo.inOut width and strip move and the 0.62s offset within each step.",
+  "port": "mount(el, shot) builds the strip of N+1 slots inside el and sets initial widths and offset from el width. animate(el, shot, D) returns the same timeline; the patched __fx.seek counter becomes a proxy tween with onUpdate (or a set() per step) on the returned timeline.",
+  "caveats": [
+    "animates width, which triggers layout each frame",
+    "counter is written by overriding window.__fx.seek, not on the timeline",
+    "the last expo.inOut step ends at 5.32s and frame 6s equals frame 0 only because slot 7 duplicates slot 1"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,132 @@
+[
+ {
+  "name": "Before & After: Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "before-after-logo",
+  "seconds": 5,
+  "tags": [
+   "before-and-after",
+   "brand"
+  ],
+  "description": "A logo reveal that transitions between before and after. Great for rebrands and polished product reveals.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Logo Tap: Color Reveal",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "logo-tap-color-reveal",
+  "seconds": 10,
+  "tags": [
+   "color-palettes",
+   "brand"
+  ],
+  "description": "A tap-triggered animation that bursts a logo into its color palette. Perfect for brand intros and interactive logo reveals.",
+  "jitterUrl": "https://jitter.video/template/logo-tap-color-reveal/"
+ },
+ {
+  "name": "Logo: Sliding Name",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "logo-sliding-name",
+  "seconds": 3,
+  "tags": [],
+  "description": "A logo animation template where the brand name slides into frame alongside the mark. Works well for video openers and brand intros.",
+  "jitterUrl": "https://jitter.video/template/logo-sliding-name/"
+ },
+ {
+  "name": "Nike CURV Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "nike-curv-logo",
+  "seconds": 1,
+  "tags": [
+   "brand"
+  ],
+  "description": "A Nike CURV logo animation template by Rico. A useful reference for logo animation work that goes beyond a basic reveal.",
+  "jitterUrl": "https://jitter.video/template/nike-curv-logo/"
+ },
+ {
+  "name": "OpenAI Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "openai-logo",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated OpenAI logo template from Fons Mans. Good for AI-themed content and machine learning product presentations.",
+  "jitterUrl": "https://jitter.video/template/openai-logo/"
+ },
+ {
+  "name": "Round Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "round-logo",
+  "seconds": 2,
+  "tags": [
+   "brand"
+  ],
+  "description": "A simple round logo reveal template with clean rotation and a fade-in motion. A reliable starting point for brand intros and video openers.",
+  "jitterUrl": "https://jitter.video/template/round-logo/"
+ },
+ {
+  "name": "Round Logo: Ripple",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "round-logo-ripple",
+  "seconds": 3,
+  "tags": [
+   "brand"
+  ],
+  "description": "A logo animation template where a ripple radiates outward from the mark on reveal. Good for brand intros and event openers.",
+  "jitterUrl": "https://jitter.video/template/round-logo-ripple/"
+ },
+ {
+  "name": "Round Logo: Sliding Name",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "round-logo-sliding-name",
+  "seconds": 2,
+  "tags": [
+   "brand"
+  ],
+  "description": "A logo animation template that pairs a round mark with a name that slides into frame alongside it. Works well for professional brand intros.",
+  "jitterUrl": "https://jitter.video/template/round-logo-sliding-name/"
+ },
+ {
+  "name": "Simple Dot Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "simple-dot-logo",
+  "seconds": 3,
+  "tags": [
+   "brand"
+  ],
+  "description": "A minimal logo animation template built around a single animated dot. Good for brands that prefer a quiet restrained visual identity.",
+  "jitterUrl": "https://jitter.video/template/simple-dot-logo/"
+ },
+ {
+  "name": "Square Logo",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "square-logo",
+  "seconds": 2,
+  "tags": [
+   "brand"
+  ],
+  "description": "A minimal square logo reveal template with clean motion. A simple and adaptable starting point for brand intros.",
+  "jitterUrl": "https://jitter.video/template/square-logo/"
+ },
+ {
+  "name": "Square Logo: Scale",
+  "family": "Logos",
+  "familySlug": "logos",
+  "slug": "square-logo-scale",
+  "seconds": 2,
+  "tags": [
+   "brand"
+  ],
+  "description": "A logo animation template where a square mark scales up into the frame. Clean and straightforward — good for brand idents and openers.",
+  "jitterUrl": "https://jitter.video/template/square-logo-scale/"
+ }
+]

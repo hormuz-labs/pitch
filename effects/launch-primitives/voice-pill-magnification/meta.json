@@ -1,0 +1,20 @@
+{
+  "name": "Voice Pill Magnification",
+  "seconds": 5,
+  "move": "microphone waveform pill grows from UI scale until it becomes the transition surface",
+  "how": "A voice label yields visual priority to an animated waveform pill. ExpoInOut magnification reaches 8× while blur peaks mid-flight.",
+  "moves": [
+    "voice-waveform",
+    "extreme-zoom",
+    "transition-object"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Swap icon and waveform colors.",
+  "port": "Animate the pill scale around a stable transform origin; derive bars from time.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

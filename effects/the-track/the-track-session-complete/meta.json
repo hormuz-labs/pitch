@@ -1,0 +1,28 @@
+{
+  "move": "phone slides up, check pops, tick draws, confetti, stats count",
+  "how": "A phone from() y:1700 with expo.out over 0.9s. At 0.12D the check disc scales from 0 with back.out(2.5), the tick path draws with DrawSVG 0→100% power2.inOut in 0.45s, a ring expands from 0.8 to 1.6 and fades, and 40 seeded confetti bits fan upward (x/y along random angles, rotation up to ±360, power2.out) from 0.17D. Title words and subline rise from masks, four stat cells rise from y:80 staggered 0.1, a proxy object counts distance, pace, calories and heart rate together with power3.out over 1.6s, a Save button rises and squashes at 0.7D, and the check breathes scale 1.06 with sine yoyo. At 0.9D the phone slides back down with expo.in.",
+  "moves": [
+    "slide-in",
+    "pop-in",
+    "draw-stroke",
+    "ripple",
+    "confetti",
+    "counter",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the session label, title, subline, stat labels and count targets, button text and accent colour; keep the 0.6s disc pop, the 0.45s tick draw and the 1.6s count.",
+  "port": "mount(el, shot) builds the .phone with .check (ring, SVG disc and tick path), title, sub, .grid cells, .btn and .conf with 40 generated bits; animate(el, shot, D) returns the timeline with DrawSVGPlugin registered, a seeded rng, the proxy count tween (onUpdate paint) and offsets as fractions of D (check 0.7/6, count 1.9/6, exit 5.4/6). paint() must be scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "paint() uses document.querySelector and must be scoped",
+    "confetti tweens need immediateRender:false as written",
+    "y:1700 assumes a 1920px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

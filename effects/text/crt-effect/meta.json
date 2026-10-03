@@ -1,0 +1,28 @@
+{
+  "move": "CRT powers on, text scrambles in, scanlines flicker and tear, powers off",
+  "how": "A rounded 'tube' with an inset shadow holds green glowing text (two headline words and a monospace status line with a block cursor) under a stack of overlays: a fractalNoise SVG filter noise layer, repeating-gradient scanlines in multiply, a rolling bright band, a black flicker layer, a vignette and a glass highlight. Power-on: the content scales from scaleY .01 / scaleX 1.3 to full with expo.out over the first 12%. From 10% the two words scramble in with ScrambleTextPlugin (chars '01#$%&/', 0.6s each) and the status line scrambles over 1.2s from 27%. A linear proxy tween drives, every frame, the noise seed (advances per frame), flicker opacity from a seeded random table (up to .12), the roll band's translateY sweeping the tube twice per loop, and an feDisplacementMap scale that jumps to 22 on random frames for horizontal tears; two short x-jitter yoyo bursts hit at 47% and 77%. Power-off from 89%: collapse to a bright line (scaleY .01, expo.in) then to nothing.",
+  "moves": [
+    "scramble",
+    "power-on",
+    "scanlines",
+    "flicker",
+    "glitch-tear",
+    "roll-bar",
+    "power-off"
+  ],
+  "libs": [
+    "gsap",
+    "ScrambleText",
+    "svg-filter"
+  ],
+  "adapt": "Change the two headline words, the status string, the phosphor colour (text, shadow and the feColorMatrix tint) and the tube inset. Keep the power-on/off scale choreography and the per-frame noise-seed/flicker driver; reduce tear probability (.93 threshold) for a calmer look.",
+  "port": "mount(el, shot) builds the inline SVG filters with per-instance ids, the .tube with .content and the overlay layers; animate(el, shot, D) returns a gsap.timeline with the power-on at 0, scrambles at 0.1D/0.175D/0.27D, one full-D linear proxy tween whose onUpdate does the seed/flicker/roll/tear writes (using a seeded rng table built in mount), jitter bursts at 0.47D and 0.77D and the power-off at 0.89D. Replace document.querySelector calls with el.querySelector and register ScrambleTextPlugin.",
+  "caveats": [
+    "the fromTo text:'' start values need TextPlugin, which is not loaded; gsap ignores them and scrambleText still works",
+    "two SVG filters (noise seed changed every frame, displacement map) plus blend layers are slow to render",
+    "setAttribute on the noise seed each frame forces a filter re-render"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

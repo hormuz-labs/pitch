@@ -1,0 +1,23 @@
+{
+  "move": "stars rise through a mask with overshoot, fills pop, exit upward",
+  "how": "On a dark stage with a soft gold radial glow, five outlined SVG stars sit in a 120px-tall overflow-hidden row above a score line. The glow scales in from 0.6/opacity:0 (power2.out) over the first 40%. Each star rises from y:150 and rotation:-12 with back.out(1.6) over 0.8s, staggered 0.1 from frame 0, so they emerge one by one from behind the bottom edge; 14% in, each fill pops from scale:0 with back.out(2.2) (stagger 0.1) while the outline stroke colour cross-fades from gold to dull brown. The '4.9' score and review count rise through their own masks with y:80 expo.out at 25% and 28%. Exit at 78%: stars continue upward y:-160 with power3.in (stagger 0.06), then score and count lift out and the glow fades.",
+  "moves": [
+    "slide-in",
+    "line-mask",
+    "overshoot",
+    "scale-in",
+    "stagger"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the score, review count, star fill (#ffc83d) and outline colours and the glow tint; the star count is the loop limit; keep the 0.8s back.out(1.6) rise with 0.1 stagger and the through-the-top exit.",
+  "port": "mount(el, shot) builds the glow, generates five star SVGs into a masked row and adds the score line; animate(el, shot, D) returns the same timeline with rises at 0-0.27 of D, fills at 0.14, exit at 0.78. The star path P is a constant; selectors must be scoped to el. No plugins needed.",
+  "caveats": [
+    "overflow:hidden rows with fixed heights act as the masks, so row heights must match the font sizes",
+    "stars exit upward and never return, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

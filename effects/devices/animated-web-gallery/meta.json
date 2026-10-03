@@ -1,0 +1,24 @@
+{
+  "move": "browser windows rise into a 3D-tilted grid, scroll, lift away",
+  "how": "Six 360x250 browser mockups (chrome bar plus a mini site with hero gradient) sit in a 3-column grid inside a perspective:2000px stage. Each fromTo's y 260->0, z -300->0, rotateX -35->0, scale 0.9->1, opacity 0->1 with 0.9s expo.out, staggered 0.16s from 2.5% of the 4s duration. Each site's inner content scrolls y -40 then back to 0 with power3.inOut around 40-80%. The whole grid slowly tilts rotateX 4->-3, rotateY -4->4 with sine.inOut for 3.6s. At 84% windows exit y -200, rotateX 25, opacity 0 with expo.in in the same order; the label fades.",
+  "moves": [
+    "rise-in",
+    "flip-3d",
+    "stagger",
+    "scroll",
+    "tilt",
+    "lift-exit"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Change the six site gradients, headlines and accent colours, the dark flag per window and the footer label; adjust grid columns for a different count. Keep the 0.9s expo.out rise with a 0.16s stagger and the exit at 0.84.",
+  "port": "mount(el, shot) creates the grid of windows from shot.sites; animate(el, shot, D) returns the timeline with entries at (0.025 + i*0.04)*D, inner scroll at 0.4D/0.625D and exit at 0.84D. el needs perspective and the grid preserve-3d; the 3x360px grid assumes a 1280-wide frame.",
+  "caveats": [
+    "loop does not close: windows exit upward"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

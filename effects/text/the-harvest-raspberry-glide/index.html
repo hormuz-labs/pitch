@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8">
+<title>The Harvest: Raspberry Glide</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0d0810}
+  .bg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;filter:saturate(1.3) brightness(.6);will-change:transform}
+  .vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,rgba(0,0,0,0) 30%,rgba(0,0,0,.7) 100%)}
+  .layers{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .w{position:absolute;font-family:"Sorts Mill Goudy",serif;font-size:190px;line-height:1;letter-spacing:-.02em;white-space:nowrap;will-change:transform}
+  .w1{color:transparent;-webkit-text-stroke:2px rgba(255,120,170,.55)}
+  .w2{color:#e8306b;mix-blend-mode:screen}
+  .w3{color:#ffe9f1;font-style:italic}
+  .w4{color:transparent;-webkit-text-stroke:2px rgba(255,233,241,.35)}
+  .cap{position:absolute;left:80px;right:80px;bottom:80px;display:flex;justify-content:space-between;font-family:"Atlas Grotesk",sans-serif;font-size:22px;letter-spacing:.24em;text-transform:uppercase;color:#f3c9d8}
+  .cap div{overflow:hidden}.cap span{display:block}
+  .hd{position:absolute;left:80px;top:80px;font-family:"Atlas Grotesk",sans-serif;font-size:22px;letter-spacing:.24em;text-transform:uppercase;color:#f3c9d8;overflow:hidden}
+  .hd span{display:block}
+  .berry{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;will-change:transform}
+</style>
+<div class="stage">
+  <video class="bg" src="../../../assets/backgrounds/drift-violet.mp4" muted playsinline preload="auto"></video>
+  <div class="vig"></div>
+  <div class="layers">
+    <div class="w w1">Raspberry</div>
+    <div class="w w2">Raspberry</div>
+    <div class="w w4">Raspberry</div>
+    <div class="w w3">Raspberry</div>
+  </div>
+  <div class="berry"><svg viewBox="0 0 100 100" style="overflow:visible"><g fill="#e8306b">${''}</g></svg></div>
+  <div class="hd"><span>Acme — Slow Pressed</span></div>
+  <div class="cap"><div><span>Deep red. Slow.</span></div><div><span>Vol. 03</span></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const pts = [[50,30],[36,42],[64,42],[28,58],[50,54],[72,58],[38,74],[62,74],[50,88]];
+  document.querySelector('.berry svg').innerHTML = `<g fill="#e8306b">${pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="13"/>`).join('')}</g><g fill="#ff9ec0" opacity=".5">${pts.map(([x,y])=>`<circle cx="${x-4}" cy="${y-4}" r="4"/>`).join('')}</g><path d="M50 18 c -10 -10 -22 -6 -26 0 c 8 4 18 4 26 0z M50 18 c 10 -10 22 -6 26 0 c -8 4 -18 4 -26 0z" fill="#4caf50"/>`;
+  const v = document.querySelector('video.bg');
+  fx.wait(new Promise(r => { if (v.readyState >= 2) r(); else v.addEventListener('loadeddata', r, { once: true }); }));
+  const tl = fx.timeline({ duration: 5 });
+  // slow-motion footage: the video runs at a quarter speed, drifting
+  tl.to({}, { duration: 5, onUpdate() { const t = this.progress() * 5; v.currentTime = (t * .25) % (v.duration || 8); } }, 0);
+  tl.fromTo('.bg', { scale: 1, xPercent: -1 }, { scale: 1.06, xPercent: 1, duration: 5, ease: 'none' }, 0);
+  // four layered copies glide in from different directions and slide past each other
+  tl.fromTo('.w1', { x: -700, opacity: 0 }, { x: -22, opacity: 1, duration: 1.4, ease: 'expo.out' }, 0)
+    .fromTo('.w2', { x: 700, opacity: 0 }, { x: 14, opacity: 1, duration: 1.4, ease: 'expo.out' }, .12)
+    .fromTo('.w4', { y: 300, opacity: 0 }, { y: 26, opacity: 1, duration: 1.4, ease: 'expo.out' }, .24)
+    .fromTo('.w3', { y: -300, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, ease: 'expo.out' }, .36)
+    // the glide: layers keep sliding at slightly different speeds, parallax through the hold
+    .to('.w1', { x: 30, duration: 3, ease: 'sine.inOut' }, 1.4)
+    .to('.w2', { x: -30, duration: 3, ease: 'sine.inOut' }, 1.4)
+    .to('.w4', { y: -18, x: 12, duration: 3, ease: 'sine.inOut' }, 1.4)
+    .to('.w3', { x: -8, duration: 3, ease: 'sine.inOut' }, 1.4)
+    .from('.hd span, .cap span', { yPercent: 110, duration: .7, ease: 'expo.out', stagger: .1 }, .9);
+  // a berry glides across behind the italic layer, slowly turning
+  tl.fromTo('.berry', { x: -700, y: 120, rotation: -30, scale: .8 }, { x: 700, y: -80, rotation: 40, scale: 1.1, duration: 3.6, ease: 'sine.inOut' }, .8);
+  // exit: layers peel off in the order they came
+  tl.to('.w1', { x: -700, opacity: 0, duration: .55, ease: 'expo.in' }, 4.3)
+    .to('.w2', { x: 700, opacity: 0, duration: .55, ease: 'expo.in' }, 4.36)
+    .to('.w4', { y: 300, opacity: 0, duration: .55, ease: 'expo.in' }, 4.42)
+    .to('.w3', { y: -300, opacity: 0, duration: .55, ease: 'expo.in' }, 4.48)
+    .to('.hd span, .cap span', { yPercent: -110, duration: .35, ease: 'expo.in' }, 4.55);
+</script>

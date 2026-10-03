@@ -1,0 +1,21 @@
+{
+  "move": "eight blurred colour bubbles orbit and breathe behind a frosted card",
+  "how": "Inside a filter: blur(38px) field, eight radial-gradient discs (260 to 560px, screen blend) move on seeded ellipses with integer cycle counts per loop and scale 0.85 to 1.1 on their own sine, all written as transform strings from a seek(t) function so t=D matches t=0. A fractal-noise grain sits over the field at 7%, and a centred backdrop-filter glass card with kicker, headline and a white button floats up and down 8px on one sine per loop.",
+  "moves": [
+    "orbit",
+    "float",
+    "blur",
+    "pulse",
+    "grain"
+  ],
+  "libs": [],
+  "adapt": "Change the eight bubble colours, the card copy and the seed; keep integer kx/ky/ks cycle counts so the loop closes, and keep blur(38px) for the soft look.",
+  "port": "mount(el, shot) appends the .field with generated bubbles, .grain and .ui; animate(el, shot, D) returns a gsap timeline holding one {u:0->1, duration:D, ease:none} tween whose onUpdate sets each bubble transform and the card translateY (the fx.register seek). Replace document.querySelector('.ui') with el.querySelector.",
+  "caveats": [
+    "filter: blur(38px) over a full-frame field of eight large discs plus backdrop-filter is heavy per frame",
+    "no GSAP in the original; the port must add the timeline wrapper"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

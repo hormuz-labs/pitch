@@ -1,0 +1,28 @@
+{
+  "name": "Gemini Journey",
+  "seconds": 12,
+  "move": "a phone prompt zooms into a curved reasoning path, answer cards grow along the camera route, Booked lands, life moments montage, then Gemini resolves cleanly",
+  "how": "Compressed reconstruction of the reference film. Pastel glow, prompt typing, curved SVG path drawing, card focus pulls, large Booked typography, soft photo tiles and image-edit payoff are deterministic and seekable.",
+  "moves": [
+    "prompt-type",
+    "camera-follow-path",
+    "path-draw",
+    "card-expand",
+    "kinetic-type",
+    "montage",
+    "logo-resolve"
+  ],
+  "libs": [
+    "motion",
+    "svg"
+  ],
+  "adapt": "Replace query, result and life moments; keep the soft focus handoffs and one-node-at-a-time camera hierarchy.",
+  "port": "Mount the oversized graph and use Motion.camera plus scoped opacity envelopes.",
+  "caveats": [
+    "Condenses a 48-second reference to 12 seconds",
+    "Lifestyle footage is represented by programmatic gradient tiles"
+  ],
+  "fidelity": "motion-reconstruction",
+  "loop": false,
+  "size": "1920x1080"
+}

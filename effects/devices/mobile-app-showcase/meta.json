@@ -1,0 +1,28 @@
+{
+  "move": "phone turns in, tap ripples swipe pages, side copy swaps, snaps back",
+  "how": "A 280x580 phone inside a perspective stage fromTo's rotateY -30 -> -12, y 40 -> 0, opacity 0 -> 1 with 1.0s expo.out, then drifts rotateY -12 -> 12 over 3.6s sine.inOut, returning to -12 at 92%. A left copy block (step label, headline, paragraph) slides in from x -30 and a vertical step indicator fades in. At 28% and 60% a pink tap ripple expands scale 0 -> 1.6 with opacity to 0 (power2.out) on a tab, the .pages strip slides xPercent -33.3 then -66.6 with 0.6s expo.inOut, tab dots recolour, and the copy exits y -14 / fades (power2.in), swaps text via tl.call and re-enters from y 14 (power3.out) while the step indicator grows. Page 2 has a timer counting down 25:00 -> 24:13 linearly; page 3 bars grow scaleY from the bottom with back.out(1.5). At 90% a third tap snaps the strip back to xPercent 0 and copy to step 1.",
+  "moves": [
+    "flip-3d",
+    "tap-ripple",
+    "swipe",
+    "copy-swap",
+    "counter",
+    "stagger",
+    "drift"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the three copy entries, page headings, hero gradient and accent (#ff3d81), timer start value and bar heights; the tapAt x positions correspond to the tab bar slots. Keep the 0.6s expo.inOut swipes at 0.31 and 0.63 of the duration and the 1.0s expo.out phone entry.",
+  "port": "mount(el, shot) builds the phone, page strip, copy block and step dots from shot data; animate(el, shot, D) returns the timeline with entry 0-0.2D, taps at 0.28D, 0.6D and 0.9D. setCopy and the timer onUpdate use document.querySelector and must be scoped to el; the tl.call at 0.01 that resets copy is required for seek-back.",
+  "caveats": [
+    "copy is swapped by tl.call so scrubbing backwards shows the wrong step text between calls",
+    "from() tweens on .step, .steps and .bar have default immediateRender",
+    "near-loop: pages and copy return to step 1 at the end but the phone and copy start from opacity 0 so frame 0 differs from the last frame",
+    "two 700px blur(90px) blobs in the background are slow to render"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

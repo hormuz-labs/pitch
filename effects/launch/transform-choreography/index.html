@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Choreographed 3D Transforms & Perspective</title>
+  <meta name="fx" content="w=1280 h=720">
+  <link rel="stylesheet" href="../../_lib/base.css">
+  <style>
+    .stage {
+      background: radial-gradient(circle at 50% 30%, #151824 0%, #08090d 80%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Atlas Grotesk", -apple-system, sans-serif;
+      color: #fff;
+      overflow: hidden;
+      perspective: 1200px;
+    }
+    .card-wrap {
+      width: 520px;
+      height: 330px;
+      position: relative;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .shadow-plane {
+      position: absolute;
+      width: 500px;
+      height: 70px;
+      left: 50%;
+      bottom: -80px;
+      transform: translateX(-50%) rotateX(85deg);
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(0, 0, 0, 0.7), transparent 70%);
+      pointer-events: none;
+    }
+    .glass-card {
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      padding: 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+    .specular-shine {
+      position: absolute;
+      inset: -100%;
+      background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.18) 50%, transparent 60%);
+      pointer-events: none;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .chip {
+      width: 46px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .chip::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    .card-logo {
+      font-family: "Sharp Grotesk", sans-serif;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: #f8fafc;
+    }
+    .card-mid {
+      margin-top: 10px;
+    }
+    .card-num {
+      font-family: "Courier New", monospace;
+      font-size: 24px;
+      letter-spacing: 0.14em;
+      color: #e2e8f0;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .holder-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .holder-name {
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: #f1f5f9;
+      text-transform: uppercase;
+    }
+    .badge-tier {
+      padding: 6px 14px;
+      border-radius: 99px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+    .scene-meta {
+      position: absolute;
+      bottom: 40px;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="shadow-plane" id="shadow"></div>
+    <div class="card-wrap" id="cardWrap">
+      <div class="glass-card">
+        <div class="specular-shine" id="shine"></div>
+        <div class="card-top">
+          <div class="chip"></div>
+          <div class="card-logo">TITANIUM // 01</div>
+        </div>
+        <div class="card-mid">
+          <div class="card-num">•••• •••• •••• 8492</div>
+        </div>
+        <div class="card-bottom">
+          <div>
+            <div class="holder-label">Cardholder</div>
+            <div class="holder-name">ALEXANDER VANCE</div>
+          </div>
+          <div class="badge-tier">FOUNDER PASS</div>
+        </div>
+      </div>
+    </div>
+    <div class="scene-meta">Perspective · 3D Euler Rotation · Inertial Settle</div>
+  </div>
+
+  <script src="../../_lib/anim.js"></script>
+  <script src="../../_lib/fx.js"></script>
+  <script>
+    const D = 5;
+    const cardWrap = document.getElementById('cardWrap');
+    const shadow = document.getElementById('shadow');
+    const shine = document.getElementById('shine');
+
+    fx.register({
+      duration: D,
+      seek(t) {
+        // Act 1: Swoop entrance (0.0s - 1.4s)
+        // Act 2: Subtle floating drift & inspection (1.4s - 3.8s)
+        // Act 3: Dynamic exit swoop (3.8s - 4.8s)
+
+        // Translate X, Y, Z
+        const x = anim.interpolate(t, [0, 1.4, 3.8, 4.8], [-280, 0, 0, 320], {
+          easing: [
+            anim.Easing.bezier(0.16, 1, 0.3, 1),
+            anim.Easing.linear,
+            anim.Easing.bezier(0.7, 0, 0.84, 0)
+          ],
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const y = anim.interpolate(t, [0, 1.4, 2.6, 3.8, 4.8], [120, 0, -12, 0, -80], {
+          easing: anim.Easing.bezier(0.16, 1, 0.3, 1),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const z = anim.interpolate(t, [0, 1.4, 2.6, 3.8, 4.8], [-400, 0, 40, 0, -300], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        // 3D Rotation (Euler angles: rotX, rotY, rotZ)
+        const rotX = anim.interpolate(t, [0, 1.4, 2.6, 3.8, 4.8], [35, 12, 6, 10, -25], {
+          easing: anim.Easing.bezier(0.16, 1, 0.3, 1),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const rotY = anim.interpolate(t, [0, 1.4, 2.6, 3.8, 4.8], [-45, -14, 10, -8, 55], {
+          easing: anim.Easing.bezier(0.16, 1, 0.3, 1),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const rotZ = anim.interpolate(t, [0, 1.4, 3.8, 4.8], [-12, -2, 2, 16], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        // Dynamic Skew for velocity distortion
+        const skewX = anim.interpolate(t, [0, 0.6, 1.4, 3.8, 4.4, 4.8], [14, 4, 0, 0, -10, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        // Scale
+        const scale = anim.interpolate(t, [0, 1.4, 3.8, 4.8], [0.65, 1.0, 1.0, 0.75], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        // Opacity
+        const opacity = anim.interpolate(t, [0, 0.5, 4.2, 4.8], [0, 1, 1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+
+        // Construct transform
+        cardWrap.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg) skewX(${skewX}deg) scale(${scale})`;
+        cardWrap.style.opacity = opacity;
+
+        // Specular highlight sweep across card surface
+        const shineProgress = anim.interpolate(t, [0.8, 2.8], [-100, 100], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        shine.style.transform = `translateX(${shineProgress}%) translateY(${shineProgress * 0.4}%)`;
+
+        // Shadow tracking
+        const shadowScale = anim.interpolate(t, [0, 1.4, 3.8, 4.8], [0.5, 1.0, 1.0, 0.6], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const shadowOpacity = anim.interpolate(t, [0, 1.4, 4.0, 4.8], [0, 0.75, 0.75, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        shadow.style.transform = `translateX(-50%) translate3d(${x * 0.4}px, 0, 0) rotateX(85deg) scale(${shadowScale})`;
+        shadow.style.opacity = shadowOpacity;
+      }
+    });
+  </script>
+</body>
+</html>

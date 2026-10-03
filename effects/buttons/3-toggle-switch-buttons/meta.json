@@ -1,0 +1,24 @@
+{
+  "move": "card enters, three toggles snap on in sequence with elastic knobs, then off",
+  "how": "A white permissions card rises in with expo.out (y 30, opacity 0) over the first 17% of the 3s loop and its three rows slide in from x -24 staggered 0.07s. At 0.6, 0.85 and 1.1s each toggle turns on: the knob slides 28px with back.out(2.2) over 0.45s while stretching scaleX 1.25 and relaxing with elastic.out(1,0.5); the track tweens grey to the row's colour (red, blue, green); the track and icon tile pop to 1.06 / 1.1 and settle elastically; the subtitle rolls up (off text yPercent -120, on text y from 120% to 0, expo.out). From 2.15s (72%) the toggles turn off in reverse order (knob back.out(1.8) 0.4s, track grey, subtitles roll down), so the toggles are off at the end but the card stays on screen.",
+  "moves": [
+    "stagger",
+    "slide-in",
+    "squash",
+    "elastic",
+    "label-roll"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the three row titles, icons, subtitle pairs and the per-row colours; the knob travel is 28px for a 66px track. Keep the 0.25s cadence between toggles and the back.out(2.2) knob slide.",
+  "port": "mount(el, shot) builds the card with three rows (icon, text with off/on spans, toggle with knob) inside el. animate returns the timeline with entry at 0 to 0.2D, on() at 0.2D, 0.283D, 0.367D and off() at 0.717D, 0.783D, 0.85D. Row selectors '.r1 .kn' etc. must be scoped to el; the from() tweens need immediateRender:false.",
+  "caveats": [
+    "card enters from opacity 0 but never leaves, so the loop restarts with a visible pop",
+    "from() tweens need immediateRender:false",
+    "backgroundColor tweened as string"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

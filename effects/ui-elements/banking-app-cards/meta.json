@@ -1,0 +1,24 @@
+{
+  "move": "cards deal in, front card swipes off and tucks behind, lock pops",
+  "how": "A phone mockup rises in (y 60, rotateX 8, expo.out) beside a headline while a blue glow drifts x -40 to 40. Three stacked cards deal in from x 340 with rotate 8 and a from-end stagger (expo.out) from 9%; dots, action buttons and transactions follow with power3.out staggers. At 42% the front card flies left (x -360, rotate -10, power3.in), the two behind rise to the front with back.out(1.5), then the flown card returns behind at the back scale (.88) with expo.out and the page dot switches. At 69% the Freeze action presses (scale .85 yoyo) and the middle card desaturates via filter while a white lock badge pops with back.out(2.5). Phone and copy exit at 90%.",
+  "moves": [
+    "deal-in",
+    "swipe",
+    "card-stack",
+    "press",
+    "pop-in",
+    "filter-dim"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace card numbers, balances, bank name, transactions and the three card gradients; keep the deal-in stagger and the swipe/tuck sequence timings.",
+  "port": "mount(el, shot) renders phone, cards and rows from shot.cards; animate returns the timeline with deal at 0.09D, swipe at 0.42D, freeze at 0.69D. The zIndex set() on the tucked card and the filter tween port directly; scope selectors to el.",
+  "caveats": [
+    "uses filter: saturate/brightness on a card, cheap at this size",
+    "from() tweens need immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

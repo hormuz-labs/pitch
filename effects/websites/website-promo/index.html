@@ -1,0 +1,120 @@
+<!doctype html><meta charset="utf-8">
+<title>Website Promo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#101216;font-family:"Atlas Grotesk",sans-serif;color:#fff;perspective:1600px}
+  .bg{position:absolute;inset:0;background:radial-gradient(60% 60% at 30% 20%,#1d2540,transparent 60%),radial-gradient(50% 50% at 85% 85%,#3a1f2a,transparent 60%)}
+  .cam{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d;will-change:transform}
+  .win{position:absolute;width:820px;height:520px;left:-410px;top:-260px;border-radius:14px;overflow:hidden;background:#fff;color:#0f1222;box-shadow:0 50px 120px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);will-change:transform;transform-style:preserve-3d}
+  .chrome{height:40px;background:#f4f4f7;border-bottom:1px solid #e3e4ea;display:flex;align-items:center;padding:0 14px;gap:7px}
+  .chrome i{width:11px;height:11px;border-radius:50%}
+  .chrome i:nth-child(1){background:#ff5f57}.chrome i:nth-child(2){background:#febc2e}.chrome i:nth-child(3){background:#28c840}
+  .chrome b{margin-left:18px;flex:1;height:22px;border-radius:7px;background:#e9eaef;font-size:11px;font-weight:400;color:#8a8f9a;display:flex;align-items:center;padding-left:10px}
+  .view{position:absolute;top:40px;left:0;right:0;bottom:0;overflow:hidden}
+  .doc{padding:0 44px 50px;will-change:transform}
+  .nav{display:flex;justify-content:space-between;align-items:center;height:58px;font-size:12px}
+  .nav .logo{display:flex;align-items:center;gap:8px;font-weight:500;font-size:15px}
+  .nav .logo i{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#ff7a59,#ff3d81)}
+  .nav em{display:flex;gap:18px;font-style:normal;color:#5b6070;align-items:center}
+  .nav em b{padding:7px 12px;border-radius:8px;background:#0f1222;color:#fff;font-weight:500}
+  .hero{padding:34px 0 26px;display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}
+  .h1{font-family:"Sharp Grotesk",sans-serif;font-size:46px;line-height:1;letter-spacing:-.035em;font-weight:500}
+  .h1 span{display:block;overflow:hidden;padding-bottom:3px}.h1 u{display:block;text-decoration:none}
+  .p{margin-top:14px;font-size:13px;line-height:1.55;color:#5b6070;max-width:340px}
+  .cta{margin-top:18px;display:flex;gap:8px}
+  .cta b{padding:10px 16px;border-radius:8px;font-weight:500;font-size:12px;background:#ff3d81;color:#fff}
+  .cta b+b{background:#eef0f4;color:#0f1222}
+  .art{height:240px;border-radius:14px;background:linear-gradient(135deg,#ff7a59,#ff3d81 50%,#7a3cff);position:relative;overflow:hidden}
+  .art i{position:absolute;border-radius:50%;background:rgba(255,255,255,.25)}
+  .art i:nth-child(1){width:180px;height:180px;right:-40px;top:-40px}.art i:nth-child(2){width:120px;height:120px;left:20px;bottom:-30px}
+  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:10px}
+  .row div{background:#f5f6fa;border-radius:12px;padding:18px;min-height:140px}
+  .row i{width:32px;height:32px;border-radius:9px;display:block;margin-bottom:12px}
+  .row b{display:block;font-weight:500;font-size:14px;margin-bottom:6px}
+  .row p{font-size:12px;line-height:1.5;color:#5b6070}
+  .band{margin-top:22px;border-radius:14px;background:#0f1222;color:#fff;padding:32px;display:flex;justify-content:space-between;align-items:center}
+  .band .t{font-family:"Sharp Grotesk",sans-serif;font-size:24px;letter-spacing:-.03em;font-weight:500}
+  .band b{padding:11px 18px;border-radius:8px;background:#ff3d81;color:#fff;font-weight:500;font-size:12px}
+  .blk{will-change:transform,opacity}
+  .float{position:absolute;border-radius:12px;background:#fff;color:#0f1222;box-shadow:0 30px 70px rgba(0,0,0,.5);padding:14px 16px;font-size:12px;will-change:transform;transform-style:preserve-3d}
+  .fa{left:120px;top:150px;width:200px}.fb{right:120px;top:180px;width:190px}.fc{right:150px;bottom:130px;width:220px}
+  .float small{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8a8f9a}
+  .float b{display:block;font-family:"Sharp Grotesk",sans-serif;font-size:26px;font-weight:500;letter-spacing:-.03em;margin-top:4px}
+  .float .bar{height:6px;border-radius:3px;background:#eef0f4;margin-top:10px;overflow:hidden}.float .bar i{display:block;height:100%;width:70%;background:#ff3d81;transform-origin:0 50%}
+  .float .av{display:flex;margin-top:8px}.float .av i{width:22px;height:22px;border-radius:50%;border:2px solid #fff;margin-left:-6px;background:#7a3cff}.float .av i:nth-child(2){background:#00c48c}.float .av i:nth-child(3){background:#ffb703}
+  .title{position:absolute;left:0;right:0;text-align:center;top:60px;font-family:"Sharp Grotesk",sans-serif;font-size:56px;letter-spacing:-.04em;font-weight:500}
+  .title span{display:inline-block;overflow:hidden;vertical-align:bottom}.title u{display:block;text-decoration:none}
+  .sub{position:absolute;left:0;right:0;text-align:center;top:135px;font-size:15px;opacity:.75}
+  .end{position:absolute;left:0;right:0;top:50%;text-align:center;transform:translateY(-50%)}
+  .end .l{display:inline-flex;align-items:center;gap:14px;font-family:"Sharp Grotesk",sans-serif;font-size:64px;letter-spacing:-.04em;font-weight:500}
+  .end .l i{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#ff7a59,#ff3d81)}
+  .end p{margin-top:12px;font-size:16px;opacity:.75}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="title"><span><u>Meet the new Ember</u></span></div>
+  <div class="sub">Designed and built by Northwind Agency</div>
+  <div class="cam">
+    <div class="win"><div class="chrome"><i></i><i></i><i></i><b>ember.app</b></div>
+      <div class="view"><div class="doc">
+        <div class="nav blk"><div class="logo"><i></i>Ember</div><em><span>Product</span><span>Pricing</span><span>Changelog</span><b>Sign up</b></em></div>
+        <div class="hero">
+          <div><div class="h1"><span><u>Warm up your</u></span><span><u>customer story.</u></span></div><div class="p blk">Ember turns every support thread into a story your whole team can follow, learn from and act on.</div><div class="cta blk"><b>Start free</b><b>Watch demo</b></div></div>
+          <div class="art blk"><i></i><i></i></div>
+        </div>
+        <div class="row">
+          <div class="blk"><i style="background:#ff3d81"></i><b>Threads</b><p>Every conversation, in context, with the history that matters.</p></div>
+          <div class="blk"><i style="background:#7a3cff"></i><b>Signals</b><p>Spot patterns across thousands of tickets before they become problems.</p></div>
+          <div class="blk"><i style="background:#ff7a59"></i><b>Playbooks</b><p>Turn the best replies into reusable, measurable responses.</p></div>
+        </div>
+        <div class="band blk"><div class="t">Ready to warm things up?</div><b>Create workspace</b></div>
+      </div></div>
+    </div>
+  </div>
+  <div class="float fa"><small>Resolution time</small><b>1h 12m</b><div class="bar"><i></i></div></div>
+  <div class="float fb"><small>Happy customers</small><b>98.4%</b><div class="av"><i></i><i></i><i></i></div></div>
+  <div class="float fc"><small>Threads this week</small><b>4,312</b><div class="bar"><i style="width:85%"></i></div></div>
+  <div class="end"><div class="l"><i></i>Ember</div><p>ember.app — launching this autumn</p></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 9 });
+  const doc = document.querySelector('.doc'), view = document.querySelector('.view');
+  gsap.set('.end', { autoAlpha: 0 });
+  // 1. title, then the screen rises into a 3D pose
+  tl.from('.title u', { yPercent: 110, duration: 0.9, ease: 'expo.out' }, 0.1)
+    .from('.sub', { opacity: 0, y: 10, duration: 0.6 }, 0.5)
+    .fromTo('.cam', { y: 520, rotateX: 30, rotateY: -14, scale: 0.9 }, { y: 70, rotateX: 14, rotateY: -12, scale: 0.84, duration: 1.4, ease: 'expo.out' }, 0.5)
+    .from('.nav', { y: -20, opacity: 0, duration: 0.6 }, 1.2)
+    .from('.h1 u', { yPercent: 110, duration: 0.7, ease: 'expo.out', stagger: 0.08 }, 1.3)
+    .from('.hero .p, .hero .cta', { y: 20, opacity: 0, duration: 0.6, stagger: 0.1 }, 1.6)
+    .from('.art', { scale: 0.9, opacity: 0, duration: 0.8, ease: 'expo.out' }, 1.5);
+  // 2. layered stat cards fly in around the screen while the camera swings to the other side
+  tl.to('.cam', { rotateY: 10, rotateX: 8, y: 30, x: 0, scale: 0.9, duration: 2.0, ease: 'power3.inOut' }, 2.6)
+    .to('.title, .sub', { y: -40, opacity: 0, duration: 0.6, ease: 'power2.in' }, 2.6)
+    .from('.fa', { x: -300, rotateY: 40, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.0)
+    .from('.fb', { x: 300, rotateY: -40, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.2)
+    .from('.fc', { y: 200, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.4)
+    .from('.float .bar i', { scaleX: 0, duration: 0.9, ease: 'expo.out', stagger: 0.2 }, 3.4)
+    .from('.float .av i', { scale: 0, duration: 0.4, ease: 'back.out(2)', stagger: 0.08 }, 3.7);
+  // 3. scroll reveal: the page scrolls, blocks rise into place as they enter
+  const total = doc.scrollHeight - view.clientHeight;
+  tl.to(doc, { y: -total, duration: 2.2, ease: 'power2.inOut' }, 4.4);
+  tl.from('.row .blk', { y: 50, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.12 }, 4.7)
+    .from('.row i', { scale: 0, duration: 0.5, ease: 'back.out(2)', stagger: 0.12 }, 4.9)
+    .from('.band', { y: 60, opacity: 0, duration: 0.8, ease: 'expo.out' }, 5.6)
+    .to('.fa', { y: -30, duration: 2.2, ease: 'sine.inOut' }, 4.4)
+    .to('.fb', { y: 30, duration: 2.2, ease: 'sine.inOut' }, 4.4)
+    .to('.fc', { y: -20, duration: 2.2, ease: 'sine.inOut' }, 4.4)
+    .to('.cam', { rotateY: -6, rotateX: 4, scale: 0.98, duration: 2.6, ease: 'sine.inOut' }, 4.4);
+  // 4. the screen tilts back and flies up; end card with the logo
+  tl.to('.cam', { y: -700, rotateX: 40, scale: 0.8, duration: 0.8, ease: 'expo.in' }, 7.0)
+    .to('.float', { opacity: 0, y: -120, duration: 0.5, ease: 'power2.in', stagger: 0.06 }, 7.0)
+    .to('.end', { autoAlpha: 1, duration: 0.4 }, 7.7)
+    .from('.end .l', { y: 40, duration: 0.8, ease: 'expo.out' }, 7.7)
+    .from('.end .l i', { scale: 0, rotate: -90, duration: 0.7, ease: 'back.out(2)' }, 7.8)
+    .from('.end p', { opacity: 0, y: 10, duration: 0.5 }, 8.0)
+    .to('.end', { autoAlpha: 0, y: -20, duration: 0.35, ease: 'power2.in' }, 8.65);
+</script>

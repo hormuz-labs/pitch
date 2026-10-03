@@ -1,0 +1,228 @@
+[
+ {
+  "name": "The Edit: Tagline [Dark]",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-edit-tagline-dark",
+  "seconds": 3,
+  "tags": [
+   "the-edit",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A dark-themed tagline template with bold typography and a clean reveal motion. Works for brand campaign videos and product launches with a dark aesthetic.",
+  "jitterUrl": "https://jitter.video/template/the-edit-tagline-dark/"
+ },
+ {
+  "name": "The Edit: Tagline [White]",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-edit-tagline-white",
+  "seconds": 5,
+  "tags": [
+   "the-edit",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A white-themed tagline template with bold type and clean motion. Ideal for brand campaign videos and product presentations with a light aesthetic.",
+  "jitterUrl": "https://jitter.video/template/the-edit-tagline-white/"
+ },
+ {
+  "name": "The Harvest: Banana Spin",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-banana-spin",
+  "seconds": 11,
+  "tags": [
+   "the-harvest",
+   "logos",
+   "ads",
+   "brand"
+  ],
+  "description": "A typographic animation where a banana spins through bold serif lettering. Great for food and drink promos and playful brand moments.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-banana-spin/"
+ },
+ {
+  "name": "The Harvest: Fruit Bounce",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-fruit-bounce",
+  "seconds": 4,
+  "tags": [
+   "the-harvest",
+   "logos",
+   "ads",
+   "brand"
+  ],
+  "description": "A logo animation with fruit bouncing into a serif wordmark. Ideal for brand intros and food and drink identities.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-fruit-bounce/"
+ },
+ {
+  "name": "The Harvest: Orange Float",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-orange-float",
+  "seconds": 6,
+  "tags": [
+   "the-harvest",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A vibrant animation where an orange floats between a stacked serif headline. Perfect for beverage ads and fresh, colorful campaigns by food and drink brands.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-orange-float/"
+ },
+ {
+  "name": "The Harvest: Peach Plunge",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-peach-plunge",
+  "seconds": 8,
+  "tags": [
+   "the-harvest",
+   "social-media",
+   "ads"
+  ],
+  "description": "A typographic poster perfect for food and drink campaigns and editorial-style promos.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-peach-plunge/"
+ },
+ {
+  "name": "The Harvest: Pulp",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-pulp",
+  "seconds": 9,
+  "tags": [
+   "the-harvest",
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated juice label that reveals cold-pressed ingredient details line by line. Perfect for beverage promos and product storytelling.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-pulp/"
+ },
+ {
+  "name": "The Harvest: Raspberry Check",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-raspberry-check",
+  "seconds": 6,
+  "tags": [
+   "the-harvest",
+   "social-media",
+   "ads"
+  ],
+  "description": "A typographic animation where raspberries drift inside a bold blue checkerboard frame. Perfect for playful promos and graphic food and drink reveals.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-raspberry-check/"
+ },
+ {
+  "name": "The Harvest: Raspberry Glide",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-harvest-raspberry-glide",
+  "seconds": 5,
+  "tags": [
+   "the-harvest",
+   "social-media",
+   "ads"
+  ],
+  "description": "A typographic animation with layered lettering on a dark, slow motion background. Great for product promos and premium food and drink content.",
+  "jitterUrl": "https://jitter.video/template/the-harvest-raspberry-glide/"
+ },
+ {
+  "name": "The Prompt: Text To Image",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-prompt-text-to-image",
+  "seconds": 11,
+  "tags": [
+   "the-prompt",
+   "ads",
+   "ui-elements"
+  ],
+  "description": "An animated UI template showing a text-to-image AI interface from prompt to output. Great for generative AI product demos where showing the moment of creation is the most convincing argument.",
+  "jitterUrl": "https://jitter.video/template/the-prompt-text-to-image/"
+ },
+ {
+  "name": "The Route: Cities",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-route-cities",
+  "seconds": 6,
+  "tags": [
+   "the-route",
+   "social-media"
+  ],
+  "description": "A route map template that draws an animated path between city destinations. Perfect for travel apps and location-based content where the journey is part of the story.",
+  "jitterUrl": "https://jitter.video/template/the-route-cities/"
+ },
+ {
+  "name": "The Route: Departures Board",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-route-departures-board",
+  "seconds": 9,
+  "tags": [
+   "the-route",
+   "social-media"
+  ],
+  "description": "An animated departures board template with flip-style text revealing destination information. Good for travel product showcases and transport app demos where authenticity matters.",
+  "jitterUrl": "https://jitter.video/template/the-route-departures-board/"
+ },
+ {
+  "name": "The Route: Logo Reveal",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-route-logo-reveal",
+  "seconds": 5,
+  "tags": [
+   "the-route",
+   "logos",
+   "brand"
+  ],
+  "description": "A template where an animated route path draws itself across the frame and arrives at a logo. Good for travel brand intros and any identity where telling a small story before the reveal makes sense.",
+  "jitterUrl": "https://jitter.video/template/the-route-logo-reveal/"
+ },
+ {
+  "name": "The Vault: Card Features",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-vault-card-features",
+  "seconds": 4,
+  "tags": [
+   "the-vault",
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated card UI template that reveals features in a structured layered layout. Great for fintech product demos and subscription plan presentations.",
+  "jitterUrl": "https://jitter.video/template/the-vault-card-features/"
+ },
+ {
+  "name": "The Vault: Feature List",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-vault-feature-list",
+  "seconds": 20,
+  "tags": [
+   "the-vault",
+   "logos"
+  ],
+  "description": "An animated feature list template in the Vault fintech style. Good for banking and payments product content that needs to communicate value clearly and confidently.",
+  "jitterUrl": "https://jitter.video/template/the-vault-feature-list/"
+ },
+ {
+  "name": "Tilted Text Snap",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "tilted-text-snap",
+  "seconds": 2,
+  "tags": [
+   "custom-text",
+   "video-titles",
+   "ads"
+  ],
+  "description": "A snappy animated text template where each line rotates in at a slight tilt and settles into place. Great for editorial promos and any brand delivering a punchy, high-energy message.",
+  "jitterUrl": "https://jitter.video/template/tilted-text-snap/"
+ }
+]

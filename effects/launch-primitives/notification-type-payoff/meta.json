@@ -1,0 +1,21 @@
+{
+  "name": "Notification Type Payoff",
+  "seconds": 5,
+  "move": "notification lands with a spring, then hands momentum into oversized payoff typography panning across camera",
+  "how": "The notification enters from above and exits before a blurred 190px Keep 100% title resolves and sweeps horizontally.",
+  "moves": [
+    "notification",
+    "kinetic-type",
+    "payoff",
+    "handoff"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Change success event and payoff metric.",
+  "port": "Overlap the notification exit with the title focus-in.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

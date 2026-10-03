@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8">
+<title>Glass Button</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0d0b1a;display:flex;align-items:center;justify-content:center}
+  .bg{position:absolute;inset:-10%;background:url("../../../assets/backgrounds/aurora.png") center/cover;filter:saturate(1.3)}
+  .blob{position:absolute;width:520px;height:520px;border-radius:50%;filter:blur(40px);opacity:.85;will-change:transform}
+  .b1{background:#ff5da2;left:180px;top:60px}.b2{background:#5d8bff;right:160px;top:200px}.b3{background:#42e6c5;left:460px;bottom:-140px}
+  .btn{position:relative;padding:0 56px;height:104px;border-radius:52px;display:flex;align-items:center;gap:18px;overflow:hidden;
+    background:rgba(255,255,255,.14);backdrop-filter:blur(22px) saturate(1.6);-webkit-backdrop-filter:blur(22px) saturate(1.6);
+    border:1.5px solid rgba(255,255,255,.45);box-shadow:0 30px 70px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -14px 30px rgba(255,255,255,.08);will-change:transform}
+  .btn span{font-size:38px;font-weight:500;color:#fff;letter-spacing:-.01em;text-shadow:0 2px 12px rgba(0,0,0,.25);position:relative;z-index:2}
+  .btn svg{width:34px;height:34px;position:relative;z-index:2;will-change:transform}
+  .shine{position:absolute;top:-40%;bottom:-40%;width:120px;left:-160px;background:linear-gradient(100deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.55) 45%,rgba(255,255,255,.9) 50%,rgba(255,255,255,.55) 55%,rgba(255,255,255,0) 100%);transform:skewX(-20deg);will-change:transform;mix-blend-mode:screen}
+  .grain{position:absolute;inset:0;opacity:.35;mix-blend-mode:overlay;pointer-events:none}
+  .hi{position:absolute;inset:0;border-radius:52px;background:radial-gradient(120% 90% at 30% 0%,rgba(255,255,255,.45),rgba(255,255,255,0) 60%);opacity:.9}
+  .press{position:absolute;inset:0;border-radius:52px;background:rgba(255,255,255,.25);opacity:0}
+  .cursor{position:absolute;width:40px;height:44px;left:50%;top:50%;will-change:transform;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5));opacity:0}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="btn">
+    <div class="hi"></div>
+    <svg class="grain" xmlns="http://www.w3.org/2000/svg"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>
+    <div class="shine"></div>
+    <div class="press"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6.1L12 16.6 6.6 19.6l1.2-6.1L3.3 9.3l6.1-.7z"/></svg>
+    <span>Get started</span>
+  </div>
+  <svg class="cursor" viewBox="0 0 20 22"><path d="M2 1 L17 12 L10 13 L14 20 L11 21 L7 14 L2 18 Z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 6 });
+  // blobs drift behind the glass the whole loop (yoyo so it loops)
+  tl.to('.b1', { x: 140, y: 80, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    .to('.b2', { x: -160, y: 60, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    .to('.b3', { x: 90, y: -90, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    .fromTo('.bg', { scale: 1.02, rotation: 0 }, { scale: 1.06, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    // shimmer sweeps twice
+    .fromTo('.shine', { x: 0 }, { x: 640, duration: 1.3, ease: 'power2.inOut' }, 0.4)
+    .fromTo('.shine', { x: 0 }, { x: 640, duration: 1.3, ease: 'power2.inOut' }, 3.9)
+    // gentle idle float
+    .to('.btn', { y: -6, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    // cursor in, hover, press, release
+    .fromTo('.cursor', { x: 260, y: 200, opacity: 0 }, { x: 120, y: 30, opacity: 1, duration: 0.8, ease: 'power3.out' }, 1.6)
+    .to('.btn', { scale: 1.05, duration: 0.4, ease: 'power2.out' }, 2.2)
+    .to('.btn svg', { rotation: 72, duration: 0.6, ease: 'back.out(2)' }, 2.2)
+    .to('.btn', { scale: 0.96, duration: 0.12, ease: 'power2.in' }, 2.8)
+    .to('.press', { opacity: 1, duration: 0.1 }, 2.8)
+    .to('.cursor', { scale: 0.85, transformOrigin: '10% 5%', duration: 0.1 }, 2.8)
+    .to('.btn', { scale: 1.05, duration: 0.6, ease: 'elastic.out(1,0.45)' }, 2.94)
+    .to('.press', { opacity: 0, duration: 0.5 }, 2.94)
+    .to('.cursor', { scale: 1, duration: 0.15 }, 2.94)
+    .to('.btn', { scale: 1, duration: 0.5, ease: 'power2.inOut' }, 3.8)
+    .to('.btn svg', { rotation: 0, duration: 0.5, ease: 'power2.inOut' }, 3.8)
+    .to('.cursor', { x: 260, y: 200, opacity: 0, duration: 0.7, ease: 'power3.in' }, 3.7);
+</script>

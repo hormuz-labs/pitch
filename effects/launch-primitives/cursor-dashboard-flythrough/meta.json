@@ -1,0 +1,21 @@
+{
+  "name": "Cursor Dashboard Flythrough",
+  "seconds": 5,
+  "move": "cursor leads a tilted camera flight across dashboard overview, metric and findings surfaces",
+  "how": "The oversized dashboard rotates from -3 to 1.5 degrees while camera pans and pushes toward the findings table; cursor travels ahead with press pulses.",
+  "moves": [
+    "cursor-guide",
+    "dashboard-pan",
+    "tilt",
+    "camera-push"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Replace dashboard panes and cursor route.",
+  "port": "Keep cursor 8–12 frames ahead of the camera focus.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

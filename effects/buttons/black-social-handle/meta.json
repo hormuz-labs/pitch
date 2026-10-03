@@ -1,0 +1,24 @@
+{
+  "move": "icon pops in, pill stretches to reveal handle, notification dot pulses, retracts",
+  "how": "Over a slowly panning sunset image (scale 1.06 to 1.12, xPercent 0.8 to -0.8, linear across the 4s loop) a lower-third sits at bottom-left. A black 76px pill scales in with back.out(2) at 0.1s and an Instagram glyph pops in from scale 0 / rotation -90 with back.out(2). At 0.55s the pill width expands to 450px with expo.out over 0.7s while the handle '@northwind.studio' slides in from xPercent -110 inside a clipped mask. A red notification dot pops with back.out(3) at 1.3s and pulses 1 to 1.3 on a 4-cycle yoyo. From 3.1s (78%) the text slides back out with expo.in, the pill collapses to 76px with expo.inOut, the dot vanishes and the icon spins away (rotation +90, back.in(2)) as the pill scales to 0, so the lower-third is gone by 4s.",
+  "moves": [
+    "scale-in",
+    "expand",
+    "mask-wipe",
+    "pulse",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the handle string and W (icon 76 + padding 34 + text width), swap the glyph, and the black/red for a brand pair; the background image is optional. Keep the 0.7s expo.out stretch and the 0.1s text lag.",
+  "port": "mount(el, shot) builds bg, the lt container with pill (mask, handle) and icon with dot inside el, measuring W from the rendered text width. animate returns the timeline with pill in at 0.025D, stretch 0.1375D, dot 0.325D, out from 0.775D. Width is tweened in px; scope selectors to el.",
+  "caveats": [
+    "background pan is linear and does not return, so the loop only closes for the lower-third itself",
+    "width tween triggers layout each frame",
+    "loads assets/backgrounds/sunset.png"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

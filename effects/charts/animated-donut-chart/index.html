@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Donut Chart</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#eef1f6;display:flex;align-items:center;justify-content:center}
+  .card{width:720px;height:460px;background:#fff;border-radius:28px;box-shadow:0 30px 80px rgba(20,24,40,.12);display:flex;align-items:center;gap:56px;padding:0 64px}
+  .ring{position:relative;width:300px;height:300px}
+  svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .track{fill:none;stroke:#eceff4;stroke-width:26}
+  .arc{fill:none;stroke:#2563eb;stroke-width:26;stroke-linecap:round}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .pct{font-size:64px;font-weight:500;color:#111827;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .pct small{font-size:30px;color:#6b7280;letter-spacing:0}
+  .cap{font-size:14px;color:#6b7280;margin-top:2px}
+  .info{flex:1}
+  .info h2{font-size:28px;font-weight:500;color:#111827;letter-spacing:-.01em}
+  .info p{font-size:15px;color:#6b7280;margin-top:8px;line-height:1.5}
+  .rows{margin-top:28px;display:flex;flex-direction:column;gap:14px}
+  .row{display:flex;align-items:center;gap:12px;font-size:15px;color:#374151}
+  .dot{width:12px;height:12px;border-radius:50%;background:#2563eb}
+  .row.b .dot{background:#eceff4}
+  .row b{margin-left:auto;font-weight:500;color:#111827;font-variant-numeric:tabular-nums}
+</style>
+<div class="stage">
+  <div class="card">
+    <div class="ring">
+      <svg viewBox="0 0 300 300"><circle class="track" cx="150" cy="150" r="130"/><circle class="arc" cx="150" cy="150" r="130"/></svg>
+      <div class="center"><div class="pct"><span id="n">0</span><small>%</small></div><div class="cap">of goal</div></div>
+    </div>
+    <div class="info">
+      <h2>Storage used</h2>
+      <p>Your workspace is on track. Archive old projects to free up space.</p>
+      <div class="rows">
+        <div class="row a"><span class="dot"></span>Used<b id="u">0 GB</b></div>
+        <div class="row b"><span class="dot"></span>Available<b id="f">0 GB</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const TARGET=72;
+  const tl=fx.timeline({duration:4});
+  tl.from('.card',{scale:.92,opacity:0,duration:.6,ease:'power3.out'},0)
+    .from('.track',{drawSVG:'0%',duration:.8,ease:'expo.out'},.1)
+    .fromTo('.arc',{drawSVG:'0%'},{drawSVG:TARGET+'%',duration:1.5,ease:'expo.inOut'},.35)
+    .from('.info h2,.info p,.row',{y:14,opacity:0,duration:.5,stagger:.08,ease:'power3.out'},.4);
+  const o={n:0,u:0};
+  tl.to(o,{n:TARGET,u:TARGET*5.12,duration:1.5,ease:'expo.inOut',onUpdate(){document.getElementById('n').textContent=Math.round(o.n);document.getElementById('u').textContent=Math.round(o.u)+' GB';document.getElementById('f').textContent=Math.round(512-o.u)+' GB'}},.35);
+  // hold: a soft pulse of the arc, then unwind to loop
+  tl.to('.arc',{strokeWidth:30,duration:.5,yoyo:true,repeat:1,ease:'sine.inOut'},2.1)
+    .to('.arc',{drawSVG:'0%',duration:.6,ease:'expo.in'},3.1)
+    .to(o,{n:0,u:0,duration:.6,ease:'expo.in',onUpdate:tl.getTweensOf(o)[0].vars.onUpdate},3.1)
+    .to('.card',{opacity:0,scale:.96,duration:.3,ease:'power2.in'},3.65);
+</script>

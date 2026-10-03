@@ -1,0 +1,116 @@
+[
+ {
+  "name": "Web Screens: Grid",
+  "family": "Devices",
+  "familySlug": "devices",
+  "slug": "web-screens-grid",
+  "seconds": 9,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A template presenting website screenshots in an animated grid. Good for showing multiple web designs or product features side by side.",
+  "jitterUrl": "https://jitter.video/template/web-screens-grid/"
+ },
+ {
+  "name": "WhatsApp Messages",
+  "family": "Devices",
+  "familySlug": "devices",
+  "slug": "whatsapp-messages",
+  "seconds": 10,
+  "tags": [],
+  "description": "An animated messaging template where chat bubbles appear in a conversation sequence. Perfect for messaging app UI mockups and social storytelling.",
+  "jitterUrl": "https://jitter.video/template/whatsapp-messages/"
+ },
+ {
+  "name": "Animated Square Images",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "animated-square-images",
+  "seconds": 3,
+  "tags": [],
+  "description": "A template where square images animate into view in a coordinated grid sequence. Great for photo galleries and product image showcases.",
+  "jitterUrl": "https://jitter.video/template/animated-square-images/"
+ },
+ {
+  "name": "Blog Post",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "blog-post",
+  "seconds": 5,
+  "tags": [],
+  "description": "An animated blog post layout template where text and images reveal as if being scrolled through for the first time. Perfect for editorial content demos and publication showcases.",
+  "jitterUrl": "https://jitter.video/template/blog-post/"
+ },
+ {
+  "name": "Gradient Website [Dribbble]",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "gradient-website-dribbble",
+  "seconds": 5,
+  "tags": [],
+  "description": "A gradient website animation template with flowing sections inspired by Dribbble-quality design. Good for web design portfolios and colorful UI presentations.",
+  "jitterUrl": "https://jitter.video/template/gradient-website-dribbble/"
+ },
+ {
+  "name": "Happy Faces: Landing Page",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "happy-faces-landing-page",
+  "seconds": 6,
+  "tags": [],
+  "description": "An animated landing page template with illustrated faces that give the product an approachable personality. Good for playful SaaS brands and consumer apps.",
+  "jitterUrl": "https://jitter.video/template/happy-faces-landing-page/"
+ },
+ {
+  "name": "Image Mask: Parallax Effect",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "image-mask-parallax-effect",
+  "seconds": 4,
+  "tags": [],
+  "description": "An image template with a parallax mask effect that adds depth as the content moves. Good for editorial websites and video presentations.",
+  "jitterUrl": "https://jitter.video/template/image-mask-parallax-effect/"
+ },
+ {
+  "name": "Landing Page: Blocks",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "landing-page-blocks",
+  "seconds": 5,
+  "tags": [],
+  "description": "An animated landing page template where content blocks reveal in sequence. Great for SaaS demos and website design presentations where you want to walk a viewer through the product clearly.",
+  "jitterUrl": "https://jitter.video/template/landing-page-blocks/"
+ },
+ {
+  "name": "Minimalist Website",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "minimalist-website",
+  "seconds": 5,
+  "tags": [],
+  "description": "A minimal animated website template with refined transitions and careful use of space. Good for portfolio sites and design-forward product presentations.",
+  "jitterUrl": "https://jitter.video/template/minimalist-website/"
+ },
+ {
+  "name": "Mountains: Animated Website [Dribbble]",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "mountains-animated-website-dribbble",
+  "seconds": 5,
+  "tags": [],
+  "description": "A Dribbble-inspired animated website template with a dramatic mountain landscape. Good for travel brand presentations and editorial web design showcases.",
+  "jitterUrl": "https://jitter.video/template/mountains-animated-website-dribbble/"
+ },
+ {
+  "name": "Website Promo",
+  "family": "Websites",
+  "familySlug": "websites",
+  "slug": "website-promo",
+  "seconds": 9,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A website promo template with scroll reveals and layered screen motion. Works well for agency reels and client presentations where you want to bring a web design to life.",
+  "jitterUrl": "https://jitter.video/template/website-promo/"
+ }
+]

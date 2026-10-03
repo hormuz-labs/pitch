@@ -1,0 +1,16 @@
+{
+  "name": "Dynamic Color Spectrum & Ambient Glow Shift",
+  "family": "Launch",
+  "familySlug": "launch",
+  "slug": "color-interpolate-glow",
+  "seconds": 5,
+  "description": "Demonstrates multi-stop color space interpolation across RGB/RGBA spectrum, smoothly animating ambient lighting, border gradients, and telemetry indicators through state cycles.",
+  "move": "continuous multi-point color interpolation with glowing highlights",
+  "moves": ["color-interpolation", "ambient-glow", "gradient-shift", "telemetry"],
+  "libs": ["anim"],
+  "adapt": "Customize color stops to match brand palette (e.g., Stripe violet, Linear charcoal/purple, Supabase green).",
+  "port": "Uses anim.interpolateColors across keyframe thresholds with inOut quad easing.",
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

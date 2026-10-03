@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Search Bar</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#eef0f5;display:grid;place-items:center}
+  .wrap{position:relative;width:720px;height:360px;display:flex;flex-direction:column;align-items:center}
+  .bar{position:relative;height:64px;width:64px;border-radius:32px;background:#fff;box-shadow:0 10px 30px rgba(30,35,60,.12);display:flex;align-items:center;padding:0 20px;overflow:hidden;transform-origin:0 50%}
+  .bar .ring{position:absolute;inset:0;border-radius:32px;border:2px solid #5b6bff;opacity:0}
+  .mag{width:24px;height:24px;flex:none}
+  .mag path{fill:none;stroke:#111;stroke-width:2.6;stroke-linecap:round}
+  .txt{margin-left:14px;font-size:20px;color:#111;white-space:nowrap;display:flex;align-items:center}
+  .ph{color:#9a9fae}
+  .caret{width:2px;height:26px;background:#5b6bff;margin-left:2px}
+  .clr{position:absolute;right:18px;top:50%;width:26px;height:26px;border-radius:50%;background:#e9ebf2;transform:translateY(-50%);display:grid;place-items:center;font-size:13px;color:#555}
+  .res{position:absolute;top:80px;width:100%;border-radius:20px;background:#fff;box-shadow:0 20px 50px rgba(30,35,60,.14);padding:10px;transform-origin:50% 0}
+  .r{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px}
+  .r.hl{background:#f2f3ff}
+  .r i{width:36px;height:36px;border-radius:10px;background:#eef0f5;flex:none}
+  .r:nth-child(1) i{background:#5b6bff}.r:nth-child(2) i{background:#ffb84d}.r:nth-child(3) i{background:#2fd3a5}
+  .r b{display:block;font-size:16px;font-weight:500;color:#111}
+  .r span{display:block;font-size:13px;color:#8a8f9c;margin-top:2px}
+  .r b em{font-style:normal;color:#5b6bff}
+  .cursor{position:absolute;width:22px;height:22px;pointer-events:none}
+  .cursor path{fill:#111;stroke:#fff;stroke-width:1.5}
+</style>
+<div class="stage">
+  <div class="wrap">
+    <div class="bar"><div class="ring"></div>
+      <svg class="mag" viewBox="0 0 24 24"><path d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15zM16 16l5 5"/></svg>
+      <div class="txt"><span class="ph">Search anything…</span><span class="typed"></span><span class="caret"></span></div>
+      <div class="clr">✕</div>
+    </div>
+    <div class="res">
+      <div class="r hl"><i></i><div><b><em>Quarter</em>ly review deck</b><span>Presentations · edited 2h ago</span></div></div>
+      <div class="r"><i></i><div><b><em>Quarter</em> planning notes</b><span>Docs · Northwind team</span></div></div>
+      <div class="r"><i></i><div><b>Q3 <em>quarter</em> metrics</b><span>Dashboards</span></div></div>
+    </div>
+    <svg class="cursor" viewBox="0 0 24 24"><path d="M4 2l16 10-7 1.5L9 21z"/></svg>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/TextPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(TextPlugin);
+  const tl = fx.timeline({ duration: 4 });
+  gsap.set('.res', { opacity: 0, scaleY: .8, y: -10 });
+  gsap.set('.clr', { opacity: 0, scale: .5 });
+  gsap.set('.caret', { opacity: 0 });
+  tl.from('.bar', { scale: 0, duration: .5, ease: 'back.out(2)' }, 0);
+  // cursor arrives, clicks; the bar expands and comes alive
+  tl.fromTo('.cursor', { x: 300, y: 250, opacity: 0 }, { x: 350, y: 178, opacity: 1, duration: .5, ease: 'power3.out' }, .3)
+    .to('.cursor', { scale: .85, duration: .08, yoyo: true, repeat: 1, transformOrigin: '20% 10%' }, .8)
+    .to('.bar', { width: 720, duration: .7, ease: 'expo.out' }, .85)
+    .to('.ring', { opacity: 1, duration: .25 }, .9)
+    .fromTo('.bar', { boxShadow: '0 10px 30px rgba(30,35,60,.12)' }, { boxShadow: '0 16px 44px rgba(91,107,255,.28)', duration: .5 }, .9)
+    .to('.cursor', { x: 560, y: 300, opacity: 0, duration: .5, ease: 'power2.in' }, 1.0)
+    .to('.caret', { opacity: 1, duration: .05 }, 1.2)
+    .to('.caret', { opacity: 0, duration: .05, repeat: 9, yoyo: true, repeatDelay: .3 }, 1.3);
+  // typing
+  tl.to('.ph', { opacity: 0, duration: .15 }, 1.45)
+    .to('.typed', { text: 'Quarter', duration: .7, ease: 'none' }, 1.5)
+    .to('.clr', { opacity: 1, scale: 1, duration: .35, ease: 'back.out(2)' }, 1.7);
+  // results drop
+  tl.to('.res', { opacity: 1, scaleY: 1, y: 0, duration: .55, ease: 'expo.out' }, 1.85)
+    .from('.r', { y: 14, opacity: 0, duration: .45, stagger: .1, ease: 'power3.out' }, 1.95)
+    .to('.r.hl', { backgroundColor: '#e6e8ff', duration: .3, yoyo: true, repeat: 1 }, 2.6);
+  // exit: results fold, bar collapses back to the lens
+  tl.to('.res', { opacity: 0, scaleY: .85, y: -8, duration: .3, ease: 'power2.in' }, 3.2)
+    .to('.clr', { opacity: 0, scale: .5, duration: .2 }, 3.25)
+    .to('.typed', { text: '', duration: .2 }, 3.3)
+    .to('.caret', { opacity: 0, duration: .05 }, 3.3)
+    .to('.ring', { opacity: 0, duration: .2 }, 3.4)
+    .to('.bar', { width: 64, duration: .5, ease: 'expo.inOut', boxShadow: '0 10px 30px rgba(30,35,60,.12)' }, 3.45)
+    .to('.ph', { opacity: 1, duration: .1 }, 3.9);
+</script>

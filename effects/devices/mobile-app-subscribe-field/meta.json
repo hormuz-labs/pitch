@@ -1,0 +1,30 @@
+{
+  "move": "input focuses, typewriter fills email, button squashes, tick draws, sparks burst, resets",
+  "how": "A 300x620 phone drifts rotateY -18 -> -8 with sine.inOut across the whole 4s over a slowly scaling ocean background; a headline and paragraph rise on the left (expo.out / power3.out) in the first 20%. At 12% the email field lifts scale 1.03 with a blue border and 4px box-shadow ring (power2.out), the placeholder slides up yPercent -160 and fades, a caret blinks (opacity yoyo repeat 7) and TextPlugin types 'ada@northwind.io' linearly over 1.1s (21-49%). At 54% the button squashes scale 0.94 (power2.in) and rebounds with elastic.out(1,0.45), its label rolls up yPercent -100 while a green 'You're in' panel rolls in from yPercent 100 (expo.inOut), an SVG tick draws drawSVG 0 -> 100% and six spark dots fly out radially (x cos*70, y sin*40, opacity to 0, power3.out); the field border turns green. At 87% the panel and label roll back, the typed text clears, the placeholder returns and the border resets, ready to repeat.",
+  "moves": [
+    "typewriter",
+    "focus-ring",
+    "squash",
+    "elastic",
+    "roll-swap",
+    "draw-stroke",
+    "particle-burst",
+    "reset"
+  ],
+  "libs": [
+    "gsap",
+    "TextPlugin",
+    "DrawSVG",
+    "css-3d"
+  ],
+  "adapt": "Change the typed email string, headline and paragraph, the art card gradient, accent blue (#3d5aff) and success green (#1fa86c), and the background image. Keep the 1.1s linear typing, the 0.12s squash into elastic.out and the 0.35s expo.inOut label roll.",
+  "port": "mount(el, shot) builds the phone form and the copy block and applies the initial gsap.set on .ok and .caret; animate(el, shot, D) returns the timeline with focus at 0.125D, typing 0.21-0.49D, tap at 0.54D, reset at 0.875D. The spark loop uses document.querySelectorAll and must be scoped to el; TextPlugin and DrawSVGPlugin must be registered by the engine.",
+  "caveats": [
+    "from() tweens on .tag b and .tag p have default immediateRender",
+    "near-loop: the form state resets but the phone rotateY and background scale end at different values from frame 0",
+    "full-frame background image with brightness/saturate filter"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

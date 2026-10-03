@@ -1,0 +1,29 @@
+{
+  "move": "green disc spins in, three sound waves draw on, pulses to a beat, equalizer bars, notes float",
+  "how": "A green disc with three curved SVG wave strokes, three ripple rings, three note glyphs, an 11-bar equalizer and a per-letter 'Now playing' title. 0-27%: the disc scales 0->1 from rotation -120 with back.out(1.5); at 17%, 21% and 25% the waves drawSVG 0->100% (power3.out, 0.4s each). At 30% the letters rise from yPercent 110 with a 0.03s stagger (expo.out). Beats at 40% and 60%: the disc scales 1.08 (0.12s) then elastic.out(1,.4) back, the waves lift 3px and elastic back with a 0.04s stagger, and a ripple ring scales 1->1.7 fading (expo.out); a third ring fires at 27%. From 20% the bars scaleY to seeded random heights every 0.25s (sine.inOut, 0.03s per-bar offset) and collapse to .15 at 90%. Notes rise 360px from the disc fading in then out at 42%, 50% and 62%. Exit at 85%: letters fly up out, the disc collapses rotating 90 with back.in(1.5).",
+  "moves": [
+    "pop",
+    "spin",
+    "draw-stroke",
+    "pulse",
+    "elastic",
+    "ripple",
+    "audio-bars",
+    "float",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the Spotify green (#1ed760), the wave paths for the product mark, the title string, the note glyphs, and the bar count. Keep the back.out(1.5) spin-in, the staggered wave draw, the 0.12s beat pulse with elastic settle.",
+  "port": "mount(el, shot) builds the disc SVG, ripples, notes, bars and split title inside el, seeding fx.rng for bar heights; animate(el, shot, D) returns the timeline with beats at 0.4D and 0.6D, bars from 0.2D, exit at 0.85D. Register DrawSVGPlugin; scope '#eq', '#tt', '.disc', '.note' to el; the -320px note rise and 790px/910px layout assume a 1080 stage.",
+  "caveats": [
+    "from() tweens on .disc and title need immediateRender:false when nested",
+    "ends with the disc collapsed, no return to frame one",
+    "layout positions are absolute pixels for a 1080x1080 stage"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

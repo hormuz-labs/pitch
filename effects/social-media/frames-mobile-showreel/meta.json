@@ -1,0 +1,26 @@
+{
+  "move": "three phones rise, fan in 3D, screens scroll, centre phone comes forward",
+  "how": "Three CSS phone frames rise from y 700 / rotationX -20 with expo.out over 1.1s (stagger 0.12) and the outer two turn to rotationY ±18 with a 30px inward shift, while the title and caption fade in and the first screen's children rise (stagger 0.04). From 27% each phone's .screens column scrolls yPercent 0→-100 with expo.inOut over 0.8s, 0.25s apart, revealing the second screen, and the caption highlight swaps via call(). At 47% the middle phone scales to 1.12 with z 80 while the outer phones turn further to rotationY ±32 and shrink to 0.92 (expo.inOut 1s); the whole row sways rotationY -10 then +10 with sine.inOut. At 80% the screens scroll back to 0 (stagger 0.08), then the phones drop back to y 700 / rotationX 15 with expo.in and the text fades.",
+  "moves": [
+    "slide-in",
+    "flip-3d",
+    "scroll",
+    "stagger",
+    "zoom",
+    "float"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace each phone's two screen mockups (heading, subline, hero gradient, list rows, CTA), the title and caption; keep the 0.12s rise stagger, the 0.8s scroll and the 1s forward move.",
+  "port": "mount(el, shot) builds the row of N phones with two screens each and the caption; animate(el, shot, D) returns the timeline with rise 0-0.15D, scroll at 0.27D, forward at 0.47D, sway 0.6-0.9D, scroll-back at 0.8D, exit at 0.92D. The perspective on .stage must move to el; the caption innerHTML call()s must be el-scoped; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "caption highlight is set by call() and can go stale when scrubbing backwards",
+    "perspective is on the stage container"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

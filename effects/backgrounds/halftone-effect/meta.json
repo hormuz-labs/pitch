@@ -1,0 +1,22 @@
+{
+  "move": "rotated halftone dot screen renders a sun and word, screen angle breathes",
+  "how": "A canvas draws a low-res source each frame: a vertical white-to-grey gradient, a shaded sun disc that swings across and up on a cosine arc once per D, and the word RETRO along the bottom. The output samples that source on a rotated lattice of 14px cells and fills a dark dot per cell whose radius grows with darkness, on a cream background. The screen angle drifts 0.26 rad plus or minus 0.06 and the dot gain 1 plus or minus 0.12, each one sine cycle per D, so the print screen seems to breathe; every quantity is periodic so the loop closes.",
+  "moves": [
+    "halftone",
+    "orbit",
+    "ripple"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Replace drawSource with the product image or logo (same-origin so getImageData works), change the word, the paper and ink colours, and CELL for coarser or finer dots. Keep the angle and gain breathing to avoid a static screen.",
+  "port": "mount(el, shot) creates the output canvas and offscreen source canvas; animate(el, shot, D) returns a timeline with one linear progress tween over D whose onUpdate draws the source and rasterises the dots, replacing fx.register. Wait for the font before the first frame. gsap.min.js is loaded but unused in the original.",
+  "caveats": [
+    "loads gsap but does not use it",
+    "per-frame getImageData plus roughly 6000 arcs; acceptable at 1280x720",
+    "the source picture is procedural, not an uploaded image"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

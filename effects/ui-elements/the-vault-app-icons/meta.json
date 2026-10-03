@@ -1,0 +1,27 @@
+{
+  "move": "icons flip-pop from centre, light sweep, row wave, hero steps forward",
+  "how": "A dark stage with a 2x6 grid of twelve gradient app icons under a headline that rises from a mask. From 4% each icon scales from 0 with rotationY -90 and back.out(1.8), grid-staggered from the centre outward (0.09s), labels following. At 28% a diagonal sheen sweeps xPercent -110 to 110 across the icons left to right; at 46% a lift wave (y -14, rotationX 12, staggered from the edges) settles with elastic.out(1,.5). At 65% the last icon scales 1.35 and comes forward z 60 with back.out(2) while the other eleven dim to 35% and scale .92, restoring at 82%. From 90% the icons flip out (scale 0, rotationY 90, back.in) from the edges and the headline drops.",
+  "moves": [
+    "flip-3d",
+    "pop-in",
+    "grid-stagger",
+    "sheen",
+    "wave",
+    "elastic",
+    "hero-focus",
+    "flip-exit"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the twelve gradients, glyph SVGs and names, the headline and eyebrow, and choose which index is the hero; the grid shape is in the stagger config ([2,6]); keep the back.out(1.8) flip-in and the elastic wave.",
+  "port": "mount(el, shot) builds the grid from shot.apps; animate returns the timeline with pop at 0.04D, sweep 0.28D, wave 0.46D, hero 0.65-0.82D, exit 0.9D. Needs perspective on el and preserve-3d on the grid; the hero index must be read from shot rather than apps[11].",
+  "caveats": [
+    "from() tweens need immediateRender:false when composed",
+    "the grid stagger assumes exactly 12 items in a 2x6 layout"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

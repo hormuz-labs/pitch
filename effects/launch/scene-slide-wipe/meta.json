@@ -1,0 +1,16 @@
+{
+  "name": "Directional Slide & Mask Wipe Scene Transition",
+  "family": "Launch",
+  "familySlug": "launch",
+  "slug": "scene-slide-wipe",
+  "seconds": 4,
+  "description": "Production scene transition combining directional parallax slide, angular clip-path polygon wipe, and optical light-leak flash overlay across cut junction.",
+  "move": "angular mask wipe with directional slide and luminous transition flash",
+  "moves": ["scene-transition", "mask-wipe", "directional-slide", "light-leak", "polygon-clip"],
+  "libs": ["anim"],
+  "adapt": "Customize Scene 1 (Problem) and Scene 2 (Solution) cards, badges, and background hues for clear comparative contrast.",
+  "port": "Interpolates polygon clip coordinates, translateX, and optical flash opacity simultaneously.",
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

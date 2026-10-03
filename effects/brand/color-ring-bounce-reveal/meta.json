@@ -1,0 +1,24 @@
+{
+  "move": "orbs bounce in around a ring, ring turns, pulse runs round",
+  "how": "Eight colour orbs are placed on a 220px-radius circle inside a dashed track with a title at centre. The track scales in with expo.out and the title with back.out(2); each orb from() scale:0 with bounce.out over 0.9s, clockwise 0.14s apart, its label popping after. At 0.35D the ring rotates 45° with back.out(1.6) while each orb counter-rotates to keep labels upright, then drifts on to 90° with sine.inOut through 0.9D. At 0.53D a pulse runs around the ring (scale 1.3 power2.out then bounce.out back, stagger 0.09) and the title bumps with it. From 0.86D the orbs shrink out counter-clockwise with back.in(2), the track collapses and the centre text scales away.",
+  "moves": [
+    "bounce-in",
+    "stagger",
+    "orbit",
+    "pulse-wave",
+    "counter-rotate",
+    "scale-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap orb colours and labels, the centre title/subtitle, R and orb size; N is derived from the DOM so any count works. Keep bounce.out entrance, the paired ring/orb rotations and the pulse timing.",
+  "port": "mount(el, shot) creates .track, .center and a .ring with .orb children positioned by cos/sin; animate(el, shot, D) returns the timeline with orb t = (0.25 + i*0.14)/6*D, turn at 2.1/6*D, pulse at 3.2/6*D, exit at 5.15/6*D; scope every selector to el.",
+  "caveats": [
+    "ring rotation ends at 90 degrees so the last frame differs in orientation from the first, though both are empty",
+    "from() tweens need immediateRender:false when rebuilt"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,27 @@
+{
+  "move": "cursor tours components: hover, press, load, type, tab, like, dropdown",
+  "how": "Three columns of light UI (buttons, input, tabs, chips, card, dropdown) slide up with a 0.1s expo.out stagger. A cursor then visits them in order over 6s: the primary button lifts y -3 with a shadow, presses to scale .96 and recovers elastic (15-30%); the Submit button presses, its label fades, a spinner rotates 1080deg linearly for 1.3s, then it turns green and Done pops in with back.out(2) (32-63%); the input gets a blue focus ring, the floating label shrinks up (y -38, scale .78, back.out), a caret blinks and TextPlugin types an email over 0.9s before a green tick scales in (42-63%); the tab underline slides x 110 then 200 with power3.inOut; chips fill black one by one with a 0.3s stagger and a small scale pop; the heart presses, springs elastic and fills red (75%); the dropdown chevron flips 180, the menu scales open with back.out(1.8), a row highlights, the label swaps to Pro and it closes (84-93%). The board fades at 96%.",
+  "moves": [
+    "cursor-tour",
+    "hover-lift",
+    "press",
+    "spinner",
+    "typewriter",
+    "label-float",
+    "tab-slide",
+    "pop-in"
+  ],
+  "libs": [
+    "gsap",
+    "TextPlugin"
+  ],
+  "adapt": "Replace every label, the typed email, tab and chip names, the card image gradient and the accent blue/green/red; drop components you do not need and rebalance the cursor visits; keep the 0.1s press, elastic recovery and 0.35s menu open.",
+  "port": "mount(el, shot) builds the board and cursor from shot.components; animate returns the timeline with each visit placed at fractions of D (button 0.15D, loader 0.32D, input 0.42D, heart 0.75D, dropdown 0.84D). Cursor x/y are stage-absolute and must be derived from el; scope selectors to el and register TextPlugin.",
+  "caveats": [
+    "cursor coordinates assume a 1280x720 stage",
+    "set() calls toggle display on the spinner, so seeking backwards relies on GSAP recording the prior value"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,24 @@
+{
+  "move": "watch ring draws to 78% with counter, halo and bolt breathe",
+  "how": "A watch mockup rises in with expo.out. From 5% the green ring arc (DrawSVG 0% to 78%, expo.out, 1.3s) and a blurred glow copy draw around the dial while the big percentage counts 0 to 78 through an onUpdate tween; at 60% it ticks to 79. Throughout, a radial halo scales .7 to 1.15 and brightens, the bolt scales .9 to 1.15, the glow opacity .15 to .45 and the number breathes 0.98 to 1.03, all sine.inOut yoyo with 8 half-beats of 0.5s, and the case gradient slides backgroundPosition over the full 4s.",
+  "moves": [
+    "draw-stroke",
+    "counter",
+    "pulse",
+    "breathe",
+    "glow"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the percentage target, time, green (#30d158) and ring thickness; keep the 0.5s sine yoyo breath and the 1.3s expo.out fill.",
+  "port": "mount(el, shot) builds the watch and SVG ring; animate returns the timeline with the fill at 0.05D and pulses as repeat counts scaled to D. Ports directly; register DrawSVG and scope the .pct querySelector.",
+  "caveats": [
+    "filter: blur(8px) on the glow circle",
+    "the ring keeps its 79% fill at the end, so the loop restart shows the watch fading in with a new empty ring"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

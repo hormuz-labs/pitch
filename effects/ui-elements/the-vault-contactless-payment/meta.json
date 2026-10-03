@@ -1,0 +1,27 @@
+{
+  "move": "phone glides to reader, NFC rings ripple, tick draws, pulls away",
+  "how": "A dark payment terminal rises in showing a $24.00 total. A phone starts off-screen right at rotationY -35; from 6% it glides to x 150 with power3.inOut over 1.4s, then closes to the reader (x 40, y -40) by 28%. At 28% a small nudge marks the tap: the NFC glyph turns green, three rings scale .3 to 2.2 and fade with a 0.28s stagger (twice), the card on the phone bobs. At 45% the Approved screen fades in, its green disc scales from 0 with back.out(2.2), the tick draws with DrawSVG power2.out and the text rises; the phone shows Done. At 66% the phone pulls away with power3.in, at 84% the reader resets and at 94% the terminal drops out, with set() calls at the last frame restoring the tick and hint.",
+  "moves": [
+    "glide-in",
+    "tilt-3d",
+    "ripple",
+    "draw-stroke",
+    "pop-in",
+    "pull-away"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "css-3d"
+  ],
+  "adapt": "Change the merchant, amount, card brand and holder, the green (#22c55e) and the phone card gradient; keep the 1.4s glide, the 0.28s ring stagger and the back.out(2.2) approval.",
+  "port": "mount(el, shot) builds the terminal and phone from shot; animate returns the timeline with glide at 0.06D, tap at 0.28D, approval at 0.45D, exit at 0.66D. The phone offsets (x 720) assume a 1280 stage, derive from el width; needs perspective on el and DrawSVG registered.",
+  "caveats": [
+    "catalog lists 14s but the file runs 10s",
+    "phone start offset x 720 assumes a 1280x720 stage",
+    "from() tweens need immediateRender:false when composed"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

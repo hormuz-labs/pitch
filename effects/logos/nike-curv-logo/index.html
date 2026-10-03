@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8">
+<title>CURV Logo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0a}
+  svg.curv{position:absolute;left:50%;top:50%;width:640px;height:360px;transform:translate(-50%,-52%)}
+  .word{position:absolute;left:50%;top:69%;transform:translateX(-50%);font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:.42em;padding-left:.42em;color:#fff;text-transform:uppercase}
+  .word span{display:inline-block}
+</style>
+<div class="stage">
+  <svg class="curv" viewBox="0 0 640 360">
+    <defs><clipPath id="c"><path class="fill" d="M40 250 C 180 170, 330 120, 600 60 C 470 180, 330 270, 110 300 C 60 305, 40 285, 40 250 Z"/></clipPath></defs>
+    <path class="stroke" d="M40 250 C 180 170, 330 120, 330 120 C 470 90, 560 70, 600 60 C 470 180, 330 270, 110 300 C 60 305, 40 285, 40 250" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <rect class="flood" x="-40" y="0" width="0" height="360" fill="#fff" clip-path="url(#c)"/>
+    <path class="glint" d="M40 250 C 180 170, 330 120, 600 60" fill="none" stroke="#ffcf3a" stroke-width="8" stroke-linecap="round" opacity="0"/>
+  </svg>
+  <div class="word"><span>C</span><span>U</span><span>R</span><span>V</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 1 });
+  // the outline draws itself along the curve
+  tl.fromTo('.stroke', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: .42, ease: 'power3.inOut' }, 0)
+    // a flood fills the shape left to right, chasing the stroke
+    .fromTo('.flood', { attr: { width: 0 } }, { attr: { width: 720 }, duration: .32, ease: 'power3.out' }, .3)
+    .to('.stroke', { opacity: 0, duration: .15 }, .45)
+    // a glint runs along the top edge
+    .fromTo('.glint', { drawSVG: '0% 0%', opacity: 1 }, { drawSVG: '70% 100%', duration: .3, ease: 'power2.in' }, .5)
+    .to('.glint', { opacity: 0, duration: .08 }, .8)
+    // the mark eases into a slight tilt like a swing-through; the letters kick in
+    .fromTo('svg.curv', { rotation: -6, scale: .92 }, { rotation: 0, scale: 1, duration: .6, ease: 'expo.out' }, .3)
+    .from('.word span', { yPercent: 120, opacity: 0, stagger: .05, duration: .35, ease: 'expo.out' }, .55)
+    // out: quick whip up and away
+    .to('svg.curv', { y: -30, opacity: 0, duration: .15, ease: 'power3.in' }, .88)
+    .to('.word span', { opacity: 0, stagger: .015, duration: .1 }, .88);
+  tl.to({}, { duration: .01 }, 1);
+</script>

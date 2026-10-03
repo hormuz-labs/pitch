@@ -1,0 +1,24 @@
+{
+  "move": "flat word grows a 48-layer extrusion while the rig tumbles in 3D",
+  "how": "A yellow front word sits in a perspective rig with 48 darker copies inserted behind it (colour stepping toward deep violet), a radial floor shadow and a caption. The front face fades and scales in (expo.out, first 17%). From 8% each layer moves to z = -(i+1)*4px with a tiny 0.008s stagger (expo.out, 1s) so the depth appears to extrude out of the face, while the rig rotates to rotateY -38 rotateX 14 (power3.inOut, 40%), swings to rotateY 34 rotateX -10 (48% to 88%) and returns to 0. From 83% the layers collapse back to z 0 from the last layer inward (expo.in) and the caption fades.",
+  "moves": [
+    "extrude",
+    "flip-3d",
+    "orbit",
+    "stagger",
+    "fade"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Change the word, the front colour and the HSL range of the layers, N and STEP for depth; keep the two power3.inOut swings and the 1s extrusion.",
+  "port": "mount(el, shot) builds the rig and inserts the N layer spans; animate(el, shot, D) returns the timeline with positions at 0.08D, 0.48D, 0.85D. The stage needs perspective on el; scope selectors to el.",
+  "caveats": [
+    "48 text layers in preserve-3d is heavy",
+    "the front face is hidden at t=0 (from opacity 0) but fully visible on the last frame, so the loop pops"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

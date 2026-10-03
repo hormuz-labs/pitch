@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8">
+<title>The Track: Poster</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0a;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;color:#fff}
+  .photo{position:absolute;inset:0;overflow:hidden}
+  .photo img{position:absolute;left:50%;top:50%;width:150%;height:110%;object-fit:cover;transform:translate(-50%,-50%);filter:grayscale(1) contrast(1.4) brightness(.55);will-change:transform}
+  .duotone{position:absolute;inset:0;background:linear-gradient(180deg,#ff3d00,#4a0d00);mix-blend-mode:screen;opacity:.75}
+  .grain{position:absolute;inset:0;opacity:.18;mix-blend-mode:overlay}
+  .athlete{position:absolute;left:50%;top:50%;width:900px;height:900px;margin:-380px 0 0 -450px;will-change:transform}
+  .athlete path{fill:#0a0a0a}
+  .headline{position:absolute;left:60px;right:60px;top:180px;font-size:300px;font-weight:500;line-height:.82;letter-spacing:-.06em;text-transform:uppercase;mix-blend-mode:normal}
+  .headline .l{display:block;overflow:hidden}
+  .headline .l span{display:block;will-change:transform}
+  .headline .out{-webkit-text-stroke:3px #fff;color:transparent}
+  .sub{position:absolute;left:60px;bottom:220px;font-family:"Atlas Grotesk",sans-serif;font-size:30px;letter-spacing:.3em;text-transform:uppercase;display:flex;align-items:center;gap:20px}
+  .sub i{width:80px;height:3px;background:#fff;display:block;transform-origin:left}
+  .stripe{position:absolute;left:-200px;right:-200px;height:90px;background:#fff;transform:rotate(-12deg);transform-origin:center;color:#0a0a0a;font-size:44px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;line-height:90px;white-space:nowrap;overflow:hidden}
+  .stripe span{display:inline-block;will-change:transform}
+  .logo{position:absolute;right:60px;top:80px;display:flex;align-items:center;gap:14px;font-size:28px;letter-spacing:.25em;text-transform:uppercase}
+  .logo i{width:38px;height:38px;background:#fff;clip-path:polygon(0 100%,50% 0,100% 100%);display:block}
+  .flash{position:absolute;inset:0;background:#fff;opacity:0}
+</style>
+<div class="stage">
+  <div class="photo"><img src="../../../assets/backgrounds/ocean.png"><div class="duotone"></div></div>
+  <svg class="grain" width="100%" height="100%"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>
+  <!-- a running figure silhouette, drawn as one path -->
+  <svg class="athlete" viewBox="0 0 200 200"><path d="M118 28a12 12 0 1 1 0 24a12 12 0 0 1 0-24zM104 58l22 4l20 22l16-8l6 10l-24 14l-16-14l-6 22l22 18l4 40l-14 2l-6-32l-24-14l-14 24l-30 20l-8-10l26-20l14-30l-6-18l-22 8l-14 22l-10-6l14-30l30-14z"/></svg>
+  <div class="headline"><span class="l"><span>Run</span></span><span class="l"><span class="out">Past</span></span><span class="l"><span>Limits</span></span></div>
+  <div class="stripe" style="top:1240px"><span>Acme Track Club · Since 1994 · Acme Track Club · Since 1994 · Acme Track Club</span></div>
+  <div class="sub"><i></i>Campaign SS/26</div>
+  <div class="logo"><i></i>Acme</div>
+  <div class="flash"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const img = document.querySelector('img');
+  fx.wait(new Promise(r => { if (img.complete) r(); else img.addEventListener('load', r, { once: true }); }));
+  const tl = fx.timeline({ duration: 4 });
+  // the hero: photo punches in, the athlete strides in from the left and keeps a slow lean forward
+  tl.fromTo(img, { scale: 1.3, xPercent: -50, yPercent: -50 }, { scale: 1.05, duration: 4, ease: 'power2.out' }, 0);
+  tl.fromTo('.flash', { opacity: 1 }, { opacity: 0, duration: 0.35, ease: 'power2.out' }, 0);
+  tl.from('.athlete', { x: -500, skewX: -20, opacity: 0, duration: 0.9, ease: 'expo.out' }, 0.05);
+  tl.to('.athlete', { x: 60, y: -20, scale: 1.08, duration: 3.1, ease: 'power1.out' }, 0.9);
+  // the big type slams in line by line with a squash on landing
+  tl.from('.headline .l span', { yPercent: 115, duration: 0.6, ease: 'expo.out', stagger: 0.1 }, 0.25);
+  tl.fromTo('.headline', { scaleY: 1.08, transformOrigin: 'top' }, { scaleY: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' }, 0.75);
+  // the stripe cuts across and its text runs the whole loop
+  tl.from('.stripe', { xPercent: -100, duration: 0.7, ease: 'expo.out' }, 0.6);
+  tl.fromTo('.stripe span', { x: 0 }, { x: -700, duration: 4, ease: 'none' }, 0);
+  tl.from('.sub i', { scaleX: 0, duration: 0.5, ease: 'expo.out' }, 1.0);
+  tl.from('.sub', { opacity: 0, x: -20, duration: 0.5 }, 1.0);
+  tl.from('.logo', { y: -20, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.5);
+  // the outlined word fills in as a beat
+  tl.to('.headline .out', { color: '#fff', duration: 0.15 }, 2.2).to('.headline .out', { color: 'transparent', duration: 0.3 }, 2.6);
+  // exit: type drops out, athlete sprints off right, flash for the loop
+  tl.to('.headline .l span', { yPercent: -115, duration: 0.35, ease: 'expo.in', stagger: 0.06 }, 3.4);
+  tl.to('.athlete', { x: 900, skewX: 15, duration: 0.45, ease: 'power3.in' }, 3.5);
+  tl.to('.stripe', { xPercent: 100, duration: 0.4, ease: 'expo.in' }, 3.55);
+  tl.to('.sub, .logo', { opacity: 0, duration: 0.25 }, 3.7);
+</script>

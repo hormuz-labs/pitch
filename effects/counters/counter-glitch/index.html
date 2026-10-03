@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<title>Counter: Glitch</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#050608;display:flex;align-items:center;justify-content:center;color:#e8fff6}
+  .scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 4px);pointer-events:none;mix-blend-mode:overlay}
+  .vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.7) 100%)}
+  .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(46,230,166,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(46,230,166,.08) 1px,transparent 1px);background-size:64px 64px}
+  .hud{position:absolute;font-family:ui-monospace,Menlo,monospace;font-size:16px;letter-spacing:.2em;color:#2ee6a6;text-transform:uppercase;opacity:.8}
+  .hud.tl{top:44px;left:56px}.hud.tr{top:44px;right:56px;text-align:right}.hud.bl{bottom:44px;left:56px}.hud.br{bottom:44px;right:56px;text-align:right}
+  .timer{position:relative;font-family:ui-monospace,Menlo,"SF Mono",monospace;font-weight:700;font-size:210px;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+  .layer{position:absolute;inset:0;will-change:clip-path,transform,opacity}
+  .layer.r{color:#ff2a6d;mix-blend-mode:screen}.layer.b{color:#05d9e8;mix-blend-mode:screen}
+  .base{position:relative}
+  .slice{position:absolute;left:0;right:0;overflow:hidden;will-change:transform,clip-path}
+  .lbl{text-align:center;margin-top:10px;font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:.4em;color:#2ee6a6;text-transform:uppercase}
+  .bar{position:absolute;left:56px;right:56px;bottom:86px;height:2px;background:rgba(46,230,166,.2)}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:#2ee6a6;box-shadow:0 0 12px #2ee6a6}
+</style>
+<div class="stage">
+  <div class="grid"></div><div class="vig"></div>
+  <div class="hud tl">SYS // LAUNCH SEQ</div><div class="hud tr">CH 04 · 60 FPS</div><div class="hud bl">ACME ORBITAL</div><div class="hud br" id="frame">F 0000</div>
+  <div class="bar"><i id="bar"></i></div>
+  <div>
+    <div class="timer" id="timer"><div class="layer r"><span class="txt">00:00.00</span></div><div class="layer b"><span class="txt">00:00.00</span></div><div class="base"><span class="txt">00:00.00</span></div></div>
+    <div class="lbl" id="lbl">T-minus</div>
+  </div>
+  <div class="scan"></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4, FPS = 30;
+  const rnd = fx.rng(99);
+  // a deterministic burst schedule: which frames glitch, and how hard
+  const bursts = []; let f = 0;
+  while (f < D * FPS) { const len = 2 + Math.floor(rnd() * 5); const start = f + 8 + Math.floor(rnd() * 22); bursts.push({ start, len, seed: Math.floor(rnd() * 1e6) }); f = start + len; }
+  const txts = document.querySelectorAll('.txt'), layers = document.querySelectorAll('.layer'), base = document.querySelector('.base');
+  const frameEl = document.getElementById('frame'), bar = document.getElementById('bar'), timer = document.getElementById('timer'), lbl = document.getElementById('lbl');
+  const pad = n => String(n).padStart(2, '0');
+  fx.register({ duration: D, seek(t) {
+    // the timer counts down from 00:10.00 over the loop, 2.5x speed, and the last quarter second flickers to zero
+    const remaining = Math.max(0, 10 - t * 2.5);
+    const s = Math.floor(remaining), cs = Math.floor((remaining - s) * 100);
+    const txt = `00:${pad(s)}.${pad(cs)}`;
+    txts.forEach(e => e.textContent = txt);
+    frameEl.textContent = 'F ' + String(Math.round(t * FPS)).padStart(4, '0');
+    bar.style.width = (t / D * 100) + '%';
+    const fr = Math.round(t * FPS);
+    const b = bursts.find(b => fr >= b.start && fr < b.start + b.len);
+    const r = fx.rng(b ? b.seed + fr : 1);
+    if (b) {
+      const amp = 8 + r() * 26;
+      // chromatic split
+      layers[0].style.transform = `translate(${-amp * (0.5 + r())}px, ${(r() - .5) * 8}px)`; layers[0].style.opacity = .9;
+      layers[1].style.transform = `translate(${amp * (0.5 + r())}px, ${(r() - .5) * 8}px)`; layers[1].style.opacity = .9;
+      // horizontal slice tear on the base
+      const y1 = r() * 100, h = 8 + r() * 30;
+      base.style.clipPath = `polygon(0 0,100% 0,100% ${y1}%,0 ${y1}%,0 ${y1 + h}%,100% ${y1 + h}%,100% 100%,0 100%)`;
+      layers[0].style.clipPath = `inset(${y1}% 0 ${Math.max(0, 100 - y1 - h)}% 0)`;
+      layers[1].style.clipPath = `inset(${Math.max(0, y1 - h)}% 0 ${100 - y1}% 0)`;
+      base.style.transform = `translateX(${(r() - .5) * amp}px) skewX(${(r() - .5) * 6}deg)`;
+      timer.style.filter = r() > .7 ? 'invert(1) hue-rotate(180deg)' : '';
+      lbl.textContent = r() > .5 ? 'T-MINUS' : '##ERR_SYNC';
+      document.querySelector('.stage').style.transform = `translate(${(r() - .5) * 6}px, 0)`;
+    } else {
+      layers.forEach(l => { l.style.transform = ''; l.style.opacity = 0; l.style.clipPath = ''; });
+      base.style.clipPath = ''; base.style.transform = ''; timer.style.filter = ''; lbl.textContent = 'T-minus';
+      document.querySelector('.stage').style.transform = '';
+      // idle flicker: a faint brightness wobble keyed on the frame
+      const q = fx.rng(fr * 7 + 3)();
+      timer.style.opacity = q > .93 ? .75 : 1;
+    }
+    // the scanline band rolls the whole loop
+    document.querySelector('.scan').style.backgroundPosition = `0 ${(t / D) * 720 * 2}px`;
+  } });
+</script>

@@ -1,0 +1,209 @@
+[
+ {
+  "name": "Sliding Text Reveal",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "sliding-text-reveal",
+  "seconds": 3,
+  "tags": [
+   "video-titles"
+  ],
+  "description": "A text reveal template where words slide in from behind a mask. Great for title sequences and section headers where you want the text to feel deliberate.",
+  "jitterUrl": "https://jitter.video/template/sliding-text-reveal/"
+ },
+ {
+  "name": "Sliding Title Reveal [Apple Event]",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "sliding-title-reveal-apple-event",
+  "seconds": 4,
+  "tags": [
+   "ads"
+  ],
+  "description": "A title reveal template inspired by Apple keynote presentation design. Good for premium product announcements and polished presentation openers.",
+  "jitterUrl": "https://jitter.video/template/sliding-title-reveal-apple-event/"
+ },
+ {
+  "name": "Snappy Text Stretch",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "snappy-text-stretch",
+  "seconds": 2,
+  "tags": [
+   "custom-text",
+   "video-titles",
+   "ads",
+   "brand"
+  ],
+  "description": "A snappy text template inspired by film festival announcements. Great for animated event promos and any brand making a bold opening statement.",
+  "jitterUrl": "https://jitter.video/template/stretch-snap-text/"
+ },
+ {
+  "name": "Squeeze",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "squeeze",
+  "seconds": 1,
+  "tags": [],
+  "description": "An animation template from Antinomy where elements compress and snap back with an elastic physical quality. Works for expressive UI transitions and motion design that wants to feel less digital.",
+  "jitterUrl": "https://jitter.video/template/squeeze/"
+ },
+ {
+  "name": "Stretch",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "stretch",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animation template from Antinomy where elements stretch and snap back with an elastic quality. Works for expressive UI transitions and motion design that wants to feel a bit more physical.",
+  "jitterUrl": "https://jitter.video/template/stretch/"
+ },
+ {
+  "name": "Stretched Type Repeater",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "stretched-type-repeater",
+  "seconds": 8,
+  "tags": [
+   "jitter-ai",
+   "video-titles"
+  ],
+  "description": "A stretched type animation combined with a repeater for bold, rhythmic typographic motion. Ideal for titles, social content, and brand animations.",
+  "jitterUrl": "https://jitter.video/template/stretched-type-repeater/"
+ },
+ {
+  "name": "Text Extrusion",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "text-extrusion",
+  "seconds": 3,
+  "tags": [
+   "jitter-ai",
+   "logos",
+   "video-titles"
+  ],
+  "description": "A text extrusion effect that adds depth and dimension to animated typography. Perfect for titles, logos, and 3D-style motion graphics.",
+  "jitterUrl": "https://jitter.video/template/text-extrusion/"
+ },
+ {
+  "name": "Text Mirror Effect",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "text-mirror-effect",
+  "seconds": 4,
+  "tags": [],
+  "description": "A template where text is mirrored into a symmetrical composition. Work great for artistic title sequences and editorial motion design.",
+  "jitterUrl": "https://jitter.video/template/text-mirror-effect/"
+ },
+ {
+  "name": "Text Scramble",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "text-scramble",
+  "seconds": 2,
+  "tags": [
+   "custom-text",
+   "video-titles",
+   "ads"
+  ],
+  "description": "An animated text template inspired by streaming platform teasers. Great for entertainment drops and any brand building anticipation for a release.",
+  "jitterUrl": "https://jitter.video/template/text-scramble/"
+ },
+ {
+  "name": "The Crust: Animated Menu",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-crust-animated-menu",
+  "seconds": 8,
+  "tags": [
+   "the-crust",
+   "social-media"
+  ],
+  "description": "An animated menu template inspired by bakery and café signage. Great for daily specials, new menu launches, and any restaurant highlighting menu items.",
+  "jitterUrl": "https://jitter.video/template/the-crust-animated-menu/"
+ },
+ {
+  "name": "The Crust: Lunch Time",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-crust-lunch-time",
+  "seconds": 5,
+  "tags": [
+   "the-crust",
+   "social-media",
+   "ads"
+  ],
+  "description": "A bold, oversized typography template inspired by bakery signage and packaging design. Great for product launches and any restaurant or food brand that wants a punchy title moment.",
+  "jitterUrl": "https://jitter.video/template/the-crust-lunch-time/"
+ },
+ {
+  "name": "The Crust: Slideshow",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-crust-slideshow",
+  "seconds": 4,
+  "tags": [
+   "the-crust",
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated close-up slideshow template inspired by pastry photography. Great for product showcases, seasonal menu drops, and any food brand highlighting their ingredients.",
+  "jitterUrl": "https://jitter.video/template/the-crust-slideshow/"
+ },
+ {
+  "name": "The Crust: Tagline",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-crust-tagline",
+  "seconds": 5,
+  "tags": [
+   "the-crust",
+   "social-media",
+   "ads"
+  ],
+  "description": "A tagline template inspired by bakery photography. Great for brand statements, \"freshly baked\" promos, and any food brand pairing a strong message with product imagery.",
+  "jitterUrl": "https://jitter.video/template/the-crust-tagline/"
+ },
+ {
+  "name": "The Crust: Tagline and Menu",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-crust-tagline-and-menu",
+  "seconds": 7,
+  "tags": [
+   "the-crust",
+   "social-media"
+  ],
+  "description": "A animated menu template inspired by bakery and sandwich shop boards. Great for menu rollouts, seasonal lineups, and any food brand or restaurant showcasing multiple items at once.",
+  "jitterUrl": "https://jitter.video/template/the-crust-tagline-and-menu/"
+ },
+ {
+  "name": "The Edit: Instagram Story",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-edit-instagram-story",
+  "seconds": 4,
+  "tags": [
+   "the-edit",
+   "social-media",
+   "ads"
+  ],
+  "description": "A story edit template with smooth cuts and a layout built for the Instagram format. Drop in your own content and it's ready to go.",
+  "jitterUrl": "https://jitter.video/template/the-edit-instagram-story/"
+ },
+ {
+  "name": "The Edit: Product Launch",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "the-edit-product-launch",
+  "seconds": 6,
+  "tags": [
+   "the-edit",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A product launch template with bold cuts and a pace that builds toward the reveal. Perfect for new product announcements and e-commerce campaigns where the buildup matters.",
+  "jitterUrl": "https://jitter.video/template/the-edit-product-launch/"
+ }
+]

@@ -1,0 +1,25 @@
+{
+  "move": "page blocks stack in top to bottom as it scrolls, cursor clicks",
+  "how": "A 1060px browser window lifts in from y:90/opacity:0 (expo.out) over the first 16%. Inside, the nav drops in, three masked headline lines rise yPercent:110 (expo.out, stagger 0.09) at 7%, paragraph and CTA slide up (power3.out), and a dark product screenshot card enters from y:60/scale:0.92 with its placeholder bars growing scaleX from 0 (transformOrigin 0 50%, expo.out, stagger 0.07). From 34% to 78% the .doc translates y to -(scrollHeight - viewport) with power2.inOut, and as sections enter the viewport the logo strip, h2, three feature cards (y:50, expo.out, stagger 0.12, icons scale in with back.out(2)) and a dark CTA band (y:60/scale:0.96) reveal in sequence. A white SVG arrow cursor flies in with power3.inOut from 68%, lands on the band button at 87% and both squash (scale 0.85/0.94 yoyo) as a click; the window then drops out with expo.in at 92%.",
+  "moves": [
+    "scroll-reveal",
+    "slide-in",
+    "line-mask",
+    "stagger",
+    "cursor-click",
+    "scale-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the URL, brand, headline lines, copy, CTA labels, the three feature titles/blurbs/icon colours and the band text; keep the 2.2s power2.inOut scroll, the expo.out block reveals and the cursor click beat. Cursor landing coordinates are absolute pixels and must be re-measured if the band moves.",
+  "port": "mount(el, shot) builds the window/doc/cursor into el; animate(el, shot, D) measures scrollHeight - clientHeight, builds the same timeline with times as fractions of D (scroll 0.34-0.78, click at 0.87, exit 0.92) and returns it. Selectors must be scoped to el; reveal times are hand-placed rather than derived from layout, so keep them proportional.",
+  "caveats": [
+    "cursor path uses hard-coded stage pixel coordinates (1100,700 -> 760,410 -> 900,590)",
+    "scroll distance measured at build time, fonts must be ready",
+    "window enters from below and exits below, so no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

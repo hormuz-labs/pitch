@@ -1,0 +1,24 @@
+{
+  "move": "slides revolve in on a far pivot as the previous swings out",
+  "how": "Portrait 1080x1920: four tall photo slides hang on arms whose pivot sits 2300px below the top so a rotation of 80deg swings a slide fully off frame; slides wait at rotation 80 (off right) and each revolves to 0 with expo.out over ~14% of the loop while the previous one revolves to -80 (off left, expo.inOut). Handoffs occur at 27, 50 and 72% of the 8s loop; at each, a tabular index counter rolls up one line (yPercent -100*i, expo.inOut) and the dial dot swaps colour. A headline rises from an overflow mask at 0 (expo.out), the first slide arrives at 1%, and all slide images slowly drift (scale 1 to 1.06, xPercent -2 to 2, linear) over the full duration. At 87% the last slide swings out with expo.in and the headline drops up out of its mask; the hint, index and dial fade.",
+  "moves": [
+    "pivot-swing",
+    "carousel",
+    "mask-rise",
+    "counter-roll",
+    "ken-burns",
+    "stagger"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the four slide images, captions and subtitles, the headline word and studio hint; slide count changes the interval (1.8s per slide). Keep the far-pivot geometry (pivot ~1.2x stage height below top), the 80deg swing and the expo.out/inOut pairing.",
+  "port": "mount(el, shot) builds the pivot, arms and slides inside el, positioning the pivot relative to el size. animate(el, shot, D) returns the same timeline with handoffs at 0.05+i*0.225 of D and the loop exit at 0.875 of D; initial arm rotations set with gsap.set in mount.",
+  "caveats": [
+    "portrait 1080x1920 layout, pivot and offsets are absolute px",
+    "exit leaves the stage empty, the loop restarts with the headline rise"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1920"
+}

@@ -1,0 +1,20 @@
+{
+  "move": "material arc head-tail chase while the ring spins, inner comet counter-rotates",
+  "how": "An SVG ring on dark: the outer white arc grows from 8% to 80% of the circle (DrawSVG, power2.inOut) then its tail catches up to a 92-100% sliver, twice per loop, while the whole SVG rotates 720deg linearly over 4s. A thinner purple inner arc does the same 4-45% comet three times per loop while rotating -360deg. Three dots under the label hop y -6 with a 0.12s stagger once a second.",
+  "moves": [
+    "spin",
+    "draw-stroke",
+    "chase",
+    "dots-march"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Swap the two stroke colours and the loading label; change the rotation count if the duration changes so it stays whole turns; keep the grow/shrink cycle length.",
+  "port": "mount(el, shot) inserts the SVG and label; animate returns the timeline with cycles at 0, 0.5D and the inner cycles every D/3. Rotation must be an integer number of turns per D for a clean loop; register DrawSVG.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

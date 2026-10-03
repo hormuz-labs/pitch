@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Spring-Driven Kinetic Metric Counter</title>
+  <meta name="fx" content="w=1280 h=720">
+  <link rel="stylesheet" href="../../_lib/base.css">
+  <style>
+    .stage {
+      background: #090a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: "Atlas Grotesk", -apple-system, sans-serif;
+      color: #fff;
+      overflow: hidden;
+      position: relative;
+    }
+    .grid-mesh {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .counter-hero {
+      text-align: center;
+      z-index: 2;
+    }
+    .kicker {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #60a5fa;
+      margin-bottom: 16px;
+    }
+    .number-display {
+      font-family: "Sharp Grotesk", sans-serif;
+      font-size: 130px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin: 0;
+      color: #f8fafc;
+      will-change: transform;
+    }
+    .unit-suffix {
+      color: #3b82f6;
+      font-size: 80px;
+      margin-left: 4px;
+    }
+    .desc {
+      font-size: 20px;
+      color: #94a3b8;
+      margin-top: 18px;
+      letter-spacing: -0.01em;
+    }
+    .metrics-bar {
+      display: flex;
+      gap: 48px;
+      margin-top: 56px;
+      padding: 20px 36px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      z-index: 2;
+    }
+    .bar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .bar-label {
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .bar-val {
+      font-size: 28px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .scene-meta {
+      position: absolute;
+      bottom: 28px;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="grid-mesh" id="mesh"></div>
+    <div class="counter-hero">
+      <div class="kicker">Cumulative Processed Volume</div>
+      <h1 class="number-display">
+        <span id="counterNum">$0</span><span class="unit-suffix">+</span>
+      </h1>
+      <div class="desc">Deterministic state consensus verified across global nodes</div>
+    </div>
+
+    <div class="metrics-bar" id="metricsBar">
+      <div class="bar-item">
+        <span class="bar-label">Execution Latency</span>
+        <span class="bar-val" id="latVal">0.0ms</span>
+      </div>
+      <div class="bar-item">
+        <span class="bar-label">Success Rate</span>
+        <span class="bar-val" id="rateVal">0.0%</span>
+      </div>
+      <div class="bar-item">
+        <span class="bar-label">Active Edges</span>
+        <span class="bar-val" id="nodeVal">0</span>
+      </div>
+    </div>
+    <div class="scene-meta">Spring Harmonic Ticking · Value Quantization · Kinetic Settle</div>
+  </div>
+
+  <script src="../../_lib/anim.js"></script>
+  <script src="../../_lib/fx.js"></script>
+  <script>
+    const D = 4.5;
+    const FPS = 60;
+    const counterNum = document.getElementById('counterNum');
+    const latVal = document.getElementById('latVal');
+    const rateVal = document.getElementById('rateVal');
+    const nodeVal = document.getElementById('nodeVal');
+    const metricsBar = document.getElementById('metricsBar');
+    const mesh = document.getElementById('mesh');
+
+    function formatCurrency(val) {
+      return '$' + Math.round(val).toLocaleString('en-US');
+    }
+
+    fx.register({
+      duration: D,
+      fps: FPS,
+      seek(t) {
+        const frame = t * FPS;
+
+        // Spring animation driving the main counter progress from 0 to 1
+        // Active tick interval: 0.2s to 2.8s
+        const springProgress = anim.spring({
+          frame: Math.max(0, frame - 12),
+          fps: FPS,
+          from: 0,
+          to: 1,
+          config: { stiffness: 70, damping: 12, mass: 1 },
+        });
+
+        // Clamped target: $14,850,000
+        const currentCount = Math.min(14850000, 14850000 * springProgress);
+        counterNum.textContent = formatCurrency(currentCount);
+
+        // Kinetic scale impulse during acceleration and elastic settling
+        const scaleImpulse = anim.interpolate(springProgress, [0, 0.7, 1.05, 1.0], [0.92, 1.04, 1.02, 1.0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp'
+        });
+        counterNum.style.transform = `scale(${scaleImpulse})`;
+
+        // Sub-metric: Latency (interpolates from 14.8ms down to 0.8ms)
+        const currentLat = anim.interpolate(t, [0.3, 2.6], [14.8, 0.8], {
+          easing: anim.Easing.out(anim.Easing.cubic),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        latVal.textContent = currentLat.toFixed(1) + 'ms';
+
+        // Sub-metric: Success Rate (90.0% -> 99.99%)
+        const currentRate = anim.interpolate(t, [0.3, 2.6], [90.0, 99.99], {
+          easing: anim.Easing.out(anim.Easing.quad),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        rateVal.textContent = currentRate.toFixed(2) + '%';
+
+        // Sub-metric: Active Edge Nodes (0 -> 342)
+        const currentNodes = anim.interpolate(t, [0.3, 2.4], [0, 342], {
+          easing: anim.Easing.out(anim.Easing.cubic),
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        nodeVal.textContent = Math.round(currentNodes).toString();
+
+        // Bar opacity and slide
+        const barOpacity = anim.interpolate(t, [0.4, 1.0, 3.8, 4.3], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const barY = anim.interpolate(t, [0.4, 1.0], [20, 0], { easing: anim.Easing.out(anim.Easing.cubic), extrapolateLeft: 'clamp' });
+        metricsBar.style.opacity = barOpacity;
+        metricsBar.style.transform = `translateY(${barY}px)`;
+
+        // Radial background glow pulse
+        mesh.style.transform = `scale(${1 + 0.1 * Math.sin(t * 2)})`;
+      }
+    });
+  </script>
+</body>
+</html>

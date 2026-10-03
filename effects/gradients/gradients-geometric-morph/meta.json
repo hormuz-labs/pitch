@@ -1,0 +1,24 @@
+{
+  "move": "three glowing gradient shapes cycle circle, square, triangle, hexagon while spinning",
+  "how": "Three SVG paths filled with linear gradients sit at thirds of the width, each with a blurred (feGaussianBlur 18) glow copy behind at 55% opacity. Every D/4 each shape morphSVGs to the next form in the ring circle, square, triangle, hexagon over 0.75s (expo.inOut) from a different starting form so the fourth morph lands on its first; all rotate 360 over D (ease none) and the main shapes pulse scale 1 to 1.12 on a sine yoyo eight times per loop.",
+  "moves": [
+    "morph",
+    "spin",
+    "pulse",
+    "glow"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG",
+    "svg-filter"
+  ],
+  "adapt": "Change the three gradient pairs, the radius R, the caption and the forms list; keep the ring walk so each shape returns to its start after N morphs.",
+  "port": "mount(el, shot) injects the SVG with unique gradient and filter ids; animate(el, shot, D) returns the same timeline with step = D/N. Scope '#sa'..'#sc2' to el.",
+  "caveats": [
+    "SVG feGaussianBlur on three glow copies re-rasterises every frame",
+    "gradient and filter ids are document-level"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

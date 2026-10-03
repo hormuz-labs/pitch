@@ -17,6 +17,7 @@ import { commands, findCommand, namespaces } from './registry.ts'
  * look inside is worth writing by hand.
  */
 export const BLURBS: Record<string, string> = {
+  effects: 'the motion effects library — find a move, see its frames, read its page to port it',
   icons: 'offline brand and interface SVGs — search, import selected assets with provenance',
   motion: 'launch films — recon, scaffold, the engine schema, check, review, audio; user exports',
   media: 'ffmpeg, probing any media file, and publishing a finished file to the project',

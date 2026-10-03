@@ -1,0 +1,24 @@
+{
+  "move": "headline lines rush in from right with blur streak, resolve sharp",
+  "how": "A navy frame with a mint radial glow drifting sine.inOut over the 2s, a small logo top-right, three stacked 112px lines (the third in mint) filtered by an SVG feGaussianBlur, and a glassy transaction pill filtered by a second blur. From 2.5% each line arrives from x 520, opacity 0 and scaleX 1.25 with expo.out over 0.7s, 0.14s apart, while the horizontal stdDeviation of the text blur ramps 48 to 0 with expo.out so the streak sharpens as the lines land. At 27% the pill rises from y 90 with a vertical blur 30 to 0 (expo.out) and the logo fades in from x 30. At 75% the lines exit to x -520 with scaleX 1.25 and the blur returning to 48 (expo.in, 0.05s stagger), the pill drops out with vertical blur, and the logo fades, ending on the glow.",
+  "moves": [
+    "slide-in",
+    "motion-blur",
+    "stagger",
+    "blur-exit",
+    "drift"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the three lines, the accent colour, the pill contents and the logo text. Keep the 0.7s expo.out entry paired with the 48px horizontal blur decay; the blur must always track the direction of travel.",
+  "port": "mount(el, shot) builds the two inline SVG filters with per-instance ids, glow, logo, .stack rows and the .pill; animate(el, shot, D) returns a gsap.timeline with the line tweens at (0.05+i*0.14)/2*D, the blur proxy tweens (onUpdate writing stdDeviation) alongside, the pill at 0.275D and the exit at 0.75D. Replace getElementById with el.querySelector.",
+  "caveats": [
+    "animating an SVG blur filter on three 112px lines each frame is moderately slow",
+    "from() on .logo needs immediateRender:false if built lazily"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

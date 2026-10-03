@@ -1,0 +1,20 @@
+{
+  "move": "lines rotate up tilted on left baseline, overshoot flat, elastic snap",
+  "how": "A red stage with four corner labels and three 170px uppercase lines (the middle one white) in overflow-hidden rows, each with transform-origin at its left baseline. Corners fade in. Each line comes from yPercent 120 rotation 12 to 0/0 (expo.out, 0.55s) starting 0.14s apart from 2.5%, then overshoots to rotation -2.5 (power2.out, 0.12s) and settles to 0 with elastic.out(1,0.4). At 72% the lines tilt to rotation -10 and fly up yPercent -120 (power3.in) 0.08s apart and the corners fade.",
+  "moves": [
+    "tilt-in",
+    "snap",
+    "elastic",
+    "stagger",
+    "mask-rise"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the three lines and corner labels, the colours and which line is highlighted; keep the 12deg tilt, 0.55s expo.out entry and the -2.5 overshoot with elastic settle.",
+  "port": "mount(el, shot) builds the rows and corners; animate(el, shot, D) returns the timeline with line i at (0.025 + i*0.07)D and exit at 0.725D. Scope selectors to el; direct port.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

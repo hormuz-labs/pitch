@@ -1,0 +1,19 @@
+{
+  "move": "five multiply-blend circles orbit on ellipses and breathe, stacking order flips",
+  "how": "Five 420px flat-colour circles with mix-blend-mode multiply on cream, each on its own ellipse (radii 180 to 260 by 90 to 150) at one orbit per loop, alternating direction, phased a fifth apart, with scale 1 plus 0.18*sin at two pulses per loop and a zIndex that follows the orbit depth so the stacking order rolls. Everything is computed from t in a seek function via gsap.set, so t=D equals t=0. A small label and ring mark are static.",
+  "moves": [
+    "orbit",
+    "pulse",
+    "blend",
+    "depth-sort"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the five circle colours (multiply wants saturated primaries on a light ground), the circle size, the label; keep integer orbit and pulse counts per loop.",
+  "port": "mount(el, shot) appends the .c circles and label; animate(el, shot, D) returns a timeline with one {t:0->D, ease:none} tween whose onUpdate runs the seek(t) gsap.set calls. Scope querySelectorAll('.c') to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "pie wedge sweeps to 68%, second wedge follows, badge pops, all collapses",
+  "how": "A dark stage with a 340px SVG pie (a 140px-wide stroked circle so the dasharray reads as a solid wedge) and a savings legend. The pie scales in from .7 with back.out(1.6), the text staggers up. From 9% the green wedge sweeps to 68% (proxy tween, expo.out, 1.5s) while the centre tag counts and pops from .8 to 1.08 with back.out(3); at 50% a blue wedge extends to 100% with power3.inOut, updating the dollar figures. At 74% the pie bumps 1.04 and settles elastic while a Goal reached badge pops with back.out(2.2). From 90% the pie shrinks to .7 and fades (power3.in), text lifts out, and set() calls at the last frame reset every value.",
+  "moves": [
+    "wedge-sweep",
+    "counter",
+    "pop-in",
+    "elastic",
+    "stagger",
+    "scale-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the goal name, total (4800), the two wedge fractions, colours and the badge text; keep the 1.5s expo.out sweep and the 0.74D badge beat.",
+  "port": "mount(el, shot) builds the pie SVG and legend from shot; animate returns the timeline with sweeps at 0.09D and 0.5D, badge at 0.74D, exit at 0.9D and the reset set() at D-0.001. Scope draw() querySelectors to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false in a composed timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,27 @@
+{
+  "move": "line draws left to right with tracking dot, tooltip and area fill",
+  "how": "A white card with title, KPI and a 884x356 SVG plot whose 12 monthly values are turned into a smooth cubic bezier path, an area path with a vertical blue gradient, five gridlines and month/value labels. The card rises y:30 (power3.out); gridlines scale in scaleX from the left (expo.out, stagger 0.05) at 4-22%; axis labels fade with stagger 0.02. From 12% to 57% the line draws with DrawSVG 0% to 100% (power2.inOut) while a synced object tween moves a white dot with a translucent halo along line.getPointAtLength, widens a clipPath rect so the area fill reveals under the line, and positions an HTML tooltip and the KPI text from the current y value. At 59% the halo expands r 10 to 22 and fades twice as a ping. Exit from 82%: tooltip and dot fade, the line retracts to its end (drawSVG '100% 100%', expo.in) and the clip rect shrinks to 0, then the card lifts out.",
+  "moves": [
+    "draw-stroke",
+    "path-follow",
+    "mask-wipe",
+    "counter",
+    "ping"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "clip-path"
+  ],
+  "adapt": "Replace the vals array, max, month letters and title/subtitle/KPI badge; change #2563eb in .line, .dot, .halo and the gradient stops; keep the 1.8s power2.inOut draw and the synced dot tween, which must share the same ease so the dot stays on the line tip.",
+  "port": "mount(el, shot) builds the card and SVG, computes the bezier path and area from shot.values, and generates grid/labels; animate(el, shot, D) returns the same timeline with draw at 0.12-0.57 of D and retract at 0.82. The upd() function reads plot.clientWidth/clientHeight to position the HTML tooltip, so it must be called after layout; ids (#line, #clip, #ga, #cr) must be unique per instance and getElementById scoped to el. Requires DrawSVGPlugin.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "getPointAtLength and clientWidth measured on every update, layout dependent",
+    "SVG ids (clip, ga) collide if two instances mount on one page",
+    "line retracts and card fades out, no seamless loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

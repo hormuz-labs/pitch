@@ -1,0 +1,24 @@
+{
+  "move": "word column steps up with directional motion blur, dims from centre",
+  "how": "A dark frame with a hairline rule at the centre and a column of six large uppercase words (each 200px tall, with a small index label), repeated three times so the column can be scrolled through the middle copy. Every 1.5s (six holds over 9s) the column jumps up one word: y tweens by -200px with expo.inOut over 0.55s while an SVG feGaussianBlur on the column ramps its vertical stdDeviation 0 to 26 (power2.in) and back to 0 (power2.out), giving a smear in the direction of travel. A linear proxy tween drives an onUpdate that sets each row's opacity (1 down to 0.22) and scale (1 down to 0.82) by distance from the centre line, and a top/bottom gradient fade frames the window. After six steps the column has advanced exactly one copy, so frame 270 matches frame 0 and the loop is seamless.",
+  "moves": [
+    "scroll-step",
+    "motion-blur",
+    "stagger",
+    "loop",
+    "depth-dim"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the word list (any count; the duration becomes N * HOLD), the hold length, the font size / STEP height together, and the colours. Keep the 0.55s expo.inOut step with the blur peaking mid-move; that is the whole feel.",
+  "port": "mount(el, shot) builds the inline SVG filter with a unique id, the .win with the tripled word column and the fade overlay; animate(el, shot, D) returns a gsap.timeline whose per-word step tweens sit at (i*HOLD+0.85)/total*D, the blur attr tweens alongside, and one full-D linear proxy tween with onUpdate for the dimming. Replace getElementById with el.querySelector; STEP must match the rendered row height.",
+  "caveats": [
+    "animating an SVG filter attribute on a full-width column is moderately slow",
+    "duration is derived from word count (N*1.5s), not a free parameter"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,22 @@
+{
+  "move": "bento cells run separate gradient loops: conics spin, linears scroll, radials breathe",
+  "how": "A 4x2 bento grid with wide and tall cells, each holding a 1400px gradient layer larger than the cell. Two conic gradients rotate 360 and -360 over D (ease none), two linear gradients scroll backgroundPosition one tile (700px) in x or y, two radial gradients slide 240px and 160px while scaling 0.55 to 0.8 and 0.45 to 0.7 with sine.inOut yoyo. Every cell also breathes scale 1 to 0.97 on one sine yoyo per loop. Stat numbers and labels are static text over the colour.",
+  "moves": [
+    "spin",
+    "scroll",
+    "pulse",
+    "gradient-shift"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the six gradient definitions, the stat and label strings and the grid spans; keep full turns and one-tile scrolls per D so the loop closes.",
+  "port": "mount(el, shot) builds the .grid cells; animate(el, shot, D) returns the same timeline with durations D and D/2. Scope '.g.conic' etc. and '.cell' to el.",
+  "caveats": [
+    "six 1400px gradient layers with rotation are large to rasterise",
+    "linear scroll relies on background-size 50%/100% of a 1400px layer equalling 700px"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

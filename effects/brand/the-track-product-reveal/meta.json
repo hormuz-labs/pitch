@@ -1,0 +1,27 @@
+{
+  "move": "countdown punches, words rip through, flash, shoe drops with 3D turn",
+  "how": "On a dark stage with horizontal lines (scaleX in, expo.out), a countdown number set to 3, 2, 1 punches in from scale 1.8 with expo.out and shoves out with power2.in every 0.45s from 0.014D. From 0.21D three kinetic words rip in from left, right and bottom (x ±1200 / y 600, skewX -12, expo.out 0.35s) and exit the opposite way with expo.in, one every 0.5s. At 0.44D a white flash fades, a radial glow blooms from scale 0.3 with expo.out, 16 burst rays scaleY 0→1 and shoot outward y:380 then fade, and an SVG sneaker drops from y:-1500 with rotateY:-80, rotateZ:-20, scale 1.3 to rest with back.out(1.3) over 0.9s, then sways rotateY 18 / -12 with sine.inOut. The name rises from masks, meta and CTA land, the CTA bumps with elastic.out at 0.76D, and at 0.92D everything punches out (product drops y:1000, text shoves up, glow fades).",
+  "moves": [
+    "counter",
+    "punch-in",
+    "kinetic-text",
+    "flash",
+    "burst",
+    "drop-in",
+    "flip-3d"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the countdown values, the three kinetic words, the product SVG (or an image), name lines, meta chips, CTA and logo; keep the 0.45s countdown cadence, the 0.35s word rips and the back.out(1.3) drop.",
+  "port": "mount(el, shot) builds .lines, .logo, .count, .kin words, .glow, .burst with 16 generated rays, .product, .name, .meta, .cta and .flash; animate(el, shot, D) returns the timeline with offsets as fractions of D (countdown 0.1/7 + i*0.45/7, words 1.5/7 + i*0.5/7, reveal 3.05/7, exit 6.45/7). Scope selectors to el; the container needs perspective:1600px.",
+  "caveats": [
+    "large off-frame x/y values (±1200, -1500) assume a 1080x1920 stage",
+    "from() tweens on name/meta/cta need immediateRender:false when rebuilt",
+    "the burst uses scaleY on 16 rotated elements"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

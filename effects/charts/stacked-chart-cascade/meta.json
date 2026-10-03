@@ -1,0 +1,24 @@
+{
+  "move": "stacked area layers rise one after another with overshoot, sink back",
+  "how": "A dark stage with title and subtitle, a right-aligned legend column and a 1120x440 SVG holding six gridlines, week labels and four stacked area paths (orange organic, pink paid, purple referral, green direct) built by stacking smooth bezier curves on top of each other, each stroked with the background colour to separate layers. Header slides up y:20 (power3.out); gridlines scale scaleX from the left (expo.out, stagger 0.04) at 4-25%; labels fade. From 12% the layers rise with scaleY 0 to 1 about the baseline (transform-origin at base y) using back.out(1.2) over 0.9s with a 0.28s stagger so each layer lands with a slight overshoot before the next begins; legend rows slide in x:24 in step. Hold at 55%: the stack breathes scaleY 1.02 yoyo (sine.inOut, stagger 0.05). Exit at 80%: layers sink scaleY to 0 with expo.in staggered 0.08 from the top layer down, legend rows slide out, all fades.",
+  "moves": [
+    "stack-build",
+    "overshoot",
+    "stagger",
+    "grow-bar",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Edit the series array of [name, colour, 12 values] (any count of layers) and max, title/subtitle; keep the 0.9s back.out(1.2) rise with 0.28 stagger, which is the cascade feel, and the from-end expo.in sink.",
+  "port": "mount(el, shot) builds header, legend and SVG, stacks the series into area paths with transformOrigin at the baseline; animate(el, shot, D) returns the same timeline with layer rises at 0.12-0.55 of D, breath at 0.55, sink at 0.8. getElementById calls scoped to el; no plugins needed.",
+  "caveats": [
+    "scaleY about a pixel transform-origin set via inline style on SVG paths",
+    "fx.rng(11) is declared but unused",
+    "stage fades to black at the end, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Mobbin UI Camera",
+  "seconds": 10,
+  "move": "minimal partner lockup gives way to a wide product canvas; the camera focuses the prompt controls, then pulls back as mobile references fan into view",
+  "how": "The opening uses clipped text and a disciplined cross-lockup. A faint blue canvas wipes upward and the camera begins deliberately wide. It eases toward the prompt using an expoInOut focus move; menu rows appear one at a time, the cursor chooses Reference from Mobbin, and the camera then pulls backward while a staggered row of phone cards expands from the control. The active phone remains sharp while its neighbors carry depth blur, producing a rack-focus feel without video footage.",
+  "moves": [
+    "camera-pan",
+    "focus-zoom",
+    "rack-focus",
+    "masked-text",
+    "stagger",
+    "ui-demo"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Replace the partner names, prompt actions and phone-card DOM. Keep the initial restraint, the focus move toward the single control, and the pullback that reveals the result scale.",
+  "port": "Mount one oversized .world and drive its {x,y,zoom} target with Motion.camera. Cards and menu rows are scoped DOM nodes whose stagger is calculated from the seek time.",
+  "caveats": [
+    "Phone designs are intentionally generic DOM recreations",
+    "Anything's native italic wordmark is approximated with Sorts Mill Goudy"
+  ],
+  "fidelity": "motion-study",
+  "loop": false,
+  "size": "1920x1080"
+}

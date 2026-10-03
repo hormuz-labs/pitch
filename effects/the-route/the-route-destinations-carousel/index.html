@@ -1,0 +1,91 @@
+<!doctype html><meta charset="utf-8">
+<title>The Route: Destinations Carousel</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0d1b2a;color:#fff;overflow:hidden}
+  .bg{position:absolute;inset:-6%;background:url("../../../assets/backgrounds/aurora.png") center/cover;filter:brightness(.4) saturate(.8)}
+  .hd{position:absolute;left:80px;top:64px;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.3em;text-transform:uppercase;opacity:.7}
+  .big{position:absolute;left:80px;top:90px;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:56px;letter-spacing:-.03em;height:70px;overflow:hidden}
+  .big span{position:absolute;left:0;top:0;white-space:nowrap}
+  .track{position:absolute;left:0;top:200px;height:360px;display:flex;gap:28px;padding-left:80px;will-change:transform}
+  .card{position:relative;flex:none;width:380px;height:360px;border-radius:24px;overflow:hidden;background:#1c2a3a;box-shadow:0 30px 60px rgba(0,0,0,.4);transform-origin:center bottom;will-change:transform}
+  .card .ph{position:absolute;inset:0;background-size:cover;background-position:center}
+  .card .sh{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.75))}
+  .card .txt{position:absolute;left:24px;right:24px;bottom:24px}
+  .card .name{font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:34px;letter-spacing:-.02em}
+  .card .meta{font-size:14px;opacity:.8;margin-top:4px}
+  .card .tag{position:absolute;left:20px;top:20px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:6px 10px;border-radius:99px}
+  .route{position:absolute;left:0;right:0;bottom:70px;height:60px}
+  .route svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+  .plane{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;will-change:transform}
+  .stops{position:absolute;left:0;right:0;top:0;height:60px}
+  .stop{position:absolute;top:30px;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.15)}
+  .stop b{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.15em;text-transform:uppercase;white-space:nowrap;opacity:.6;font-weight:400}
+  .stop.on{background:#ffd23f}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="hd">Northwind Travel · Your route</div>
+  <div class="big"><span class="b0">Lisbon</span><span class="b1">Marrakech</span><span class="b2">Cape Town</span><span class="b3">Zanzibar</span></div>
+  <div class="track">
+    <div class="card"><div class="ph" style="background-image:url('../../../assets/backgrounds/sunset.png')"></div><div class="sh"></div><span class="tag">Stop 01</span><div class="txt"><div class="name">Lisbon</div><div class="meta">3 nights · Waterfront hotel</div></div></div>
+    <div class="card"><div class="ph" style="background-image:url('../../../assets/backgrounds/ocean.png');filter:hue-rotate(150deg) saturate(1.2)"></div><div class="sh"></div><span class="tag">Stop 02</span><div class="txt"><div class="name">Marrakech</div><div class="meta">2 nights · Riad in the medina</div></div></div>
+    <div class="card"><div class="ph" style="background-image:url('../../../assets/backgrounds/aurora.png')"></div><div class="sh"></div><span class="tag">Stop 03</span><div class="txt"><div class="name">Cape Town</div><div class="meta">4 nights · Table Mountain view</div></div></div>
+    <div class="card"><div class="ph" style="background-image:url('../../../assets/backgrounds/ocean.png')"></div><div class="sh"></div><span class="tag">Stop 04</span><div class="txt"><div class="name">Zanzibar</div><div class="meta">5 nights · Beach villa</div></div></div>
+    <div class="card"><div class="ph" style="background-image:url('../../../assets/backgrounds/sunset.png')"></div><div class="sh"></div><span class="tag">Stop 01</span><div class="txt"><div class="name">Lisbon</div><div class="meta">3 nights · Waterfront hotel</div></div></div>
+  </div>
+  <div class="route">
+    <svg viewBox="0 0 1280 60" preserveAspectRatio="none">
+      <path id="rp" d="M120 30 C 300 -10, 420 70, 560 30 S 820 -10, 960 30 S 1100 70, 1160 30" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-dasharray="6 8"/>
+      <path id="rpd" d="M120 30 C 300 -10, 420 70, 560 30 S 820 -10, 960 30 S 1100 70, 1160 30" fill="none" stroke="#ffd23f" stroke-width="3"/>
+    </svg>
+    <div class="stops">
+      <div class="stop s0" style="left:120px"><b>LIS</b></div>
+      <div class="stop s1" style="left:467px"><b>RAK</b></div>
+      <div class="stop s2" style="left:813px"><b>CPT</b></div>
+      <div class="stop s3" style="left:1160px"><b>ZNZ</b></div>
+    </div>
+    <svg class="plane" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#fff"/></svg>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin);
+  const D = 10, N = 4, STEP = D / N, CW = 380 + 28;
+  const tl = fx.timeline({ duration: D });
+  tl.fromTo('.bg', { xPercent: -2 }, { xPercent: 2, duration: D, ease: 'none' }, 0);
+  gsap.set('.big span', { yPercent: 110 });
+  gsap.set('#rpd', { drawSVG: '0%' });
+  gsap.set('.card', { scale: 0.92, opacity: 0.55 });
+  gsap.set('.card:first-child', { scale: 1, opacity: 1 });
+  gsap.set('.stop.s0', { className: 'stop s0 on' });
+  // the plane always rides the route; cards track it
+  tl.to('.plane', { motionPath: { path: '#rp', align: '#rp', alignOrigin: [0.5, 0.5], autoRotate: 45 }, duration: D, ease: 'none' }, 0);
+  tl.to('#rpd', { drawSVG: '0% 100%', duration: D, ease: 'none' }, 0);
+  for (let i = 0; i < N; i++) {
+    const t = i * STEP;
+    // headline swap
+    if (i > 0) tl.to(`.big .b${i - 1}`, { yPercent: -110, duration: 0.45, ease: 'expo.in' }, t - 0.05);
+    tl.to(`.big .b${i}`, { yPercent: 0, duration: 0.7, ease: 'expo.out' }, t + 0.35);
+    // the carousel snaps to the next stop
+    if (i > 0) {
+      tl.to('.track', { x: -CW * i, duration: 0.9, ease: 'expo.inOut' }, t);
+      tl.to(`.card:nth-child(${i})`, { scale: 0.92, opacity: 0.55, duration: 0.6, ease: 'power2.out' }, t + 0.2);
+      tl.to(`.card:nth-child(${i + 1})`, { scale: 1, opacity: 1, duration: 0.7, ease: 'back.out(1.6)' }, t + 0.3);
+      tl.set(`.stop.s${i}`, { className: `stop s${i} on` }, t + 0.5);
+    }
+    // a little breathing lift on the active card between snaps
+    tl.to(`.card:nth-child(${i + 1})`, { y: -10, duration: STEP / 2, ease: 'sine.inOut' }, t + 0.8)
+      .to(`.card:nth-child(${i + 1})`, { y: 0, duration: STEP / 2 - 0.9, ease: 'sine.inOut' }, t + 0.8 + STEP / 2);
+  }
+  // wrap: last card slides into the 5th (= first) position, then a hard cut to 0 reads as continuous
+  tl.to('.big .b3', { yPercent: -110, duration: 0.45, ease: 'expo.in' }, D - 0.8);
+  tl.to('.track', { x: -CW * 4, duration: 0.9, ease: 'expo.inOut' }, D - 0.95);
+  tl.to('.card:nth-child(4)', { scale: 0.92, opacity: 0.55, duration: 0.6 }, D - 0.75);
+  tl.to('.card:nth-child(5)', { scale: 1, opacity: 1, duration: 0.7, ease: 'back.out(1.6)' }, D - 0.65);
+  tl.to('.stop', { boxShadow: '0 0 0 4px rgba(255,255,255,.15)', duration: 0.01 }, D - 0.01);
+</script>

@@ -1,0 +1,208 @@
+[
+ {
+  "name": "The Track: Slideshow",
+  "family": "Brand",
+  "familySlug": "brand",
+  "slug": "the-track-slideshow",
+  "seconds": 3,
+  "tags": [
+   "the-track",
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A slideshow that cycles through product shots in sequence. Ideal for product reveals and lookbooks by sports and fitness brands..",
+  "jitterUrl": "https://jitter.video/template/the-track-slideshow/"
+ },
+ {
+  "name": "The Track: Tagline",
+  "family": "Brand",
+  "familySlug": "brand",
+  "slug": "the-track-tagline",
+  "seconds": 4,
+  "tags": [
+   "the-track",
+   "social-media",
+   "ads"
+  ],
+  "description": "A bold typographic reveal that drops a sports product onto a dark stage. Great for product drops, campaign launches, and high-impact brand moments.",
+  "jitterUrl": "https://jitter.video/template/the-track-tagline/"
+ },
+ {
+  "name": "Before & After: Side By Side",
+  "family": "Before and after",
+  "familySlug": "before-and-after",
+  "slug": "before-after-side-by-side",
+  "seconds": 5,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "Before and after images placed side by side for instant comparison. Great for makeovers, product comparisons, and animated progress reels.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Before & After: Slider",
+  "family": "Before and after",
+  "familySlug": "before-and-after",
+  "slug": "before-after-slider",
+  "seconds": 10,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A slider glide that pulls back the curtain on your transformation. Great for interior design, renovation, and reveal-style reels.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Before & After: Split",
+  "family": "Before and after",
+  "familySlug": "before-and-after",
+  "slug": "before-after-split",
+  "seconds": 5,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A masked reveal that splits the frame to show before and after. Great for transformations, renovations, and dramatic reveals.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Before & After: Swipe",
+  "family": "Before and after",
+  "familySlug": "before-and-after",
+  "slug": "before-after-swipe",
+  "seconds": 5,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A swipe animation that glides across to reveal the after. Great for interactive comparisons and animated transformation reveals.",
+  "jitterUrl": null
+ },
+ {
+  "name": "The Prompt: Generative AI Features",
+  "family": "The Prompt — AI product UI",
+  "familySlug": "the-prompt",
+  "slug": "the-prompt-generative-ai-features",
+  "seconds": 13,
+  "tags": [
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated UI template walking through generative AI features. Great for AI product demos and feature announcement content where showing is more convincing than telling.",
+  "jitterUrl": "https://jitter.video/template/the-prompt-generative-ai-features/"
+ },
+ {
+  "name": "The Vault: Animated Cards",
+  "family": "The Vault — fintech UI",
+  "familySlug": "the-vault",
+  "slug": "the-vault-animated-cards",
+  "seconds": 11,
+  "tags": [
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated card stack template where cards reveal themselves in a layered sequence. Great for fintech and product showcases where the UI needs to feel polished.",
+  "jitterUrl": "https://jitter.video/template/the-vault-animated-cards/"
+ },
+ {
+  "name": "The Vault: Card Reveal",
+  "family": "The Vault — fintech UI",
+  "familySlug": "the-vault",
+  "slug": "the-vault-card-reveal",
+  "seconds": 16,
+  "tags": [],
+  "description": "A payment card animation template with a smooth premium reveal. Great for fintech product launches and banking app showcases where the card itself is the moment.",
+  "jitterUrl": "https://jitter.video/template/the-vault-card-reveal/"
+ },
+ {
+  "name": "The Track: Animated Metrics",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-animated-metrics",
+  "seconds": 5,
+  "tags": [],
+  "description": "A fitness app showcase with animated stats and data points. Perfect for product promos and feature highlight reels.",
+  "jitterUrl": "https://jitter.video/template/the-track-app-showcase/"
+ },
+ {
+  "name": "The Track: Animated Quote",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-animated-quote",
+  "seconds": 5,
+  "tags": [
+   "social-media",
+   "ads"
+  ],
+  "description": "An animated quote card that frames bold statements over athlete imagery. Ideal for motivational posts and brand storytelling.",
+  "jitterUrl": "https://jitter.video/template/the-track-quote/"
+ },
+ {
+  "name": "The Track: Countdown",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-countdown",
+  "seconds": 4,
+  "tags": [],
+  "description": "A countdown animation set inside a running-track graphic. Great for event teasers and sport campaign launches.",
+  "jitterUrl": "https://jitter.video/template/the-track-countdown/"
+ },
+ {
+  "name": "The Track: Mobile App Showcase",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-mobile-app-showcase",
+  "seconds": 11,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A mobile app showcase template with kinetic motion and a fast pace built for social media. Great for app promos and product launch content.",
+  "jitterUrl": "https://jitter.video/template/the-track-mobile-app-showcase/"
+ },
+ {
+  "name": "The Track: Personal Record",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-personal-record",
+  "seconds": 9,
+  "tags": [
+   "social-media"
+  ],
+  "description": "An animated fitness template that captures the moment a user hits a personal record. Perfect for health and workout app promos where the reward state is part of the story.",
+  "jitterUrl": "https://jitter.video/template/the-track-personal-record/"
+ },
+ {
+  "name": "The Track: Promo Reel",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-promo-reel",
+  "seconds": 10,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A promo reel template with kinetic motion and fast pacing. Great for product launches and brand campaign content where you need to hold attention quickly.",
+  "jitterUrl": "https://jitter.video/template/the-track-promo-reel/"
+ },
+ {
+  "name": "The Track: Session Complete",
+  "family": "The Track — sport, kinetic",
+  "familySlug": "the-track",
+  "slug": "the-track-session-complete",
+  "seconds": 6,
+  "tags": [
+   "social-media"
+  ],
+  "description": "An animated session completion template inspired by fitness app UI. Great for workout app promos and any product that wants to celebrate a completed action.",
+  "jitterUrl": "https://jitter.video/template/the-track-session-complete/"
+ }
+]

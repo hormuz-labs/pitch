@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8">
+<title>The Harvest: Pulp</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#efe6d2}
+  .label{position:absolute;left:90px;right:90px;top:200px;bottom:200px;background:#fffaf0;border:4px solid #1f2a1a;border-radius:40px;padding:70px 64px;color:#1f2a1a;overflow:hidden;transform-origin:50% 50%}
+  .brand{font-family:"Sorts Mill Goudy",serif;font-size:150px;line-height:.9;letter-spacing:-.02em}
+  .brand .row{overflow:hidden;height:.95em}.brand .row span{display:block}
+  .sub{margin-top:24px;font-family:"Atlas Grotesk",sans-serif;font-size:28px;letter-spacing:.22em;text-transform:uppercase;overflow:hidden;height:36px}
+  .sub span{display:block}
+  .rule{height:4px;background:#1f2a1a;margin:48px 0 36px;transform-origin:left center}
+  .list{display:flex;flex-direction:column;gap:0}
+  .item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid rgba(31,42,26,.18);padding:22px 0;overflow:hidden}
+  .item .n{font-family:"Sorts Mill Goudy",serif;font-size:56px}
+  .item .p{font-family:"Atlas Grotesk",sans-serif;font-size:30px;color:#6b7a5a}
+  .item .in{display:flex;justify-content:space-between;width:100%;align-items:baseline}
+  .bar{position:relative;height:16px;background:rgba(31,42,26,.12);border-radius:8px;margin-top:10px;width:100%;flex-basis:100%}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:#e35d2b;transform-origin:left center}
+  .blob{position:absolute;right:-60px;bottom:-60px;width:420px;height:420px;border-radius:50%;background:#e35d2b;opacity:.9}
+  .blob2{position:absolute;right:120px;bottom:80px;width:180px;height:180px;border-radius:50%;background:#f4a340}
+  .stamp{position:absolute;right:70px;bottom:60px;width:190px;height:190px;border:4px solid #fffaf0;border-radius:50%;color:#fffaf0;display:flex;align-items:center;justify-content:center;text-align:center;font-family:"Atlas Grotesk",sans-serif;font-size:20px;letter-spacing:.14em;text-transform:uppercase;line-height:1.3}
+  .foot{position:absolute;left:64px;bottom:60px;font-family:"Atlas Grotesk",sans-serif;font-size:24px;color:#6b7a5a}
+  .drip{position:absolute;left:0;right:0;top:-20px;height:40px;background:#e35d2b;border-radius:0 0 30px 30px;transform-origin:50% 0}
+</style>
+<div class="stage">
+  <div class="label">
+    <div class="brand"><div class="row"><span>Pulp</span></div><div class="row"><span>No. 7</span></div></div>
+    <div class="sub"><span>Cold-pressed · 500 ml</span></div>
+    <div class="rule"></div>
+    <div class="list">
+      <div class="item"><div class="in"><span class="n">Orange</span><span class="p">62%</span></div><div class="bar"><i data-w="62"></i></div></div>
+      <div class="item"><div class="in"><span class="n">Carrot</span><span class="p">20%</span></div><div class="bar"><i data-w="20"></i></div></div>
+      <div class="item"><div class="in"><span class="n">Ginger</span><span class="p">11%</span></div><div class="bar"><i data-w="11"></i></div></div>
+      <div class="item"><div class="in"><span class="n">Turmeric</span><span class="p">7%</span></div><div class="bar"><i data-w="7"></i></div></div>
+    </div>
+    <div class="blob"></div><div class="blob2"></div>
+    <div class="stamp">Pressed<br>today</div>
+    <div class="foot">Keep cold. Shake well.</div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 9 });
+  const items = gsap.utils.toArray('.item');
+  items.forEach(el => { el.style.flexWrap = 'wrap'; });
+  // the label card scales in with a soft settle, then the ingredient lines reveal one by one
+  tl.from('.label', { scale: .92, y: 60, opacity: 0, duration: .9, ease: 'expo.out' }, 0)
+    .from('.brand .row span', { yPercent: 110, duration: .8, ease: 'expo.out', stagger: .12 }, .3)
+    .from('.sub span', { yPercent: 110, duration: .6, ease: 'expo.out' }, .6)
+    .from('.rule', { scaleX: 0, duration: .8, ease: 'expo.out' }, .8)
+    .from('.blob', { scale: 0, duration: 1.1, ease: 'expo.out' }, .5)
+    .from('.blob2', { scale: 0, duration: 1, ease: 'back.out(1.8)' }, .8)
+    .from('.stamp', { scale: 0, rotation: -40, duration: .8, ease: 'back.out(1.6)' }, 1.1)
+    .from('.foot', { opacity: 0, duration: .5 }, 1.4);
+  items.forEach((el, i) => {
+    const t0 = 1.1 + i * .55;
+    tl.from(el.querySelector('.in'), { yPercent: 120, duration: .7, ease: 'expo.out' }, t0)
+      .from(el, { borderBottomColor: 'rgba(31,42,26,0)', duration: .6 }, t0)
+      .fromTo(el.querySelector('.bar i'), { scaleX: 0 }, { scaleX: 1, width: el.querySelector('.bar i').dataset.w + '%', duration: 1, ease: 'expo.out' }, t0 + .25);
+  });
+  // hold: the stamp keeps turning, the juice blob breathes
+  tl.to('.stamp', { rotation: 360, duration: 7, ease: 'none' }, 1.5)
+    .to('.blob', { scale: 1.08, duration: 1.6, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 2)
+    .to('.blob2', { y: -14, duration: 1.3, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 2.3);
+  // exit: lines fold back up in order, then the label drops away
+  tl.to('.item .in', { yPercent: -120, duration: .4, ease: 'expo.in', stagger: .08 }, 7.6)
+    .to('.bar i', { scaleX: 0, transformOrigin: 'right center', duration: .4, ease: 'expo.in', stagger: .08 }, 7.6)
+    .to('.rule', { scaleX: 0, transformOrigin: 'right center', duration: .4, ease: 'expo.in' }, 7.95)
+    .to('.brand .row span, .sub span', { yPercent: -110, duration: .4, ease: 'expo.in', stagger: .06 }, 8.0)
+    .to('.label', { y: 120, opacity: 0, duration: .5, ease: 'power3.in' }, 8.4);
+</script>

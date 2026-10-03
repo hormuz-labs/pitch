@@ -1,0 +1,12 @@
+{
+  "move": "browser window rises, page scrolls, each block lifts in as it enters",
+  "how": "A 900px browser window with an editorial article (serif headline, hero image, paragraphs, two-up images, pull quote) sits on a warm grey stage. The window enters with from y:120/opacity:0 over the first 18% (expo.out), the nav fades and the two headline lines rise via yPercent:110 line-masks (expo.out, stagger 0.1) at 7%. From 26% to 90% the .doc translates y to -(scrollHeight - viewport) with power1.inOut while a thin scrollbar thumb tracks it; each .r block gets a from y:44/opacity:0 expo.out reveal timed by numerically inverting the scroll ease so it fires when the block crosses the lower third of the viewport, and images settle from scale 1.2 to 1 while their .im layers drift yPercent:-6 for parallax. At 91% the window drops out with y:140/opacity:0 expo.in.",
+  "moves": ["scroll-reveal", "slide-in", "line-mask", "parallax", "zoom", "stagger"],
+  "libs": ["gsap"],
+  "adapt": "Replace the URL bar text, masthead, headline lines, byline, body copy and the three background images (sunset/ocean/aurora); keep the 0.9s window entrance, the 3.2s power1.inOut scroll and the 0.7s expo.out block reveals. Article length changes the scroll distance automatically since it is measured from scrollHeight.",
+  "port": "mount(el, shot) builds the window/doc markup inside el from shot strings and image URLs; animate(el, shot, D) measures doc.scrollHeight - view.clientHeight after mount, builds the same timeline with times as fractions of D (window in 0-0.18, scroll 0.26-0.9, exit at 0.91) and returns it. All selectors must be scoped with el.querySelector; the ease-inversion loop for reveal timing works unchanged; images are preloaded with fx.wait so the engine needs an equivalent decode wait.",
+  "caveats": ["reveal timing depends on layout measurement (offsetTop/scrollHeight), so fonts must be loaded before building", "three full-bleed cover images with scale tweens", "exit drops the window but the last frame is not the first (window enters from below, exits below)"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

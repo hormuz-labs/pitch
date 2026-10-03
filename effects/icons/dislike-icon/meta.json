@@ -1,0 +1,25 @@
+{
+  "move": "thumbs-down pill: press squash, tilt, red fill pops, droplets fall, count ticks",
+  "how": "A rounded pill holding a thumbs-down SVG (grey outline over a red fill at scale 0), a ripple ring, six red droplet circles and a two-line rolling count (128/129) clipped to one line. 0-23%: the pill rises 40px and fades in (expo.out). At 30% the icon squashes to .82 (power2.in), then at 35% springs back to 1 while rotating -18deg with elastic.out(1,.4); the red fill scales up with back.out(2), the outline stroke turns red, the ripple scales .6->1.9 fading out, the pill tints pink, and the count rolls: '128' moves yPercent -100 as '129' comes to 0 (power3.inOut, 0.4s) while the droplets fly downward along per-dot vectors and fade (power2.out, 0.03s stagger). At 67% the tilt eases back to 0 (power2.inOut); at 87% the pill lifts 30px and fades out (power3.in).",
+  "moves": [
+    "squash",
+    "elastic",
+    "pop",
+    "ripple",
+    "particles",
+    "counter",
+    "slide-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the count numbers, the red (#ff4d5e) and pink tint, the thumb path for any reaction icon, and the droplet count. Keep the .15s press, the elastic.out(1,.4) rebound and the 0.4s count roll.",
+  "port": "mount(el, shot) builds the pill, injects the droplet circles and sets the initial gsap.set states; animate(el, shot, D) returns the timeline with positions as fractions of D (press at 0.3D, react at 0.35D, exit at 0.87D). Scope the '.sad' droplet generation and all selectors to el; the .from() on .pill needs immediateRender:false when nested.",
+  "caveats": [
+    "from() tween on .pill needs immediateRender:false when nested",
+    "ends with the pill faded out rather than back at the first frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

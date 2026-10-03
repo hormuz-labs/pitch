@@ -1,0 +1,20 @@
+{
+  "move": "multiply colour rectangles fly in from edges, drift over each other, exit",
+  "how": "Five flat rectangles (cyan, magenta, yellow, blue, green) with mix-blend-mode multiply on off-white enter from four edges with slight rotation over 1s (expo.out), staggered 0.07s from 0. From 0.22D they slide 100 to 220px across each other for 2.8s (sine.inOut) so the overlap colours keep changing. The headline pops in at 0.15D with back.out(1.8) in overlay blend and snaps out (power3.in) at 0.77D; from 0.82D the blocks leave the way they came, staggered 0.07s (expo.in, 0.55s), so t=D matches t=0.",
+  "moves": [
+    "slide-in",
+    "blend",
+    "drift",
+    "stagger",
+    "pop"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the block colours, sizes and positions, the headline and footer strings; keep the enter/exit symmetry, the 1s expo.out entrance and the 2.8s sine drift.",
+  "port": "mount(el, shot) appends the .b blocks, .word and .foot; animate(el, shot, D) returns the timeline with entrances at i*0.014D, drift at 0.22D, exits from 0.82D. Scope '.b1..b5' and '.word' to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8">
+<title>Motion Blur</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a1a2f}
+  .glow{position:absolute;right:-200px;top:-200px;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(39,209,163,.35),rgba(39,209,163,0) 65%)}
+  .stack{position:absolute;left:110px;top:200px}
+  .row{overflow:visible;margin-bottom:6px}
+  .line{display:inline-block;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:112px;letter-spacing:-.04em;line-height:1;color:#fff;white-space:nowrap;filter:url(#mb1);will-change:transform,opacity}
+  .line.acc{color:#27d1a3}
+  .pill{position:absolute;left:110px;bottom:120px;display:flex;align-items:center;gap:16px;padding:18px 28px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:"Atlas Grotesk",sans-serif;font-size:24px;filter:url(#mb2)}
+  .pill .dot{width:12px;height:12px;border-radius:50%;background:#27d1a3}
+  .pill b{font-weight:500;color:#27d1a3}
+  .logo{position:absolute;right:110px;top:70px;display:flex;align-items:center;gap:12px;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:22px;letter-spacing:.12em;color:#fff}
+  .logo i{display:block;width:26px;height:26px;border-radius:8px;background:#27d1a3}
+</style>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="mb1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur id="b1" stdDeviation="0 0"/></filter>
+  <filter id="mb2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur id="b2" stdDeviation="0 0"/></filter>
+</svg>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="logo"><i></i>NORTHWIND</div>
+  <div class="stack">
+    <div class="row"><span class="line" id="l1">Send money.</span></div>
+    <div class="row"><span class="line" id="l2">Anywhere.</span></div>
+    <div class="row"><span class="line acc" id="l3">Instantly.</span></div>
+  </div>
+  <div class="pill"><span class="dot"></span><span>Transfer to Maya</span><b>$1,240.00</b><span>· 0.4s</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 2 });
+  const b1 = document.getElementById('b1'), b2 = document.getElementById('b2');
+  const s1 = { x: 0 }, s2 = { x: 0, y: 0 };
+  const ap1 = () => b1.setAttribute('stdDeviation', s1.x.toFixed(2) + ' 0');
+  const ap2 = () => b2.setAttribute('stdDeviation', s2.x.toFixed(2) + ' ' + s2.y.toFixed(2));
+  // lines rush in from the right with a horizontal blur streak that resolves to sharp
+  const lines = ['#l1', '#l2', '#l3'];
+  lines.forEach((sel, i) => {
+    const at = 0.05 + i * 0.14;
+    tl.fromTo(sel, { x: 520, opacity: 0, scaleX: 1.25 }, { x: 0, opacity: 1, scaleX: 1, duration: 0.7, ease: 'expo.out' }, at);
+  });
+  tl.fromTo(s1, { x: 48 }, { x: 0, duration: 0.85, ease: 'expo.out', onUpdate: ap1 }, 0.05);
+  // pill pops in with a vertical blur (arrives from below)
+  tl.fromTo('.pill', { y: 90, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: 'expo.out' }, 0.55)
+    .fromTo(s2, { y: 30 }, { y: 0, duration: 0.7, ease: 'expo.out', onUpdate: ap2 }, 0.55);
+  tl.from('.logo', { opacity: 0, x: 30, duration: 0.5, ease: 'power3.out' }, 0.2);
+  tl.fromTo('.glow', { scale: 0.8, x: 60 }, { scale: 1.1, x: -40, duration: 2, ease: 'sine.inOut' }, 0);
+  // exit: blur back out to the left
+  tl.to(lines, { x: -520, opacity: 0, scaleX: 1.25, duration: 0.4, ease: 'expo.in', stagger: 0.05 }, 1.5)
+    .to(s1, { x: 48, duration: 0.45, ease: 'expo.in', onUpdate: ap1 }, 1.5)
+    .to('.pill', { y: 80, opacity: 0, duration: 0.35, ease: 'expo.in' }, 1.6)
+    .to(s2, { y: 30, duration: 0.35, ease: 'expo.in', onUpdate: ap2 }, 1.6)
+    .to('.logo', { opacity: 0, duration: 0.25 }, 1.75);
+</script>

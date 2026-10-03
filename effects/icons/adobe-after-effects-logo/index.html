@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8">
+<title>After Effects Logo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0c0a1a;display:flex;align-items:center;justify-content:center}
+  .tile{position:relative;width:300px;height:300px;border-radius:56px;background:#00005b;box-shadow:0 30px 80px rgba(153,153,255,.25);overflow:hidden}
+  .tile .ltr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:150px;color:#9999ff;letter-spacing:-.04em;line-height:1}
+  .ltr span{display:inline-block;will-change:transform}
+  .frame{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .frame rect{fill:none;stroke:#9999ff;stroke-width:6}
+  .curve{position:absolute;left:50%;top:50%;width:820px;height:380px;transform:translate(-50%,-50%);overflow:visible}
+  .curve path{fill:none;stroke:#9999ff;stroke-width:3;opacity:.55}
+  .curve .kf{fill:#fff}
+  .curve .grid line{stroke:#2a2660;stroke-width:1}
+</style>
+<div class="stage">
+  <svg class="curve" viewBox="0 0 820 380">
+    <g class="grid"><line x1="0" y1="330" x2="820" y2="330"/><line x1="0" y1="50" x2="820" y2="50"/><line x1="0" y1="190" x2="820" y2="190"/></g>
+    <path class="ease" d="M40,330 C220,330 330,50 410,50 S600,330 780,330"/>
+    <rect class="kf" x="0" y="0" width="16" height="16" transform="rotate(45)"/>
+  </svg>
+  <div class="tile">
+    <svg class="frame" viewBox="0 0 300 300"><rect x="3" y="3" width="294" height="294" rx="54"/></svg>
+    <div class="ltr"><span class="a">A</span><span class="e">e</span></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin);
+  const tl = fx.timeline({ duration: 4 });
+  tl.from('.grid line',{scaleX:0,transformOrigin:'50% 50%',duration:.8,stagger:.08,ease:'expo.out'},0)
+    // the tile: outline draws itself, then fills
+    .fromTo('.frame rect',{drawSVG:'0%'},{drawSVG:'100%',duration:1,ease:'power2.inOut'},.1)
+    .from('.tile',{backgroundColor:'rgba(0,0,91,0)',boxShadow:'0 0 0 rgba(153,153,255,0)',duration:.6,ease:'power2.out'},.9)
+    // letters: A drops in, e rises — a keyframed move
+    .from('.ltr .a',{yPercent:-230,duration:.7,ease:'expo.out'},1.1)
+    .from('.ltr .e',{yPercent:230,duration:.7,ease:'expo.out'},1.22)
+    .fromTo('.ltr',{scaleY:.8,scaleX:1.1},{scaleY:1,scaleX:1,duration:.5,ease:'elastic.out(1,.5)'},1.65)
+    // the craft: an ease curve draws behind while a keyframe rides it
+    .fromTo('.ease',{drawSVG:'0%'},{drawSVG:'100%',duration:1.6,ease:'power1.inOut'},1.3)
+    .to('.kf',{motionPath:{path:'.ease',align:'.ease',alignOrigin:[.5,.5]},duration:1.6,ease:'power1.inOut'},1.3)
+    .from('.kf',{scale:0,transformOrigin:'50% 50%',duration:.3},1.3)
+    .to('.kf',{scale:0,transformOrigin:'50% 50%',duration:.3},2.9)
+    // exit
+    .to('.ltr span',{yPercent:-230,duration:.35,stagger:.06,ease:'power3.in'},3.3)
+    .to('.tile',{scale:.6,opacity:0,duration:.4,ease:'power3.in'},3.5)
+    .to('.ease, .grid line',{opacity:0,duration:.35},3.55);
+</script>

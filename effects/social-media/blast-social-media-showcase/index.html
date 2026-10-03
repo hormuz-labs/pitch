@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8">
+<title>Blast: Social Media Showcase</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0a;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif}
+  .panel{position:absolute;inset:0;transform-origin:50% 50%}
+  .p1{background:#ff3b1f}.p2{background:#ffd23f}.p3{background:#0a0a0a}.p4{background:#2f6bff}.p5{background:#111}
+  .img{position:absolute;background:center/cover;will-change:transform}
+  .i1{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .i2{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .i3{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .big{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-weight:500;text-transform:uppercase;letter-spacing:-.05em;line-height:.85;color:#fff;font-size:260px;white-space:nowrap}
+  .big .ch{display:inline-block}
+  .row{overflow:hidden}
+  .w{display:inline-block}
+  .grid{position:absolute;inset:60px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:16px}
+  .cell{border-radius:14px;overflow:hidden;position:relative;background:center/cover}
+  .cell::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.45),transparent 50%)}
+  .tag{position:absolute;bottom:14px;left:16px;font:500 22px "Atlas Grotesk",sans-serif;color:#fff;z-index:2}
+  .stripe{position:absolute;left:-60%;width:220%;height:130px;background:#ffd23f;color:#0a0a0a;font-size:96px;font-weight:500;text-transform:uppercase;letter-spacing:-.03em;line-height:130px;white-space:nowrap;overflow:hidden}
+  .stripe span{display:inline-block;padding-right:40px}
+  .cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+  .logo{width:120px;height:120px;border-radius:30px;background:#fff;position:relative}
+  .logo::after{content:"";position:absolute;left:30px;top:30px;width:60px;height:60px;background:#ff3b1f;border-radius:50% 50% 50% 0}
+  .cta h1{font-size:120px;color:#fff;letter-spacing:-.05em;font-weight:500;line-height:1}
+  .cta p{font:400 30px "Atlas Grotesk",sans-serif;color:#aaa}
+  .hide{visibility:hidden}
+</style>
+<div class="stage">
+  <div class="panel p3"></div>
+  <div class="panel p1" id="p1"></div>
+  <div class="big" id="t1"><span class="ch">B</span><span class="ch">L</span><span class="ch">A</span><span class="ch">S</span><span class="ch">T</span></div>
+  <div class="img i1" id="im1" style="left:180px;top:80px;width:920px;height:560px"></div>
+  <div class="panel p2" id="p2"></div>
+  <div class="big" id="t2" style="color:#0a0a0a;font-size:180px"><div class="row"><span class="w">MAKE</span></div><div class="row"><span class="w">NOISE</span></div></div>
+  <div class="img i2" id="im2" style="left:0;top:0;width:1280px;height:720px"></div>
+  <div class="grid" id="grid">
+    <div class="cell i1"><span class="tag">Drop 01</span></div><div class="cell i2"><span class="tag">Drop 02</span></div><div class="cell i3"><span class="tag">Drop 03</span></div>
+    <div class="cell i3"><span class="tag">Drop 04</span></div><div class="cell i1"><span class="tag">Drop 05</span></div><div class="cell i2"><span class="tag">Drop 06</span></div>
+  </div>
+  <div class="panel p4" id="p4"></div>
+  <div class="stripe" id="s1" style="top:150px"><span>NEW SEASON · NEW SEASON · NEW SEASON · NEW SEASON · NEW SEASON · NEW SEASON · NEW SEASON ·</span></div>
+  <div class="stripe" id="s2" style="top:440px;background:#fff"><span>OUT NOW · OUT NOW · OUT NOW · OUT NOW · OUT NOW · OUT NOW · OUT NOW · OUT NOW · OUT NOW ·</span></div>
+  <div class="panel p5" id="p5"></div>
+  <div class="cta" id="cta"><div class="logo"></div><h1>Acme Studio</h1><p>Bold work, fast.</p></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 8 });
+  gsap.set('#p2,#im2,#grid,#p4,#s1,#s2,#p5,#cta,#im1', { autoAlpha: 0 });
+  // 0–1.4 : red panel slams, BLAST letters snap in with scale punch
+  tl.from('#p1', { scaleY: 0, duration: .35, ease: 'expo.out' }, 0)
+    .from('#t1 .ch', { scale: 3, opacity: 0, stagger: .06, duration: .35, ease: 'expo.out' }, .15)
+    .to('#t1', { scale: 1.08, duration: .9, ease: 'none' }, .5)
+    // 1.4 : image punches in over red, camera zoom
+    .set('#im1', { autoAlpha: 1 }, 1.4)
+    .fromTo('#im1', { scale: 1.6, clipPath: 'inset(40% 40% 40% 40%)' }, { scale: 1, clipPath: 'inset(0% 0% 0% 0%)', duration: .5, ease: 'expo.out' }, 1.4)
+    .to('#im1', { scale: 1.12, duration: 1, ease: 'none' }, 1.9)
+    // 2.6 : yellow wipe left→right, words stack from below
+    .set('#p2', { autoAlpha: 1 }, 2.6)
+    .fromTo('#p2', { xPercent: -100 }, { xPercent: 0, duration: .4, ease: 'expo.inOut' }, 2.6)
+    .set('#t2', { autoAlpha: 1 }, 2.9).set('#t1,#im1,#p1', { autoAlpha: 0 }, 3)
+    .from('#t2 .w', { yPercent: 110, stagger: .1, duration: .5, ease: 'expo.out' }, 2.95)
+    .to('#t2 .w', { xPercent: i => i ? 6 : -6, duration: .9, ease: 'none' }, 3.4)
+    // 4.2 : full-bleed aurora slam + grid explodes in
+    .set('#im2', { autoAlpha: 1 }, 4.2)
+    .fromTo('#im2', { scale: 1.3, yPercent: 100 }, { yPercent: 0, scale: 1, duration: .4, ease: 'expo.out' }, 4.2)
+    .set('#t2,#p2', { autoAlpha: 0 }, 4.6)
+    .set('#grid', { autoAlpha: 1 }, 4.55)
+    .from('#grid .cell', { scale: 0, rotation: () => 0, stagger: { each: .05, from: 'center' }, duration: .45, ease: 'back.out(2.5)' }, 4.55)
+    .to('#grid', { scale: 1.06, duration: 1, ease: 'none' }, 5)
+    // 5.8 : blue slam, marquee stripes rip across
+    .set('#p4,#s1,#s2', { autoAlpha: 1 }, 5.8)
+    .fromTo('#p4', { yPercent: -100 }, { yPercent: 0, duration: .3, ease: 'expo.out' }, 5.8)
+    .set('#grid,#im2', { autoAlpha: 0 }, 6.1)
+    .fromTo('#s1', { xPercent: 45, rotation: -4 }, { xPercent: -15, rotation: -4, duration: 1.2, ease: 'power2.out' }, 5.9)
+    .fromTo('#s2', { xPercent: -45, rotation: -4 }, { xPercent: 15, rotation: -4, duration: 1.2, ease: 'power2.out' }, 5.95)
+    // 7 : black, logo + name, then it all scales away for the loop
+    .set('#p5,#cta', { autoAlpha: 1 }, 7)
+    .fromTo('#p5', { clipPath: 'circle(0% at 50% 50%)' }, { clipPath: 'circle(80% at 50% 50%)', duration: .4, ease: 'expo.out' }, 7)
+    .set('#p4,#s1,#s2', { autoAlpha: 0 }, 7.4)
+    .from('.logo', { scale: 0, rotation: -90, duration: .5, ease: 'back.out(2)' }, 7.05)
+    .from('.cta h1, .cta p', { y: 30, opacity: 0, stagger: .1, duration: .4, ease: 'expo.out' }, 7.2)
+    .to('#cta', { scale: 1.6, opacity: 0, duration: .3, ease: 'expo.in' }, 7.7)
+    .to('#p5', { autoAlpha: 0, duration: .01 }, 7.99);
+</script>

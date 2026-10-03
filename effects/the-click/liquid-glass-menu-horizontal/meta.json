@@ -1,0 +1,24 @@
+{
+  "move": "glass pill stretches between nav items, squashes, elastic settles, cycles around",
+  "how": "A frosted pill nav bar (backdrop blur 26px) with four items floats over a sunset image and two blurred colour orbs that drift on 3s yoyo sine tweens. A translucent highlight pill sits under Home. On each hop (at 1.0, 2.2, 3.4 and 4.7s of the 6s loop) the pill's x and width tween to the target item with expo.out over 0.55s while it is stretched to scaleX 1.45 / scaleY 0.82 in 0.18s and released with elastic.out(1,0.45), so it reads as a liquid blob snapping into place. The outgoing item fades to 70% white, the target darkens to near-black, hops 6px up with power2.out and settles with elastic.out(1,0.4), and its icon swings in from -14deg times direction with back.out(3). The cursor travels ahead of each hop with power2.inOut, dips scale 0.85 as it clicks. The final hop returns to Home so the loop closes.",
+  "moves": [
+    "liquid-morph",
+    "squash",
+    "elastic",
+    "cursor-press",
+    "drift"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the four labels and icons, the background image and orb colours; the pill geometry is measured from the items via offsetLeft/offsetWidth so labels can be any length. Keep the 0.55s expo.out slide and the stretch-then-elastic release.",
+  "port": "mount(el, shot) builds bg, orbs, the nav with pill, items and cursor inside el, then measures geo from the items (needs layout, so measure after append). animate returns the timeline with hops at 0.167D, 0.367D, 0.567D and 0.783D and orb drift of D/2 yoyo. All querySelector calls scoped to el.",
+  "caveats": [
+    "backdrop-filter: blur(26px) and two blur(30px) orbs",
+    "geometry measured at build time from offsetLeft, so the nav must be laid out before animate runs",
+    "loads assets/backgrounds/sunset.png"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Reasoning Path Camera",
+  "seconds": 5,
+  "move": "curved connector draws between reasoning cards while camera follows the active node",
+  "how": "An SVG path reveals across 4.4 seconds; three cards spring in sequentially and the camera tracks from prompt to answer to action.",
+  "moves": [
+    "path-draw",
+    "camera-follow",
+    "node-stagger",
+    "focus"
+  ],
+  "libs": [
+    "svg",
+    "motion"
+  ],
+  "adapt": "Change path and node positions.",
+  "port": "Use strokeDashoffset for the connector and the same progress for camera target interpolation.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

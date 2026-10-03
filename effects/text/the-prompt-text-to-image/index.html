@@ -1,0 +1,131 @@
+<!doctype html><meta charset="utf-8">
+<title>The Prompt: Text To Image</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0e0f13;color:#e8e9ee;font-family:"Atlas Grotesk",sans-serif}
+  .app{position:absolute;left:80px;right:80px;top:56px;bottom:56px;background:#15171d;border:1px solid #262a33;border-radius:22px;overflow:hidden;display:flex;flex-direction:column}
+  .top{height:56px;border-bottom:1px solid #262a33;display:flex;align-items:center;padding:0 22px;gap:12px;font-size:15px;color:#8c92a3}
+  .top .logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#7c5cff,#3ad0ff)}
+  .top .tab{margin-left:auto;padding:6px 12px;border:1px solid #262a33;border-radius:8px;font-size:13px}
+  .body{flex:1;display:flex;padding:24px;gap:24px}
+  .left{width:420px;display:flex;flex-direction:column;gap:14px}
+  .field{background:#0e0f13;border:1px solid #2b3040;border-radius:14px;padding:16px 18px;min-height:150px;font-size:19px;line-height:1.45;color:#e8e9ee;position:relative}
+  .field .ph{color:#5a6070}
+  .caret{display:inline-block;width:2px;height:1.1em;background:#e8e9ee;vertical-align:-3px;margin-left:2px}
+  .opts{display:flex;gap:10px}
+  .chip{padding:8px 12px;border:1px solid #2b3040;border-radius:999px;font-size:13px;color:#aab0c0}
+  .chip.on{border-color:#7c5cff;color:#cfc4ff;background:rgba(124,92,255,.14)}
+  .btn{margin-top:auto;height:52px;border-radius:12px;background:linear-gradient(135deg,#7c5cff,#3ad0ff);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;color:#0e0f13;position:relative;overflow:hidden}
+  .btn .fill{position:absolute;inset:0;background:#fff;opacity:0;mix-blend-mode:overlay}
+  .right{flex:1;position:relative;border-radius:16px;background:#0e0f13;border:1px solid #2b3040;overflow:hidden}
+  .out{position:absolute;inset:0}
+  .out canvas{position:absolute;inset:0;width:100%;height:100%}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5a6070;font-size:16px}
+  .prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:#2b3040}
+  .prog i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#7c5cff,#3ad0ff);transform-origin:left center;width:100%}
+  .steps{position:absolute;left:16px;top:14px;font-size:13px;color:#aab0c0;background:rgba(14,15,19,.7);padding:6px 10px;border-radius:8px;border:1px solid #2b3040}
+  .done{position:absolute;right:16px;top:14px;font-size:13px;color:#0e0f13;background:#8df0b0;padding:6px 10px;border-radius:8px}
+  .grid{position:absolute;inset:0;background-image:linear-gradient(#2b3040 1px,transparent 1px),linear-gradient(90deg,#2b3040 1px,transparent 1px);background-size:40px 40px;opacity:.35}
+</style>
+<div class="stage">
+  <div class="app">
+    <div class="top"><div class="logo"></div><span>Northwind Studio</span><span class="tab">Image · v3</span></div>
+    <div class="body">
+      <div class="left">
+        <div class="field"><span class="ph">Describe the image…</span><span class="txt"></span><span class="caret"></span></div>
+        <div class="opts"><span class="chip on">1:1</span><span class="chip">16:9</span><span class="chip">Cinematic</span><span class="chip on">HD</span></div>
+        <div class="btn"><div class="fill"></div><span class="bl">Generate</span></div>
+      </div>
+      <div class="right">
+        <div class="grid"></div>
+        <div class="empty">Your image will appear here</div>
+        <div class="out"><canvas id="cv" width="640" height="560"></canvas></div>
+        <div class="steps">Step <b id="st">0</b> / 30</div>
+        <div class="done">Done · 3.2s</div>
+        <div class="prog"><i></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/TextPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(TextPlugin);
+  const PROMPT = 'A glass greenhouse on a cliff at golden hour, fog rolling in, soft film grain';
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  // the "image": a procedural sunset scene, resolved from noise to detail by a diffusion-like progress p
+  const rng = fx.rng(99); const noise = new Float32Array(W * H / 16);
+  for (let i = 0; i < noise.length; i++) noise[i] = rng();
+  const off = document.createElement('canvas'); off.width = W; off.height = H; const oc = off.getContext('2d');
+  function scene(g) {
+    const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#2a1f4f'); sky.addColorStop(.55, '#ff7a45'); sky.addColorStop(1, '#ffd08a');
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(W * .62, H * .5, 70, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#3b2a3a'; g.beginPath(); g.moveTo(0, H); g.lineTo(0, H * .7); g.lineTo(W * .3, H * .6); g.lineTo(W * .55, H * .72); g.lineTo(W, H * .64); g.lineTo(W, H); g.fill();
+    g.fillStyle = 'rgba(200,240,255,.55)'; g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3;
+    g.beginPath(); g.rect(W * .18, H * .44, 150, 110); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(W * .18, H * .44); g.lineTo(W * .18 + 75, H * .34); g.lineTo(W * .18 + 150, H * .44); g.closePath(); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(W * .18 + 75, H * .34); g.lineTo(W * .18 + 75, H * .44 + 110); g.stroke();
+    const fog = g.createLinearGradient(0, H * .6, 0, H); fog.addColorStop(0, 'rgba(255,255,255,0)'); fog.addColorStop(1, 'rgba(255,255,255,.7)');
+    g.fillStyle = fog; g.fillRect(0, H * .55, W, H * .45);
+  }
+  scene(oc);
+  const state = { p: 0, shown: 0 };
+  function draw() {
+    const p = state.p;
+    ctx.clearRect(0, 0, W, H);
+    if (state.shown <= 0) return;
+    ctx.globalAlpha = state.shown;
+    // blurred + pixelated version of the scene, sharpening with p
+    const px = Math.max(1, Math.round(48 * Math.pow(1 - p, 2.2)));
+    ctx.imageSmoothingEnabled = false;
+    ctx.filter = `blur(${(1 - p) * 14}px)`;
+    ctx.drawImage(off, 0, 0, W / px, H / px);
+    ctx.drawImage(cv, 0, 0, W / px, H / px, 0, 0, W, H);
+    ctx.filter = 'none';
+    // noise overlay fading out
+    const na = (1 - p) * .9; if (na > .01) {
+      const cell = 4; let k = 0;
+      for (let y = 0; y < H; y += cell) for (let x = 0; x < W; x += cell) {
+        const n = noise[k++ % noise.length]; ctx.fillStyle = `rgba(${n * 255 | 0},${n * 255 | 0},${n * 255 | 0},${na * (0.4 + n * .6)})`; ctx.fillRect(x, y, cell, cell);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  const tl = fx.timeline({ duration: 10 });
+  tl.from('.app', { y: 30, opacity: 0, duration: .8, ease: 'expo.out' }, 0);
+  // caret blinks (timeline-driven), prompt types out
+  tl.fromTo('.caret', { opacity: 1 }, { opacity: 0, duration: .45, ease: 'steps(1)', yoyo: true, repeat: 7 }, .3)
+    .to('.ph', { opacity: 0, duration: .15 }, .9)
+    .to('.txt', { text: { value: PROMPT }, duration: 2.6, ease: 'none' }, .95)
+    .to('.chip:nth-child(3)', { borderColor: '#7c5cff', color: '#cfc4ff', backgroundColor: 'rgba(124,92,255,.14)', duration: .3 }, 3.7)
+    // click generate
+    .to('.btn', { scale: .96, duration: .12, ease: 'power2.out' }, 4.1).to('.btn', { scale: 1, duration: .5, ease: 'elastic.out(1,.4)' }, 4.22)
+    .fromTo('.btn .fill', { opacity: 0 }, { opacity: .6, duration: .12, yoyo: true, repeat: 1 }, 4.1)
+    .to('.bl', { text: 'Generating…', duration: .01 }, 4.2)
+    .to('.caret', { opacity: 0, duration: .1 }, 4.1)
+    .to('.empty', { opacity: 0, duration: .3 }, 4.2)
+    // diffusion: noise resolves into the image, steps count up, progress bar fills
+    .to(state, { shown: 1, duration: .4, ease: 'power2.out' }, 4.3)
+    .to(state, { p: 1, duration: 3.4, ease: 'power2.inOut', onUpdate: draw }, 4.4)
+    .fromTo('.prog i', { scaleX: 0 }, { scaleX: 1, duration: 3.4, ease: 'power2.inOut' }, 4.4)
+    .to({ n: 0 }, { n: 30, duration: 3.4, ease: 'power2.inOut', onUpdate() { document.getElementById('st').textContent = Math.round(this.targets()[0].n); } }, 4.4)
+    .from('.steps', { opacity: 0, y: -6, duration: .3 }, 4.4)
+    .to('.grid', { opacity: 0, duration: 1 }, 4.6)
+    .set('.done', { opacity: 0 }, 0)
+    .fromTo('.done', { opacity: 0, scale: .8 }, { opacity: 1, scale: 1, duration: .4, ease: 'back.out(2)' }, 7.9)
+    .to('.bl', { text: 'Generate', duration: .01 }, 7.9)
+    .to('.steps', { opacity: 0, duration: .3 }, 8.2)
+    .to('.prog', { opacity: 0, duration: .3 }, 8.2)
+    // a slow zoom on the finished image, then it all clears for the loop
+    .to('#cv', { scale: 1.06, duration: 1.8, ease: 'sine.inOut' }, 7.9)
+    .to('.right', { opacity: 0, duration: .35 }, 9.5)
+    .to('.txt', { text: '', duration: .2 }, 9.5)
+    .to('.ph', { opacity: 1, duration: .2 }, 9.7)
+    .to('.done', { opacity: 0, duration: .2 }, 9.5)
+    .to('.chip:nth-child(3)', { borderColor: '#2b3040', color: '#aab0c0', backgroundColor: 'rgba(0,0,0,0)', duration: .2 }, 9.5)
+    .to(state, { shown: 0, p: 0, duration: .01, onUpdate: draw }, 9.9);
+</script>

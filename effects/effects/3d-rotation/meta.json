@@ -1,0 +1,23 @@
+{
+  "move": "CSS 3D product box spins a full turn, tilts, with lambert-shaded faces",
+  "how": "A six-face CSS box (gradient front and back with brand copy, plain sides and caps) sits in a 1400px perspective world over a soft glow and a floor shadow. A seek function sets rotationY to one full 360 per D, rotationX swinging -18 plus or minus 22deg once, rotationZ plus or minus 6deg twice, and a 14px float; the shadow scales and fades with the float and the glow pulses. Each face carries a black shade overlay whose opacity is computed from the face normal against a fixed light after the rotation, so the box appears lit from upper left as it turns. Loop closes since every term is periodic.",
+  "moves": [
+    "flip-3d",
+    "orbit",
+    "float",
+    "shading"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the front and back face gradients and text with the product, resize the box and caps to the product proportions, change the glow colour. Keep one full spin per D and the computed shading.",
+  "port": "mount(el, shot) builds the world, box faces, glow and shadow; animate(el, shot, D) returns a timeline with one linear progress tween over D whose onUpdate applies the rotation, float and per-face shade opacities, replacing fx.register.",
+  "caveats": [
+    "motion is a seek function with computed shading, not tweens; port as a progress tween with onUpdate",
+    "backface-visibility and preserve-3d must survive any parent transform in the host"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

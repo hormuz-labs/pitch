@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8">
+<title>Elastic Text</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#ff4d2e}
+  .word{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;gap:0}
+  .ch{display:inline-block;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:220px;line-height:1;letter-spacing:-.03em;color:#111;text-transform:uppercase;will-change:transform;transform-origin:50% 100%}
+  .sub{position:absolute;left:0;right:0;bottom:92px;text-align:center;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:26px;letter-spacing:.32em;text-transform:uppercase;color:#111;opacity:.85}
+  .blob{position:absolute;width:520px;height:520px;border-radius:50%;background:#ffd23f;left:50%;top:50%;margin:-260px 0 0 -260px;will-change:transform}
+</style>
+<div class="stage">
+  <div class="blob"></div>
+  <div class="word">
+    <span class="ch">S</span><span class="ch">T</span><span class="ch">R</span><span class="ch">E</span><span class="ch">T</span><span class="ch">C</span><span class="ch">H</span>
+  </div>
+  <div class="sub">Loud &amp; Bouncy</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 2 });
+  const ch = gsap.utils.toArray('.ch');
+  // the blob breathes behind everything for the whole loop
+  tl.fromTo('.blob', { scale: 0.9, rotate: 0 }, { scale: 1.08, rotate: 25, duration: 1, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  // stretch in: letters arrive squashed tall & thin, pulled from above, then snap to shape
+  tl.from(ch, { scaleY: 3.4, scaleX: 0.35, yPercent: -90, opacity: 0, duration: 0.12, ease: 'power2.in', stagger: 0.05 }, 0.05)
+    .to(ch, { scaleY: 1, scaleX: 1, yPercent: 0, duration: 0.85, ease: 'elastic.out(1.15, 0.38)', stagger: 0.05 }, 0.17);
+  // a second tug: the word gets stretched wide as if grabbed, then snaps back
+  tl.to(ch, { scaleX: 1.55, scaleY: 0.72, duration: 0.18, ease: 'power3.in', stagger: { each: 0.02, from: 'center' } }, 1.1)
+    .to(ch, { scaleX: 1, scaleY: 1, duration: 0.55, ease: 'elastic.out(1.2, 0.35)', stagger: { each: 0.02, from: 'center' } }, 1.28);
+  // exit: yanked up as a tall thin ribbon
+  tl.to(ch, { scaleY: 3, scaleX: 0.3, yPercent: -120, opacity: 0, duration: 0.22, ease: 'power3.in', stagger: 0.025 }, 1.68);
+  tl.from('.sub', { opacity: 0, y: 14, duration: 0.4, ease: 'power2.out' }, 0.5)
+    .to('.sub', { opacity: 0, y: -10, duration: 0.2 }, 1.75);
+</script>

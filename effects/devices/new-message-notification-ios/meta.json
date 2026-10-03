@@ -1,0 +1,26 @@
+{
+  "move": "iOS banner springs down, clock nudges, banner dismisses upward",
+  "how": "On a 1080x1920 lock screen the wallpaper slowly scales 1.04 -> 1.1 with yPercent -0.6 -> 0.6 linearly over the 3s. At 8% a frosted banner (backdrop-filter blur 40px) drops from y -300, scale 0.9, opacity 0 to rest over 0.85s with a CustomEase iOS spring (fast out, one soft overshoot) while the big clock nudges down y 28 with the same spring; the banner's name and message lines fade up y 10 with 0.06s stagger (power2.out). At 82% the banner slides back to y -300, scale 0.92, opacity 0 with power3.in and the clock returns with power3.inOut.",
+  "moves": [
+    "slide-in",
+    "spring",
+    "overshoot",
+    "stagger",
+    "nudge",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "adapt": "Replace the sender, message, app icon colours, date/time strings and wallpaper. Keep the spring CustomEase path and the 0.85s entry / 0.42s power3.in dismiss timings.",
+  "port": "mount(el, shot) builds the lock screen and banner from shot strings; animate(el, shot, D) returns the timeline with the drop at 0.083D, text at 0.15D and dismiss at 0.817D. CustomEase must be registered once by the engine; the .txt from() should be fromTo with immediateRender:false; the frame is portrait 1080x1920.",
+  "caveats": [
+    "portrait 1080x1920 frame, not 16:9",
+    "backdrop-filter blur(40px) on the banner plus blur(30px) on two bottom buttons, slow to render",
+    "loop closes only in the sense that the banner is off-screen at both ends; the wallpaper scale differs"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1920"
+}

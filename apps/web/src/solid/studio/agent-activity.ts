@@ -5,7 +5,7 @@ export type AgentActivity = 'listening' | 'searching' | 'solving'
 const lookupTool =
   /(?:^|_)(?:read|find|grep|ls|search|fetch|scrape|probe|inspect|list|research|recon)(?:_|$)/
 const lookupCommand =
-  /(?:^|[;&|]\s*|\bbash\s*·\s*)(?:pitch\s+[\w-]+\s+(?:search|recon|probe(?:-video)?|inspect-frames|scrape-images)\b|(?:rg|grep|find|ls|cat)\s)/
+  /(?:^|[;&|]\s*|\bbash\s*·\s*)(?:pitch\s+[\w-]+\s+(?:search|show|families|recon|probe(?:-video)?|inspect-frames|scrape-images)\b|(?:rg|grep|find|ls|cat)\s)/
 
 export function agentActivity(entries: Entry[], busy: boolean): AgentActivity | null {
   // Queued follow-ups must not obscure the work happening in the current turn.

@@ -1,0 +1,156 @@
+[
+ {
+  "name": "Blend Modes: Circle Stack",
+  "family": "Blend modes",
+  "familySlug": "blend-modes",
+  "slug": "blend-modes-circle-stack",
+  "seconds": 6,
+  "tags": [],
+  "description": "A template with circles stacked and layered using blend mode effects. Creates an abstract visual that works well for experimental motion design and brand content.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-circle-stack/"
+ },
+ {
+  "name": "Blend Modes: Collage Shuffle",
+  "family": "Blend modes",
+  "familySlug": "blend-modes",
+  "slug": "blend-modes-collage-shuffle",
+  "seconds": 6,
+  "tags": [
+   "social-media",
+   "ads",
+   "brand",
+   "showreels"
+  ],
+  "description": "A template where a collage of images shuffles through blend mode transitions. Good for editorial motion graphics and dynamic portfolio presentations.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-collage-shuffle/"
+ },
+ {
+  "name": "Blend Modes: Color Blocks",
+  "family": "Blend modes",
+  "familySlug": "blend-modes",
+  "slug": "blend-modes-color-blocks",
+  "seconds": 5,
+  "tags": [
+   "social-media",
+   "ads",
+   "brand",
+   "showreels"
+  ],
+  "description": "A blend mode animation template with layered color blocks that interact to create rich visual depth. Great for abstract backgrounds and brand-forward motion graphics.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-color-blocks/"
+ },
+ {
+  "name": "Blend Modes: Double Exposure",
+  "family": "Blend modes",
+  "familySlug": "blend-modes",
+  "slug": "blend-modes-double-exposure",
+  "seconds": 2,
+  "tags": [
+   "social-media",
+   "ads",
+   "showreels"
+  ],
+  "description": "A double exposure animation template created through layered blend modes. Good for editorial motion graphics and visual storytelling that needs a more cinematic quality.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-double-exposure/"
+ },
+ {
+  "name": "Blend Modes: Gradient Orbs",
+  "family": "Blend modes",
+  "familySlug": "blend-modes",
+  "slug": "blend-modes-gradient-orbs",
+  "seconds": 6,
+  "tags": [],
+  "description": "A template with glowing gradient orbs that interact through blend modes in a looping animation. Good for atmospheric brand backgrounds and ambient visual content.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-gradient-orbs/"
+ },
+ {
+  "name": "Gradients: Bento",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-bento",
+  "seconds": 5,
+  "tags": [],
+  "description": "A bento grid template where each cell has its own animated gradient. Ideal for colorful product showcases and social media content where you want color to do some of the heavy lifting.",
+  "jitterUrl": "https://jitter.video/template/gradients-bento/"
+ },
+ {
+  "name": "Gradients: Diagonal Sweep",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-diagonal-sweep",
+  "seconds": 5,
+  "tags": [
+   "backgrounds"
+  ],
+  "description": "A gradient animation template with a diagonal sweep that moves across the frame in a loop. Works well as an animated background for brand content and social media.",
+  "jitterUrl": "https://jitter.video/template/gradients-diagonal-sweep/"
+ },
+ {
+  "name": "Gradients: Geometric Morph",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-geometric-morph",
+  "seconds": 5,
+  "tags": [
+   "backgrounds"
+  ],
+  "description": "A template with gradient-filled geometric shapes that shift and morph between forms. Good for abstract motion graphics and modern brand content.",
+  "jitterUrl": "https://jitter.video/template/gradients-geometric-morph/"
+ },
+ {
+  "name": "Gradients: Haze",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-haze",
+  "seconds": 7,
+  "tags": [
+   "backgrounds"
+  ],
+  "description": "A gradient animation template that shifts slowly between colors with a hazy atmospheric quality. Works as a background for brand visuals that need mood without too much movement.",
+  "jitterUrl": "https://jitter.video/template/gradients-haze/"
+ },
+ {
+  "name": "Gradients: Kaleidoscope",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-kaleidoscope",
+  "seconds": 4,
+  "tags": [
+   "backgrounds"
+  ],
+  "description": "A kaleidoscope gradient template with rotating patterns that shift in a loop. Good for vibrant backgrounds and experimental motion design.",
+  "jitterUrl": "https://jitter.video/template/gradients-kaleidoscope/"
+ },
+ {
+  "name": "Gradients: Morphing Shapes",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-morphing-shapes",
+  "seconds": 8,
+  "tags": [],
+  "description": "A template with gradient-filled shapes that slowly morph between forms in a continuous loop. Works as an abstract background or a statement visual element.",
+  "jitterUrl": "https://jitter.video/template/gradients-morphing-shapes/"
+ },
+ {
+  "name": "Gradients: Petals",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-petals",
+  "seconds": 5,
+  "tags": [],
+  "description": "A looping gradient animation template with soft organic shapes drifting and blending into each other. Works well as a background for brand content or social media posts that need a bit of visual warmth.",
+  "jitterUrl": "https://jitter.video/template/gradients-petals/"
+ },
+ {
+  "name": "Gradients: Vertical Sweep",
+  "family": "Gradients",
+  "familySlug": "gradients",
+  "slug": "gradients-vertical-sweep",
+  "seconds": 5,
+  "tags": [
+   "backgrounds"
+  ],
+  "description": "A gradient animation template with a vertical sweep that moves through the frame in a loop. Works well as an animated background for brand and social content.",
+  "jitterUrl": "https://jitter.video/template/gradients-vertical-sweep/"
+ }
+]

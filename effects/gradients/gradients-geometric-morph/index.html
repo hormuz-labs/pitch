@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradients: Geometric Morph</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0b0c12}
+  svg{position:absolute;inset:0;width:100%;height:100%}
+  .cap{position:absolute;left:48px;bottom:40px;font-family:"Atlas Grotesk",sans-serif;font-size:15px;letter-spacing:.25em;text-transform:uppercase;color:#fff;opacity:.75}
+</style>
+<div class="stage">
+  <svg viewBox="0 0 1280 720">
+    <defs>
+      <linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2d95"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>
+      <linearGradient id="gb" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+      <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe66a"/><stop offset="1" stop-color="#19c37d"/></linearGradient>
+      <filter id="glow"><feGaussianBlur stdDeviation="18"/></filter>
+    </defs>
+    <!-- glow copies -->
+    <path id="sa2" fill="url(#ga)" opacity=".55" filter="url(#glow)"/>
+    <path id="sb2" fill="url(#gb)" opacity=".55" filter="url(#glow)"/>
+    <path id="sc2" fill="url(#gc)" opacity=".55" filter="url(#glow)"/>
+    <path id="sa" fill="url(#ga)"/>
+    <path id="sb" fill="url(#gb)"/>
+    <path id="sc" fill="url(#gc)"/>
+  </svg>
+  <div class="cap">Acme — Geometric Morph</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/MorphSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(MorphSVGPlugin);
+  // forms as paths, all centred at 0,0 with radius ~130
+  const R = 130;
+  const poly = (n, rot = -90) => Array.from({ length: n }, (_, i) => { const a = (rot + i * 360 / n) * Math.PI / 180; return `${(Math.cos(a) * R).toFixed(1)},${(Math.sin(a) * R).toFixed(1)}`; });
+  const circle = `M0,-${R} A${R},${R} 0 1 1 0,${R} A${R},${R} 0 1 1 0,-${R} Z`;
+  const square = 'M' + poly(4, -45).join(' L') + ' Z';
+  const tri = 'M' + poly(3).join(' L') + ' Z';
+  const hex = 'M' + poly(6, -90).join(' L') + ' Z';
+  const forms = [circle, square, tri, hex];
+  const D = 5, N = forms.length, step = D / N;
+  const tl = fx.timeline({ duration: D });
+  const groups = [['#sa', '#sa2', 320, 360, 0], ['#sb', '#sb2', 640, 360, 1], ['#sc', '#sc2', 960, 360, 2]];
+  groups.forEach(([main, glow, cx, cy, off]) => {
+    for (const id of [main, glow]) {
+      const el = document.querySelector(id);
+      el.setAttribute('d', forms[off % N]);
+      gsap.set(el, { x: cx, y: cy });
+      // each shape walks the ring of forms from a different start, so the last morph lands back on its first form
+      for (let k = 0; k < N; k++) {
+        tl.to(el, { morphSVG: forms[(off + k + 1) % N], duration: step * 0.6, ease: 'expo.inOut' }, k * step + step * 0.2);
+      }
+      tl.to(el, { rotation: 360, duration: D, ease: 'none' }, 0);
+    }
+    tl.fromTo(main, { scale: 1 }, { scale: 1.12, duration: step / 2, ease: 'sine.inOut', yoyo: true, repeat: N * 2 - 1 }, 0);
+  });
+</script>

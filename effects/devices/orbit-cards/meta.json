@@ -1,0 +1,24 @@
+{
+  "move": "feature cards orbit an ellipse around a core, depth-scaled and back-blurred",
+  "how": "Six white feature cards revolve once around a 440x150 ellipse in the 5s loop, computed each frame by a fx.register seek function: x = cos(a)*440, y = sin(a)*150, with depth = (sin(a)+1)/2 driving scale 0.8 -> 1.3, opacity 0.45 -> 1, zIndex and filter blur 2.2px -> 0 so cards at the back are small, dim and soft and cards passing the front are large and sharp. Eight small dots counter-rotate twice on an inner 230x78 ellipse with the same depth scaling; the core gradient disc pulses scale +-4% at twice the orbit rate and rotates 18deg/s; two dashed SVG ellipses crawl their stroke-dashoffset in opposite directions. Because everything is a function of t/D with whole-number cycles, the last frame equals the first.",
+  "moves": [
+    "orbit",
+    "depth-scale",
+    "depth-blur",
+    "counter-orbit",
+    "pulse",
+    "dash-crawl"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the six feature names and icon colours, the core gradient and label, the ellipse radii RX/RY and the dot count. Keep the one-orbit-per-loop rule and the depth formulas so the loop stays seamless.",
+  "port": "mount(el, shot) builds the ring SVG, core, cards and dots from shot.features; animate(el, shot, D) returns a timeline with one tween of duration D whose onUpdate runs the seek(t) body (t = progress*D) applying gsap.set to every card and dot, since the source is a fx.register seek loop rather than a timeline. Scope document.querySelector('.core') and the orb ids to el.",
+  "caveats": [
+    "per-frame filter blur on six cards",
+    "uses fx.register seek loop, not a GSAP timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

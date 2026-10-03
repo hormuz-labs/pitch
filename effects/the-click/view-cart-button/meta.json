@@ -1,0 +1,27 @@
+{
+  "move": "press flips label to Added, item arcs into cart, badge pops, then View cart",
+  "how": "A product card rises in with expo.out (y 40, opacity 0) in the first 10% of the 6s loop and a cursor glides to the black pill button. Press at 1.3s (22%): button scales 0.94 with power2.in, springs back with elastic.out(1,0.5), and a white ring ripple scales 0.5 to 14 fading. The 'Add to cart' label slides up out (yPercent -110, expo.out) as a green 'Added' label slides up in and a check draws with DrawSVG over 0.35s. A small green dot flies from the button to the cart icon on an arc (x with power1.inOut, y with power2.in over 0.55s), shrinks away, and the cart badge pops with back.out(3) while the cart icon nudges -12deg and elastically settles. At 3.0s the label rolls again to 'View cart' and its arrow beckons with a 4-cycle yoyo. Second press at 4.6s, then the card exits up (y -50, opacity 0, power3.in) and the cursor leaves, so the frame is empty as at the start.",
+  "moves": [
+    "cursor-press",
+    "label-roll",
+    "fly-to-target",
+    "draw-stroke",
+    "ripple",
+    "elastic"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the product image block, name, price, the three label strings and the green; the fly target offsets (x 178, y -240) are button-to-cart deltas and must be recomputed for a different card layout. Keep the arc timing (0.55s, x power1.inOut vs y power2.in).",
+  "port": "mount(el, shot) builds card (img, cartwrap with badge, meta, btn with three labels and ripple, fly dot) and cursor inside el; register DrawSVGPlugin. animate returns the timeline with press at 0.217D, fly 0.25D, badge 0.342D, View cart at 0.5D, second press 0.767D, exit 0.867D. The .from() tweens on .card and .tick need immediateRender:false when placed inside a factory timeline; BX/BY assume a 1280x720 stage centre.",
+  "caveats": [
+    "needs DrawSVGPlugin",
+    "from() tweens need immediateRender:false",
+    "last frame has the cursor faded out while the first frame has it visible at the entry point, so the loop is close but not exact",
+    "cursor and fly coordinates are hard-coded stage offsets"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

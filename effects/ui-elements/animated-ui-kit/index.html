@@ -1,0 +1,93 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated UI Kit</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f2f3f7;color:#111}
+  .grid{position:absolute;inset:0;padding:56px 80px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:24px}
+  .c{position:relative;background:#fff;border-radius:22px;box-shadow:0 12px 30px rgba(20,25,50,.08);padding:26px;display:flex;flex-direction:column;justify-content:center;gap:16px;overflow:hidden}
+  .lbl{position:absolute;left:26px;top:20px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#9a9fae}
+  /* toggle */
+  .tg{width:120px;height:64px;border-radius:32px;background:#d9dce6;position:relative}
+  .tg .knob{position:absolute;left:6px;top:6px;width:52px;height:52px;border-radius:50%;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.15)}
+  /* button */
+  .btn{align-self:center;padding:20px 44px;border-radius:16px;background:#5b6bff;color:#fff;font-size:22px;font-weight:500;position:relative;overflow:hidden}
+  .btn .rip{position:absolute;left:50%;top:50%;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%) scale(0)}
+  /* slider */
+  .sl{position:relative;height:10px;border-radius:5px;background:#e3e5ee}
+  .sl .fill{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:5px;background:#2fd3a5;transform-origin:0 50%}
+  .sl .th{position:absolute;top:50%;left:0;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid #2fd3a5;transform:translate(-50%,-50%)}
+  .sl .val{position:absolute;top:-44px;left:0;transform:translateX(-50%);background:#111;color:#fff;font-size:13px;padding:5px 9px;border-radius:8px}
+  /* checkboxes */
+  .cbs{display:flex;flex-direction:column;gap:14px}
+  .cb{display:flex;align-items:center;gap:12px;font-size:17px}
+  .cb i{width:26px;height:26px;border-radius:8px;border:2px solid #cfd3de;display:grid;place-items:center;flex:none;position:relative}
+  .cb i b{position:absolute;inset:-2px;border-radius:8px;background:#ff6b8b;transform:scale(0)}
+  .cb i svg{width:16px;height:16px;position:relative}
+  .cb i path{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  /* segmented */
+  .seg{position:relative;display:flex;background:#e9ebf2;border-radius:14px;padding:4px}
+  .seg span{flex:1;text-align:center;padding:12px 0;font-size:16px;font-weight:500;color:#6b7080;position:relative;z-index:1}
+  .seg .pill{position:absolute;left:4px;top:4px;bottom:4px;width:calc((100% - 8px)/3);border-radius:11px;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.1)}
+  /* avatars + notif */
+  .avs{display:flex}
+  .avs i{width:52px;height:52px;border-radius:50%;border:3px solid #fff;margin-left:-14px;background:#ffb84d}
+  .avs i:first-child{margin-left:0;background:#5b6bff}.avs i:nth-child(2){background:#ff6b8b}.avs i:nth-child(3){background:#2fd3a5}.avs i:nth-child(5){background:#111;color:#fff;font-size:14px;display:grid;place-items:center;font-style:normal}
+  .toast{display:flex;align-items:center;gap:10px;background:#111;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px}
+  .toast i{width:10px;height:10px;border-radius:50%;background:#2fd3a5;flex:none}
+</style>
+<div class="stage">
+  <div class="grid">
+    <div class="c"><div class="lbl">Toggle</div><div class="tg" style="align-self:center"><div class="knob"></div></div></div>
+    <div class="c"><div class="lbl">Button</div><div class="btn"><div class="rip"></div>Get started</div></div>
+    <div class="c"><div class="lbl">Slider</div><div class="sl"><div class="fill"></div><div class="th"><div class="val">0</div></div></div></div>
+    <div class="c"><div class="lbl">Checkbox</div><div class="cbs">
+      <div class="cb"><i><b></b><svg viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5L13 5"/></svg></i>Email updates</div>
+      <div class="cb"><i><b></b><svg viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5L13 5"/></svg></i>Weekly digest</div>
+      <div class="cb"><i><b></b><svg viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5L13 5"/></svg></i>Product news</div></div></div>
+    <div class="c"><div class="lbl">Segmented</div><div class="seg"><div class="pill"></div><span>Day</span><span>Week</span><span>Month</span></div></div>
+    <div class="c"><div class="lbl">Avatars &amp; toast</div><div class="avs"><i></i><i></i><i></i><i></i><i>+8</i></div><div class="toast"><i></i>Invite sent to 4 people</div></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 7 });
+  const val = document.querySelector('.val'), sv = { v: 0 };
+  gsap.set('.cb i path', { drawSVG: '0%' });
+  gsap.set('.sl .fill', { scaleX: 0 });
+  tl.from('.c', { y: 40, opacity: 0, scale: .96, duration: .7, stagger: { each: .08, grid: [2, 3], from: 'start' }, ease: 'expo.out' }, 0);
+  // toggle: on, off, on
+  const tog = (at, on) => tl.to('.knob', { x: on ? 56 : 0, duration: .45, ease: 'back.out(1.8)' }, at).to('.tg', { backgroundColor: on ? '#5b6bff' : '#d9dce6', duration: .35 }, at);
+  tog(.8, true); tog(3.0, false); tog(5.0, true);
+  // button: press + ripple, twice
+  const press = (at) => tl.to('.btn', { scale: .94, duration: .12, ease: 'power2.out' }, at).to('.btn', { scale: 1, duration: .5, ease: 'elastic.out(1,.5)' }, at + .12)
+    .fromTo('.rip', { scale: 0, opacity: 1 }, { scale: 14, opacity: 0, duration: .8, ease: 'power2.out' }, at + .05);
+  press(1.2); press(4.4);
+  // slider: sweeps to 72, back to 30, then to 100
+  const slide = (at, to, d) => tl.to('.th', { left: to + '%', duration: d, ease: 'power3.inOut' }, at).to('.fill', { scaleX: to / 100, duration: d, ease: 'power3.inOut' }, at)
+    .to(sv, { v: to, duration: d, ease: 'power3.inOut', onUpdate: () => val.textContent = Math.round(sv.v) }, at);
+  slide(.9, 72, .9); slide(2.8, 30, .8); slide(4.6, 100, 1.0);
+  // checkboxes: tick in sequence, untick later
+  tl.to('.cb i b', { scale: 1, duration: .35, stagger: .25, ease: 'back.out(2.5)' }, 1.5)
+    .to('.cb i path', { drawSVG: '100%', duration: .3, stagger: .25, ease: 'power2.out' }, 1.65)
+    .to('.cb i b', { scale: 0, duration: .25, stagger: .12, ease: 'power2.in' }, 4.2)
+    .to('.cb i path', { drawSVG: '0%', duration: .15, stagger: .12 }, 4.2)
+    .to('.cb i b', { scale: 1, duration: .35, stagger: .2, ease: 'back.out(2.5)' }, 5.3)
+    .to('.cb i path', { drawSVG: '100%', duration: .3, stagger: .2, ease: 'power2.out' }, 5.45);
+  // segmented: pill hops
+  tl.to('.pill', { xPercent: 100, duration: .5, ease: 'back.out(1.6)' }, 1.6).to('.pill', { xPercent: 200, duration: .5, ease: 'back.out(1.6)' }, 3.4).to('.pill', { xPercent: 0, duration: .55, ease: 'back.out(1.4)' }, 5.4);
+  tl.to('.seg span', { color: '#6b7080', duration: .2 }, 0).to('.seg span:nth-child(2)', { color: '#111', duration: .2 }, 0.2)
+    .to('.seg span:nth-child(2)', { color: '#6b7080', duration: .2 }, 1.6).to('.seg span:nth-child(3)', { color: '#111', duration: .2 }, 1.6)
+    .to('.seg span:nth-child(3)', { color: '#6b7080', duration: .2 }, 3.4).to('.seg span:nth-child(4)', { color: '#111', duration: .2 }, 3.4)
+    .to('.seg span:nth-child(4)', { color: '#6b7080', duration: .2 }, 5.4).to('.seg span:nth-child(2)', { color: '#111', duration: .2 }, 5.4);
+  // avatars pop, toast slides in and out
+  tl.from('.avs i', { scale: 0, duration: .5, stagger: .1, ease: 'back.out(2.5)' }, .9)
+    .fromTo('.toast', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease: 'expo.out' }, 2.0)
+    .to('.toast', { y: 20, opacity: 0, duration: .35, ease: 'power2.in' }, 4.0)
+    .fromTo('.toast', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease: 'expo.out' }, 5.2)
+    .to('.avs i', { y: -8, duration: .25, stagger: .07, yoyo: true, repeat: 1, ease: 'power2.out' }, 2.2);
+  tl.to('.c', { y: -30, opacity: 0, duration: .35, stagger: { each: .05, grid: [2, 3], from: 'end' }, ease: 'power2.in' }, 6.5);
+</script>

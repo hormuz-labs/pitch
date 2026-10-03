@@ -1,0 +1,75 @@
+<!doctype html><meta charset="utf-8">
+<title>Vector Animation</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fbe9c8}
+  svg{position:absolute;inset:0;width:100%;height:100%}
+</style>
+<div class="stage">
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd7a8"/><stop offset="1" stop-color="#fff1d6"/></linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <g id="sunG" transform="translate(980 190)">
+    <g id="rays" stroke="#ffb340" stroke-width="10" stroke-linecap="round">
+      <line x1="0" y1="-120" x2="0" y2="-150"/><line x1="0" y1="120" x2="0" y2="150"/><line x1="-120" y1="0" x2="-150" y2="0"/><line x1="120" y1="0" x2="150" y2="0"/>
+      <line x1="85" y1="-85" x2="106" y2="-106"/><line x1="-85" y1="85" x2="-106" y2="106"/><line x1="85" y1="85" x2="106" y2="106"/><line x1="-85" y1="-85" x2="-106" y2="-106"/>
+    </g>
+    <circle id="sun" r="92" fill="#ff9a3c"/>
+  </g>
+  <g id="cloud1" fill="#fff" opacity=".95" transform="translate(180 150)"><ellipse cx="0" cy="0" rx="90" ry="34"/><circle cx="-30" cy="-22" r="38"/><circle cx="30" cy="-16" r="46"/></g>
+  <g id="cloud2" fill="#fff" opacity=".8" transform="translate(620 110)"><ellipse cx="0" cy="0" rx="70" ry="26"/><circle cx="-20" cy="-18" r="30"/><circle cx="26" cy="-12" r="36"/></g>
+  <path id="hillBack" d="M0 520 C 200 400, 400 470, 640 430 S 1050 380, 1280 470 L1280 720 L0 720 Z" fill="#8fd0a8"/>
+  <path id="hillFront" d="M0 600 C 250 520, 450 600, 700 560 S 1100 520, 1280 600 L1280 720 L0 720 Z" fill="#4faa79"/>
+  <path id="road" d="M60 690 C 300 620, 520 660, 760 610 S 1120 560, 1240 600" fill="none" stroke="#fff6e5" stroke-width="6" stroke-dasharray="18 16" stroke-linecap="round"/>
+  <!-- tree with morphing crown -->
+  <g transform="translate(300 560)">
+    <rect x="-10" y="-20" width="20" height="90" rx="6" fill="#7a4a2b"/>
+    <path id="crown" d="M0,-150 C60,-150 100,-100 100,-50 C100,0 60,20 0,20 C-60,20 -100,0 -100,-50 C-100,-100 -60,-150 0,-150 Z" fill="#2f8f5f"/>
+  </g>
+  <!-- balloon -->
+  <g id="balloon" transform="translate(500 300)">
+    <path d="M0,-110 C60,-110 80,-60 80,-20 C80,30 30,60 0,90 C-30,60 -80,30 -80,-20 C-80,-60 -60,-110 0,-110 Z" fill="#ff6b6b"/>
+    <path d="M0,-110 C20,-110 30,-60 30,-20 C30,30 12,60 0,90 C-12,60 -30,30 -30,-20 C-30,-60 -20,-110 0,-110 Z" fill="#ffd166"/>
+    <line x1="-14" y1="84" x2="-14" y2="120" stroke="#7a4a2b" stroke-width="3"/><line x1="14" y1="84" x2="14" y2="120" stroke="#7a4a2b" stroke-width="3"/>
+    <rect x="-22" y="120" width="44" height="30" rx="6" fill="#a86b3c"/>
+  </g>
+  <!-- paper plane on a closed loop -->
+  <path id="loop" d="M700 260 C 850 200, 1050 300, 950 380 S 650 380, 700 260 Z" fill="none" stroke="none"/>
+  <path id="trail" d="M700 260 C 850 200, 1050 300, 950 380 S 650 380, 700 260 Z" fill="none" stroke="#ffffff" stroke-width="3" stroke-dasharray="6 10" opacity=".7"/>
+  <g id="plane"><path d="M-22,-10 L22,0 L-22,10 L-12,0 Z" fill="#fff" stroke="#3a5a80" stroke-width="3" stroke-linejoin="round"/></g>
+  <!-- birds -->
+  <g id="birds" stroke="#3a5a80" stroke-width="4" fill="none" stroke-linecap="round">
+    <path id="b1" transform="translate(400 200)" d="M-18,0 Q-9,-12 0,0 Q9,-12 18,0"/>
+    <path id="b2" transform="translate(450 230)" d="M-14,0 Q-7,-10 0,0 Q7,-10 14,0"/>
+  </g>
+</svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/MorphSVGPlugin.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(MorphSVGPlugin, MotionPathPlugin, DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 4 });
+  const crownB = 'M0,-160 C70,-140 110,-90 90,-40 C110,10 50,30 0,20 C-50,30 -110,10 -90,-40 C-110,-90 -70,-140 0,-160 Z';
+  tl.to('#crown', { morphSVG: crownB, duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#rays', { rotation: 45, transformOrigin: '50% 50%', duration: 4, ease: 'none' }, 0)
+    .to('#sun', { scale: 1.06, transformOrigin: '50% 50%', duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#cloud1', { x: 40, duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#cloud2', { x: -30, duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#balloon', { y: -30, rotation: 4, transformOrigin: '50% 0%', duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#hillBack', { morphSVG: 'M0 500 C 200 420, 400 440, 640 450 S 1050 400, 1280 450 L1280 720 L0 720 Z', duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#hillFront', { morphSVG: 'M0 590 C 250 550, 450 570, 700 580 S 1100 500, 1280 590 L1280 720 L0 720 Z', duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#plane', { motionPath: { path: '#loop', align: '#loop', autoRotate: true, alignOrigin: [0.5, 0.5] }, duration: 4, ease: 'none' }, 0)
+    .fromTo('#trail', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 2, ease: 'power2.inOut' }, 0)
+    .to('#trail', { drawSVG: '100% 100%', duration: 2, ease: 'power2.inOut' }, 2)
+    .fromTo('#road', { strokeDashoffset: 0 }, { strokeDashoffset: -136, duration: 4, ease: 'none' }, 0)
+    .to('#b1', { y: -12, x: 20, duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0)
+    .to('#b2', { y: -18, x: 16, duration: 2, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0.3)
+    .to('#b1', { morphSVG: 'M-18,0 Q-9,8 0,0 Q9,8 18,0', duration: 0.25, ease: 'sine.inOut', repeat: 15, yoyo: true }, 0)
+    .to('#b2', { morphSVG: 'M-14,0 Q-7,7 0,0 Q7,7 14,0', duration: 0.25, ease: 'sine.inOut', repeat: 15, yoyo: true }, 0.12);
+</script>

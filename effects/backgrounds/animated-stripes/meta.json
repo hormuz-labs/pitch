@@ -1,0 +1,22 @@
+{
+  "move": "tilted colour stripes conveyor one way, thin dark stripes race the other",
+  "how": "A 2400px square sheet rotated -24deg holds two layers: wide 64px bands on a 96px pitch cycling orange, cream and yellow, and thin 10px near-black stripes on a 48px pitch. Layer one translates y by -8 pitches and layer two by +20 pitches over D with ease none, so both tile seamlessly and appear to flow in opposite directions. The whole sheet leans from -24 to -18deg and scales 1 to 1.08 in one sine yoyo cycle, and the wide bands pulse scaleY 1 to 0.72 in a staggered wave (0.035s each) down the sheet. A radial vignette darkens the corners.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "squash",
+    "zoom"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the three band colours and the background, the tilt angle and band pitch; fewer, fatter bands read as more graphic. Keep the integer-pitch travel distances so the scroll loops.",
+  "port": "mount(el, shot) builds the rotated sheet and appends the band divs for both layers; animate(el, shot, D) returns the same timeline: two linear y tweens over D, the yoyo lean/scale and the staggered scaleY pulse, with selectors scoped to el. The 2400px sheet assumes a 1280x720 frame; size it to cover the rotated shot.",
+  "caveats": [
+    "the staggered scaleY pulse starts up to 1.1s late for the last bands so they are still mid-cycle at D; the loop does not close cleanly on band thickness",
+    "about 85 animated band elements"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

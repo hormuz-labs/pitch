@@ -1,0 +1,22 @@
+{
+  "move": "six blocks slide in from different edges, counters tick, breathe, slide out",
+  "how": "A 4x2 grid of rounded blocks (two spanning two columns) starts with each block offset off a different edge (x ±700 or y ±500) at opacity 0. They slide to place with expo.out over 0.9s at 0.1s offsets, and each block's headline and caption fade/rise in (power3.out, stagger 0.06) 0.4s behind it. Four numbers count from 0 to their data-to value over 0.9s (power3.out) via tweened objects. A masked title rises at 27%. At 35% the chip block's gradient backgroundPosition sweeps 0%→100% (sine.inOut, 1.5s) and every block breathes scale 1.02 yoyo with stagger 0.12. Exit at 82%: blocks slide back out the way they came in reverse order with expo.in, title exits.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "counter",
+    "breathe",
+    "light-sweep"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the block copy, colours, spans and the data-to counter targets, and the entry edge per block in the from[] array; keep the 0.1s cadence and 0.9s expo.out slide.",
+  "port": "mount(el, shot) builds the grid from shot data with data-to attributes; animate(el, shot, D) returns the timeline, blocks entering at 0.01-0.35D, counters at 0.15D, breathe at 0.45D, exit at 0.82D. Use el.querySelectorAll('.blk') and '.n' and keep the counter objects inside animate.",
+  "caveats": [
+    "backgroundPosition sweep only reads if the block's gradient has background-size larger than the box"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

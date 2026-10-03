@@ -1,0 +1,24 @@
+{
+  "move": "square deck fans in, top card flicks off to reveal next",
+  "how": "Three square product cards stack at one spot with depth poses (y -40 / scale 0.92 / rotationZ 3 and y -80 / 0.84 / -3). A title rises masked (expo.out), then the cards fly up from y 1400 with ±12-20 rotationZ back-first (expo.out 0.8s, 0.12s apart) and the dots, price and CTA fade up; inner images settle from scale 1.12. At 37% and 62% a flick() beat throws the top card to x -900 with rotationZ -18 / rotationY -30 (power3.in 0.55s), the next card steps to the front with back.out(1.4) and the one behind re-poses, while a call() moves the active dot and rewrites the price. At 85% the last card flicks off, title lines exit upward and the dots/price/CTA fade down; the first dot and price are restored by call() on the last frame.",
+  "moves": [
+    "stack",
+    "slide-in",
+    "peel-off",
+    "flip-3d",
+    "text-rise"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the three images, their label/small text and prices, the title and CTA; keep the depth poses, the 0.12s fan cadence and the flick at 1.5s / 2.5s of 4s.",
+  "port": "mount(el, shot) builds the deck, dots, price and CTA and applies the pose sets; animate(el, shot, D) returns the timeline with fan at 0.025D, flicks at 0.375D and 0.625D, exit at 0.85D. The flick() helper's call() must update el-scoped dots/price; from() tweens need immediateRender:false; perspective on .stage moves to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "dots and price are set via call() and can go stale when scrubbing backwards"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

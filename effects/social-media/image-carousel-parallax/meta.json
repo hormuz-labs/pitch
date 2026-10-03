@@ -1,0 +1,24 @@
+{
+  "move": "card track slides, inner images and blurred backdrop lag at different speeds",
+  "how": "Four wide image cards (the fourth a copy of the first) sit on a horizontal track; behind them a blurred, saturated copy of each image fades in as its own backdrop. Three moves at 20%, 51% and 83% of the duration slide the track x by -760px per step with expo.inOut over 1.2s while every inner image (130% wide) tweens x in the opposite direction at 40% speed and the backdrop layer at 12%, so three planes move at three speeds; the matching backdrop crossfades opacity to 0.45 and the others to 0, and a call() updates the '01 / 03' counter and the pill dot halfway through each move. All cards breathe scale 1→1.02 and back with sine.inOut over the full duration. The dots are hidden on the last frame; no explicit exit because the fourth card equals the first.",
+  "moves": [
+    "carousel",
+    "parallax",
+    "crossfade",
+    "breathe"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the three images, captions and headings (the fourth card must duplicate the first), the step width if the card width changes; keep the 1.2s expo.inOut move and the 0.4 / 0.12 speed ratios.",
+  "port": "mount(el, shot) builds the backdrops, track with N+1 cards and dots; animate(el, shot, D) returns the timeline with moves at 0.2D, 0.51D and 0.83D via the move() helper written against el-scoped nodes. The counter/dot call()s should become el-scoped; the 8s breathe tween should be sized to D.",
+  "caveats": [
+    "inner image x offset grows to 304/608/912px per step, far beyond the 15% bleed, so the left of each card goes empty after the first move",
+    "the final frame does not match the first: inner images sit at x 912 and the backdrop layer at x -273, so the loop jumps",
+    "filter: blur(30px) on three full-frame backdrops, slow to render",
+    "counter and dots are updated via call()"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

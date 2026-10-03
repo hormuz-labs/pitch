@@ -1,0 +1,26 @@
+{
+  "move": "mark drops and lands with squash, M draws on, wordmark slides out from behind while lockup recenters",
+  "how": "A flex lockup of a mint rounded-square SVG mark with an M stroke and a masked wordmark 'acme.' whose overflow container hides the text. The lockup starts offset by half the name width so the mark alone is centred. 0-23%: the mark drops from y -220 rotating -18 (expo.out), at 18% it squashes scaleY .9/scaleX 1.08 and settles with elastic.out(1,.4); at 8% the M drawSVGs 0->100% (power2.inOut). At 27% the name slides from xPercent -125 out from behind the mark (expo.out, 0.8s) while the lockup x eases from nameW/2 to 0 so the pair ends centred. Exit at 78%: the name retracts to -125 and the lockup shifts back (expo.in, 0.45s); at 88% the mark drops down out to y 220 rotating 18 (power3.in).",
+  "moves": [
+    "drop",
+    "squash",
+    "draw-stroke",
+    "slide-in",
+    "mask-reveal",
+    "slide-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the mark SVG and its path, the mint (#7cf5c1), the wordmark text and the accent character. Keep the 0.7s expo.out drop, the elastic landing and the 0.8s recentering slide.",
+  "port": "mount(el, shot) builds the lockup inside el and measures the .mask offsetWidth after fonts load; animate(el, shot, D) returns the timeline with the drop at 0, the slide at 0.27D-0.53D, the retract at 0.78D. Scope '.lockup', '.mark', '.m1', '.name' to el; the from() tweens need immediateRender:false when nested; the initial set of lockup x depends on measured width so mount must run after layout.",
+  "caveats": [
+    "nameW is measured from offsetWidth at script time; fonts must be loaded first or the centring is off",
+    "from() tweens need immediateRender:false when nested",
+    "ends with the mark gone, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

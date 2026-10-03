@@ -41,6 +41,7 @@ export const GUEST_BIN_DIR = path.join(PI_DIR, 'guest')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
 export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')
+export const EFFECTS_DIR = path.join(REPO_ROOT, 'effects')
 export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'projects')
 
 /**
@@ -52,7 +53,7 @@ export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'pr
  * (135KB) are library code it once read four times in one film. The same
  * goes for the vendor libraries under assets/ — see LIBRARY_DIRS.
  */
-export const SHARED_ROOTS: readonly string[] = [SKILLS_DIR, ASSETS_DIR]
+export const SHARED_ROOTS: readonly string[] = [SKILLS_DIR, ASSETS_DIR, EFFECTS_DIR]
 
 /**
  * Library code inside a shared root that the agent never needs to read:
@@ -64,6 +65,8 @@ export const LIBRARY_DIRS: readonly string[] = [
   path.join(ASSETS_DIR, 'three'),
   path.join(ASSETS_DIR, 'rive'),
   path.join(ASSETS_DIR, 'p5'),
+  path.join(EFFECTS_DIR, '_lib'),
+  path.join(EFFECTS_DIR, '_batches'),
 ]
 
 export class PathError extends Error {
@@ -151,7 +154,8 @@ export function describeWorkspace(workspace: string): string {
   return (
     `Current working directory: ${workspace} — this project's workspace, and the only place ` +
     `you can write. Read-only references: your skills at ${SKILLS_DIR}, the music, SFX and ` +
-    `font libraries at ${ASSETS_DIR}. The engine and the vendor libraries are not on disk ` +
+    `font libraries at ${ASSETS_DIR}, the motion effects library at ${EFFECTS_DIR} ` +
+    `(\`pitch effects\`). The engine and the vendor libraries are not on disk ` +
     `for you: \`pitch motion schema\` is their reference. Nothing else on this machine ` +
     `exists for you: no other project, no network, no environment.`
   )

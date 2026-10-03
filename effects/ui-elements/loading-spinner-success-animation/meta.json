@@ -1,0 +1,25 @@
+{
+  "move": "spinner morphs into green disc, check draws, particles burst, copy swaps",
+  "how": "A dark card rises in with expo.out. A blue arc chases head-to-tail (DrawSVG 0-10% to 0-75%, power2.inOut, yoyo three times) while its SVG spins 1440deg linearly until 52%, the subtitle pulsing. At 46% the arc closes to 100%, turns green, and at 52% a green disc scales up with back.out(1.8) as the ring fades; a check draws with DrawSVG power2.out, a burst ring scales 1 to 1.5 and fades, the icon pops 1.08 and settles elastic, and twelve dots fly out radially 92-110px and vanish. Title and subtitle cross-fade to the success strings with back.out(1.6), a Done button pops in at 61%, breathes scale 1.04, and the card lifts out at 94%.",
+  "moves": [
+    "spinner",
+    "draw-stroke",
+    "morph",
+    "spark-burst",
+    "pop-in",
+    "text-swap",
+    "lift-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the two title/subtitle pairs, the button label and the blue/green; the spin length is the wait, shorten it by moving the 4.0s transition earlier; keep the back.out disc and 0.45s check draw.",
+  "port": "mount(el, shot) builds the card, both SVGs and appends 12 particle divs; animate returns the timeline with the spin running to 0.52D and the success beat at 0.52-0.62D. Direct port; scope .ico querySelector to el and register DrawSVG.",
+  "caveats": [
+    "spinner rotation of 1440deg ends abruptly when the disc appears, hidden by the fade"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

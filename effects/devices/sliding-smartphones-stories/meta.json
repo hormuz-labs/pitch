@@ -1,0 +1,27 @@
+{
+  "move": "phones slide in playing story video, bars fill, sticker pops, slide out",
+  "how": "A 1080x1920 portrait frame with a blurred, dimmed background video. Two smaller side phones slide in from x -700 / +700 with rotate -12 / 12 (0.9s expo.out) at 3% and 7% of the 3s, and the large centre phone rises from y 1200 with rotate 4 (1.0s expo.out) at 8%; a caption drops in from y -30. Every phone plays a story clip whose currentTime is driven each frame from the timeline (offset 1.3s per phone), and the first progress segment fills scaleX 0 -> 1 linearly across the loop. Story text lines rise from yPercent 110 (0.08s stagger, expo.out) around 27-30%, a yellow sticker pops from scale 0 / rotate 30 with back.out(2) at 40% then rocks rotate -14 yoyo. At 85% the side phones slide back out, the centre phone drops to y 1200 (expo.in) and the caption fades.",
+  "moves": [
+    "slide-in",
+    "rise",
+    "word-rise",
+    "pop",
+    "rock",
+    "progress-fill",
+    "slide-out",
+    "video-scrub"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the three story video clips, account names, story text lines, sticker text and caption. Keep the 0.9-1.0s expo.out entries and the linear progress fill; the per-phone 1.3s video offset can be tuned per clip.",
+  "port": "mount(el, shot) builds the background video, caption and three phones from shot.videos and awaits loadeddata on each (the source uses fx.wait for this); animate(el, shot, D) returns the timeline whose first tween is a linear object tween of duration D with onUpdate setting each video's currentTime, plus the entries at 0.03D-0.08D and exits at 0.85D. document.querySelectorAll('video') must be scoped to el; from() tweens should be fromTo with immediateRender:false; frame is portrait.",
+  "caveats": [
+    "portrait 1080x1920 frame, not 16:9",
+    "four <video> elements seeked by currentTime every frame plus a full-frame blur(30px) video, heavy and depends on the clips being preloaded",
+    "loop does not close: video times differ at each end and the phones are off-screen at both ends"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1920"
+}

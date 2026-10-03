@@ -1,0 +1,27 @@
+{
+  "move": "gooey blob stretches into a bar, letters bud out, collapse back",
+  "how": "An SVG on near-black with a yellow blob path and five yellow text letters (stroke same as fill) sharing a gooey filter (feGaussianBlur 10 plus alpha-boost colour matrix) so touching shapes fuse. The blob morphs with MorphSVG to a second wobbly shape over the first 22% (sine.inOut), then to a long horizontal bar by 47% (expo.inOut). From 40% the letters scale up from 0 to 1.15 with back.out(1.8) staggered from the centre while their stroke-width grows to 14, budding out of the bar; the bar flattens to scaleY .05 and the letters settle to scale 1 with stroke 4 by 82%. At 81% the letters collapse to scale 0 (stroke 20, power3.in, from the edges) as the bar re-inflates to full scale, and a set() at the very end snaps the path back to the original blob so the loop restarts on the shape.",
+  "moves": [
+    "morph",
+    "goo",
+    "pop",
+    "stagger",
+    "inflate",
+    "snap-out"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG",
+    "svg-filter"
+  ],
+  "adapt": "Change the word (150px letter pitch from centre), the ink colour (fill and stroke together), the blob path pair and the caption. Keep the goo filter values and the blob-to-bar expo.inOut, which is what makes the letters read as emerging from the shape.",
+  "port": "mount(el, shot) builds the SVG with a per-instance filter id, the blob path and one text element per letter with scale 0 set; animate(el, shot, D) returns a gsap.timeline with the morphs at 0 and 0.225D, letter pop 0.4D, bar flatten 0.475D, settle 0.65D, collapse 0.81D and the reset set() at D. Register MorphSVGPlugin; scope '#blob' to el.querySelector.",
+  "caveats": [
+    "the return morph targets '#blob' (its own current data) so it is a no-op; the original shape is restored by a hard set() at the last frame, not tweened",
+    "letters do not morph from the shape, they pop out of the bar: an approximation of the description",
+    "goo filter on large glyphs is moderately slow"
+  ],
+  "fidelity": "approximation",
+  "loop": true,
+  "size": "1280x720"
+}

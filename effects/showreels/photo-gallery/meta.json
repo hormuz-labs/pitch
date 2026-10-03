@@ -1,0 +1,24 @@
+{
+  "move": "veil wipes open, photos ken-burns then drift-fade, italic captions swap",
+  "how": "Three full-frame photos are stacked inside a letterboxed frame on black. A black veil scales from 1 to 0 toward the right (expo.inOut 1.1s) to open the first photo; each photo then slowly settles from scale 1.12 to 1 while sliding xPercent -2 to 2 (alternating direction, linear) across its 3.33s slot. At each slot boundary the outgoing photo fades and drifts left (opacity 0, xPercent -6, scale 1.04, power2.inOut 1s) to uncover the next; the italic serif caption drops up out of its mask (yPercent -120, power3.in) and the next caption rises in (expo.out 0.7s), and a counter call updates 01/02/03. Three thin progress lines fill linearly, one per slot. At 92% the last photo drifts away, photos 1-2 are reset, the first caption returns and the veil closes from the left so the loop restarts on the veil wipe.",
+  "moves": [
+    "mask-wipe",
+    "ken-burns",
+    "crossfade",
+    "mask-rise",
+    "progress-bar",
+    "counter"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the three photos and captions and the frame inset; N photos changes the slot length (D/N). Keep the 1.1s expo.inOut veil, the 1s drift-fade transition and the opposing xPercent drift per slot.",
+  "port": "mount(el, shot) builds the frame, stacked photos (last first), veil, captions and progress lines inside el. animate(el, shot, D) returns the same timeline with slot = D/N; the tl.call counter updates must reference el.querySelector('.num') and the final resets keep immediateRender:false.",
+  "caveats": [
+    "uses tl.call for the counter text, which fires only when the playhead crosses it; scrubbing backwards may leave a stale number",
+    "final frame is the closed veil, first frame is the veil at scaleX 1, so the loop closes"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,100 @@
+<!doctype html><meta charset="utf-8">
+<title>Glitch 01: Text Reveal</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#050507}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .hint{position:absolute;left:60px;bottom:52px;font-family:"Atlas Grotesk",monospace;font-size:14px;letter-spacing:.3em;color:#6cf5d8;text-transform:uppercase}
+</style>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <div class="hint">SYS // NORTHWIND</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const W = 1280, H = 720, D = 3;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const src = document.createElement('canvas'); src.width = W; src.height = H;
+  const sctx = src.getContext('2d');
+  const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+  const tctx = tmp.getContext('2d');
+  const FONT = '500 172px "Sharp Grotesk", "Atlas Grotesk", sans-serif';
+  fx.wait(document.fonts.load(FONT));
+
+  function drawSource(reveal) {
+    // reveal 0..1 : text wipes in from the left; the source is the clean text mask
+    sctx.clearRect(0, 0, W, H);
+    sctx.font = FONT; sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
+    sctx.fillStyle = '#f2f2f5';
+    sctx.fillText('SYSTEM ONLINE', W / 2, H / 2 - 10);
+    sctx.font = '400 26px "Atlas Grotesk", sans-serif';
+    sctx.fillStyle = '#6cf5d8';
+    sctx.fillText('E D G E   C O M P U T E   ·   V 2 . 0', W / 2, H / 2 + 120);
+    if (reveal < 1) { sctx.globalCompositeOperation = 'destination-in'; sctx.fillRect(0, 0, W * reveal, H); sctx.globalCompositeOperation = 'source-over'; }
+  }
+
+  // glitch intensity envelope across the loop: hard during reveal, calm mid, hard again on exit
+  function intensity(t) {
+    if (t < 0.9) return 1 - Math.pow(t / 0.9, 1.6);
+    if (t < 2.1) return (Math.sin(t * 9) > 0.92) ? 0.35 : 0.04;  // occasional hiccup while settled
+    return Math.min(1, Math.pow((t - 2.1) / 0.7, 1.3));
+  }
+
+  fx.register({
+    duration: D,
+    seek(t) {
+      const frame = Math.floor(t * 30);
+      const rnd = fx.rng(1000 + frame * 7919);
+      const k = intensity(t);
+      const reveal = t < 0.9 ? gsap.parseEase('expo.out')(t / 0.9) : t < 2.35 ? 1 : 1 - gsap.parseEase('expo.in')((t - 2.35) / 0.65);
+      drawSource(reveal);
+      ctx.fillStyle = '#050507'; ctx.fillRect(0, 0, W, H);
+      // faint scanlines
+      ctx.fillStyle = 'rgba(255,255,255,0.025)';
+      for (let y = (frame % 4); y < H; y += 4) ctx.fillRect(0, y, W, 1);
+      // horizontal slice displacement
+      const slices = 6 + Math.floor(k * 22);
+      const sh = H / slices;
+      for (let i = 0; i < slices; i++) {
+        const y = i * sh;
+        const dx = (rnd() - 0.5) * 2 * k * 140 * (rnd() < 0.6 ? 1 : 0);
+        const skip = rnd() < k * 0.12;   // dropped rows
+        if (skip) continue;
+        // RGB split: draw red & cyan copies offset, then the clean layer
+        const split = k * 18 * (0.4 + rnd());
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.filter = 'brightness(1)';
+        ctx.globalAlpha = 0.85;
+        drawTinted(y, sh, dx - split, 'rgba(255,40,80,1)');
+        drawTinted(y, sh, dx + split, 'rgba(40,220,255,1)');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.drawImage(src, 0, y, W, sh, dx, y, W, sh);
+      }
+      // blocky noise chips
+      const chips = Math.floor(k * 30);
+      for (let i = 0; i < chips; i++) {
+        const bw = 20 + rnd() * 220, bh = 4 + rnd() * 26;
+        const bx = rnd() * W, by = rnd() * H;
+        ctx.fillStyle = rnd() < 0.5 ? 'rgba(108,245,216,0.9)' : 'rgba(242,242,245,0.8)';
+        ctx.fillRect(bx, by, bw, bh);
+      }
+      // a scanning bar that sweeps once per loop
+      const barY = ((t / D) * (H + 200)) - 100;
+      const g = ctx.createLinearGradient(0, barY - 60, 0, barY + 60);
+      g.addColorStop(0, 'rgba(108,245,216,0)'); g.addColorStop(0.5, 'rgba(108,245,216,0.12)'); g.addColorStop(1, 'rgba(108,245,216,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, barY - 60, W, 120);
+    }
+  });
+  function drawTinted(y, h, dx, color) {
+    // tint a source slice on a transparent temp canvas, then composite it
+    tctx.globalCompositeOperation = 'source-over';
+    tctx.clearRect(0, y, W, h);
+    tctx.drawImage(src, 0, y, W, h, dx, y, W, h);
+    tctx.globalCompositeOperation = 'source-in';
+    tctx.fillStyle = color; tctx.fillRect(0, y, W, h);
+    ctx.drawImage(tmp, 0, y, W, h, 0, y, W, h);
+  }
+</script>

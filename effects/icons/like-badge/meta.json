@@ -1,0 +1,26 @@
+{
+  "move": "like pill pops three times, thumb kicks, odometer digit rolls, +1 floats, sparks fly",
+  "how": "A card with a slow Ken Burns image (scale 1.05->1.12, xPercent -1->1, linear over 4s), a white pill badge holding a pink thumb icon and a digit odometer built from 20-glyph columns, a pink ring, ten spark dots and three '+1' labels. 0-18%: the card rises 60px and fades in (expo.out); at 8% the badge scales 0->1 with back.out(2). Pops at 22%, 47% and 72%: the badge squashes to .88 (0.1s), overshoots to 1.12 with back.out(3), settles with elastic.out(1,.45); the thumb rotates -22 and lifts 6px then elastic.out back; the last digit column shifts y by -56px with back.out(1.4); the ring scales .6->2.2 fading (expo.out); a '+1' pops in and floats up 90px fading; sparks fly along an upward fan (r 60-120px, expo.out) and fade. At 90% the last column rolls back to its start value so the count matches frame 0.",
+  "moves": [
+    "pop",
+    "elastic",
+    "counter",
+    "odometer",
+    "particles",
+    "float",
+    "ken-burns"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the start number, the card image, the title and handle, the pink (#ff3b6b) accent, and how many pops. Keep the 0.1/0.22/0.4 pop beat, the 56px digit roll with back.out(1.4) and the one-second pop cadence.",
+  "port": "mount(el, shot) builds the card, the odometer columns from shot.count, the sparks and +1 labels inside el; animate(el, shot, D) returns the timeline with pops at 0.22D, 0.47D, 0.72D and the reset at 0.9D. Scope all selectors and the spark container to el; the odometer digit height (56px) is tied to the CSS line-height and must match the mounted font size; from() tweens need immediateRender:false when nested.",
+  "caveats": [
+    "card entrance is a from() tween; needs immediateRender:false when nested",
+    "the image, ring and card fade-in do not reverse, so only the counter loops cleanly",
+    "loads assets/backgrounds/aurora.png via a relative url"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

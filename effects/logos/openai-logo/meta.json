@@ -1,0 +1,26 @@
+{
+  "move": "six interlocking arc petals draw on in sequence while the knot spins and scales in, then unwind",
+  "how": "A 360px SVG with a rotatable group holding six identical white stroked petal paths (rounded lozenges), each rotated 60deg apart, plus two word spans. 0-30%: the petals drawSVG '0% 0%' -> '0% 100%' with a 0.09s stagger (power2.inOut, 0.9s each) while the group settles from rotation -120, scale .6 to 0/1 with expo.out over 1.6s. From 43% to 90% the group keeps turning to rotation 60 (power1.inOut) so it never rests. At 30% the two words rise 24px fading in with a 0.08s stagger (expo.out). Exit at 82%: the petals erase to '100% 100%' in reverse order (stagger -0.05, power2.in) and at 87% the words lift 16px and fade.",
+  "moves": [
+    "draw-stroke",
+    "stagger",
+    "spin",
+    "zoom",
+    "slide-in",
+    "erase-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the petal path, count and rotation step to any radial mark, the stroke colour and width, and the two word strings. Keep the 0.09s draw stagger, the 1.6s expo.out settle and the continuous slow turn.",
+  "port": "mount(el, shot) generates the six petal paths into a group inside el's SVG and appends the word spans; animate(el, shot, D) returns the timeline with draw 0-0.3D, turn 0.43D-0.9D, words at 0.3D, erase at 0.82D. Scope '.petal', '.rot', '.word span' to el; register DrawSVGPlugin; the word from() needs immediateRender:false when nested.",
+  "caveats": [
+    "the file title is 'AI Knot Logo' with an original hexagonal knot, not the OpenAI mark",
+    "from() on the word spans needs immediateRender:false when nested",
+    "ends with the knot erased and rotated 60deg, no return to frame one"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

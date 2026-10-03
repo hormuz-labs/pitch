@@ -1,0 +1,79 @@
+<!doctype html><meta charset="utf-8">
+<title>Frames: Mobile Showreel</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#101114;perspective:1600px}
+  .bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,#2b2f45,#101114 60%)}
+  .row{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:54px;transform-style:preserve-3d}
+  .phone{width:250px;height:520px;border-radius:44px;background:#0a0a0c;padding:10px;box-shadow:0 40px 80px rgba(0,0,0,.6),inset 0 0 0 2px #2a2b30;position:relative;transform-style:preserve-3d;flex:none}
+  .phone::before{content:"";position:absolute;left:50%;top:18px;width:74px;height:20px;background:#0a0a0c;border-radius:12px;transform:translateX(-50%);z-index:3}
+  .scr{width:100%;height:100%;border-radius:36px;overflow:hidden;background:#fff;position:relative}
+  .screens{position:absolute;inset:0;display:flex;flex-direction:column}
+  .s{flex:none;width:100%;height:100%;padding:52px 18px 18px;font-family:"Atlas Grotesk",sans-serif;color:#111}
+  .s h3{font:500 22px/1.1 "Sharp Grotesk","Atlas Grotesk",sans-serif;letter-spacing:-.03em}
+  .s p{font-size:11px;color:#777;margin-top:6px}
+  .hero{height:130px;border-radius:14px;margin-top:14px;background:linear-gradient(135deg,#ff7a59,#ffd23f)}
+  .hero.b{background:linear-gradient(135deg,#2f6bff,#8fd3ff)}
+  .hero.c{background:linear-gradient(135deg,#1fb37a,#c8ff9a)}
+  .li{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .li i{width:34px;height:34px;border-radius:10px;background:#eee;flex:none}
+  .li b{display:block;height:9px;width:110px;background:#ddd;border-radius:4px}
+  .li b+b{width:70px;margin-top:5px;background:#eee}
+  .cta{position:absolute;left:18px;right:18px;bottom:18px;height:42px;border-radius:12px;background:#111;color:#fff;font:500 13px/42px "Atlas Grotesk",sans-serif;text-align:center}
+  .tabs{position:absolute;left:18px;right:18px;bottom:18px;height:44px;border-radius:14px;background:#f2f2f2;display:flex;justify-content:space-around;align-items:center}
+  .tabs i{width:16px;height:16px;border-radius:5px;background:#c9c9c9}.tabs i.on{background:#111}
+  .cap{position:absolute;left:0;right:0;bottom:44px;text-align:center;color:#fff;font:400 20px "Atlas Grotesk",sans-serif;letter-spacing:.02em}
+  .cap b{font-weight:500}
+  .ttl{position:absolute;left:0;right:0;top:44px;text-align:center;color:#8a8fa8;font:400 14px "Atlas Grotesk",sans-serif;letter-spacing:.3em;text-transform:uppercase}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="ttl">Northwind · iOS</div>
+  <div class="row" id="row">
+    <div class="phone" id="p1"><div class="scr"><div class="screens">
+      <div class="s"><h3>Good morning, Sam</h3><p>3 tasks due today</p><div class="hero"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="tabs"><i class="on"></i><i></i><i></i><i></i></div></div>
+      <div class="s"><h3>Weekly report</h3><p>Ready to send</p><div class="hero b"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="cta">Send report</div></div>
+    </div></div></div>
+    <div class="phone" id="p2"><div class="scr"><div class="screens">
+      <div class="s"><h3>Projects</h3><p>12 active</p><div class="hero b"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="tabs"><i></i><i class="on"></i><i></i><i></i></div></div>
+      <div class="s"><h3>Launch plan</h3><p>Due Friday · 6 people</p><div class="hero c"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="cta">Open board</div></div>
+    </div></div></div>
+    <div class="phone" id="p3"><div class="scr"><div class="screens">
+      <div class="s"><h3>Inbox</h3><p>4 unread</p><div class="hero c"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="tabs"><i></i><i></i><i class="on"></i><i></i></div></div>
+      <div class="s"><h3>Settings</h3><p>Account · Team</p><div class="hero"></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="li"><i></i><span><b></b><b></b></span></div><div class="cta">Save changes</div></div>
+    </div></div></div>
+  </div>
+  <div class="cap" id="cap"><b>Home</b> · Projects · Inbox</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 9 });
+  const cap = document.getElementById('cap');
+  gsap.set('.phone', { transformOrigin: '50% 50%' });
+  // phones rise in, staggered, with a slight 3D fan
+  tl.from('.phone', { y: 700, rotationX: -20, stagger: .12, duration: 1.1, ease: 'expo.out' }, 0)
+    .from('.ttl', { opacity: 0, y: -10, duration: .6 }, .5)
+    .from('.cap', { opacity: 0, y: 10, duration: .6 }, .8)
+    .fromTo('#p1', { rotationY: 0 }, { rotationY: 18, x: 30, duration: 1.1, ease: 'expo.out' }, .3)
+    .fromTo('#p3', { rotationY: 0 }, { rotationY: -18, x: -30, duration: 1.1, ease: 'expo.out' }, .3)
+    .from('.s:first-child > *', { y: 16, opacity: 0, stagger: .04, duration: .5, ease: 'power3.out' }, .9)
+    // screens scroll to their second page, one phone after another
+    .to('#p1 .screens', { yPercent: -100, duration: .8, ease: 'expo.inOut' }, 2.4)
+    .to('#p2 .screens', { yPercent: -100, duration: .8, ease: 'expo.inOut' }, 2.65)
+    .to('#p3 .screens', { yPercent: -100, duration: .8, ease: 'expo.inOut' }, 2.9)
+    .call(() => cap.innerHTML = 'Home · <b>Projects</b> · Inbox', null, 2.8)
+    // the row slides so the middle phone comes to the front and turns to camera
+    .to('#p2', { scale: 1.12, z: 80, duration: 1, ease: 'expo.inOut' }, 4.2)
+    .to('#p1', { rotationY: 32, x: -10, scale: .92, duration: 1, ease: 'expo.inOut' }, 4.2)
+    .to('#p3', { rotationY: -32, x: 10, scale: .92, duration: 1, ease: 'expo.inOut' }, 4.2)
+    .to('#row', { rotationY: -10, duration: 1.4, ease: 'sine.inOut' }, 5.4)
+    .to('#row', { rotationY: 10, duration: 1.4, ease: 'sine.inOut' }, 6.8)
+    .call(() => cap.innerHTML = 'Home · Projects · <b>Inbox</b>', null, 5.6)
+    // scroll back and exit down for the loop
+    .to('.screens', { yPercent: 0, stagger: .08, duration: .7, ease: 'expo.inOut' }, 7.2)
+    .call(() => cap.innerHTML = '<b>Home</b> · Projects · Inbox', null, 7.6)
+    .to('.phone', { y: 700, rotationX: 15, stagger: .08, duration: .6, ease: 'expo.in' }, 8.3)
+    .to('.cap,.ttl', { opacity: 0, duration: .3 }, 8.5);
+</script>

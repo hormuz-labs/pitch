@@ -1,0 +1,25 @@
+{
+  "move": "bento cells pop in, wipes uncover photos, counters run, wipes close",
+  "how": "A 16:9 four-column by two-row bento grid (c7 ticker cell hidden) of white, black, yellow and blue cells plus three photo cells. All cells scale in from 0.85 and opacity 0 (expo.out 0.9s, 100ms stagger) at 0; a stage-coloured wipe plane over each photo cell collapses to scaleX 0 from the left (expo.inOut 0.9s, 150ms stagger) from 5%, revealing photos that slowly settle from scale 1.25 to 1.05 over 90% of the loop. Category chips drop in from y -30 with back.out(2), headings, labels, logo and dots lift in from y 26 (power3.out, 60ms stagger), a big stat counts 0 to 48 with expo.out over 1.6s from 10%, and three dots blink in sequence (opacity yoyo repeats). Mid-loop at 45% the photo cells lift 12px and scale 1.02 yoyo while their images drift (xPercent -6 / yPercent 5, sine.inOut 4s) and the stat cell rocks -2deg. At 81% the wipes close back over the photos from the right (expo.inOut) and at 89% the cells collapse to 0.85 and fade in reverse order.",
+  "moves": [
+    "pop-in",
+    "mask-wipe",
+    "stagger",
+    "counter",
+    "ken-burns",
+    "collapse"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the studio name, tagline, chip labels, stat target (data-to), the three photos and the four brand colours; grid-area assignments give the layout. Keep the 0.9s expo.out pop at 100ms stagger, the 0.9s expo.inOut wipe and the 45% mid-loop lift.",
+  "port": "mount(el, shot) builds the grid, cells, wipe planes and ticker inside el (hide unused cells). animate(el, shot, D) returns the same timeline with labels scaled from the 10s base to fractions of D; counter tweens must select .n inside el.",
+  "caveats": [
+    "catalog says 20s but render.json duration is 10s",
+    "from() tweens throughout; use immediateRender:false when built late",
+    "ends on an empty stage, not the first frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

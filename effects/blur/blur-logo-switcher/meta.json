@@ -1,0 +1,24 @@
+{
+  "move": "logos resolve from heavy blur, dissolve back into blur, glow recolours",
+  "how": "Four logo lockups (SVG mark + wordmark) are stacked at centre on near-black. Each takes a 2.5s segment: it enters from opacity 0, blur(40px), scale 1.18 and loose letterSpacing to sharp, scale 1, -0.05em over 0.9s (expo.out) while its mark rotates in from -40 degrees; in the last 0.55s of the segment it dissolves out to blur(36px), scale 0.86, opacity 0 (power3.in). A 900px blur(120px) glow disc behind crossfades backgroundColor to each logo's colour (0.8s power2.inOut), rotates 360 and shifts xPercent -8 to 8 over the loop, and a pager dot brightens and scales 1.4 per logo.",
+  "moves": [
+    "blur-exit",
+    "blur-in",
+    "crossfade",
+    "colour-shift",
+    "spin"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the SVG marks, names, taglines and --c colours; SEG = D / logo count; keep the 0.9s expo.out resolve and 0.55s power3.in dissolve.",
+  "port": "mount(el, shot) appends .glow, the .logo lockups and .idx dots; animate(el, shot, D) returns the same timeline with SEG = D/n. Scope '.logo', '#glow', '.idx i' to el and read --c from each logo.",
+  "caveats": [
+    "filter: blur(120px) on a 900px disc plus blur(40px) on animating text is slow to render",
+    "the glow xPercent -8 to 8 does not return, so the background jumps a little at the loop",
+    "from() on the svg rotation needs immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

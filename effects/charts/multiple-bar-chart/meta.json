@@ -1,0 +1,23 @@
+{
+  "move": "grouped bars of three series grow together, groups cascade, wave, collapse",
+  "how": "A white card with title, subtitle, a three-swatch legend and a plot of six quarter groups, each holding three bars (dark, blue, lavender) sized by data. The card rises y:30 (power3.out); title/legend slide up (stagger 0.07); three gridlines and the baseline scale scaleX from the left (expo.out, stagger 0.05) at 5-22%; quarter labels fade. From 12% the bars grow scaleY 0 to 1 with expo.out over 1s: series 0 across all groups with stagger 0.08, series 1 starting 0.08s later and series 2 another 0.08s later, so each group builds left to right while the groups cascade, all three series rising at once. Hold at 52%: a wave lifts each group y:-8 yoyo (sine.inOut, stagger 0.08). Exit at 79%: all bars collapse scaleY to 0 with expo.in staggered 0.02 from the end, labels fade, card lifts out.",
+  "moves": [
+    "grow-bar",
+    "stagger",
+    "cascade",
+    "wave",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Edit the data array of [label, [v0, v1, v2]] groups and the C colour array (mirrored in the legend --c values), title and gridline labels; keep the 1s expo.out grow with the 0.08 group and series offsets and the from-end collapse.",
+  "port": "mount(el, shot) builds the card and generates .g groups with .b.sN bars from shot.data; animate(el, shot, D) returns the same timeline with grows at 0.12-0.5 of D, wave at 0.52, collapse at 0.79. Series selectors (.b.s0 etc.) must be scoped to el.",
+  "caveats": [
+    "bar heights are inline percentages, values above 100 overflow",
+    "card exits upward, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

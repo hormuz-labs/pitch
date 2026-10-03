@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradients: Logo Reveal</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#08080b}
+  .layer{position:absolute;left:-40%;top:-40%;width:180%;height:180%;will-change:transform,opacity;mix-blend-mode:screen;filter:blur(30px)}
+  .l1{background:radial-gradient(ellipse at 30% 40%,#ff3d81 0%,rgba(255,61,129,0) 45%)}
+  .l2{background:radial-gradient(ellipse at 60% 60%,#3d6bff 0%,rgba(61,107,255,0) 45%)}
+  .l3{background:radial-gradient(ellipse at 50% 30%,#ffb13d 0%,rgba(255,177,61,0) 40%)}
+  .l4{background:conic-gradient(from 0deg at 50% 50%,#8f3dff,#3dd6ff,#3dff9a,#8f3dff);opacity:.5}
+  .mark{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;transform-origin:50% 50%}
+  .mark svg{width:100%;height:100%;overflow:visible}
+  .name{position:absolute;left:0;right:0;top:50%;margin-top:120px;text-align:center;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:.22em;text-transform:uppercase;color:#fff}
+  .name span{display:inline-block}
+  .tag{position:absolute;left:0;right:0;top:50%;margin-top:200px;text-align:center;font-family:"Atlas Grotesk",sans-serif;font-size:18px;letter-spacing:.36em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+  .veil{position:absolute;inset:0;background:#08080b}
+</style>
+<div class="stage">
+  <div class="layer l1"></div><div class="layer l2"></div><div class="layer l3"></div><div class="layer l4"></div>
+  <div class="mark">
+    <svg viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3d81"/><stop offset=".5" stop-color="#ffb13d"/><stop offset="1" stop-color="#3dd6ff"/></linearGradient>
+        <clipPath id="clip"><rect id="cr" x="0" y="0" width="200" height="200"/></clipPath>
+      </defs>
+      <g clip-path="url(#clip)">
+        <circle id="ring" cx="100" cy="100" r="78" fill="none" stroke="url(#mg)" stroke-width="22"/>
+        <path id="tri" d="M100 48 L152 142 L48 142 Z" fill="#fff"/>
+      </g>
+    </svg>
+  </div>
+  <div class="name"><span>A</span><span>c</span><span>m</span><span>e</span></div>
+  <div class="tag">Design Systems</div>
+  <div class="veil"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tl = fx.timeline({ duration: 5 });
+  // gradient layers slide across from different directions, overlapping and surfacing the mark
+  tl.fromTo('.l1', { x: -900, y: 200, rotate: -20 }, { x: 250, y: -120, rotate: 10, duration: 2.6, ease: 'power2.inOut' }, 0)
+    .fromTo('.l2', { x: 900, y: -200, rotate: 25 }, { x: -220, y: 140, rotate: -8, duration: 2.6, ease: 'power2.inOut' }, 0.15)
+    .fromTo('.l3', { y: 700, scale: 0.7 }, { y: -80, scale: 1.1, duration: 2.4, ease: 'power2.inOut' }, 0.3)
+    .fromTo('.l4', { rotate: 0, scale: 0.4, opacity: 0 }, { rotate: 140, scale: 1, opacity: 0.45, duration: 3, ease: 'power1.inOut' }, 0.2);
+  // the layers keep drifting through the hold, then sweep out for the loop
+  tl.to('.l1', { x: 320, y: -180, duration: 1.4, ease: 'sine.inOut' }, 2.6).to('.l2', { x: -300, y: 180, duration: 1.4, ease: 'sine.inOut' }, 2.75)
+    .to('.l4', { rotate: 220, duration: 1.5, ease: 'none' }, 3.2)
+    .to('.layer', { opacity: 0, scale: 1.3, duration: 0.6, ease: 'power2.in', stagger: 0.05 }, 4.3);
+  // the veil lifts as colour floods the frame
+  tl.to('.veil', { opacity: 0, duration: 1.2, ease: 'power2.out' }, 0);
+  // the mark: ring draws on, triangle rises into view under the clip, all with gradient fill
+  gsap.set('#ring', { drawSVG: '0%' });
+  tl.to('#ring', { drawSVG: '100%', duration: 1.3, ease: 'expo.inOut' }, 0.9)
+    .fromTo('#tri', { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: 'expo.out' }, 1.5)
+    .fromTo('.mark', { scale: 0.7, rotate: -30 }, { scale: 1, rotate: 0, duration: 1.6, ease: 'expo.out' }, 0.9)
+    .to('.mark', { rotate: 8, duration: 2, ease: 'sine.inOut' }, 2.5)
+    .to('.mark', { scale: 0, rotate: 60, duration: 0.5, ease: 'power3.in' }, 4.4);
+  tl.from('.name span', { yPercent: 110, opacity: 0, duration: 0.8, ease: 'expo.out', stagger: 0.07 }, 1.9)
+    .from('.tag', { opacity: 0, letterSpacing: '.6em', duration: 0.9, ease: 'power2.out' }, 2.3)
+    .to(['.name', '.tag'], { opacity: 0, y: -20, duration: 0.4, ease: 'power2.in' }, 4.45);
+</script>
