@@ -12,7 +12,7 @@
   "libs": [
     "gsap"
   ],
-  "adapt": "Replace the kicker, three word lines, date and the shape colours/radii; confetti count and palette are arrays. Keep the 1s back.out(1.5) corner entries, the 120ms word stagger and the confetti burst at 31%.",
+  "adapt": "Replace the kicker, three word lines, date and the shape colours/radii; confetti count and palette are arrays. Keep the 1s move corner entries, the 120ms word stagger and the confetti burst at 31%.",
   "port": "mount(el, shot) builds the shapes, confetti bits (seeded rng) and copy lines inside el. animate(el, shot, D) returns the same timeline with labels at fractions of D and exits at D-1.3 onward; the 400/300px throws should scale with el size.",
   "caveats": [
     "sixty confetti elements each with their own fromTo tween",

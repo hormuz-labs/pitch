@@ -15,9 +15,12 @@
   const STAGE = { format: FORMATS[requested] ? requested : "16:9", ...(FORMATS[requested] || FORMATS["16:9"]) };
   window.__STAGE = STAGE;
 
+  // `move` (the house ease, every tween's default) starts from rest and settles
+  // long; `slam` is for what is born hidden — behind a mask, out of a blur.
   const EASE = {
+    move: "move",
     slam: "expo.out",
-    land: "power4.out",
+    land: "move",
     snap: "back.out(1.7)",
     pop: "back.out(2.2)",
     crash: "power4.in",
@@ -1701,8 +1704,212 @@
     };
   }
 
+  // ---- Layout work ----------------------------------------------------------
+  // What needs the page laid out with its fonts and assets in runs once the
+  // compiler is ready: `run(seek)` gets `seek(t)` in `tl`'s own time, so it
+  // measures the page at the moments it animates.
+  function afterLayout(tl, run) {
+    (window.__LAYOUT_HOOKS = window.__LAYOUT_HOOKS || []).push({ tl, run });
+  }
+  // Client pixels → stage pixels (the studio may draw the stage scaled).
+  function stageRect(el) {
+    const vp = document.getElementById("viewport");
+    const v = vp ? vp.getBoundingClientRect() : { left: 0, top: 0, width: STAGE.w };
+    const k = v.width / STAGE.w || 1;
+    const r = el.getBoundingClientRect();
+    return { x: (r.left - v.left) / k, y: (r.top - v.top) / k, w: r.width / k, h: r.height / k };
+  }
+  // A copy of an element with its computed look inlined on every node, so it
+  // renders the same outside its shot, where scoped selectors no longer match.
+  const LOOK = ["color", "font-family", "font-size", "font-weight", "font-style", "letter-spacing", "line-height",
+    "text-transform", "text-align", "white-space", "text-shadow", "background-color", "background-image", "background-size",
+    "background-position", "background-clip", "-webkit-background-clip", "-webkit-text-fill-color", "border-top", "border-right",
+    "border-bottom", "border-left", "border-radius", "box-shadow", "padding", "display", "flex-direction", "align-items",
+    "justify-content", "gap", "width", "height", "opacity", "fill", "stroke", "object-fit"];
+  function frozen(el) {
+    const copy = el.cloneNode(true);
+    const src = [el, ...el.querySelectorAll("*")];
+    [copy, ...copy.querySelectorAll("*")].forEach((d, i) => {
+      const cs = getComputedStyle(src[i]);
+      for (const p of LOOK) d.style.setProperty(p, cs.getPropertyValue(p));
+      d.removeAttribute("id");
+    });
+    // offsetWidth rounds down, and a line one pixel short wraps.
+    const width = Math.ceil(parseFloat(getComputedStyle(el).width) || el.offsetWidth) + 1;
+    Object.assign(copy.style, { width: width + "px", height: el.offsetHeight + "px", transform: "none", opacity: "1", visibility: "visible" });
+    return copy;
+  }
+  const clearPaint = (c) => !c || c === "transparent" || /rgba\([^)]*,\s*0\)$/.test(c);
+  function snapshot(el) {
+    const cs = getComputedStyle(el);
+    const box = stageRect(el);
+    const k = el.offsetWidth ? box.w / el.offsetWidth : 1;
+    const r = cs.borderTopLeftRadius;
+    const border = parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== "none" && !clearPaint(cs.borderTopColor);
+    return {
+      ...box, k, copy: frozen(el), text: el.textContent.trim(), color: cs.color, bg: cs.backgroundColor, shadow: cs.boxShadow,
+      radius: (r.endsWith("%") ? (parseFloat(r) / 100) * Math.min(el.offsetWidth, el.offsetHeight) : parseFloat(r) || 0) * k,
+      borderWidth: border ? parseFloat(cs.borderTopWidth) * k : 0, borderColor: border ? cs.borderTopColor : "rgba(0, 0, 0, 0)",
+      paints: !clearPaint(cs.backgroundColor) || cs.backgroundImage !== "none" || cs.boxShadow !== "none" || border,
+    };
+  }
+  function morphLayer() {
+    let layer = document.getElementById("morph-layer");
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = "morph-layer";
+      document.getElementById("camera").appendChild(layer);
+    }
+    return layer;
+  }
+
+  /**
+   * One element becomes another: at `at` (in tl's time) `from` becomes `to`.
+   * A box travels and reshapes — position, width, height, corner radius,
+   * fill, border and shadow each animate — while its contents cross over;
+   * two pieces of plain text travel and rescale instead, crossing over when
+   * their words differ. Both ends are measured on the laid-out page at the
+   * two moments, so the landing is exact. `from` hides at `at`; `to` stays
+   * hidden until the morph lands, so keep it out of view before `at`. The
+   * `morph` join between shots is this move (and only it may target "ground").
+   */
+  function morph(tl, from, to, { at = 0, dur = 0.7, ease = "move", ground = null } = {}) {
+    if (!from || !to || (to === "ground" && !ground)) { console.warn("[ShotKit.morph] needs two elements", from, to); return; }
+    afterLayout(tl, (seek) => {
+      seek(at - 0.001);
+      const A = snapshot(from);
+      let B;
+      if (to === "ground") {
+        // A disc from `from`'s centre that ends covering the frame.
+        const cx = A.x + A.w / 2, cy = A.y + A.h / 2;
+        const R = Math.ceil(Math.max(Math.hypot(cx, cy), Math.hypot(STAGE.w - cx, cy), Math.hypot(cx, STAGE.h - cy), Math.hypot(STAGE.w - cx, STAGE.h - cy))) + 4;
+        B = { x: cx - R, y: cy - R, w: 2 * R, h: 2 * R, radius: R, bg: ground, shadow: "none", borderWidth: 0, borderColor: "rgba(0, 0, 0, 0)", paints: true, copy: null };
+        if (!A.paints) A.bg = A.color;
+      } else {
+        seek(at + dur);
+        B = snapshot(to);
+      }
+      // Build with the playhead before the morph: GSAP first renders a set it
+      // finds behind the playhead wrongly when the playhead next goes back.
+      seek(at - 0.001);
+      buildMorph(tl, from, to, A, B, at, dur, ease);
+    });
+  }
+  function buildMorph(tl, from, to, A, B, at, dur, ease) {
+    const end = at + dur;
+    const toGround = to === "ground";
+    tl.set(from, { visibility: "hidden" }, at);
+    if (!toGround) {
+      tl.set(to, { visibility: "hidden" }, at);
+      tl.set(to, { visibility: "inherit" }, end);
+    }
+    const ghost = (snap, layer) => {
+      const g = snap.copy;
+      g.classList.add("morph-ghost");
+      Object.assign(g.style, { position: "absolute", left: "0", top: "0", margin: "0", transformOrigin: "0 0", visibility: "hidden", pointerEvents: "none" });
+      layer.appendChild(g);
+      return g;
+    };
+    if (!toGround && !A.paints && !B.paints && A.text && B.text) {
+      // Text into text: the copies ride one path, rescaling by line height.
+      const layer = morphLayer();
+      const s = B.h / Math.max(1, A.h);
+      const a = ghost(A, layer);
+      tl.set(a, { autoAlpha: 1, x: A.x, y: A.y, scale: A.k }, at);
+      tl.to(a, { x: B.x, y: B.y, scale: A.k * s, color: B.color, duration: dur, ease }, at);
+      tl.set(a, { autoAlpha: 0 }, end);
+      if (A.text !== B.text) {
+        const b = ghost(B, layer);
+        tl.set(b, { autoAlpha: 0, x: A.x, y: A.y, scale: B.k / s }, at);
+        tl.to(b, { x: B.x, y: B.y, scale: B.k, duration: dur, ease }, at);
+        tl.to(a, { opacity: 0, duration: dur * 0.5, ease: "power1.in" }, at + dur * 0.15);
+        tl.to(b, { opacity: 1, duration: dur * 0.55, ease: "power1.out" }, at + dur * 0.3);
+        tl.set(b, { autoAlpha: 0 }, end);
+      }
+      return;
+    }
+    // A box into a box (or into the ground): one shell reshapes, contents cross.
+    const layer = toGround ? document.getElementById("stage") : morphLayer();
+    const shell = document.createElement("div");
+    shell.className = "morph-shell";
+    layer.appendChild(shell);
+    const look = (S) => ({ left: S.x, top: S.y, width: S.w, height: S.h, borderRadius: S.radius, backgroundColor: clearPaint(S.bg) ? "rgba(0, 0, 0, 0)" : S.bg, borderWidth: S.borderWidth, borderColor: S.borderColor });
+    tl.set(shell, { autoAlpha: 1, borderStyle: "solid", boxShadow: A.shadow, ...look(A) }, at);
+    tl.to(shell, { ...look(B), duration: dur, ease }, at);
+    if (A.shadow !== B.shadow) tl.set(shell, { boxShadow: B.shadow }, at + dur * 0.5);
+    const inside = (S) => {
+      const g = S.copy;
+      Object.assign(g.style, { background: "transparent", boxShadow: "none", borderColor: "transparent" });
+      shell.appendChild(g);
+      return g;
+    };
+    const a = inside(A);
+    tl.set(a, { xPercent: -50, yPercent: -50, scale: A.k, opacity: 1, filter: "blur(0px)" }, at);
+    tl.to(a, { opacity: 0, filter: "blur(6px)", duration: dur * 0.45, ease: "power1.in" }, at);
+    if (B.copy) {
+      const b = inside(B);
+      tl.set(b, { xPercent: -50, yPercent: -50, scale: B.k * 0.92, opacity: 0, filter: "blur(6px)" }, at);
+      tl.to(b, { scale: B.k, opacity: 1, filter: "blur(0px)", duration: dur * 0.6, ease }, at + dur * 0.4);
+    }
+    if (toGround) tl.set(layer, { backgroundColor: B.bg }, end);
+    tl.set(shell, { autoAlpha: 0 }, end);
+  }
+
+  /**
+   * A line that makes room: `items` (a line's words, in order) arrive at
+   * `at[k]`, and the ones already there slide to where they sit once the
+   * newcomer is in — "Every day," moves over for "ideas are born", and a word
+   * that no longer fits drops to the next line. reflow owns the items' x and
+   * y; give each its own entrance with opacity, blur, scale or yPercent.
+   */
+  function reflow(tl, items, at, { dur = 0.6, ease = "move" } = {}) {
+    items = [...items];
+    const n = items.length;
+    if (!n || !Array.isArray(at) || at.length !== n) { console.warn("[ShotKit.reflow] needs one arrival time per item", items, at); return; }
+    const e = gsap.parseEase(ease);
+    // where[j][k]: item j's offset from its final place once item k is in.
+    const where = items.map(() => []);
+    const setX = items.map((el) => gsap.quickSetter(el, "x", "px"));
+    const setY = items.map((el) => gsap.quickSetter(el, "y", "px"));
+    const place = (t) => {
+      if (!where[0].length) return;
+      items.forEach((el, j) => {
+        // A newcomer starts beside the line as it was and travels with it as
+        // it makes room, so it never lands on a word still moving over.
+        let from = j ? where[j][j].map((v, d) => v + where[j - 1][j - 1][d] - where[j - 1][j][d]) : where[0][0];
+        let [x, y] = from;
+        for (let k = Math.max(1, j); k < n; k++) {
+          const p = e(Math.min(1, Math.max(0, (t - at[k]) / dur)));
+          x += (where[j][k][0] - from[0]) * p;
+          y += (where[j][k][1] - from[1]) * p;
+          from = where[j][k];
+        }
+        setX[j](x);
+        setY[j](y);
+      });
+    };
+    const clock = { t: 0 };
+    const last = Math.max(...at) + dur;
+    tl.fromTo(clock, { t: 0 }, { t: last, duration: last, ease: "none", immediateRender: false, onUpdate: () => place(clock.t) }, 0);
+    afterLayout(tl, (seek) => {
+      seek(at[0]);
+      const kept = items.map((el) => [el.style.display, el.style.transform]);
+      items.forEach((el) => { el.style.transform = "none"; });
+      const parent = items[0].parentElement;
+      const k = parent && parent.offsetWidth ? parent.getBoundingClientRect().width / parent.offsetWidth : 1;
+      const spots = () => items.map((el) => { const r = el.getBoundingClientRect(); return [r.left / k, r.top / k]; });
+      const final = spots();
+      for (let step = 0; step < n; step++) {
+        items.forEach((el, j) => { el.style.display = j <= step ? kept[j][0] : "none"; });
+        const now = spots();
+        for (let j = 0; j <= step; j++) where[j][step] = [now[j][0] - final[j][0], now[j][1] - final[j][1]];
+      }
+      items.forEach((el, j) => { el.style.display = kept[j][0]; el.style.transform = kept[j][1]; });
+    });
+  }
+
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, aim, stage: STAGE, looks: LOOKS };
+  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, aim, morph, reflow, stage: STAGE, looks: LOOKS };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },

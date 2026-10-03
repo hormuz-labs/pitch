@@ -106,7 +106,7 @@
     .to('.isl .eta', { opacity: 1, duration: 0.3 }, 5.3)
     .to('.eta2', { duration: 0.01, onComplete() { this.targets()[0].textContent = '42m'; }, onReverseComplete() { this.targets()[0].textContent = '5h 20m'; } }, 5.2)
     // the sheet rises with landing details
-    .to('.sheet', { y: 0, duration: 0.7, ease: 'expo.out' }, 6.6)
+    .to('.sheet', { y: 0, duration: 0.7, ease: 'move' }, 6.6)
     .to('.st', { backgroundColor: '#e8f0ff', color: '#2f6bff', duration: 0.3, onComplete() { this.targets()[0].textContent = 'Landing'; }, onReverseComplete() { this.targets()[0].textContent = 'On time'; } }, 6.9)
     // out
     .to('.phone', { rotateY: -30, x: -220, opacity: 0, duration: 0.6, ease: 'expo.in' }, 9.3)

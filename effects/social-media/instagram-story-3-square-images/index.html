@@ -42,9 +42,9 @@
   gsap.set('.q2', { y: -40, scale: .92, rotationZ: 3 });
   gsap.set('.q3', { y: -80, scale: .84, rotationZ: -3 });
   tl.from('.ttl .w', { yPercent: 110, stagger: .1, duration: .7, ease: 'expo.out' }, 0)
-    .from('.q3', { y: 1400, rotationZ: 20, duration: .8, ease: 'expo.out' }, .1)
-    .from('.q2', { y: 1400, rotationZ: -20, duration: .8, ease: 'expo.out' }, .22)
-    .from('.q1', { y: 1400, rotationZ: 12, duration: .8, ease: 'expo.out' }, .34)
+    .from('.q3', { y: 1400, rotationZ: 20, duration: .8, ease: 'move' }, .1)
+    .from('.q2', { y: 1400, rotationZ: -20, duration: .8, ease: 'move' }, .22)
+    .from('.q1', { y: 1400, rotationZ: 12, duration: .8, ease: 'move' }, .34)
     .from('.dots,.price,.cta', { opacity: 0, y: 20, stagger: .08, duration: .5 }, .8)
     .fromTo('.sq i', { scale: 1.12 }, { scale: 1, duration: 1.6, ease: 'expo.out' }, .3);
   const flick = (top, next, back, at, n, p) => {

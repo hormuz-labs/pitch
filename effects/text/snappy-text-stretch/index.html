@@ -25,8 +25,8 @@
 <script>
   const tl = fx.timeline({ duration: 2 });
   // each line is stretched tall and thin from below, then snaps to true proportions
-  tl.fromTo('.row:nth-child(1) .line', { yPercent: 110, scaleY: 3.2, scaleX: 0.7 }, { yPercent: 0, scaleY: 1, scaleX: 1, duration: 0.55, ease: 'expo.out' }, 0.05)
-    .fromTo('.row:nth-child(2) .line', { yPercent: 110, scaleY: 3.2, scaleX: 0.7 }, { yPercent: 0, scaleY: 1, scaleX: 1, duration: 0.55, ease: 'expo.out' }, 0.2)
+  tl.fromTo('.row:nth-child(1) .line', { yPercent: 110, scaleY: 3.2, scaleX: 0.7 }, { yPercent: 0, scaleY: 1, scaleX: 1, duration: 0.55, ease: 'move' }, 0.05)
+    .fromTo('.row:nth-child(2) .line', { yPercent: 110, scaleY: 3.2, scaleX: 0.7 }, { yPercent: 0, scaleY: 1, scaleX: 1, duration: 0.55, ease: 'move' }, 0.2)
     // a horizontal punch: stretch wide and snap back
     .to('.line', { scaleX: 1.25, scaleY: 0.85, duration: 0.12, ease: 'power2.in', stagger: 0.06 }, 0.8)
     .to('.line', { scaleX: 1, scaleY: 1, duration: 0.45, ease: 'elastic.out(1,0.5)', stagger: 0.06 }, 0.92)

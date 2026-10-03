@@ -42,8 +42,8 @@
   cuts.forEach(([sel, at, len, axis], i) => {
     if (i) tl.set(sel, { autoAlpha: 1, immediateRender: false }, at);
     const w = sel + ' .w';
-    if (axis === 'y') tl.fromTo(w, { yPercent: 110 }, { yPercent: 0, duration: Math.min(0.45, len * 0.6), ease: 'expo.out' }, at);
-    else tl.fromTo(w, { xPercent: -110 }, { xPercent: 0, duration: Math.min(0.45, len * 0.6), ease: 'expo.out' }, at);
+    if (axis === 'y') tl.fromTo(w, { yPercent: 110 }, { yPercent: 0, duration: Math.min(0.45, len * 0.6), ease: 'move' }, at);
+    else tl.fromTo(w, { xPercent: -110 }, { xPercent: 0, duration: Math.min(0.45, len * 0.6), ease: 'move' }, at);
     tl.to(w, { scale: 1.06, duration: len, ease: 'none' }, at);
     tl.set(sel, { autoAlpha: 0, immediateRender: false }, at + len);
   });

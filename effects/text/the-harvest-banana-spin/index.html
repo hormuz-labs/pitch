@@ -35,7 +35,7 @@
     .from('.ring', { scale: .6, opacity: 0, duration: 1.2, ease: 'expo.out' }, .2);
   // the banana: enters from the left spinning, flies through the lettering,
   // parks between the letters, then spins slowly the rest of the loop
-  tl.fromTo('.banana', { x: -1100, y: 60, rotation: -540, scale: .7 }, { x: 0, y: 0, rotation: 0, scale: 1, duration: 1.4, ease: 'expo.out' }, .9);
+  tl.fromTo('.banana', { x: -1100, y: 60, rotation: -540, scale: .7 }, { x: 0, y: 0, rotation: 0, scale: 1, duration: 1.4, ease: 'move' }, .9);
   // the letters it passes through get shoved aside and settle back
   tl.to('.ch', { xPercent: (i) => (i < 2 ? -34 : 34), duration: .45, ease: 'expo.out', stagger: { each: .05, from: 'center' } }, 1.55)
     .to('.ch', { xPercent: (i) => (i < 2 ? -26 : 26), duration: .8, ease: 'elastic.out(1,.5)', stagger: { each: .03, from: 'center' } }, 2.0);

@@ -44,9 +44,9 @@
   tl.from('.l', { yPercent: 110, duration: .9, ease: 'expo.out', stagger: .12 }, 0)
     .from('.badge', { opacity: 0, y: -10, duration: .6, stagger: .1 }, .5)
     .from('.foot span', { yPercent: 110, duration: .6, ease: 'expo.out' }, .7)
-    .fromTo('.orange', { y: 700, rotation: -40, scale: .8 }, { y: 0, rotation: 0, scale: 1, duration: 1.3, ease: 'expo.out' }, .45)
+    .fromTo('.orange', { y: 700, rotation: -40, scale: .8 }, { y: 0, rotation: 0, scale: 1, duration: 1.3, ease: 'move' }, .45)
     // the middle word yields as the orange arrives
-    .to('.row.mid .l', { x: -250, duration: .8, ease: 'expo.out' }, .9)
+    .to('.row.mid .l', { x: -250, duration: .8, ease: 'move' }, .9)
     // the float: a slow bob + tilt, two full cycles, drifting left-right through the line
     .to('.orange', { y: -28, duration: 1.4, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 1.6)
     .to('.orange', { rotation: 14, duration: 2.1, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.6)

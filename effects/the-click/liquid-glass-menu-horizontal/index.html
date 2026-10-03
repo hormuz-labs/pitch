@@ -37,7 +37,7 @@
   function go(from, to, t) {
     const dir = Math.sign(to - from);
     // liquid: the pill stretches toward the target, then snaps and settles
-    tl.to(pill, { x: geo[to].x, width: geo[to].w, duration: 0.55, ease: 'expo.out' }, t)
+    tl.to(pill, { x: geo[to].x, width: geo[to].w, duration: 0.55, ease: 'move' }, t)
       .fromTo(pill, { scaleX: 1, scaleY: 1 }, { scaleX: 1.45, scaleY: 0.82, duration: 0.18, ease: 'power2.out' }, t)
       .to(pill, { scaleX: 1, scaleY: 1, duration: 0.6, ease: 'elastic.out(1,0.45)' }, t + 0.18)
       .to(items[from], { color: 'rgba(255,255,255,.7)', duration: 0.3 }, t)

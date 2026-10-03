@@ -45,7 +45,7 @@
   const posEl = document.querySelector('.pos'), fillEl = document.querySelector('.fill');
   function apply() { posEl.style.transform = `translateX(${pos.v * W}px)`; fillEl.style.width = pos.v * W + 'px'; }
   apply();
-  tl.fromTo('.cursor', { x: 300, y: 220, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.7, ease: 'power3.out' }, 0)
+  tl.fromTo('.cursor', { x: 300, y: 220, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.7, ease: 'move' }, 0)
     .to('.thumb', { scale: 1.25, duration: 0.25, ease: 'back.out(3)' }, 0.65)
     .to('.tip', { opacity: 1, y: -6, duration: 0.25, ease: 'power2.out' }, 0.65)
     .to(pos, { v: 0.92, duration: 1.0, ease: 'power2.inOut', onUpdate: apply }, 0.85)

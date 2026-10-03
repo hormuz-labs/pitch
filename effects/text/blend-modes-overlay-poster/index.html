@@ -30,7 +30,7 @@
   tl.fromTo('.img', { scale: 1.12, y: -20 }, { scale: 1.02, y: 20, duration: 4, ease: 'none' }, 0);
   tl.from('.p1', { scaleX: 0, duration: .8, ease: 'expo.out' }, 0)
     .from('.p2', { scaleY: 0, duration: .8, ease: 'expo.out' }, .15)
-    .from('.p3', { yPercent: 160, duration: .9, ease: 'expo.out' }, .25)
+    .from('.p3', { yPercent: 160, duration: .9, ease: 'move' }, .25)
     .from('.h span', { yPercent: 105, duration: .8, stagger: .1, ease: 'expo.out' }, .45)
     .from('.badge', { scale: 0, rotation: -90, duration: .7, ease: 'back.out(1.8)' }, .8)
     .from('.strip', { scaleY: 0, duration: .5, ease: 'expo.out' }, .9);

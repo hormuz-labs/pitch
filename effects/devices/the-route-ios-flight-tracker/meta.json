@@ -17,7 +17,7 @@
     "MotionPath",
     "css-3d"
   ],
-  "adapt": "Replace the flight number, airports, times, altitude/speed targets, ETA strings, headline and background image; reshape the route path d (both #route and #flown) and reseed the map rng. Keep the 5.2s power1.inOut draw/flight and the 1.1s expo.out entry.",
+  "adapt": "Replace the flight number, airports, times, altitude/speed targets, ETA strings, headline and background image; reshape the route path d (both #route and #flown) and reseed the map rng. Keep the 5.2s power1.inOut draw/flight and the 1.1s move entry.",
   "port": "mount(el, shot) builds the phone, generates the map SVG from a seeded rng and builds the copy block; animate(el, shot, D) returns the timeline with entry 0-0.11D, draw 0.14D-0.66D, island at 0.5D, sheet at 0.66D and exit at 0.93D. The counter onUpdate uses five document.querySelector calls that must be scoped to el; the motionPath path/align ids must be unique per instance; DrawSVGPlugin and MotionPathPlugin must be registered.",
   "caveats": [
     "catalog lists 17s but the file renders 10s",

@@ -58,7 +58,7 @@
   // impact dust
   bits.forEach((b) => {
     const a = Math.PI + rng() * Math.PI, d = 90 + rng() * 220;
-    tl.fromTo(b, { x: 0, y: 0, opacity: 1, scale: 0.4 + rng() }, { x: Math.cos(a) * d * 1.4, y: Math.sin(a) * d * 0.5, opacity: 0, scale: 0, duration: 0.5 + rng() * 0.4, ease: 'power3.out', immediateRender: false }, 1.28 + rng() * 0.05);
+    tl.fromTo(b, { x: 0, y: 0, opacity: 1, scale: 0.4 + rng() }, { x: Math.cos(a) * d * 1.4, y: Math.sin(a) * d * 0.5, opacity: 0, scale: 0, duration: 0.5 + rng() * 0.4, ease: 'move', immediateRender: false }, 1.28 + rng() * 0.05);
   });
   // hold with a slow breathe, then out
   tl.to('.prod', { y: -6, duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.6)

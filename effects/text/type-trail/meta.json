@@ -1,6 +1,6 @@
 {
   "move": "words rush in skewed, six lagging ghost copies smear a motion trail",
-  "how": "A dark stage with a drifting grid and three words, each built from a lead span plus six ghost spans that carry a directional feGaussianBlur (22 1) and decreasing opacity. Every move is applied to the lead and then to each ghost 0.035s later, which draws the smear. KINETIC rushes from xPercent -170 to 0 (expo.out, 0.75s, at 1%) with skewX -28 easing to 0; at 29% it shoots up yPercent -320 (expo.in) and TYPE drops in from yPercent 320 with a scaleY 1.25 settle; at 56% TYPE exits left and TRAIL enters from the right with skewX 26; at 85% TRAIL leaves to the right with skewX 18. The grid translates -80px on both axes over the clip, matching its 80px period, so the loop is seamless.",
+  "how": "A dark stage with a drifting grid and three words, each built from a lead span plus six ghost spans that carry a directional feGaussianBlur (22 1) and decreasing opacity. Every move is applied to the lead and then to each ghost 0.035s later, which draws the smear. KINETIC rushes from xPercent -170 to 0 (move, 0.75s, at 1%) with skewX -28 easing to 0; at 29% it shoots up yPercent -320 (expo.in) and TYPE drops in from yPercent 320 with a scaleY 1.25 settle; at 56% TYPE exits left and TRAIL enters from the right with skewX 26; at 85% TRAIL leaves to the right with skewX 18. The grid translates -80px on both axes over the clip, matching its 80px period, so the loop is seamless.",
   "moves": [
     "slide-in",
     "echo-trail",

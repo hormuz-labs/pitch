@@ -37,9 +37,9 @@
 <script>
   const tl = fx.timeline({ duration: 3 });
   // plates print on: each colour disc rolls in from a different side and keeps drifting
-  tl.from('.c1', { x: -900, duration: .9, ease: 'expo.out' }, 0)
-    .from('.c2', { x: 900, duration: .9, ease: 'expo.out' }, 0.1)
-    .from('.c3', { y: -700, duration: .9, ease: 'expo.out' }, 0.2)
+  tl.from('.c1', { x: -900, duration: .9, ease: 'move' }, 0)
+    .from('.c2', { x: 900, duration: .9, ease: 'move' }, 0.1)
+    .from('.c3', { y: -700, duration: .9, ease: 'move' }, 0.2)
     .to('.c1', { x: 60, y: 30, duration: 1.6, ease: 'sine.inOut' }, 0.9)
     .to('.c2', { x: -70, y: -20, duration: 1.6, ease: 'sine.inOut' }, 0.9)
     .to('.c3', { y: 40, x: -40, duration: 1.6, ease: 'sine.inOut' }, 0.9);

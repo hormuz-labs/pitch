@@ -49,7 +49,7 @@
   for (let i = 0; i < 36; i++) { const b = document.createElement('i'); burst.appendChild(b); bits.push(b); }
   const tl = fx.timeline({ duration: 9 });
   tl.from('.h span', { yPercent: 120, duration: 0.6, stagger: 0.1, ease: 'expo.out' }, 0.1)
-    .from('.card', { y: 900, rotation: 4, duration: 0.9, ease: 'expo.out' }, 0.2)
+    .from('.card', { y: 900, rotation: 4, duration: 0.9, ease: 'move' }, 0.2)
     .from('.foot span', { yPercent: 120, duration: 0.5, ease: 'expo.out' }, 0.8)
     // the run finishes: progress fills to 5K, digits roll into the final time
     .to('.prog i', { scaleX: 1, duration: 2.0, ease: 'power2.inOut' }, 1.0)
@@ -62,7 +62,7 @@
       tl.set(sel, { textContent: v }, at).fromTo(sel, { yPercent: 110 }, { yPercent: 0, duration: 0.3, ease: 'expo.out' }, at);
     });
   });
-  tl.from('.prev', { opacity: 0, y: 20, duration: 0.5, ease: 'power3.out' }, 3.0)
+  tl.from('.prev', { opacity: 0, y: 20, duration: 0.5, ease: 'move' }, 3.0)
     .from('.delta', { scale: 0, duration: 0.5, ease: 'back.out(3)' }, 3.2)
     // the reward: card recedes, PR badge slams in with a burst
     .to('.card', { scale: 0.92, y: 40, filter: 'brightness(.5)', duration: 0.6, ease: 'expo.out' }, 3.8)
@@ -73,7 +73,7 @@
     .to('.glow', { scale: 1.15, duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 4.4);
   bits.forEach((b) => {
     const a = rng() * Math.PI * 2, d = 320 + rng() * 420;
-    tl.fromTo(b, { x: 0, y: 0, opacity: 1, rotation: a * 57.3, scale: 0.5 }, { x: Math.cos(a) * d, y: Math.sin(a) * d + 120, opacity: 0, scale: 1.2, rotation: a * 57.3 + 180, duration: 1.1 + rng() * 0.6, ease: 'power3.out', immediateRender: false }, 3.95 + rng() * 0.1);
+    tl.fromTo(b, { x: 0, y: 0, opacity: 1, rotation: a * 57.3, scale: 0.5 }, { x: Math.cos(a) * d, y: Math.sin(a) * d + 120, opacity: 0, scale: 1.2, rotation: a * 57.3 + 180, duration: 1.1 + rng() * 0.6, ease: 'move', immediateRender: false }, 3.95 + rng() * 0.1);
   });
   tl.to('.badge', { scale: 0, rotation: 20, duration: 0.4, ease: 'back.in(2)' }, 7.9)
     .to('.glow', { opacity: 0, duration: 0.4 }, 8.0)

@@ -78,9 +78,9 @@
   gsap.set('.phone.r', { rotateY: -18, x: -30 });
   tl.fromTo('.bg', { scale: 1.05, yPercent: 1 }, { scale: 1.12, yPercent: -1, duration: 4, ease: 'none' }, 0)
     // three phones rise together with a stagger, side ones angled in
-    .from('.phone.mid', { y: 640, duration: 0.9, ease: 'expo.out' }, 0)
-    .from('.phone.l', { y: 640, duration: 0.9, ease: 'expo.out' }, 0.1)
-    .from('.phone.r', { y: 640, duration: 0.9, ease: 'expo.out' }, 0.18)
+    .from('.phone.mid', { y: 640, duration: 0.9, ease: 'move' }, 0)
+    .from('.phone.l', { y: 640, duration: 0.9, ease: 'move' }, 0.1)
+    .from('.phone.r', { y: 640, duration: 0.9, ease: 'move' }, 0.18)
     .from('.cap', { opacity: 0, y: 12, duration: 0.5, ease: 'power2.out' }, 0.6)
     // group settles: the side phones straighten as the whole row floats up
     .to('.phone.l', { rotateY: 8, x: 0, duration: 1.2, ease: 'power2.inOut' }, 0.9)

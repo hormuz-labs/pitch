@@ -41,7 +41,7 @@
   const lines = ['#l1', '#l2', '#l3'];
   lines.forEach((sel, i) => {
     const at = 0.05 + i * 0.14;
-    tl.fromTo(sel, { x: 520, opacity: 0, scaleX: 1.25 }, { x: 0, opacity: 1, scaleX: 1, duration: 0.7, ease: 'expo.out' }, at);
+    tl.fromTo(sel, { x: 520, opacity: 0, scaleX: 1.25 }, { x: 0, opacity: 1, scaleX: 1, duration: 0.7, ease: 'move' }, at);
   });
   tl.fromTo(s1, { x: 48 }, { x: 0, duration: 0.85, ease: 'expo.out', onUpdate: ap1 }, 0.05);
   // pill pops in with a vertical blur (arrives from below)

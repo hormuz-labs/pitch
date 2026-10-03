@@ -41,10 +41,10 @@
       .fromTo(s, { scaleX: 1, scaleY: 1 }, { scaleX: 1.35, scaleY: .65, transformOrigin: '50% 100%', duration: 1.3, ease: 'fb-squash' }, t0);
   });
   // letters flinch up as the fruit lands beside them, each impact ripples the mark
-  tl.from('.ch', { yPercent: 120, duration: .9, ease: 'expo.out', stagger: .05 }, .25)
+  tl.from('.ch', { yPercent: 120, duration: .9, ease: 'move', stagger: .05 }, .25)
     .to('.ch', { yPercent: -10, scaleY: .92, duration: .12, ease: 'power2.out', stagger: { each: .03, from: 'edges' } }, .85)
     .to('.ch', { yPercent: 0, scaleY: 1, duration: .6, ease: 'elastic.out(1,.4)', stagger: { each: .03, from: 'edges' } }, .97)
-    .from('.sub span', { yPercent: 110, duration: .6, ease: 'expo.out' }, 1.4);
+    .from('.sub span', { yPercent: 110, duration: .6, ease: 'move' }, 1.4);
   // fruit settles with a lazy roll in place, then everything bounces out
   tl.to('.f1 svg, .f2 svg, .f3 svg, .f4 svg', { rotation: (i) => (i % 2 ? 8 : -8), duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.5);
   tl.to('.fruit', { y: -300, duration: .5, ease: 'back.in(2)', stagger: .06 }, 3.3)

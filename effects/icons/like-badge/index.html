@@ -73,7 +73,7 @@
       .to('.fly.f' + (i + 1), { y: -90, opacity: 0, duration: .6, ease: 'power2.out' }, t + .25);
     sparks.forEach((s, k) => {
       const a = -Math.PI * (0.15 + 0.7 * (k / sparks.length)) + (rng() - .5) * .3, r = 60 + rng() * 60;
-      tl.fromTo(s, { x: 0, y: 0, opacity: 1, scale: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, opacity: 0, scale: .3, duration: .55, ease: 'expo.out' }, t + .12);
+      tl.fromTo(s, { x: 0, y: 0, opacity: 1, scale: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, opacity: 0, scale: .3, duration: .55, ease: 'move' }, t + .12);
     });
   });
   // reset the odometer so the loop is clean

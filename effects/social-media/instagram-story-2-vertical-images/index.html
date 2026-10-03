@@ -34,8 +34,8 @@
     .fromTo('.ca i', { yPercent: -10, scale: 1.1 }, { yPercent: 0, scale: 1, duration: 1.8, ease: 'expo.out' }, 0)
     .fromTo('.cb i', { yPercent: 10, scale: 1.1 }, { yPercent: 0, scale: 1, duration: 1.8, ease: 'expo.out' }, .15)
     .from('.tiny', { opacity: 0, y: 8, stagger: .08, duration: .5 }, .6)
-    .from('.n1', { x: -200, opacity: 0, duration: .9, ease: 'expo.out' }, .7)
-    .from('.n2', { x: 200, opacity: 0, duration: .9, ease: 'expo.out' }, .85)
+    .from('.n1', { x: -200, opacity: 0, duration: .9, ease: 'move' }, .7)
+    .from('.n2', { x: 200, opacity: 0, duration: .9, ease: 'move' }, .85)
     // the hold: columns drift in opposite directions (a vertical parallax), the names glide the other way
     .to('.ca i', { yPercent: 5, duration: 2.2, ease: 'sine.inOut' }, 1.5)
     .to('.cb i', { yPercent: -5, duration: 2.2, ease: 'sine.inOut' }, 1.5)

@@ -36,7 +36,7 @@ describe('starterShots', () => {
     )
     expect(spec.shots).toEqual([])
     expect(spec.ambient).toEqual({ kind: 'none' })
-    expect(spec.motion).toEqual({ exit: 'none', drift: true, cutDur: 0.5 })
+    expect(spec.motion).toEqual({ exit: 'blur', drift: true })
     expect(spec.audio).toBeUndefined()
   })
 

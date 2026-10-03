@@ -58,7 +58,7 @@
   for (let i = 0; i < 40; i++) { const b = document.createElement('i'); dust.appendChild(b); bits.push(b); }
   const tl = fx.timeline({ duration: 10 });
   // the card rises out of darkness, edge-on, catching a beam of light
-  tl.fromTo('.card', { y: 380, rotationX: 70, rotationY: -90, scale: 0.8, opacity: 0 }, { y: 0, rotationX: 0, rotationY: 0, scale: 1, opacity: 1, duration: 1.8, ease: 'expo.out' }, 0.2)
+  tl.fromTo('.card', { y: 380, rotationX: 70, rotationY: -90, scale: 0.8, opacity: 0 }, { y: 0, rotationX: 0, rotationY: 0, scale: 1, opacity: 1, duration: 1.8, ease: 'move' }, 0.2)
     .to('.beam', { opacity: 1, duration: 0.3 }, 0.6).to('.beam', { opacity: 0, x: 500, duration: 1.0, ease: 'power2.inOut' }, 0.9)
     .to('.halo', { opacity: 1, duration: 1.2, ease: 'power2.out' }, 0.8)
     .from('.kick span', { yPercent: 120, duration: 0.6, ease: 'expo.out' }, 1.0)

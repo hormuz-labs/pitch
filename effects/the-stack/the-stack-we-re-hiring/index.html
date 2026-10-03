@@ -61,8 +61,8 @@
     .to('.b2', { x: -70, y: -50, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
   tl.to('.row span', { yPercent: 0, stagger: 0.1, duration: 0.8, ease: 'expo.out' }, 0.1);
   // polished card reveal: the stack rises as one, then fans down into a list
-  cards.forEach((c, i) => tl.to(c, { y: i * 14, opacity: 1, rotateX: 0, duration: 1.0, ease: 'expo.out' }, 0.5 + i * 0.08));
-  cards.forEach((c, i) => tl.to(c, { y: i * 172, scale: 1, duration: 0.9, ease: 'back.out(1.5)' }, 1.7 + i * 0.1));
+  cards.forEach((c, i) => tl.to(c, { y: i * 14, opacity: 1, rotateX: 0, duration: 1.0, ease: 'move' }, 0.5 + i * 0.08));
+  cards.forEach((c, i) => tl.to(c, { y: i * 172, scale: 1, duration: 0.9, ease: 'move' }, 1.7 + i * 0.1));
   tl.to(st, { n: 12, duration: 1, ease: 'power2.out', onUpdate: () => { nEl.textContent = Math.round(st.n); } }, 2.4)
     .to('.cta .btn', { scale: 1, duration: 0.6, ease: 'back.out(2.5)' }, 2.3)
     .to('.cta .cnt', { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out' }, 2.5)

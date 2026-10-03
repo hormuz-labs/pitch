@@ -23,7 +23,7 @@
   const tl = fx.timeline({ duration: 8 });
   // slide in: rows from alternating sides, staggered along the row
   const dirs = sqs.map((_, i) => (Math.floor(i / cols) % 2 ? 1 : -1));
-  tl.from(sqs, { x: (i) => dirs[i] * 1400, duration: 1.1, ease: 'expo.out', stagger: { each: .06, grid: [rows, cols], axis: 'x', from: 'start' } }, 0)
+  tl.from(sqs, { x: (i) => dirs[i] * 1400, duration: 1.1, ease: 'move', stagger: { each: .06, grid: [rows, cols], axis: 'x', from: 'start' } }, 0)
     .from('.word', { scale: .6, opacity: 0, duration: .8, ease: 'back.out(1.8)' }, 1.4)
     // a shuffle: every square slides one column right (the last column wraps to the front)
     .to(sqs, { x: step, duration: .7, ease: 'expo.inOut', stagger: { each: .03, grid: [rows, cols], from: 'start' } }, 2.6)

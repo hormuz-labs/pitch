@@ -67,17 +67,17 @@
   };
   gsap.set('.c1', { zIndex: 3 }); gsap.set('.c2', { zIndex: 2, y: -34, scale: .94, opacity: .75 }); gsap.set('.c3', { zIndex: 1, y: -68, scale: .88, opacity: .5 });
   gsap.set(dots[0], { backgroundColor: '#fff' });
-  tl.from('.top', { y: -30, opacity: 0, duration: .6, ease: 'power3.out' }, 0)
-    .from('.bal span, .bal b, .bal em', { y: 24, opacity: 0, duration: .6, stagger: .1, ease: 'power3.out' }, 0.1)
+  tl.from('.top', { y: -30, opacity: 0, duration: .6, ease: 'move' }, 0)
+    .from('.bal span, .bal b, .bal em', { y: 24, opacity: 0, duration: .6, stagger: .1, ease: 'move' }, 0.1)
     .to(st, { v: 12480.5, duration: 1.6, ease: 'expo.out', onUpdate: draw }, 0.3)
-    .from('.card', { y: 300, opacity: 0, duration: .9, stagger: -.1, ease: 'power3.out' }, 0.2)
-    .from('.list h3, .tx', { x: 40, opacity: 0, duration: .5, stagger: .1, ease: 'power3.out' }, 0.8)
-    .from('.tab', { y: 60, opacity: 0, duration: .6, ease: 'power3.out' }, 0.5);
+    .from('.card', { y: 300, opacity: 0, duration: .9, stagger: -.1, ease: 'move' }, 0.2)
+    .from('.list h3, .tx', { x: 40, opacity: 0, duration: .5, stagger: .1, ease: 'move' }, 0.8)
+    .from('.tab', { y: 60, opacity: 0, duration: .6, ease: 'move' }, 0.5);
   // swipe: the front card flies off to the left and tucks to the back
   const swipe = (front, t) => {
     tl.to(cards[front], { x: -700, rotation: -8, duration: .5, ease: 'power3.in' }, t)
       .set(cards[front], { zIndex: 0 }, t + .5)
-      .to(cards[front], { x: 0, rotation: 0, duration: .5, ease: 'power3.out' }, t + .5);
+      .to(cards[front], { x: 0, rotation: 0, duration: .5, ease: 'move' }, t + .5);
     stack((front + 1) % 3, t + .35, .6);
   };
   swipe(0, 2.6);

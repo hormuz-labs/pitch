@@ -41,7 +41,7 @@
   macs.forEach((m, i) => gsap.set(m, { x: 900, rotateY: -35, scale: 0.9, opacity: 0, zIndex: N - i }));
   macs.forEach((m, i) => {
     const target = (i - (N - 1) / 2) * 150;
-    tl.to(m, { x: target, rotateY: -14, scale: 1, opacity: 1, duration: 1.0, ease: 'expo.out' }, 0.1 + i * 0.12);
+    tl.to(m, { x: target, rotateY: -14, scale: 1, opacity: 1, duration: 1.0, ease: 'move' }, 0.1 + i * 0.12);
   });
   // then the fan straightens to face the camera, all at once
   tl.to(macs, { rotateY: 0, duration: 0.8, ease: 'power3.inOut', stagger: 0.03 }, 1.5)

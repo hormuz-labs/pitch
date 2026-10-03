@@ -18,6 +18,8 @@
  *      design and should not be rebuilt to satisfy a counter. The agent
  *      answers the note or says in direction.md why not.
  *   3. Scene overlap at every scene midpoint; seek determinism (❌).
+ *   4. The timeline's tweens (lib/motion-lint.mjs): a composition sliding as
+ *      one page fails; a long move at full speed on its first frame is a note.
  *
  * Screenshots dominate capture time, so samples are taken by several tabs at
  * once, each seeking its own slice of the timeline — capture.mjs's pattern —
@@ -43,6 +45,7 @@ import { colourAudit, isEmptyFrame, schemeGroundIssue, stockGroundNote } from ".
 import { findPhrase, loadShots, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintAd, lintDesign } from "./lib/design-rules.mjs";
+import { measureMotion, motionFindings } from "./lib/motion-lint.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
@@ -105,6 +108,7 @@ const cues = (Array.isArray(rawCues) ? rawCues : Object.entries(rawCues).map(([l
 const spec = await page.evaluate(extractSpec);
 const brandTokens = await page.evaluate("window.__BRAND || {}");
 const overruns = await page.evaluate("window.__OVERRUNS || []");
+const motionRows = await page.evaluate(measureMotion);
 
 const unknown = only.filter(id => !cues.some(c => c.label === id));
 if (unknown.length) {
@@ -202,6 +206,8 @@ if (!spec) {
     if (o.speed < 1.1) continue; // a 2% squeeze is invisible; only a real mistiming is worth a turn
     lint.push({ level: o.speed > 1.6 ? "fail" : "warn", msg: `#${o.id} (${o.type}): its factory timeline runs ${o.ran}s but the shot is ${o.dur}s — compressed ${o.speed}× to fit. Time the factory as fractions of D, or give the beat more words in the script so the cue interval matches.` });
   }
+  // ---- Whole pages sliding, moves that pop ------------------------------------------
+  lint.push(...motionFindings(motionRows, only));
   // ---- Brand applied? Unset tokens mean the engine's default palette --------------
   const unsetTokens = ["bg", "ink", "accent"].filter(k => !brandTokens[k]);
   if (unsetTokens.length) lint.push({ level: "fail", msg: `brand.${unsetTokens.join(", brand.")} not set — every shot is rendering in the engine's default palette, not the product's, and the ambient stage is invisible. Set the measured hex values on brand (top level), then re-run.` });

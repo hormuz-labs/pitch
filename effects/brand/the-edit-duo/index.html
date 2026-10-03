@@ -33,8 +33,8 @@
   const tl = fx.timeline({ duration: 5 });
   tl.to({}, { duration: 5, onUpdate() { const t = this.progress() * 5; vids.forEach(v => { v.currentTime = (2 + t) % (v.duration || 16); }); } }, 0);
   // synced: both panels slide in from opposite sides at the same instant, and their imagery pans in mirror
-  tl.from('.panel.a', { xPercent: -110, duration: 0.9, ease: 'expo.out' }, 0);
-  tl.from('.panel.b', { xPercent: 110, duration: 0.9, ease: 'expo.out' }, 0);
+  tl.from('.panel.a', { xPercent: -110, duration: 0.9, ease: 'move' }, 0);
+  tl.from('.panel.b', { xPercent: 110, duration: 0.9, ease: 'move' }, 0);
   tl.fromTo('.a video', { scale: 1.25, xPercent: -60, yPercent: -50 }, { xPercent: -40, scale: 1.08, duration: 5, ease: 'none' }, 0);
   tl.fromTo('.b video', { scale: 1.25, xPercent: -40, yPercent: -50 }, { xPercent: -60, scale: 1.08, duration: 5, ease: 'none' }, 0);
   tl.from('.panel .lab', { y: -30, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.5);

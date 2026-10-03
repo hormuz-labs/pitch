@@ -13,7 +13,7 @@
     "gsap",
     "css-3d"
   ],
-  "adapt": "Change the five screen names, hero copy, gradient colours, the caption and the background image; the layout array controls the fan spread. Keep the 1.3s expo.out entries, the 0.12s stagger and the 3.6s sine sway.",
+  "adapt": "Change the five screen names, hero copy, gradient colours, the caption and the background image; the layout array controls the fan spread. Keep the 1.3s move entries, the 0.12s stagger and the 3.6s sine sway.",
   "port": "mount(el, shot) builds .grp with five phones from shot.screens; animate(el, shot, D) returns the timeline with entries at (0.01 + k*0.012)*D, sways at 0.16D/0.52D and the exit at 0.9D. The perspective is on .stage so el needs perspective:2200px and .grp preserve-3d; layout x values assume a 1280-wide frame.",
   "caveats": [
     "full-frame background image scaled with a filter (brightness/saturate), moderately heavy",

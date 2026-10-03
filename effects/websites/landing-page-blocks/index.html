@@ -72,20 +72,20 @@
 <script>
   const tl = fx.timeline({ duration: 5 });
   const doc = document.querySelector('.doc'), view = document.querySelector('.view');
-  tl.from('.win', { y: 90, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0);
+  tl.from('.win', { y: 90, opacity: 0, duration: 0.8, ease: 'move' }, 0);
   // blocks reveal in sequence, top to bottom, as the page scrolls to keep up
   tl.from('.nav', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.2)
     .from('.h1 u', { yPercent: 110, duration: 0.7, ease: 'expo.out', stagger: 0.09 }, 0.35)
     .from('.hero .p, .hero .cta', { y: 26, opacity: 0, duration: 0.6, ease: 'power3.out', stagger: 0.1 }, 0.7)
-    .from('.shot', { y: 60, scale: 0.92, opacity: 0, duration: 0.9, ease: 'expo.out' }, 0.6)
+    .from('.shot', { y: 60, scale: 0.92, opacity: 0, duration: 0.9, ease: 'move' }, 0.6)
     .from('.shot i', { scaleX: 0, transformOrigin: '0 50%', duration: 0.6, ease: 'expo.out', stagger: 0.07 }, 1.0);
   const total = doc.scrollHeight - view.clientHeight;
   tl.to(doc, { y: -total, duration: 2.2, ease: 'power2.inOut' }, 1.7);
   tl.from('.logos', { y: 30, opacity: 0, duration: 0.6, ease: 'power3.out' }, 1.6)
     .from('h2', { y: 30, opacity: 0, duration: 0.6, ease: 'power3.out' }, 2.15)
-    .from('.feat .blk', { y: 50, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.12 }, 2.4)
+    .from('.feat .blk', { y: 50, opacity: 0, duration: 0.7, ease: 'move', stagger: 0.12 }, 2.4)
     .from('.feat i', { scale: 0, duration: 0.5, ease: 'back.out(2)', stagger: 0.12 }, 2.6)
-    .from('.band', { y: 60, scale: 0.96, opacity: 0, duration: 0.8, ease: 'expo.out' }, 3.2)
+    .from('.band', { y: 60, scale: 0.96, opacity: 0, duration: 0.8, ease: 'move' }, 3.2)
     .from('.band b', { scale: 0.8, opacity: 0, duration: 0.5, ease: 'back.out(2)' }, 3.6);
   // a cursor drifts in and clicks the CTA in the band
   tl.fromTo('.cursor', { x: 1100, y: 700, opacity: 0 }, { x: 760, y: 410, opacity: 1, duration: 0.9, ease: 'power3.inOut' }, 3.4)

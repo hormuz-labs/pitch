@@ -46,10 +46,10 @@
     .from('.fl', { opacity: 0, x: -30, duration: 0.6, ease: 'power3.out' }, 0.5)
     .from('.pill', { opacity: 0, scale: 0.6, duration: 0.6, ease: 'back.out(2)' }, 0.6);
   // tiles fly in from four edges
-  tl.from('.t1', { x: -700, rotation: -8, duration: 0.8, ease: 'expo.out' }, 0.05)
-    .from('.t2', { y: -900, rotation: 6, duration: 0.8, ease: 'expo.out' }, 0.15)
-    .from('.t3', { y: 900, rotation: -6, duration: 0.8, ease: 'expo.out' }, 0.25)
-    .from('.t4', { x: 700, rotation: 8, duration: 0.8, ease: 'expo.out' }, 0.35);
+  tl.from('.t1', { x: -700, rotation: -8, duration: 0.8, ease: 'move' }, 0.05)
+    .from('.t2', { y: -900, rotation: 6, duration: 0.8, ease: 'move' }, 0.15)
+    .from('.t3', { y: 900, rotation: -6, duration: 0.8, ease: 'move' }, 0.25)
+    .from('.t4', { x: 700, rotation: 8, duration: 0.8, ease: 'move' }, 0.35);
   // slow drift inside every tile, the whole loop
   tl.fromTo('.tile .img', { scale: 1.0, xPercent: -2 }, { scale: 1.08, xPercent: 2, duration: 4, ease: 'none' }, 0);
   // layout shift: tile 1 takes the top, the rest line up below

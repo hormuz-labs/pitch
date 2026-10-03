@@ -56,7 +56,7 @@
   order.forEach((i, k) => {
     const L = layout[i];
     tl.fromTo('.p' + i, { x: L.x * 1.6, y: 700, z: L.z - 400, rotateY: L.ry * 2, rotateX: -20, opacity: 0 },
-      { x: L.x, y: L.y, z: L.z, rotateY: L.ry, rotateX: 0, opacity: 1, duration: 1.3, ease: 'expo.out' }, 0.1 + k * 0.12);
+      { x: L.x, y: L.y, z: L.z, rotateY: L.ry, rotateX: 0, opacity: 1, duration: 1.3, ease: 'move' }, 0.1 + k * 0.12);
   });
   tl.from('.title small, .title', { y: 20, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out' }, 1.2);
   // the group slowly turns as one, screens scroll in a wave

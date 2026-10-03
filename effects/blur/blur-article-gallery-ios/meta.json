@@ -1,6 +1,6 @@
 {
   "move": "frosted cards rise blurred, page sideways three times, fling home, fade",
-  "how": "Portrait iOS feed: a blurred aurora wall drifts xPercent -3 to 3 and rotates 2 degrees over the whole loop, four 760px cards with blurred colour-blob art and backdrop-filter glass panels rise from y 260 / blur(30px) / scale 0.94 with a 0.09s stagger (expo.out, 0.9s), plus header and tab bar. At 0.21D, 0.41D and 0.61D the track slides -796px (expo.out, 0.85s); the leaving card blurs to 14px and scales 0.96, the arriving one sharpens, and the pager pill widens 14 to 44px. At 0.81D the track flings back to 0 (expo.inOut) with the same blur swap, and the last 0.3s fades header, cards and tab to opacity 0 so the entrance can replay.",
+  "how": "Portrait iOS feed: a blurred aurora wall drifts xPercent -3 to 3 and rotates 2 degrees over the whole loop, four 760px cards with blurred colour-blob art and backdrop-filter glass panels rise from y 260 / blur(30px) / scale 0.94 with a 0.09s stagger (expo.out, 0.9s), plus header and tab bar. At 0.21D, 0.41D and 0.61D the track slides -796px (move, 0.85s); the leaving card blurs to 14px and scales 0.96, the arriving one sharpens, and the pager pill widens 14 to 44px. At 0.81D the track flings back to 0 (expo.inOut) with the same blur swap, and the last 0.3s fades header, cards and tab to opacity 0 so the entrance can replay.",
   "moves": [
     "slide-in",
     "blur-exit",

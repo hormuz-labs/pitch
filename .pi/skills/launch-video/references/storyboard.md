@@ -85,14 +85,15 @@ One table:
 - **on screen** — the complete visible state, and the order the eye takes
   through it: what arrives first, what it leads to, what lands last.
 - **for** — what the moment does for the viewer. A row without one goes.
-- **leaves by** — how it exits: becomes the transition, cuts on a match,
-  pushes in, clears.
+- **leaves by** — the join: becomes the next thing, makes room, leaves piece
+  by piece, pushes in, cuts on a match.
 - **effect** — the library effects the row is built from (`references/effects.md`).
 - **carries into next** — the object or match that crosses, or "new chapter".
 
-Strong 30-second launch films turn over about 12–15 compositions, each on
-screen 1.4–3.5s; that turnover is much of why they feel alive. It is a
-description, not a quota. A row lasts what it has to show and read — about
+Strong launch films change composition every 1.4–3.5s, and most of those
+changes happen inside a continuous scene (pieces leaving, one becoming the
+next, the camera moving on), not at a cut. A row is a composition; a new
+shot is a new scene, and a bar of music is not a shot. A row lasts what it has to show and read — about
 0.6s plus 0.3s per essential word, rounded to whole beats — counting every
 word visible in the state and each internal state of a busy shot.
 
@@ -111,7 +112,8 @@ its author. Cover the "for" column and read only "on screen":
   would someone replay one?
 - In every row, where does the eye land first, second and last, and what moves
   it there? On which beat does each new thing arrive?
-- Does every row leave by something, and does each cut either carry or match?
+- Does every row leave by something its elements do, and does each cut
+  morph or match?
 - Does anything on screen fail `facts.md`?
 - Would the frame at t=0 make a good thumbnail?
 

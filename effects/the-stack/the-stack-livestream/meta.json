@@ -12,7 +12,7 @@
   "libs": [
     "gsap"
   ],
-  "adapt": "Swap the mp4 and thumbnail image, the show title lines, host names, date kicker and viewer numbers, and the red #ff2d2d accent; keep the 0.9s expo.out slam, the lagging back card and the 4s counter.",
+  "adapt": "Swap the mp4 and thumbnail image, the show title lines, host names, date kicker and viewer numbers, and the red #ff2d2d accent; keep the 0.9s move slam, the lagging back card and the 4s counter.",
   "port": "mount(el, shot) builds the card DOM plus the <video> and awaits loadeddata; animate(el, shot, D) returns the same timeline with the entrance at 0-0.2D, counter at 0.2-0.87D and exit at 0.85D. The video seek hack (patching window.__fx.seek) does not port: drive video.currentTime from a tween onUpdate on the returned timeline instead, and scope '.card', '.row span', '.n' to el.",
   "caveats": [
     "background <video> is seeked by patching window.__fx.seek and via tl onUpdate; video seeking per frame is slow and may not be frame-exact",

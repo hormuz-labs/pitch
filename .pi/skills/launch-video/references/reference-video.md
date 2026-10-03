@@ -12,9 +12,9 @@ logos, layouts, words and music stay with it.
    leads each stretch and how the scale changes.
 3. **Dense around every transition worth learning.** Twelve frames inside about
    0.7 seconds spanning the change (16–20 a second). A transition read from two
-   settled frames is a guess; the mechanism is in the frames between: what
-   moves toward the camera, what was already waiting underneath, what crosses
-   the cut, where the speed changes.
+   settled frames is a guess; the mechanism is in the frames between: which
+   element becomes the next thing, what moves while the ground stays, what
+   crosses the cut, where the speed changes. Then build that mechanism.
 4. **A note per video** in `direction.md`: its key moment, how that moment
    works, and how the idea could serve this product with this product's own
    objects.

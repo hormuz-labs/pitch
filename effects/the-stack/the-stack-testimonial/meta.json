@@ -1,6 +1,6 @@
 {
   "move": "quote cards stack in, words rise per card, front card flicks away",
-  "how": "Three quote cards (white, yellow, orange) share a position with a pose(depth) of y -26*depth, scale 1-0.06*depth and alternating ±2.5 rotate. They arrive from 800px below back-first (expo.out, 0.9s, 0.1s offsets) while a masked header rises. Every 1.55s the front card's SplitText words rise yPercent 60→0 with opacity (expo.out, stagger 0.035) and five clip-path stars pop with back.out(3) stagger 0.05; then that card flicks off to x 120 / y -80 / rotate -8 / opacity 0 with power3.in over 0.45s and the cards behind step forward with back.out(1.5) over 0.7s. The ocean background scales 1.05→1.12 with a 2% x drift for the whole duration. At D-0.45 the last card flicks off and the header exits.",
+  "how": "Three quote cards (white, yellow, orange) share a position with a pose(depth) of y -26*depth, scale 1-0.06*depth and alternating ±2.5 rotate. They arrive from 800px below back-first (move, 0.9s, 0.1s offsets) while a masked header rises. Every 1.55s the front card's SplitText words rise yPercent 60→0 with opacity (expo.out, stagger 0.035) and five clip-path stars pop with back.out(3) stagger 0.05; then that card flicks off to x 120 / y -80 / rotate -8 / opacity 0 with power3.in over 0.45s and the cards behind step forward with back.out(1.5) over 0.7s. The ocean background scales 1.05→1.12 with a 2% x drift for the whole duration. At D-0.45 the last card flicks off and the header exits.",
   "moves": [
     "stack",
     "word-rise",

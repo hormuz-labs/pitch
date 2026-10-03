@@ -50,11 +50,11 @@
   const tl = fx.timeline({ duration: 8 });
   const rng = fx.rng(11);
   // the pool rises, the poster type lands, then the peach plunges and splashes
-  tl.from('.pool, .pool2', { yPercent: 100, duration: 1.2, ease: 'expo.out', stagger: .1 }, 0)
-    .from('.wave', { yPercent: 200, duration: 1.2, ease: 'expo.out' }, .1)
-    .from('.kicker span', { yPercent: 110, duration: .6, ease: 'expo.out', stagger: .1 }, .3)
-    .from('.l', { yPercent: 110, duration: 1, ease: 'expo.out', stagger: .14 }, .4)
-    .from('.body p span', { yPercent: 110, duration: .8, ease: 'expo.out' }, .95)
+  tl.from('.pool, .pool2', { yPercent: 100, duration: 1.2, ease: 'move', stagger: .1 }, 0)
+    .from('.wave', { yPercent: 200, duration: 1.2, ease: 'move' }, .1)
+    .from('.kicker span', { yPercent: 110, duration: .6, ease: 'move', stagger: .1 }, .3)
+    .from('.l', { yPercent: 110, duration: 1, ease: 'move', stagger: .14 }, .4)
+    .from('.body p span', { yPercent: 110, duration: .8, ease: 'move' }, .95)
     .from('.foot span', { opacity: 0, y: 10, duration: .5, stagger: .1 }, 1.4);
   // the wave keeps rolling the whole loop
   tl.fromTo('.wave', { x: 0 }, { x: -300, duration: 8, ease: 'none' }, 0);
@@ -71,7 +71,7 @@
     const a = -Math.PI / 2 + (i - 2.5) * .35 + (rng() - .5) * .2;
     const v = 500 + rng() * 300;
     tl.fromTo(el, { x: 0, y: 0, opacity: 1, scale: 1 + rng() * 1.5 },
-      { x: Math.cos(a) * v * .9, y: Math.sin(a) * v, opacity: .9, duration: .5, ease: 'power2.out' }, 2.98)
+      { x: Math.cos(a) * v * .9, y: Math.sin(a) * v, opacity: .9, duration: .5, ease: 'move' }, 2.98)
       .to(el, { y: '+=500', opacity: 0, duration: .55, ease: 'power2.in' }, 3.48);
   });
   // the type shudders on impact

@@ -40,7 +40,7 @@
 <script>
   const tl = fx.timeline({ duration: 5 });
   tl.fromTo('.bg', { scale: 1.15, xPercent: 2 }, { scale: 1.02, xPercent: -2, duration: 5, ease: 'none' }, 0)
-    .from('.athlete', { x: 300, opacity: 0, duration: 0.9, ease: 'expo.out' }, 0)
+    .from('.athlete', { x: 300, opacity: 0, duration: 0.9, ease: 'move' }, 0)
     .to('.athlete', { y: -18, duration: 4, ease: 'sine.inOut' }, 0.9)
     // a lime band slashes across, then the words stamp over it line by line
     .fromTo('.band', { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'expo.inOut' }, 0.3)

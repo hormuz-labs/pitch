@@ -14,7 +14,7 @@
     "gsap",
     "css-3d"
   ],
-  "adapt": "Replace the three site records (url, name, accent, two-line headline, three card colours, dark flag) and the credit line; the pose array sets the stack spacing. Keep the 1.1s expo.out entries with 0.25s stagger and the 4s sine pan.",
+  "adapt": "Replace the three site records (url, name, accent, two-line headline, three card colours, dark flag) and the credit line; the pose array sets the stack spacing. Keep the 1.1s move entries with 0.25s stagger and the 4s sine pan.",
   "port": "mount(el, shot) builds .wrap with the windows from shot.sites and applies the initial gsap.set on the wrapper; animate(el, shot, D) returns the timeline with entries at (0.014 + k*0.036)*D, pan at 0.21D, scrolls at 0.46D/0.7D and exit at 0.886D. The stage supplies perspective:1800px so el must carry it; the poses assume a 1280x720 frame.",
   "caveats": [
     "from() tweens on headline/paragraph/cards without immediateRender:false",

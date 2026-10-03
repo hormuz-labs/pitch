@@ -28,6 +28,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
+import { measureMotion, motionFindings } from "./lib/motion-lint.mjs";
 import { actionableOverruns } from "./lib/overruns.mjs";
 
 const args = process.argv.slice(2);
@@ -77,6 +78,7 @@ const data = await page.evaluate(() => ({
   stage: window.__STAGE || null,
 }));
 const spec = CHECK ? await page.evaluate(extractSpec) : null;
+const motionRows = CHECK ? await page.evaluate(measureMotion) : [];
 await studio.close();
 
 if (!errors.length) {
@@ -104,7 +106,7 @@ if (overruns.length) console.log("   Include repeats and stagger: a tween at .6*
 if (CHECK) {
   // The shot-list rules, now — the audit says the same things after a render,
   // and a film that hears them there gets rebuilt instead of built.
-  const buildLint = spec ? lintWhileBuilding(spec) : [];
+  const buildLint = [...(spec ? lintWhileBuilding(spec) : []), ...motionFindings(motionRows)];
   for (const l of buildLint) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
 }
 const media = data.media;

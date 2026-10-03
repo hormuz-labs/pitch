@@ -23,11 +23,11 @@
   const nameW = document.querySelector('.mask').offsetWidth;
   tl.set('.lockup', { x: nameW / 2 })
     // the round mark rolls in from the left like a wheel and stops
-    .from('.mark', { x: -420, rotation: -540, duration: .8, ease: 'expo.out' }, 0)
+    .from('.mark', { x: -420, rotation: -540, duration: .8, ease: 'move' }, 0)
     .from('.mark svg', { scale: 0, duration: .5, ease: 'back.out(2)' }, .45)
     // the name slides out from behind it while the lockup recentres
     .from('.name', { xPercent: -125, duration: .7, ease: 'expo.out' }, .55)
-    .to('.lockup', { x: 0, duration: .7, ease: 'expo.out' }, .55)
+    .to('.lockup', { x: 0, duration: .7, ease: 'move' }, .55)
     // out: name retracts, mark rolls off right
     .to('.name', { xPercent: -125, duration: .35, ease: 'expo.in' }, 1.5)
     .to('.lockup', { x: nameW / 2, duration: .35, ease: 'expo.in' }, 1.5)

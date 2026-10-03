@@ -42,7 +42,7 @@
   // sparks fly out on the landing
   document.querySelectorAll('.spark').forEach((s, i) => {
     const a = (i / 6) * Math.PI * 2 + 0.4;
-    tl.fromTo(s, { x: 0, y: 0, scale: 0, opacity: 1 }, { x: Math.cos(a) * 380, y: Math.sin(a) * 280, scale: 1.4, opacity: 0, duration: 0.8, ease: 'expo.out' }, 1.15);
+    tl.fromTo(s, { x: 0, y: 0, scale: 0, opacity: 1 }, { x: Math.cos(a) * 380, y: Math.sin(a) * 280, scale: 1.4, opacity: 0, duration: 0.8, ease: 'move' }, 1.15);
   });
 
   // exit: it keeps turning and blows past the camera

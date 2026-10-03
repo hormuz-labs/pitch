@@ -40,8 +40,8 @@
   const tl = fx.timeline({ duration: 6 });
   tl.to({}, { duration: 6, onUpdate() { v.currentTime = (this.progress() * 6 * 0.7 + 1) % (v.duration || 16); } }, 0);
   // title on the closed split: the two halves of the word slide in to meet at the seam
-  tl.from('.half.l .t', { x: -300, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.1);
-  tl.from('.half.r .t', { x: 300, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.1);
+  tl.from('.half.l .t', { x: -300, opacity: 0, duration: 0.8, ease: 'move' }, 0.1);
+  tl.from('.half.r .t', { x: 300, opacity: 0, duration: 0.8, ease: 'move' }, 0.1);
   tl.from('.half .sub', { y: 16, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.5);
   tl.fromTo('.seam', { scaleY: 0 }, { scaleY: 1, duration: 0.6, ease: 'expo.out' }, 0.7);
   // the split opens: halves part to either side, revealing the product behind

@@ -102,6 +102,135 @@ export function loadEffects(root = EFFECTS_DIR): Effect[] {
 
 const words = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
+// Words that say nothing about a move. As prefixes they matched nearly every
+// note ("a" matched "and", "across", "at"), so they decided the ranking.
+const STOP = new Set(
+  'a an and as at be by for from in into is it its of on onto or over that the then this to up with while out off one two three each its their them when where which'.split(
+    ' ',
+  ),
+)
+
+/** One stem for rise/rises/rising, card/cards, mask/masked, becomes/becoming. */
+export function stem(w: string): string {
+  let s = w
+  if (s.length > 4 && s.endsWith('ies')) s = `${s.slice(0, -3)}y`
+  else if (s.length > 4 && /(ss|x|z|ch|sh)es$/.test(s)) s = s.slice(0, -2)
+  else if (s.length > 3 && s.endsWith('s') && !s.endsWith('ss')) s = s.slice(0, -1)
+  if (s.length > 5 && s.endsWith('ing')) s = s.slice(0, -3)
+  else if (s.length > 4 && s.endsWith('ed')) s = s.slice(0, -2)
+  else if (s.length > 4 && s.endsWith('ly')) s = s.slice(0, -2)
+  if (s.length > 3 && /([^aeiouls])\1$/.test(s)) s = s.slice(0, -1)
+  if (s.length > 3 && s.endsWith('e')) s = s.slice(0, -1)
+  return s
+}
+const terms = (s: string) =>
+  words(s)
+    .filter(w => !STOP.has(w))
+    .map(stem)
+
+// Words the agent and the notes use for the same thing; a synonym counts half.
+const SYNONYMS = [
+  ['morph', 'becom', 'transform', 'turn'],
+  ['click', 'tap', 'press'],
+  ['phon', 'mobil', 'iphon', 'smartphon'],
+  ['reveal', 'appear', 'emerg', 'enter'],
+  ['zoom', 'push', 'dolly'],
+  ['counter', 'count', 'number', 'metric'],
+  ['chart', 'graph'],
+  ['pill', 'capsul', 'chip'],
+  ['logo', 'mark', 'wordmark'],
+  ['check', 'tick', 'checkmark'],
+  ['notification', 'alert', 'toast', 'banner'],
+  ['typewriter', 'typ', 'caret'],
+  ['text', 'typ', 'word', 'letter', 'headlin', 'titl'],
+].map(g => g.map(stem))
+
+interface Doc {
+  e: Effect
+  fields: { terms: Map<string, number>; len: number; weight: number }[]
+  all: Set<string>
+}
+// name and tags, the one-line move, the catalogue blurb, the build notes
+const WEIGHTS = [3, 2, 1.5, 1]
+
+function index(effects: Effect[]) {
+  const docs: Doc[] = effects.map(e => {
+    const fields = [
+      `${e.name} ${e.moves.join(' ')}`,
+      e.move,
+      e.description,
+      `${e.meta.how ?? ''} ${e.family}`,
+    ].map((t, i) => {
+      const counts = new Map<string, number>()
+      const ts = terms(t)
+      for (const w of ts) counts.set(w, (counts.get(w) ?? 0) + 1)
+      return { terms: counts, len: ts.length, weight: WEIGHTS[i] }
+    })
+    return { e, fields, all: new Set(fields.flatMap(f => [...f.terms.keys()])) }
+  })
+  const avg = WEIGHTS.map(
+    (_, i) => docs.reduce((n, d) => n + d.fields[i].len, 0) / Math.max(1, docs.length),
+  )
+  const df = new Map<string, number>()
+  for (const d of docs) for (const t of d.all) df.set(t, (df.get(t) ?? 0) + 1)
+  return { docs, avg, df }
+}
+
+/**
+ * Effects ranked for a query: BM25 over the notes' fields, so a rare word
+ * ("morph") outweighs a common one ("card") and a long note does not win by
+ * length. Without a family, each further result from a family already shown
+ * counts for less, so a page of six spans the library instead of one corner.
+ */
+export function searchEffects(effects: Effect[], query: string, family?: string): Effect[] {
+  const pool = family ? effects.filter(e => e.family === family) : effects
+  const wanted = new Map<string, number>()
+  for (const q of terms(query)) {
+    wanted.set(q, 1)
+    for (const group of SYNONYMS)
+      if (group.includes(q)) for (const syn of group) if (!wanted.has(syn)) wanted.set(syn, 0.5)
+  }
+  if (!wanted.size) return pool
+  const { docs, avg, df } = index(effects)
+  const N = docs.length
+  const inPool = new Set(pool.map(e => e.id))
+  const scored = docs
+    .filter(d => inPool.has(d.e.id))
+    .map(d => {
+      let score = 0
+      for (const [q, boost] of wanted) {
+        // the term itself, or a longer word it begins ("anim" → "animate")
+        const hit = (t: string) => t === q || (q.length >= 5 && t.startsWith(q))
+        const matches = [...d.all].filter(hit)
+        if (!matches.length) continue
+        const n = Math.max(...matches.map(t => df.get(t) ?? 0))
+        const idf = Math.log(1 + (N - n + 0.5) / (n + 0.5))
+        d.fields.forEach((f, i) => {
+          const tf = matches.reduce((c, t) => c + (f.terms.get(t) ?? 0), 0)
+          if (tf)
+            score +=
+              boost * idf * f.weight * ((tf * 2.2) / (tf + 1.2 * (0.25 + (0.75 * f.len) / avg[i])))
+        })
+      }
+      return { e: d.e, score }
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.e.id.localeCompare(b.e.id))
+  if (family) return scored.map(x => x.e)
+  const shown = new Map<string, number>()
+  const out: Effect[] = []
+  const left = [...scored]
+  while (left.length) {
+    let best = 0
+    const value = (x: (typeof left)[number]) => x.score * 0.8 ** (shown.get(x.e.family) ?? 0)
+    for (let i = 1; i < left.length; i++) if (value(left[i]) > value(left[best])) best = i
+    const [pick] = left.splice(best, 1)
+    shown.set(pick.e.family, (shown.get(pick.e.family) ?? 0) + 1)
+    out.push(pick.e)
+  }
+  return out
+}
+
 /**
  * The results' frame strips stacked top to bottom, 1600px wide, in the
  * workspace where the agent can read it. Null when ffmpeg or the strips are
@@ -142,29 +271,6 @@ function contactSheet(ws: string, effects: Effect[], name: string): string | nul
 }
 
 /** Rank by how many query words the effect's name, move, tags and notes contain. */
-export function searchEffects(effects: Effect[], query: string, family?: string): Effect[] {
-  const q = words(query)
-  const pool = family ? effects.filter(e => e.family === family) : effects
-  if (!q.length) return pool
-  const scored = pool.map(e => {
-    const fields: [string, number][] = [
-      [`${e.name} ${e.moves.join(' ')}`, 3],
-      [e.move, 2],
-      [`${e.description} ${e.meta.how ?? ''} ${e.family}`, 1],
-    ]
-    const score = q.reduce(
-      (s, w) =>
-        s + fields.reduce((f, [t, wt]) => f + (words(t).some(x => x.startsWith(w)) ? wt : 0), 0),
-      0,
-    )
-    return { e, score }
-  })
-  return scored
-    .filter(x => x.score > 0)
-    .sort((a, b) => b.score - a.score || a.e.id.localeCompare(b.e.id))
-    .map(x => x.e)
-}
-
 export default function effectCommands(): CommandSpec[] {
   return [
     {

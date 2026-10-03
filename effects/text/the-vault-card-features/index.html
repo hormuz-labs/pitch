@@ -48,7 +48,7 @@
   const tl = fx.timeline({ duration: 4 });
   // the card tilts in from a flat 3D lie, the sheen sweeps, then feature layers stack out beneath it
   tl.from('.head span', { yPercent: 110, duration: .6, ease: 'expo.out' }, 0)
-    .fromTo('.card', { rotationX: 70, y: 180, opacity: 0, scale: .9 }, { rotationX: 0, y: 0, opacity: 1, scale: 1, duration: 1, ease: 'expo.out' }, .1)
+    .fromTo('.card', { rotationX: 70, y: 180, opacity: 0, scale: .9 }, { rotationX: 0, y: 0, opacity: 1, scale: 1, duration: 1, ease: 'move' }, .1)
     .fromTo('.card .sheen', { xPercent: -60 }, { xPercent: 60, duration: 1.1, ease: 'power2.inOut' }, .3)
     .from('.card .num, .card .name, .card .exp', { opacity: 0, y: 8, duration: .5, stagger: .08 }, .6)
     .from('.feat', { y: -40, opacity: 0, scaleY: .6, duration: .7, ease: 'expo.out', stagger: .14 }, .8)

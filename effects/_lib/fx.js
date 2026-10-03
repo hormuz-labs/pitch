@@ -18,6 +18,20 @@
   const params = new URLSearchParams(location.search);
   const RENDER = params.has('render');
   const fx = (window.fx = Object.assign(window.fx || {}, window.anim || {}));
+
+  /* `move`, the ease the film engine gives every tween by default: it starts
+     from rest, peaks a third of the way through and settles long
+     (cubic-bezier(0.5, 0, 0.15, 1)), so an effect previews the way it will
+     move once ported into a film. */
+  if (window.gsap) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    gsap.registerEase('move', (x) => {
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; if (B(0.5, 0.15, m) < x) lo = m; else hi = m; }
+      return B(0, 1, (lo + hi) / 2);
+    });
+    gsap.defaults({ ease: 'move' });
+  }
   const readyPromises = [];
 
   fx.rng = function (seed) {

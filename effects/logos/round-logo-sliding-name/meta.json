@@ -1,6 +1,6 @@
 {
   "move": "round mark rolls in like a wheel, name slides out from behind it as the lockup recenters, rolls off",
-  "how": "A flex lockup of a dark circular mark holding a triangle-and-dot SVG and a masked wordmark hidden by an overflow container, offset by half the name width so the mark alone is centred. 0-40%: the mark rolls in from x -420 with rotation -540 (expo.out, 0.8s); at 22% its inner SVG pops from scale 0 with back.out(2). At 27% the name slides from xPercent -125 out from behind the mark while the lockup x eases from nameW/2 to 0 (both expo.out, 0.7s) so the pair ends centred. Exit at 75%: the name retracts and the lockup shifts back (expo.in, 0.35s); at 82% the mark rolls off to x 500 with rotation 540 (power3.in).",
+  "how": "A flex lockup of a dark circular mark holding a triangle-and-dot SVG and a masked wordmark hidden by an overflow container, offset by half the name width so the mark alone is centred. 0-40%: the mark rolls in from x -420 with rotation -540 (move, 0.8s); at 22% its inner SVG pops from scale 0 with back.out(2). At 27% the name slides from xPercent -125 out from behind the mark while the lockup x eases from nameW/2 to 0 (both expo.out, 0.7s) so the pair ends centred. Exit at 75%: the name retracts and the lockup shifts back (expo.in, 0.35s); at 82% the mark rolls off to x 500 with rotation 540 (power3.in).",
   "moves": [
     "roll-in",
     "spin",

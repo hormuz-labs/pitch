@@ -16,7 +16,7 @@
     "DrawSVG",
     "css-3d"
   ],
-  "adapt": "Change the three headline words, paragraph, button label, page headings, hero gradient and accent (#ff3d81), the ring target percentage and the background image. Keep the 1.3s expo.out entry, the 0.7s expo.inOut page swipes and the exit at 0.92 of the duration.",
+  "adapt": "Change the three headline words, paragraph, button label, page headings, hero gradient and accent (#ff3d81), the ring target percentage and the background image. Keep the 1.3s move entry, the 0.7s expo.inOut page swipes and the exit at 0.92 of the duration.",
   "port": "mount(el, shot) builds the copy block and the phone with its three-page strip from shot strings; animate(el, shot, D) returns one GSAP timeline with the positions expressed as fractions of D (entry 0-0.16D, swipes at 0.375D and 0.675D, exit at 0.925D). The counter onUpdate must target el.querySelector('.pct') rather than document; the bg image URL must come from shot assets.",
   "caveats": [
     "from() tweens without immediateRender:false on page-2/3 elements; safe only because they are behind the strip until their swipe",

@@ -77,7 +77,7 @@
     const el = items[i];
     tl.to(thread, { y: below(i), duration: 0.5, ease: 'power3.out' }, t);
     if (kind === 'lbl') tl.to(el, { opacity: 1, duration: 0.3 }, t + 0.1);
-    else tl.fromTo(el, pop(el, kind === 'in' ? -1 : 1), { scale: 1, opacity: 1, x: 0, y: 0, duration: 0.55, ease: 'back.out(1.6)' }, t);
+    else tl.fromTo(el, pop(el, kind === 'in' ? -1 : 1), { scale: 1, opacity: 1, x: 0, y: 0, duration: 0.55, ease: 'move' }, t);
   };
   const hide = (i, t) => tl.to(items[i], { opacity: 0, scale: 0.8, duration: 0.2 }, t).set(items[i], { display: 'none' }, t + 0.2);
   const typeIn = (text, t, dur) => tl.to('.ph', { opacity: 0, duration: 0.1 }, t).to('.typed', { text, duration: dur, ease: 'none' }, t)

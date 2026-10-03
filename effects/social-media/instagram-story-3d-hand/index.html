@@ -77,7 +77,7 @@ const btnEl = document.getElementById('btn'), ring = document.getElementById('ri
 const sws = ['s0', 's1', 's2'].map(id => document.getElementById(id));
 const tl = gsap.timeline({ paused: true });
 tl.from('.ttl .w', { yPercent: 110, stagger: .1, duration: .7, ease: 'expo.out' }, 0)
-  .from('#card', { y: 300, opacity: 0, scale: .9, duration: .9, ease: 'expo.out' }, .1)
+  .from('#card', { y: 300, opacity: 0, scale: .9, duration: .9, ease: 'move' }, .1)
   .from('.sub', { opacity: 0, duration: .5 }, .8)
   // hand enters from bottom-right and hovers over the blue swatch, taps it
   .to(pose, { x: sw1.x, y: sw1.y, z: 3, rz: .05, duration: 1.1, ease: 'expo.out' }, .6)

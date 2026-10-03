@@ -55,9 +55,9 @@
   gsap.set('.tag', { scale: 0, rotate: -30 });
   tl.fromTo('.stripes', { x: 0 }, { x: 92, duration: 6, ease: 'none' }, 0);
   // stacked card reveals, each with a slight rotation that straightens on landing
-  tl.to('.c3', { y: 0, rotate: -6, duration: 0.9, ease: 'expo.out' }, 0)
-    .to('.c2', { y: 0, rotate: 4, duration: 0.9, ease: 'expo.out' }, 0.12)
-    .to('.front', { y: 0, rotate: 0, duration: 0.9, ease: 'expo.out' }, 0.24)
+  tl.to('.c3', { y: 0, rotate: -6, duration: 0.9, ease: 'move' }, 0)
+    .to('.c2', { y: 0, rotate: 4, duration: 0.9, ease: 'move' }, 0.12)
+    .to('.front', { y: 0, rotate: 0, duration: 0.9, ease: 'move' }, 0.24)
     .to('.c3', { rotate: -4, duration: 0.6, ease: 'elastic.out(1,0.5)' }, 0.9)
     .to('.c2', { rotate: 2.5, duration: 0.6, ease: 'elastic.out(1,0.5)' }, 0.95)
     .to('.kick span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.7);

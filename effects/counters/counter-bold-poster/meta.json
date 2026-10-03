@@ -1,6 +1,6 @@
 {
   "move": "giant two-digit count-up stamps down on a grid poster, page shakes once",
-  "how": "Orange 1080 square with a faint grid, a top rule that draws in via scaleX (expo.out), header labels, a 760px two-digit number, a rotating black circular badge and bottom headline/blurb. The number rises from yPercent 30 / opacity 0 (expo.out), then a state value tweens 0 to 48 over 2.3s with power4.out; the units digit flickers opacity 0.75 to 1 as it changes. The badge pops in with back.out(2) from scale 0 rotation -90 and then turns 360 (ease none). At 0.69D the number scales 1.06 (power3.out, 0.12s) and settles with elastic.out(1,0.4) while the stage shakes y 10px three times. At 0.93D everything fades and lifts y -40 (power3.in).",
+  "how": "Orange 1080 square with a faint grid, a top rule that draws in via scaleX (expo.out), header labels, a 760px two-digit number, a rotating black circular badge and bottom headline/blurb. The number rises from yPercent 30 / opacity 0 (move), then a state value tweens 0 to 48 over 2.3s with power4.out; the units digit flickers opacity 0.75 to 1 as it changes. The badge pops in with back.out(2) from scale 0 rotation -90 and then turns 360 (ease none). At 0.69D the number scales 1.06 (power3.out, 0.12s) and settles with elastic.out(1,0.4) while the stage shakes y 10px three times. At 0.93D everything fades and lifts y -40 (power3.in).",
   "moves": [
     "counter",
     "stamp",

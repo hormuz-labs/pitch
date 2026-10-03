@@ -51,16 +51,16 @@
   gsap.set('.rail', { x: -260 });
   gsap.set('.nav', { x: -30 });
   const bx = 36 + 22, by = 28 + 22;
-  tl.fromTo('.cursor', { x: bx + 300, y: by + 220, opacity: 0 }, { x: bx, y: by, opacity: 1, duration: 0.7, ease: 'power3.out' }, 0)
+  tl.fromTo('.cursor', { x: bx + 300, y: by + 220, opacity: 0 }, { x: bx, y: by, opacity: 1, duration: 0.7, ease: 'move' }, 0)
     .to('.burger', { scale: 0.88, duration: 0.1, ease: 'power2.in' }, 0.75)
     .to('.cursor', { scale: 0.85, transformOrigin: '10% 5%', duration: 0.08 }, 0.75)
     .to('.cursor', { scale: 1, duration: 0.15 }, 0.87)
     .to('.burger', { scale: 1, duration: 0.4, ease: 'back.out(3)' }, 0.87)
     // rail slides in from the edge, content shifts over, items cascade
-    .to('.rail', { x: 0, duration: 0.7, ease: 'expo.out' }, 0.85)
-    .to('.content', { x: 260, duration: 0.7, ease: 'expo.out' }, 0.85)
+    .to('.rail', { x: 0, duration: 0.7, ease: 'move' }, 0.85)
+    .to('.content', { x: 260, duration: 0.7, ease: 'move' }, 0.85)
     .to('.nav', { opacity: 1, x: 0, duration: 0.5, stagger: 0.06, ease: 'power3.out' }, 1.0)
-    .to('.cursor', { x: bx + 260, duration: 0.7, ease: 'expo.out' }, 0.85)
+    .to('.cursor', { x: bx + 260, duration: 0.7, ease: 'move' }, 0.85)
     // wander to an item and hover it
     .to('.cursor', { x: 120, y: 18 + 52 * 2 + 26, duration: 0.7, ease: 'power2.inOut' }, 1.9)
     .to('.nav:nth-child(3)', { backgroundColor: '#eef1f7', duration: 0.25 }, 2.5)

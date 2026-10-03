@@ -56,9 +56,9 @@
   gsap.set('.row span', { yPercent: 110 });
   gsap.set('.pill', { y: 80, opacity: 0 });
   // polished stacked reveal: three cards land, back to front, each settling a step higher
-  tl.to('.c3', { y: -44, rotateX: 0, scale: 0.9, duration: 1.0, ease: 'expo.out' }, 0)
-    .to('.c2', { y: -22, rotateX: 0, scale: 0.95, duration: 1.0, ease: 'expo.out' }, 0.14)
-    .to('.front', { y: 0, rotateX: 0, scale: 1, duration: 1.0, ease: 'expo.out' }, 0.28)
+  tl.to('.c3', { y: -44, rotateX: 0, scale: 0.9, duration: 1.0, ease: 'move' }, 0)
+    .to('.c2', { y: -22, rotateX: 0, scale: 0.95, duration: 1.0, ease: 'move' }, 0.14)
+    .to('.front', { y: 0, rotateX: 0, scale: 1, duration: 1.0, ease: 'move' }, 0.28)
     .to('.top span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.3)
     .to('.kicker span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.9);
   // the two logos collide at the centre and settle

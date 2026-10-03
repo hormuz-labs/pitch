@@ -55,9 +55,9 @@
   for (let i = 0; i < 60; i++) { const s = document.createElement('i'); s.style.left = rnd() * 100 + '%'; s.style.top = rnd() * 45 + '%'; s.style.opacity = 0.3 + rnd() * 0.7; stars.appendChild(s); }
   const tl = fx.timeline({ duration: 5 });
   // dramatic reveal: the landscape layers rise with parallax, the sun lifts, the title lands heavy
-  tl.from('.m1', { y: 160, duration: 1.6, ease: 'expo.out' }, 0)
-    .from('.m2', { y: 240, duration: 1.6, ease: 'expo.out' }, 0.1)
-    .from('.m3', { y: 320, duration: 1.6, ease: 'expo.out' }, 0.2)
+  tl.from('.m1', { y: 160, duration: 1.6, ease: 'move' }, 0)
+    .from('.m2', { y: 240, duration: 1.6, ease: 'move' }, 0.1)
+    .from('.m3', { y: 320, duration: 1.6, ease: 'move' }, 0.2)
     .from('.sun', { y: 160, scale: 0.6, opacity: 0, duration: 1.8, ease: 'power3.out' }, 0)
     .from('.haze', { opacity: 0, duration: 1.5 }, 0.3)
     .from('.stars i', { opacity: 0, duration: 0.8, stagger: { each: 0.01, from: 'random' } }, 0.2)

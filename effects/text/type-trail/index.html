@@ -58,15 +58,15 @@
   gsap.set(W3, { xPercent: 170, yPercent: 0 });
 
   // 1. KINETIC rushes in from the left
-  move(W1, { xPercent: -170 }, { xPercent: 0 }, 0.05, 0.75, 'expo.out', 0.035);
+  move(W1, { xPercent: -170 }, { xPercent: 0 }, 0.05, 0.75, 'move', 0.035);
   skew(W1, -28, 0.05, 0.75);
   // 2. it shoots up and out, TYPE drops in from below
   move(W1, { yPercent: 0 }, { yPercent: -320 }, 1.15, 0.45, 'expo.in', 0.03);
-  move(W2, { yPercent: 320 }, { yPercent: 0 }, 1.3, 0.7, 'expo.out', 0.035);
+  move(W2, { yPercent: 320 }, { yPercent: 0 }, 1.3, 0.7, 'move', 0.035);
   tl.fromTo(W2[0], { scaleY: 1.25 }, { scaleY: 1, duration: 0.5, ease: 'expo.out' }, 1.55);
   // 3. TYPE exits left, TRAIL enters from the right
   move(W2, { xPercent: 0 }, { xPercent: -170 }, 2.25, 0.45, 'expo.in', 0.03);
-  move(W3, { xPercent: 170 }, { xPercent: 0 }, 2.4, 0.7, 'expo.out', 0.035);
+  move(W3, { xPercent: 170 }, { xPercent: 0 }, 2.4, 0.7, 'move', 0.035);
   skew(W3, 26, 2.4, 0.7);
   // 4. TRAIL leaves the way it came so the loop starts on an empty stage
   move(W3, { xPercent: 0 }, { xPercent: 170 }, 3.4, 0.4, 'expo.in', 0.03);

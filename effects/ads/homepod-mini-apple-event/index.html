@@ -39,7 +39,7 @@
   gsap.set('.row span', { yPercent: 110 });
   gsap.set('.swatches i', { scale: 0 });
   // the pod drops in from above the frame, settles with a soft bounce, floor light blooms
-  tl.from('.pod', { y: -520, scale: 0.7, duration: 1.0, ease: 'expo.out' }, 0)
+  tl.from('.pod', { y: -520, scale: 0.7, duration: 1.0, ease: 'move' }, 0)
     .fromTo('.pod', { scaleY: 0.94, scaleX: 1.04 }, { scaleY: 1, scaleX: 1, duration: 0.6, ease: 'elastic.out(1,0.45)' }, 0.9)
     .from('.floor', { scaleX: 0.3, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.7)
     // Siri light wakes: the top disc glows and rings breathe outward

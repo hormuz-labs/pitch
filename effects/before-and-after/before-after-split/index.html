@@ -36,7 +36,7 @@
   const D = 1000;
   tl.fromTo('.before .img', { scale: 1.08 }, { scale: 1.0, duration: 5, ease: 'none' }, 0)
     .fromTo('.after .img', { scale: 1.0 }, { scale: 1.1, duration: 5, ease: 'none' }, 0)
-    .from('.lab.b', { xPercent: -140, duration: 0.6, ease: 'expo.out' }, 0.1)
+    .from('.lab.b', { xPercent: -140, duration: 0.6, ease: 'move' }, 0.1)
     // a light cuts the frame along the diagonal
     .fromTo('.edge', { scaleX: 0, opacity: 1 }, { scaleX: 1, duration: 0.5, ease: 'expo.inOut' }, 0.9)
     // the two halves of "before" split apart, sliding off perpendicular to the cut
@@ -44,7 +44,7 @@
     .to('.half.br', { x: nx * D, y: ny * D, duration: 1.1, ease: 'expo.inOut' }, 1.35)
     .to('.edge', { opacity: 0, scaleX: 1.2, duration: 0.5, ease: 'power2.out' }, 1.9)
     .to('.lab.b', { xPercent: -140, duration: 0.4, ease: 'expo.in' }, 1.4)
-    .from('.lab.a', { xPercent: 140, duration: 0.6, ease: 'expo.out' }, 2.1)
+    .from('.lab.a', { xPercent: 140, duration: 0.6, ease: 'move' }, 2.1)
     .from('.big span', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 2.2)
     .to('.big span', { yPercent: -120, duration: 0.4, ease: 'expo.in' }, 3.9)
     // halves come back to close the loop
@@ -53,5 +53,5 @@
     .to('.half.br', { x: 0, y: 0, duration: 0.7, ease: 'expo.inOut' }, 4.25)
     .fromTo('.edge', { scaleX: 1, opacity: 0 }, { opacity: 1, duration: 0.2 }, 4.7)
     .to('.edge', { opacity: 0, duration: 0.1 }, 4.9)
-    .to('.lab.b', { xPercent: 0, duration: 0.4, ease: 'expo.out' }, 4.6);
+    .to('.lab.b', { xPercent: 0, duration: 0.4, ease: 'move' }, 4.6);
 </script>

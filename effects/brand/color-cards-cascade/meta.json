@@ -1,6 +1,6 @@
 {
   "move": "cards drop from above in sequence, tilt back, squash on landing",
-  "how": "Five full-height colour cards sit in a flex row under a small title. Each card fromTo's y:-820 with rotateX:-35 and a slight rotateZ to rest with back.out(1.2) over 1s, starting at 0.017D and staggered 0.037D apart; at 0.72s into each fall a scaleY 1→0.94→1 yoyo (transform-origin top) gives a landing squash, then the name and hex rise in with expo.out. From 0.4D the cards breathe up 10px with sine.inOut yoyo, staggered. From 0.84D they fall off the bottom (y:900, rotateX:25, power3.in, stagger 0.1) and the title fades, so the frame is empty at both ends.",
+  "how": "Five full-height colour cards sit in a flex row under a small title. Each card fromTo's y:-820 with rotateX:-35 and a slight rotateZ to rest with move over 1s, starting at 0.017D and staggered 0.037D apart; at 0.72s into each fall a scaleY 1→0.94→1 yoyo (transform-origin top) gives a landing squash, then the name and hex rise in with expo.out. From 0.4D the cards breathe up 10px with sine.inOut yoyo, staggered. From 0.84D they fall off the bottom (y:900, rotateX:25, power3.in, stagger 0.1) and the title fades, so the frame is empty at both ends.",
   "moves": [
     "drop-in",
     "stagger",

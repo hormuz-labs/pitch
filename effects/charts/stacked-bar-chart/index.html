@@ -46,8 +46,8 @@
   // each bar: the whole stack grows together from the baseline, segments building on top of each other
   document.querySelectorAll('.bar').forEach((b,i)=>{const t=.5+i*.09;const s0=b.querySelector('.s0'),s1=b.querySelector('.s1'),s2=b.querySelector('.s2');
     tl.from(s0,{scaleY:0,duration:.8,ease:'expo.out'},t)
-      .from(s1,{scaleY:0,y:()=>s0.offsetHeight,duration:.8,ease:'expo.out'},t+.12)
-      .from(s2,{scaleY:0,y:()=>s0.offsetHeight+s1.offsetHeight,duration:.8,ease:'expo.out'},t+.24)
+      .from(s1,{scaleY:0,y:()=>s0.offsetHeight,duration:.8,ease:'move'},t+.12)
+      .from(s2,{scaleY:0,y:()=>s0.offsetHeight+s1.offsetHeight,duration:.8,ease:'move'},t+.24)
       .from(b.querySelector('.tot'),{opacity:0,y:10,duration:.4},t+.6);
     const o={n:0};tl.to(o,{n:+b.querySelector('.tot').dataset.t,duration:1,ease:'expo.out',onUpdate(){b.querySelector('.tot').textContent=Math.round(o.n)}},t+.24)});
   tl.to('.s1',{opacity:.7,duration:.4,yoyo:true,repeat:1,ease:'sine.inOut',stagger:.05},2.3)

@@ -1,6 +1,6 @@
 {
   "move": "three phones rise staggered, straighten in 3D, screens scroll, drop out",
-  "how": "An aurora background zooms 1.05 to 1.12 with a slight vertical drift over the whole 4s. Three phone mockups rise from y 640 with expo.out over 0.9s, staggered 0, 0.1 and 0.18s, the outer two pre-rotated rotateY +/-18 and pushed inward; a caption fades in at 15%. From 22% the side phones ease to rotateY +/-8 and x 0 with power2.inOut over 1.2s while the row floats up 30px, and each screen's content scrolls up 90-120px with power3.inOut, staggered 0.15s, the dashboard bars growing from scaleY 0 with back.out(1.6). At 82% the phones drop out right-to-left with expo.in and the caption fades.",
+  "how": "An aurora background zooms 1.05 to 1.12 with a slight vertical drift over the whole 4s. Three phone mockups rise from y 640 with move over 0.9s, staggered 0, 0.1 and 0.18s, the outer two pre-rotated rotateY +/-18 and pushed inward; a caption fades in at 15%. From 22% the side phones ease to rotateY +/-8 and x 0 with power2.inOut over 1.2s while the row floats up 30px, and each screen's content scrolls up 90-120px with power3.inOut, staggered 0.15s, the dashboard bars growing from scaleY 0 with back.out(1.6). At 82% the phones drop out right-to-left with expo.in and the caption fades.",
   "moves": [
     "rise-in",
     "stagger",

@@ -1,6 +1,6 @@
 {
   "move": "wallet builds, balance counts, cards swipe off and tuck behind thrice",
-  "how": "A portrait dark wallet UI: header drops in, balance lines stagger up and the total counts to $12,480.50 with expo.out over 1.6s, three stacked cards rise from y 300 with a reverse 0.1s stagger (power3.out), transactions slide in from x 40 and a tab bar rises. The stack shows the front card flat with the two behind lifted 34px each, scaled .94/.88 and dimmed. At 29%, 53% and 76% the front card flies left (x -700, rotate -8, power3.in), is sent to the back by zIndex and returns with power3.out while the other two restack with power3.inOut and the page dots switch; each swipe re-counts the balance to that card's value. From 91% everything leaves the way it came and the counter resets at the last frame.",
+  "how": "A portrait dark wallet UI: header drops in, balance lines stagger up and the total counts to $12,480.50 with expo.out over 1.6s, three stacked cards rise from y 300 with a reverse 0.1s stagger (move), transactions slide in from x 40 and a tab bar rises. The stack shows the front card flat with the two behind lifted 34px each, scaled .94/.88 and dimmed. At 29%, 53% and 76% the front card flies left (x -700, rotate -8, power3.in), is sent to the back by zIndex and returns with power3.out while the other two restack with power3.inOut and the page dots switch; each swipe re-counts the balance to that card's value. From 91% everything leaves the way it came and the counter resets at the last frame.",
   "moves": [
     "stagger",
     "counter",

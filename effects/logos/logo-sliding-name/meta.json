@@ -1,6 +1,6 @@
 {
   "move": "mark drops and lands with squash, M draws on, wordmark slides out from behind while lockup recenters",
-  "how": "A flex lockup of a mint rounded-square SVG mark with an M stroke and a masked wordmark 'acme.' whose overflow container hides the text. The lockup starts offset by half the name width so the mark alone is centred. 0-23%: the mark drops from y -220 rotating -18 (expo.out), at 18% it squashes scaleY .9/scaleX 1.08 and settles with elastic.out(1,.4); at 8% the M drawSVGs 0->100% (power2.inOut). At 27% the name slides from xPercent -125 out from behind the mark (expo.out, 0.8s) while the lockup x eases from nameW/2 to 0 so the pair ends centred. Exit at 78%: the name retracts to -125 and the lockup shifts back (expo.in, 0.45s); at 88% the mark drops down out to y 220 rotating 18 (power3.in).",
+  "how": "A flex lockup of a mint rounded-square SVG mark with an M stroke and a masked wordmark 'acme.' whose overflow container hides the text. The lockup starts offset by half the name width so the mark alone is centred. 0-23%: the mark drops from y -220 rotating -18 (move), at 18% it squashes scaleY .9/scaleX 1.08 and settles with elastic.out(1,.4); at 8% the M drawSVGs 0->100% (power2.inOut). At 27% the name slides from xPercent -125 out from behind the mark (expo.out, 0.8s) while the lockup x eases from nameW/2 to 0 so the pair ends centred. Exit at 78%: the name retracts to -125 and the lockup shifts back (expo.in, 0.45s); at 88% the mark drops down out to y 220 rotating 18 (power3.in).",
   "moves": [
     "drop",
     "squash",

@@ -22,7 +22,7 @@
     {
       "id": 4,
       "prompt": "Create a launch film for a product that brings scattered work into one coordinated workspace. You decide the visual direction. Make the animation feel considered and connected.",
-      "expected_output": "Derives the idea from the product's mechanism (scattered things converging into one workspace) and chooses a carried object the product actually works with, recorded in direction.md with handoff boxes. The storyboard varies scale and layout row to row and every cut carries or matches; transformations are staged (hold, clear, transform, settle, reveal) and checked with --times frames around each join. Critique rounds rank problems and fix the biggest first.",
+      "expected_output": "Derives the idea from the product's mechanism (scattered things converging into one workspace) and chooses a carried object the product actually works with, recorded in direction.md with handoff boxes. The storyboard varies scale and layout row to row and every join is made by elements (morph, exit, reflow) and every cut morphs or matches; transformations are staged (hold, clear, transform, settle, reveal) and checked with --times frames around each join. Critique rounds rank problems and fix the biggest first.",
       "files": []
     },
     {

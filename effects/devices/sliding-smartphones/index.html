@@ -46,9 +46,9 @@
   });
   const tl = fx.timeline({ duration: 5 });
   // three directions: left, bottom, right — each slides in with an expo ease and a slight rotation that straightens out
-  tl.from('.p0', { x: -900, rotate: -14, rotateY: 30, duration: 1.0, ease: 'expo.out' }, 0.15)
-    .from('.p1', { y: 800, rotate: 6, duration: 1.0, ease: 'expo.out' }, 0.3)
-    .from('.p2', { x: 900, rotate: 14, rotateY: -30, duration: 1.0, ease: 'expo.out' }, 0.45)
+  tl.from('.p0', { x: -900, rotate: -14, rotateY: 30, duration: 1.0, ease: 'move' }, 0.15)
+    .from('.p1', { y: 800, rotate: 6, duration: 1.0, ease: 'move' }, 0.3)
+    .from('.p2', { x: 900, rotate: 14, rotateY: -30, duration: 1.0, ease: 'move' }, 0.45)
     .from('.cap h1 b', { yPercent: 110, stagger: 0.1, duration: 0.8, ease: 'expo.out' }, 0.5)
     .from('.tag', { opacity: 0, x: 20, duration: 0.6 }, 0.9)
     // settled: a soft float, out of phase

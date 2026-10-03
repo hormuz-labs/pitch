@@ -1,6 +1,6 @@
 {
   "move": "cards rise into a fanned stack, front card lifts and cycles back",
-  "how": "Headline and subline rise out of masks with expo.out. Four credit cards from() y:500 rotationX:-30 with slight fan rotation and expo.out (negative stagger so the back card leads), then at 0.14D settle into an offset stack (each slot y -34k, x 18k, rotation -3k, scale 1-0.02k, expo.inOut). From 0.24D, every 1.75s, the front card lifts y:-150 with rotation -6 and rotationY 35 (expo.out 0.55s), its zIndex drops behind, and it glides into the back slot with expo.inOut while the other three shift forward one slot; the tier label list highlights the matching name with a small x nudge. After four cycles the order returns to the start, so the stack at the end matches the settled stack (no exit).",
+  "how": "Headline and subline rise out of masks with expo.out. Four credit cards from() y:500 rotationX:-30 with slight fan rotation and move (negative stagger so the back card leads), then at 0.14D settle into an offset stack (each slot y -34k, x 18k, rotation -3k, scale 1-0.02k, expo.inOut). From 0.24D, every 1.75s, the front card lifts y:-150 with rotation -6 and rotationY 35 (move 0.55s), its zIndex drops behind, and it glides into the back slot with expo.inOut while the other three shift forward one slot; the tier label list highlights the matching name with a small x nudge. After four cycles the order returns to the start, so the stack at the end matches the settled stack (no exit).",
   "moves": [
     "rise-in",
     "stack",

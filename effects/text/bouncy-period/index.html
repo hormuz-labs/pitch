@@ -28,7 +28,7 @@
     .fromTo('.shadow', { scale: .3, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: 'drop' }, .2);
   // two springy hops
   for (const t of [1.9, 2.75]) {
-    tl.to('.dot', { y: -150, duration: .32, ease: 'power2.out' }, t)
+    tl.to('.dot', { y: -150, duration: .32, ease: 'move' }, t)
       .to('.dot', { y: 0, duration: .5, ease: 'drop' }, t + .32)
       .to('.dot', { scaleX: .82, scaleY: 1.18, duration: .2, ease: 'power2.out' }, t)
       .to('.dot', { scaleX: 1.4, scaleY: .6, duration: .5, ease: 'drop-squash' }, t + .32)

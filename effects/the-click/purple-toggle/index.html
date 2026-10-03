@@ -44,7 +44,7 @@
   }
   gsap.set('.ic-chk', { scale: 0.5, transformOrigin: '50% 50%' });
   // cursor coords relative to stage center: knob is at (-60,-30) offset roughly
-  tl.fromTo('.cursor', { x: -300, y: 180, opacity: 0 }, { x: -60, y: -32, opacity: 1, duration: 0.7, ease: 'power3.out' }, 0);
+  tl.fromTo('.cursor', { x: -300, y: 180, opacity: 0 }, { x: -60, y: -32, opacity: 1, duration: 0.7, ease: 'move' }, 0);
   flip(true, 0.9);
   tl.to('.cursor', { x: 60, duration: 0.5, ease: 'power2.inOut' }, 1.0);
   flip(false, 2.5);

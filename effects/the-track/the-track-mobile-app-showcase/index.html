@@ -71,10 +71,10 @@
   const paint = () => { document.querySelector('.dist').textContent = n.d.toFixed(2); document.querySelector('.pct').textContent = Math.round(n.p) + '%'; gsap.set('.arc', { strokeDashoffset: 276.5 * (1 - n.p / 100) }); };
   const tl = fx.timeline({ duration: 10 });
   // kinetic open: stripes slash in, giant words snap, phone slams up
-  tl.from('.stripe', { xPercent: (i) => (i ? 120 : -120), duration: 0.6, stagger: 0.08, ease: 'expo.out' }, 0)
+  tl.from('.stripe', { xPercent: (i) => (i ? 120 : -120), duration: 0.6, stagger: 0.08, ease: 'move' }, 0)
     .from('.h1 span', { yPercent: 120, duration: 0.55, ease: 'expo.out' }, 0.15)
     .from('.h2 span', { yPercent: -120, duration: 0.55, ease: 'expo.out' }, 0.25)
-    .from('.phone', { y: 1400, rotation: -8, duration: 0.9, ease: 'expo.out' }, 0.3)
+    .from('.phone', { y: 1400, rotation: -8, duration: 0.9, ease: 'move' }, 0.3)
     .from('.tag span', { yPercent: 120, duration: 0.5, ease: 'expo.out' }, 0.9);
   // screen A: distance counts, route draws, marker runs it
   tl.to('.scr.a', { opacity: 1, duration: 0.3 }, 0.9)

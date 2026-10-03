@@ -51,7 +51,7 @@
   gsap.set('.spec .line', { scaleX: 0 });
   gsap.set('.title span', { yPercent: 110 });
   // the keyboard tilts up from a flat, far view, keys popping into place
-  tl.fromTo('.kb', { rotateX: 60, y: 200, scale: 0.8 }, { rotateX: 18, y: 0, scale: 1, duration: 1.2, ease: 'expo.out' }, 0)
+  tl.fromTo('.kb', { rotateX: 60, y: 200, scale: 0.8 }, { rotateX: 18, y: 0, scale: 1, duration: 1.2, ease: 'move' }, 0)
     .from(keys, { scale: 0, duration: 0.5, ease: 'back.out(2)', stagger: { each: 0.012, from: 'center', grid: 'auto' } }, 0.2)
     .to('.title span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.3);
   // spec callouts fly in with their leader lines

@@ -41,10 +41,10 @@
   for (let i = 0; i < 60; i++) { const d = document.createElement('div'); d.className = 'cf'; d.style.background = cols[i % cols.length]; box.appendChild(d); bits.push(d); }
   const shapes = ['.s1', '.s2', '.s3', '.s4'];
   // 1. the shapes bounce in from the edges
-  tl.from('.s1', { x: -400, y: -300, rotation: -90, duration: 1, ease: 'back.out(1.5)' }, 0)
-    .from('.s2', { x: 400, y: -300, rotation: 90, duration: 1, ease: 'back.out(1.5)' }, 0.1)
-    .from('.s3', { x: -400, y: 300, rotation: 90, duration: 1, ease: 'back.out(1.5)' }, 0.2)
-    .from('.s4', { x: 400, y: 300, rotation: -90, duration: 1, ease: 'back.out(1.5)' }, 0.3);
+  tl.from('.s1', { x: -400, y: -300, rotation: -90, duration: 1, ease: 'move' }, 0)
+    .from('.s2', { x: 400, y: -300, rotation: 90, duration: 1, ease: 'move' }, 0.1)
+    .from('.s3', { x: -400, y: 300, rotation: 90, duration: 1, ease: 'move' }, 0.2)
+    .from('.s4', { x: 400, y: 300, rotation: -90, duration: 1, ease: 'move' }, 0.3);
   // 2. the words push in line by line
   tl.from('.kicker', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 0.8)
     .from('.line span', { yPercent: 115, duration: 0.9, ease: 'expo.out', stagger: 0.12 }, 0.95)
@@ -54,7 +54,7 @@
     .to('.s5', { scale: 0, duration: 0.3, ease: 'power2.in' }, 2.9);
   bits.forEach(b => {
     const a = rnd() * Math.PI * 2, dist = 260 + rnd() * 380;
-    tl.fromTo(b, { x: 0, y: 0, opacity: 1, rotation: 0 }, { x: Math.cos(a) * dist, y: Math.sin(a) * dist + 200, rotation: 360 + rnd() * 540, opacity: 0, duration: 1.4 + rnd() * 0.6, ease: 'power3.out' }, 2.8 + rnd() * 0.15);
+    tl.fromTo(b, { x: 0, y: 0, opacity: 1, rotation: 0 }, { x: Math.cos(a) * dist, y: Math.sin(a) * dist + 200, rotation: 360 + rnd() * 540, opacity: 0, duration: 1.4 + rnd() * 0.6, ease: 'move' }, 2.8 + rnd() * 0.15);
   });
   // 4. the shapes keep dancing: slow spin and a synchronised hop, so nothing sits still
   shapes.forEach((s, i) => {

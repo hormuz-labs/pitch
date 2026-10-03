@@ -81,7 +81,7 @@
   const pct = { v: 0 };
   tl.fromTo('.bg', { scale: 1.05, xPercent: -1 }, { scale: 1.1, xPercent: 1, duration: 8, ease: 'none' }, 0)
     // phone turns in from a 3D angle
-    .fromTo('.phone', { rotateY: -55, rotateX: 8, x: 260, opacity: 0 }, { rotateY: -14, rotateX: 4, x: 0, opacity: 1, duration: 1.3, ease: 'expo.out' }, 0)
+    .fromTo('.phone', { rotateY: -55, rotateX: 8, x: 260, opacity: 0 }, { rotateY: -14, rotateX: 4, x: 0, opacity: 1, duration: 1.3, ease: 'move' }, 0)
     .to('.phone', { rotateY: -8, y: -10, duration: 3, ease: 'sine.inOut' }, 1.3)
     .to('.phone', { rotateY: -16, y: 6, duration: 3, ease: 'sine.inOut' }, 4.3)
     .to('.phone', { rotateY: 50, x: 300, opacity: 0, duration: 0.6, ease: 'expo.in' }, 7.4)

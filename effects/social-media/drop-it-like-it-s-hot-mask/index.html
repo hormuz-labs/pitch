@@ -62,7 +62,7 @@
     .to('#bg2', { clipPath: 'inset(0% 0 0% 0)', duration: .6, ease: 'expo.inOut' }, 4.4)
     .fromTo('#bg2', { scale: 1.2 }, { scale: 1, duration: 2, ease: 'none' }, 4.4)
     .set('#wLike', { autoAlpha: 1 }, 4.7).set('#wIt,#circ', { autoAlpha: 0 }, 5)
-    .from('#wLike', { yPercent: -250, duration: .6, ease: 'expo.out' }, 4.7)
+    .from('#wLike', { yPercent: -250, duration: .6, ease: 'move' }, 4.7)
     .to('#wLike', { yPercent: 250, duration: .45, ease: 'expo.in' }, 6)
     // 6.2: striped bar mask rips across, then aurora wipes diagonally; HOT snaps in
     .set('#bars', { autoAlpha: 1 }, 6.2)

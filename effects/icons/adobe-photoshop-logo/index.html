@@ -38,9 +38,9 @@
   gsap.registerPlugin(DrawSVGPlugin);
   const tl = fx.timeline({ duration: 4 });
   // layers stack in from three directions, then collapse into the tile
-  tl.from('.l1',{x:-420,y:-140,rotation:-18,opacity:0,duration:.8,ease:'expo.out'},0)
-    .from('.l2',{x:420,y:-60,rotation:14,opacity:0,duration:.8,ease:'expo.out'},.12)
-    .from('.l3',{y:300,rotation:-6,opacity:0,duration:.8,ease:'expo.out'},.24)
+  tl.from('.l1',{x:-420,y:-140,rotation:-18,opacity:0,duration:.8,ease:'move'},0)
+    .from('.l2',{x:420,y:-60,rotation:14,opacity:0,duration:.8,ease:'move'},.12)
+    .from('.l3',{y:300,rotation:-6,opacity:0,duration:.8,ease:'move'},.24)
     .fromTo('.l1',{scale:1.35},{scale:1,duration:.5,ease:'expo.inOut'},.9)
     .fromTo('.l2',{scale:1.22},{scale:1,duration:.5,ease:'expo.inOut'},.95)
     .fromTo('.l3',{scale:1.1},{scale:1,duration:.5,ease:'expo.inOut'},1)

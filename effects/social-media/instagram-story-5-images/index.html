@@ -69,6 +69,6 @@
     .to('.digit', { yPercent: 0, opacity: 1, duration: 0.3, ease: 'expo.out' }, 3.7);
   cards.slice(0, 4).forEach((c, i) => {
     tl.set(c + ' .dim', { opacity: Math.min(0.7, i * 0.22) }, 3.45)
-      .fromTo(c, { y: 1700, rotation: 5, scale: 1 - i * 0.06 }, { y: -i * 40, rotation: 0, duration: 0.55, ease: 'expo.out', immediateRender: false }, 3.45 + i * 0.05);
+      .fromTo(c, { y: 1700, rotation: 5, scale: 1 - i * 0.06 }, { y: -i * 40, rotation: 0, duration: 0.55, ease: 'move', immediateRender: false }, 3.45 + i * 0.05);
   });
 </script>

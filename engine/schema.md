@@ -27,24 +27,37 @@ window.SHOTS = {
   audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only); fx: [...] (see "Audio effects"); pace: "ad" for a short-form ad read (2.7–3.5 words/s)
   // captions: { style: {…}, phrases: [{ cue: "here's the thing" }, …] },   // the spoken words on screen (see "Captions")
   ambient: { kind: "none" },                     // optional stage treatment (see "Density layer")
-  motion: { exit: "none", drift: true, cutDur: 0.5 }, // drift keeps every shot alive; a shot with its own camera sets drift: false
+  motion: { exit: "blur", drift: true },       // how elements leave, and rest travel; a shot with its own camera sets drift: false
   actors: { folder: { src: "assets/harvested/folder.png", w: 320 } },   // objects that live across shots (see "Actors")
   // render: { shutter: 0.5, samples: 4 },          // only when direction.md asks for motion blur: `samples` captures per frame = samples× the export time (see "Render and grade")
   // grade: { temperature: 5600, vignette: 0.3 },    // only when direction.md names a finish (see "Render and grade")
-  shots: [ { id, type, dur, bg, ink?, cut?, exit?, beats?, actors?, chapter?, cue?, ...typeFields } ],
+  shots: [ { id, type, dur, bg, ink?, cut?, morph?, exit?, beats?, actors?, chapter?, cue?, ...typeFields } ],
 };
 ```
+
+**One stage, moving parts.** The stage — the ground (`shot.bg`) and the
+ambient layer — sits under every shot and never cuts; shots are transparent
+layers on it. So a join between shots is something their elements do: the
+outgoing ones leave (`exit`), one becomes the next (`morph`), the camera
+pushes into a part (a `zoom` beat). No cut moves a whole shot, and the audit
+fails a custom type that slides its whole composition as one page.
+
+**Easing.** `move` is the house ease and every tween's default: it starts from
+rest, peaks a third of the way through and settles long. An `.out` ease
+(`expo.out`, `power3.out`) is at full speed on its first frame — keep it for
+short arrivals born hidden (out of a mask or a blur); a long travel on it pops,
+and the audit notes it.
 
 ## Density layer (optional stage, exits and beats)
 
 These fields add motion beyond the shot factory. The engine adds no ambient,
-drift or exit by default; the starter film turns drift on so no shot freezes.
+drift or exit by default; the starter film turns drift and a blur exit on.
 The audit's pixel-change diagnostics are for review, not a required density.
 
 | Field | Where | Meaning |
 |---|---|---|
-| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — optional layer between the background and content, moving as a function of film time. Kinds: `blobs` (blurred discs), `light` (orbiting light), `blueprint` (panning line grid; `size` = cell), `hairlines` (drifting rules), `halftone` (panning dots; `size` = cell), `shapes` (flat rotating geometry), `grid` (blurred tiles), `aurora` (soft discs; `colors` or accent tints; default opacity 0.22), `none` (bare stage). `shot.ambient = false` hides it on one shot. Choose for the treatment; no stage layer is required. |
-| `motion.exit` / `shot.exit` | top / shot | `none` (default) \| `up` \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` — optional exit in the last ~0.3s. `blur` rises 70px and blurs away; `left` / `right` accelerate off that side; `scatter` throws words/cards outward. Prefer `none` when the factory already supplies an exit or the next cut should arrive directly. |
+| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — optional layer between the ground and every shot, moving as a function of film time. Kinds: `blobs` (blurred discs), `light` (orbiting light), `blueprint` (panning line grid; `size` = cell), `hairlines` (drifting rules), `halftone` (panning dots; `size` = cell), `shapes` (flat rotating geometry), `grid` (blurred tiles), `aurora` (soft discs; `colors` or accent tints; default opacity 0.22), `none` (bare stage). `shot.ambient = false` hides it on one shot. Choose for the treatment; no stage layer is required. |
+| `motion.exit` / `shot.exit` | top / shot | `none` (default) \| `blur` \| `up` \| `down` \| `left` \| `right` \| `scale` \| `scatter` — how the shot's elements leave: each piece (a word, a card, an image, a piece of UI) on its own, in reading order, accelerating away, from 0.3s before the cut to 0.2s after it, over the next shot's arrivals. `blur` rises and blurs away; `up`/`down`/`left`/`right` travel that way; `scale` grows past the camera; `scatter` throws the pieces outward. A backdrop filling most of the frame fades; the next shot's `morph.from` stays for the morph. `none` when the factory supplies its own exit. Vary it from join to join. |
 | `motion.drift` / `shot.drift` | top / shot | `false` (default). `true` adds linear rest travel (scale 1 → 1.045, x +10, y −8) over the shot. `shot.drift: false` overrides a film-wide `true`. Applies to custom types too; omit when their own camera or layout supplies the motion. The audit disables this layer. |
 | `beats` | shot | `[{ at, kind, sel?, … }]` — optional events for any type. `swap` (replace text of `sel`, default the headline), `pulse` (scale pop), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame colour flash), `hide` / `show` (`sel`), `nudge` (move by `amount`/`y`), `halo` (blurred disc of `color` behind `sel`, `size` 900, `hold`, `fade: false` keeps it), `ripple` (expanding rings), `blurout` (blur/fade over 0.3s), `flood` (colour from `sel`: halo for `pre` 0.2s, solid for `hold` 0.08s, retreat over `dur` 0.9s; `stay: true` keeps the colour), `zoom` (push into `sel`, `fill` 0.6, `dur` 0.25s, surroundings blur unless `dof: false`, pull back after `release`), `breath` (music dip, `dur` 0.45s, `depth` 0.35 ≈ −3.7dB, `attack` 0.15s, `release` 0.3s; read by `pitch motion mix`), `glitch` (the shot tears in place for `dur` 0.28s — displaced, colour-broken steps and a noise band — and lands clean). `at` defaults to evenly spaced. Choose events for their meaning or musical role, not to raise the audit's pixel-change count. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
@@ -86,7 +99,7 @@ shots: [
 
 | Pose field | Meaning |
 |---|---|
-| `at`, `dur`, `ease` | when in the shot the move starts (0), how long (0.45s), the ease (`expo.out`; use `power3.in` for a drop or a leave) |
+| `at`, `dur`, `ease` | when in the shot the move starts (0), how long (0.45s), the ease (`move`; `power3.in` for a drop or a leave) |
 | `x`, `y` | the actor's centre in stage px (1920×1080) |
 | `anchor: sel` | centre on this shot's element instead (a `line` slot `.slot-<name>`, a `.logo-img`, a `.ui-frame`), measured at the landing instant; `dx`/`dy` offset it |
 | `scale`, `rotation`, `blur`, `opacity` | the transform and the depth cue — near is big and blurred, far is small and sharp |
@@ -119,12 +132,12 @@ and leave dead air between them.
 | `id` | Stable label (`shot1`, `hook`, …). The studio's scene strip and the element inspector use it. |
 | `type` | One of the types below, or a project-local type from `js/shots.custom.js`. |
 | `dur` | Finite positive seconds, chosen for action, reading time and the treatment. When narrated, `pitch motion sync` derives durations from cue words. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). There is no per-shot duration limit. |
-| `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
+| `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color: the stage's colour while the shot plays, changed at the cut (or grown from an element by `morph: { to: "ground" }`). Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
 | `chapter` | The prompt → product → payoff group this shot belongs to (`"create"`, `"style"`). The studio and the audit read the groups; the first shot of a group opens it. |
-| `cut` | `hard` (default, one-frame cut), `punch` (incoming shot lands from 1.12× in 0.38s), or a **transition** that composites both shots for `cutDur` seconds (default 0.5, capped at 45% of the shot): `dissolve`, `wipe-left` \| `wipe-right` \| `wipe-up` \| `wipe-down`, `push-left` \| `push-right` \| `push-up` \| `push-down`, `iris`, `zoom` (the outgoing shot flies past the camera, the incoming arrives from behind it — the push-in from a screen to one of its parts), `zoom-out` (the outgoing shrinks into the frame, the incoming arrives from past the camera — the pull back from a part to the whole), `flip`, `glitch` (whole-frame jumps between the two shots on a 25fps cadence, displaced, colour-broken and cut by a noise band, landing clean on the incoming shot — keep `cutDur` 0.2–0.35), `flood` (a halo of `flood.color` blooms behind the outgoing shot for `flood.pre` 0.3s, the frame is that colour for one instant at the cut, and it retreats to `flood.at: {x, y}` (fractions, centre) over `cutDur`, uncovering the incoming shot — the cut that never reads as one). The outgoing shot's exit motion is suppressed under a transition. |
-| `cutDur` | Length of this shot's transition in seconds (else `motion.cutDur`, else 0.5). |
-| `carry` | Match cut on one element: `{ from: ".logo-img", to: ".logo-img", dur?: 0.55, ease? }` on the incoming shot — a ghost of the outgoing shot's `from` travels to where `to` sits in this shot. For an object that lives through more than one boundary, declare an actor instead. |
+| `cut` | `hard` (default, one-frame cut), `punch` (the incoming shot's content lands from 1.12× in 0.38s), `glitch` (whole-frame jumps between the two shots on a 25fps cadence, displaced, colour-broken and cut by a noise band, landing clean — keep `cutDur` 0.2–0.35), `flood` (a halo of `flood.color` blooms behind the outgoing shot for `flood.pre` 0.3s, the frame is that colour for one instant at the cut, and it retreats to `flood.at: {x, y}` (fractions, centre) over `cutDur`). The outgoing shot does not exit under `glitch` or `flood`. |
+| `cutDur` | Length of a `glitch` or `flood` in seconds (else `motion.cutDur`, else 0.5). |
+| `morph` | One element becomes the next across the cut: `{ from: ".pill", to: ".card", dur?: 0.7, ease? }` on the incoming shot. At the cut the outgoing shot's `from` reshapes into this shot's `to` — position, size, corner radius, fill, border and shadow animate while the contents cross over; plain text into plain text travels and rescales instead. `to` stays hidden until it lands. `to: "ground"` grows `from` (a dot, a button) into a disc that covers the frame and becomes this shot's `bg`. Inside one shot, `ShotKit.morph` is the same move. For an object that lives through several shots, declare an actor. |
 | `exit` | Overrides `motion.exit` for this shot. |
 | `beats` | Mid-shot events — see "Density layer". |
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
@@ -259,7 +272,7 @@ captions; `look` grades one shot, the top-level `grade` the whole film.
 `captions` puts the spoken words on screen as the narrator says them — the
 big, stacked, word-by-word type of short-form ads. It is one layer above every
 shot, so a stack keeps building while the footage under it cuts; camera beats
-and transitions do not move it.
+and cuts do not move it.
 
 ```js
 captions: {
@@ -379,7 +392,7 @@ index.html:
 | `CSSRulePlugin` | animating `::before` / `::after` — sweeps and masks with no extra DOM |
 | `EaselPlugin` / `PixiPlugin` | a canvas stage, when DOM cannot do the effect |
 | `SplitText`, `ScrambleTextPlugin`, `TextPlugin` | the type treatments the built-in types already use |
-| `CustomEase`, `CustomWiggle`, `CustomBounce`, `RoughEase`, `SlowMo`, `ExpoScaleEase` | the easing vocabulary; the shared named eases are `whip`, `slamHard`, `settle`, `shake` |
+| `CustomEase`, `CustomWiggle`, `CustomBounce`, `RoughEase`, `SlowMo`, `ExpoScaleEase` | the easing vocabulary; the shared named eases are `move` (the default), `whip`, `slamHard`, `settle`, `shake` |
 
 `window.__PLUGINS` lists what registered on the page. Everything still has to
 run on the returned timeline — see Rules; a plugin does not excuse a bare
@@ -425,11 +438,25 @@ timeline's total duration. Fractions of `D` alone do not prevent overruns.
 the element it clicks (`at`, default its centre `[0.5, 0.5]`), measured from
 the page: call it in `animate` before any `tl.set` start state and tween the
 cursor to it (`tl.to(cursor, { ...ShotKit.aim(cursor, button) }, 1.2)`), never
-to typed numbers. Also `revealWords(tl, root, at, {each})` and
+to typed numbers.
+
+`ShotKit.morph(tl, from, to, { at, dur: 0.7, ease })` turns one element of
+the shot into another at `at` — the move the `morph` join makes between shots:
+a pill opening into a card, a chip into a panel, a word travelling into a
+headline. Both ends are measured on the laid-out page; `to` stays hidden
+until it lands, so keep it out of view before `at`.
+`ShotKit.reflow(tl, items, at, { dur: 0.6, ease })` builds a line that makes
+room: `items` (its words, in order) arrive at `at[k]`, and the words already
+there slide to where they sit once the newcomer is in ("Every day," moving
+over for "ideas are born"; a word that no longer fits dropping to the next
+line). It owns the items' x and y; give each its entrance with opacity, blur,
+scale or yPercent.
+
+Also `revealWords(tl, root, at, {each})` and
 `scatterWords(tl, root, at, seed)` for the word-by-word cadence, the canvas
 and asset helpers below, and the
 compiler registers every GSAP plugin the thin shell loads: CustomEase (named
-eases `whip`, `slamHard`, `settle`), CustomWiggle (`shake`, `shakeSoft`),
+eases `move`, `whip`, `slamHard`, `settle`), CustomWiggle (`shake`, `shakeSoft`),
 CustomBounce, ScrambleTextPlugin, Physics2DPlugin, MotionPathPlugin,
 EasePack (`rough`, `slow`, `expoScale`), SplitText, TextPlugin —
 `window.__PLUGINS` lists what loaded. Use them: a scramble decode, a physics
@@ -464,8 +491,8 @@ opacity/brightness loops, and every image from `assets/`.
   are configurable diagnostics, not failures or target scores.
 - Make text readable at delivery size for the time it is on screen. Choose
   its scale, hierarchy, amount and reveal for the composition.
-- Choose cuts, transitions, camera motion and stillness for the treatment.
-  A direct cut needs no actor, carry or added exit.
+- Choose cuts, joins, camera motion and stillness for the treatment.
+  A direct cut needs no actor, morph or added exit.
 - Brand identifiers come from recon; self-host the fonts. Declare additional
   treatment colours in `brand.palette` and distinguish creative choices from
   measured brand evidence in direction.md.

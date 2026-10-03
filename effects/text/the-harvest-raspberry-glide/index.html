@@ -43,10 +43,10 @@
   tl.to({}, { duration: 5, onUpdate() { const t = this.progress() * 5; v.currentTime = (t * .25) % (v.duration || 8); } }, 0);
   tl.fromTo('.bg', { scale: 1, xPercent: -1 }, { scale: 1.06, xPercent: 1, duration: 5, ease: 'none' }, 0);
   // four layered copies glide in from different directions and slide past each other
-  tl.fromTo('.w1', { x: -700, opacity: 0 }, { x: -22, opacity: 1, duration: 1.4, ease: 'expo.out' }, 0)
-    .fromTo('.w2', { x: 700, opacity: 0 }, { x: 14, opacity: 1, duration: 1.4, ease: 'expo.out' }, .12)
-    .fromTo('.w4', { y: 300, opacity: 0 }, { y: 26, opacity: 1, duration: 1.4, ease: 'expo.out' }, .24)
-    .fromTo('.w3', { y: -300, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, ease: 'expo.out' }, .36)
+  tl.fromTo('.w1', { x: -700, opacity: 0 }, { x: -22, opacity: 1, duration: 1.4, ease: 'move' }, 0)
+    .fromTo('.w2', { x: 700, opacity: 0 }, { x: 14, opacity: 1, duration: 1.4, ease: 'move' }, .12)
+    .fromTo('.w4', { y: 300, opacity: 0 }, { y: 26, opacity: 1, duration: 1.4, ease: 'move' }, .24)
+    .fromTo('.w3', { y: -300, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, ease: 'move' }, .36)
     // the glide: layers keep sliding at slightly different speeds, parallax through the hold
     .to('.w1', { x: 30, duration: 3, ease: 'sine.inOut' }, 1.4)
     .to('.w2', { x: -30, duration: 3, ease: 'sine.inOut' }, 1.4)

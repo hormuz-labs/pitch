@@ -85,7 +85,7 @@
     document.querySelector('.n3').textContent = nums.c.toFixed(1) + '%';
   };
   // the tablet: lands from a tilt, then a slow 3D drift, then leaves
-  tl.fromTo('.ipad', { rotateX: 40, rotateY: -18, y: 300, scale: .9, opacity: 0 }, { rotateX: 12, rotateY: -8, y: 0, scale: .9, opacity: 1, duration: 1.2, ease: 'expo.out' }, 0)
+  tl.fromTo('.ipad', { rotateX: 40, rotateY: -18, y: 300, scale: .9, opacity: 0 }, { rotateX: 12, rotateY: -8, y: 0, scale: .9, opacity: 1, duration: 1.2, ease: 'move' }, 0)
     .to('.ipad', { rotateX: 6, rotateY: 8, duration: 5.2, ease: 'sine.inOut' }, 1.2)
     .to('.ipad', { rotateX: -30, y: -420, opacity: 0, duration: 0.7, ease: 'expo.in' }, 7.3)
     // screen content builds in

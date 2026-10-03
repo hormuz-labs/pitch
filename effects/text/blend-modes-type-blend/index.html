@@ -31,7 +31,7 @@
   tl.fromTo('.r1', { x: 0 }, { x: -820, duration: 4, ease: 'none' }, 0)
     .fromTo('.r2', { x: -900 }, { x: -100, duration: 4, ease: 'none' }, 0)
     .fromTo('.r3', { x: -120 }, { x: -760, duration: 4, ease: 'none' }, 0);
-  tl.from('.row', { yPercent: 60, opacity: 0, duration: .8, stagger: .12, ease: 'expo.out' }, 0)
+  tl.from('.row', { yPercent: 60, opacity: 0, duration: .8, stagger: .12, ease: 'move' }, 0)
     .from('.bar', { scaleX: 0, duration: .8, ease: 'expo.out' }, .3)
     .from('.tag', { opacity: 0, y: 8, duration: .5, stagger: .1 }, .6)
     .to('.row', { yPercent: -60, opacity: 0, duration: .5, stagger: .08, ease: 'expo.in' }, 3.3)

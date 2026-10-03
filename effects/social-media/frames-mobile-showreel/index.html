@@ -53,11 +53,11 @@
   const cap = document.getElementById('cap');
   gsap.set('.phone', { transformOrigin: '50% 50%' });
   // phones rise in, staggered, with a slight 3D fan
-  tl.from('.phone', { y: 700, rotationX: -20, stagger: .12, duration: 1.1, ease: 'expo.out' }, 0)
+  tl.from('.phone', { y: 700, rotationX: -20, stagger: .12, duration: 1.1, ease: 'move' }, 0)
     .from('.ttl', { opacity: 0, y: -10, duration: .6 }, .5)
     .from('.cap', { opacity: 0, y: 10, duration: .6 }, .8)
-    .fromTo('#p1', { rotationY: 0 }, { rotationY: 18, x: 30, duration: 1.1, ease: 'expo.out' }, .3)
-    .fromTo('#p3', { rotationY: 0 }, { rotationY: -18, x: -30, duration: 1.1, ease: 'expo.out' }, .3)
+    .fromTo('#p1', { rotationY: 0 }, { rotationY: 18, x: 30, duration: 1.1, ease: 'move' }, .3)
+    .fromTo('#p3', { rotationY: 0 }, { rotationY: -18, x: -30, duration: 1.1, ease: 'move' }, .3)
     .from('.s:first-child > *', { y: 16, opacity: 0, stagger: .04, duration: .5, ease: 'power3.out' }, .9)
     // screens scroll to their second page, one phone after another
     .to('#p1 .screens', { yPercent: -100, duration: .8, ease: 'expo.inOut' }, 2.4)

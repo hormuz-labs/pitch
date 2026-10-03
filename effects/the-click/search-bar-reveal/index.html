@@ -44,7 +44,7 @@
   const tl = fx.timeline({ duration: 6 });
   gsap.set('.results', { y: -14, scale: 0.96 });
   gsap.set('.r', { y: 8 });
-  tl.fromTo('.cursor', { x: 220, y: 260, opacity: 0 }, { x: 4, y: 40, opacity: 1, duration: 0.7, ease: 'power3.out' }, 0)
+  tl.fromTo('.cursor', { x: 220, y: 260, opacity: 0 }, { x: 4, y: 40, opacity: 1, duration: 0.7, ease: 'move' }, 0)
     .to('.bar', { scale: 0.92, duration: 0.1, ease: 'power2.in' }, 0.7)
     .to('.cursor', { scale: 0.85, transformOrigin: '10% 5%', duration: 0.08 }, 0.7)
     .to('.cursor', { scale: 1, duration: 0.15 }, 0.82)

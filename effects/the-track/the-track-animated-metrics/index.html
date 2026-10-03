@@ -58,9 +58,9 @@
     gsap.set('.arc', { strokeDashoffset: 276.5 * (1 - n.p / 100) });
   };
   const tl = fx.timeline({ duration: 5 });
-  tl.from('.lane', { xPercent: -100, duration: 1.0, stagger: 0.08, ease: 'expo.out' }, 0)
-    .from('.phone', { x: -500, rotation: -10, duration: 0.9, ease: 'expo.out' }, 0.05)
-    .from('.tag', { x: 200, opacity: 0, duration: 0.6, ease: 'expo.out' }, 0.3)
+  tl.from('.lane', { xPercent: -100, duration: 1.0, stagger: 0.08, ease: 'move' }, 0)
+    .from('.phone', { x: -500, rotation: -10, duration: 0.9, ease: 'move' }, 0.05)
+    .from('.tag', { x: 200, opacity: 0, duration: 0.6, ease: 'move' }, 0.3)
     .from('.stat', { x: 120, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'expo.out' }, 0.35)
     .from('.line', { scaleX: 0, duration: 0.8, stagger: 0.1, ease: 'expo.inOut' }, 0.5)
     .from('.bars i', { scaleY: 0, duration: 0.5, stagger: 0.03, ease: 'back.out(2)' }, 0.8)

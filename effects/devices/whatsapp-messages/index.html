@@ -64,7 +64,7 @@
   const items = gsap.utils.toArray('.chat .m');
   const typing = document.querySelector('.typing');
   // stage: phone rises, headline lines lift
-  tl.from('.phone', { y: 260, rotate: -4, scale: 0.92, duration: 1.1, ease: 'expo.out' }, 0)
+  tl.from('.phone', { y: 260, rotate: -4, scale: 0.92, duration: 1.1, ease: 'move' }, 0)
     .from('.head u', { yPercent: 110, duration: 0.7, ease: 'expo.out', stagger: 0.08 }, 0.15)
     .from('.head p', { opacity: 0, y: 12, duration: 0.5 }, 0.55);
   // everything hidden, then bubbles pop in one by one with a typing dots pause before each incoming one

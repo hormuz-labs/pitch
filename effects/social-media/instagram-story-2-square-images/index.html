@@ -43,8 +43,8 @@
   gsap.set('#ba,#bb', { scaleX: 0 });
   tl.from('.ttl .w', { yPercent: 110, stagger: .1, duration: .7, ease: 'expo.out' }, 0)
     // squares slide in from opposite sides and meet in the middle; VS badge pops
-    .from('.sa', { x: -700, rotation: -8, duration: .8, ease: 'expo.out' }, .15)
-    .from('.sb', { x: 700, rotation: 8, duration: .8, ease: 'expo.out' }, .15)
+    .from('.sa', { x: -700, rotation: -8, duration: .8, ease: 'move' }, .15)
+    .from('.sb', { x: 700, rotation: 8, duration: .8, ease: 'move' }, .15)
     .fromTo('.sq i', { scale: 1.2 }, { scale: 1, duration: 1.6, ease: 'expo.out' }, .15)
     .from('.vs', { scale: 0, rotation: -120, duration: .6, ease: 'back.out(2.5)' }, .8)
     .from('.lb', { y: -20, opacity: 0, stagger: .1, duration: .4 }, .9)

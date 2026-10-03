@@ -28,7 +28,7 @@
     ['.b3', { y: 700, rotation: 4 }], ['.b4', { y: -800, rotation: -5 }], ['.b5', { x: -700, y: 300 }],
   ];
   enter.forEach(([sel, from], i) => {
-    tl.fromTo(sel, from, { x: 0, y: 0, rotation: 0, duration: 1.0, ease: 'expo.out' }, i * 0.07);
+    tl.fromTo(sel, from, { x: 0, y: 0, rotation: 0, duration: 1.0, ease: 'move' }, i * 0.07);
   });
   // the layered drift: blocks slide over each other so the multiply overlaps keep changing
   tl.to('.b1', { x: 90, y: 40, rotation: 3, duration: 2.8, ease: 'sine.inOut' }, 1.1)

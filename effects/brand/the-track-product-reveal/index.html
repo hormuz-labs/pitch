@@ -56,7 +56,7 @@
   for (let i = 0; i < 16; i++) { const s = document.createElement('i'); s.style.transform = `rotate(${i * 22.5}deg)`; burst.appendChild(s); }
   const tl = fx.timeline({ duration: 7 });
   const cnt = document.querySelector('.count span');
-  tl.from('.logo', { y: -20, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0);
+  tl.from('.logo', { y: -20, opacity: 0, duration: 0.5, ease: 'move' }, 0);
   // buildup: a countdown slams 3-2-1, each number punching in and shoving out
   [['3', 0.1], ['2', 0.55], ['1', 1.0]].forEach(([n, t]) => {
     tl.set(cnt, { textContent: n }, t);
@@ -68,20 +68,20 @@
   const dirs = [{ x: -1200 }, { x: 1200 }, { y: 600 }];
   gsap.utils.toArray('.kin .w').forEach((w, i) => {
     const t = 1.5 + i * 0.5;
-    tl.fromTo(w, { ...dirs[i], opacity: 1, skewX: -12 }, { x: 0, y: 0, skewX: 0, duration: 0.35, ease: 'expo.out', immediateRender: false }, t);
+    tl.fromTo(w, { ...dirs[i], opacity: 1, skewX: -12 }, { x: 0, y: 0, skewX: 0, duration: 0.35, ease: 'move', immediateRender: false }, t);
     tl.to(w, { ...(i === 2 ? { y: -1500 } : { x: dirs[i].x > 0 ? -1200 : 1200 }), skewX: 12, duration: 0.25, ease: 'expo.in' }, t + 0.35);
   });
   // the reveal: flash, glow blooms, the burst rays fire, the shoe drops in with a 3D turn and a bounce
   tl.fromTo('.flash', { opacity: 1 }, { opacity: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 3.05);
   tl.to('.lines i', { scaleX: 0, duration: 0.3, ease: 'expo.in', stagger: 0.03 }, 2.95);
   tl.fromTo('.glow', { opacity: 0, scale: .3 }, { opacity: 1, scale: 1, duration: 1.0, ease: 'expo.out' }, 3.05);
-  tl.fromTo('.burst i', { opacity: 1, scaleY: 0, y: 0 }, { scaleY: 1, y: 380, duration: 0.5, ease: 'expo.out' }, 3.05)
+  tl.fromTo('.burst i', { opacity: 1, scaleY: 0, y: 0 }, { scaleY: 1, y: 380, duration: 0.5, ease: 'move' }, 3.05)
     .to('.burst i', { opacity: 0, scaleY: 0.2, duration: 0.3, ease: 'power2.in' }, 3.45);
-  tl.fromTo('.product', { y: -1500, rotateY: -80, rotateZ: -20, scale: 1.3 }, { y: 0, rotateY: 0, rotateZ: 0, scale: 1, duration: 0.9, ease: 'back.out(1.3)' }, 3.05);
+  tl.fromTo('.product', { y: -1500, rotateY: -80, rotateZ: -20, scale: 1.3 }, { y: 0, rotateY: 0, rotateZ: 0, scale: 1, duration: 0.9, ease: 'move' }, 3.05);
   tl.to('.product', { rotateY: 18, y: -20, duration: 1.8, ease: 'sine.inOut' }, 4.0).to('.product', { rotateY: -12, y: 0, duration: 1.6, ease: 'sine.inOut' }, 5.8);
   // name, meta and cta land in a strong cadence
   tl.from('.name .l span', { yPercent: 110, duration: 0.6, ease: 'expo.out', stagger: 0.1 }, 3.5);
-  tl.from('.meta span', { y: 16, opacity: 0, duration: 0.5, ease: 'expo.out', stagger: 0.08 }, 3.9);
+  tl.from('.meta span', { y: 16, opacity: 0, duration: 0.5, ease: 'move', stagger: 0.08 }, 3.9);
   tl.from('.cta', { scale: 0, duration: 0.6, ease: 'back.out(2)' }, 4.1);
   tl.to('.cta', { scale: 1.06, duration: 0.25, ease: 'power2.out' }, 5.3).to('.cta', { scale: 1, duration: 0.5, ease: 'elastic.out(1,0.4)' }, 5.55);
   // exit: everything punches out for the loop

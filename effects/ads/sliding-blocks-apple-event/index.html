@@ -43,8 +43,8 @@
   gsap.set('.blk b, .blk small', { opacity: 0, y: 16 });
   blocks.forEach((b, i) => {
     gsap.set(b, { ...from[i], opacity: 0 });
-    tl.to(b, { x: 0, y: 0, opacity: 1, duration: 0.9, ease: 'expo.out' }, 0.05 + i * 0.1)
-      .to(b.querySelectorAll('b, small'), { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out', stagger: 0.06 }, 0.45 + i * 0.1);
+    tl.to(b, { x: 0, y: 0, opacity: 1, duration: 0.9, ease: 'move' }, 0.05 + i * 0.1)
+      .to(b.querySelectorAll('b, small'), { opacity: 1, y: 0, duration: 0.5, ease: 'move', stagger: 0.06 }, 0.45 + i * 0.1);
   });
   // counters tick up as the blocks land
   document.querySelectorAll('.n').forEach((el, i) => {

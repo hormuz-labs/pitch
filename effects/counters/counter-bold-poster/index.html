@@ -31,7 +31,7 @@
   const tl = fx.timeline({ duration: D });
   tl.from('.rule', { scaleX: 0, duration: 0.8, ease: 'expo.out' }, 0);
   tl.from('.top span', { y: 24, opacity: 0, stagger: 0.08, duration: 0.6, ease: 'expo.out' }, 0.1);
-  tl.from('.big', { yPercent: 30, opacity: 0, duration: 0.9, ease: 'expo.out' }, 0.15);
+  tl.from('.big', { yPercent: 30, opacity: 0, duration: 0.9, ease: 'move' }, 0.15);
   tl.to(state, { v: TARGET, duration: 2.3, ease: 'power4.out' }, 0.5);
   tl.from('.badge', { scale: 0, rotation: -90, duration: 0.9, ease: 'back.out(2)' }, 0.9);
   tl.to('.badge', { rotation: 360, duration: 3.1, ease: 'none' }, 0.9);

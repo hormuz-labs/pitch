@@ -13,7 +13,7 @@
     "gsap",
     "svg-filter"
   ],
-  "adapt": "Change the two words (letters are individual spans, so split any string), the three plate colours and the paper tint, and the two small caption strings. Keep the expo.out plate entries, the 0.05s letter stagger and the ghost offset amounts; reduce grain opacity for cleaner output.",
+  "adapt": "Change the two words (letters are individual spans, so split any string), the three plate colours and the paper tint, and the two small caption strings. Keep the move plate entries, the 0.05s letter stagger and the ghost offset amounts; reduce grain opacity for cleaner output.",
   "port": "mount(el, shot) builds the discs, the .k and .ghost word stacks split into .l spans, captions, the inline SVG filter and the .grain div; animate(el, shot, D) returns a gsap.timeline with the same tweens at fractions of D (plates 0-0.3D, letters 0.12D, exit 0.82D). Give the SVG filter id a per-instance suffix so two shots do not collide; selectors scoped to el.",
   "caveats": [
     "feTurbulence grain over the full frame plus multiply blending is slow to render",

@@ -36,9 +36,9 @@
   const panels = ['.p1', '.p2', '.p3'];
   tl.from('.head', { y: -14, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0);
   // synchronized entrance: all three panels slide in together, alternating sides, and settle as one
-  tl.from('.p1', { xPercent: -115, duration: 0.9, ease: 'expo.out' }, 0.1);
-  tl.from('.p2', { xPercent: 115, duration: 0.9, ease: 'expo.out' }, 0.1);
-  tl.from('.p3', { xPercent: -115, duration: 0.9, ease: 'expo.out' }, 0.1);
+  tl.from('.p1', { xPercent: -115, duration: 0.9, ease: 'move' }, 0.1);
+  tl.from('.p2', { xPercent: 115, duration: 0.9, ease: 'move' }, 0.1);
+  tl.from('.p3', { xPercent: -115, duration: 0.9, ease: 'move' }, 0.1);
   // and their imagery pans across in unison
   tl.fromTo(vids, { xPercent: -62, yPercent: -50, scale: 1.2 }, { xPercent: -38, scale: 1.02, duration: 6, ease: 'none' }, 0);
   tl.from('.panel .num', { y: -20, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.55);

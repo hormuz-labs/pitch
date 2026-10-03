@@ -22,10 +22,10 @@
 <script>
   const tl = fx.timeline({ duration: 2 });
   // four quadrants fly in from the corners and lock into a square
-  tl.from('.q1', { x: -260, y: -200, rotation: 90, duration: .7, ease: 'expo.out' }, 0)
-    .from('.q2', { x: 260, y: -200, rotation: 90, duration: .7, ease: 'expo.out' }, .06)
-    .from('.q3', { x: -260, y: 200, rotation: -90, duration: .7, ease: 'expo.out' }, .12)
-    .from('.q4', { x: 260, y: 200, rotation: -90, duration: .7, ease: 'expo.out' }, .18)
+  tl.from('.q1', { x: -260, y: -200, rotation: 90, duration: .7, ease: 'move' }, 0)
+    .from('.q2', { x: 260, y: -200, rotation: 90, duration: .7, ease: 'move' }, .06)
+    .from('.q3', { x: -260, y: 200, rotation: -90, duration: .7, ease: 'move' }, .12)
+    .from('.q4', { x: 260, y: 200, rotation: -90, duration: .7, ease: 'move' }, .18)
     // the square rounds off and does one clean flip on Y as the name arrives
     .to('.q', { borderRadius: 28, duration: .4 }, .7)
     .to('.sq', { rotationY: 180, duration: .8, ease: 'power3.inOut' }, .85)

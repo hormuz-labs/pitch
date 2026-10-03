@@ -38,11 +38,11 @@
   tiles.forEach((t, i) => gsap.set(t, { rotation: rot[i] }));
   // tiles get thrown onto the board from off-frame, each from a different side, landing with a small settle
   tl.from('.w1', { y: -160, opacity: 0, duration: .8, ease: 'expo.out' }, 0)
-    .from('.t1', { x: -900, y: -300, rotation: -40, duration: .7, ease: 'expo.out' }, .1)
-    .from('.t5', { x: 900, y: -500, rotation: 40, duration: .7, ease: 'expo.out' }, .25)
-    .from('.t2', { x: 900, y: 300, rotation: 30, duration: .7, ease: 'expo.out' }, .4)
-    .from('.t3', { x: -900, y: 700, rotation: -30, duration: .7, ease: 'expo.out' }, .55)
-    .from('.t4', { y: 1200, rotation: 25, duration: .7, ease: 'expo.out' }, .7)
+    .from('.t1', { x: -900, y: -300, rotation: -40, duration: .7, ease: 'move' }, .1)
+    .from('.t5', { x: 900, y: -500, rotation: 40, duration: .7, ease: 'move' }, .25)
+    .from('.t2', { x: 900, y: 300, rotation: 30, duration: .7, ease: 'move' }, .4)
+    .from('.t3', { x: -900, y: 700, rotation: -30, duration: .7, ease: 'move' }, .55)
+    .from('.t4', { y: 1200, rotation: 25, duration: .7, ease: 'move' }, .7)
     .from('.sticker', { scale: 0, rotation: 180, duration: .6, ease: 'back.out(2.5)' }, 1.2)
     .from('.w2', { y: 160, opacity: 0, duration: .8, ease: 'expo.out' }, 1.0)
     .from('.tape', { scaleX: 0, stagger: .1, duration: .3, ease: 'power2.out' }, .7);

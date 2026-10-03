@@ -86,7 +86,7 @@
   // 1. title, then the screen rises into a 3D pose
   tl.from('.title u', { yPercent: 110, duration: 0.9, ease: 'expo.out' }, 0.1)
     .from('.sub', { opacity: 0, y: 10, duration: 0.6 }, 0.5)
-    .fromTo('.cam', { y: 520, rotateX: 30, rotateY: -14, scale: 0.9 }, { y: 70, rotateX: 14, rotateY: -12, scale: 0.84, duration: 1.4, ease: 'expo.out' }, 0.5)
+    .fromTo('.cam', { y: 520, rotateX: 30, rotateY: -14, scale: 0.9 }, { y: 70, rotateX: 14, rotateY: -12, scale: 0.84, duration: 1.4, ease: 'move' }, 0.5)
     .from('.nav', { y: -20, opacity: 0, duration: 0.6 }, 1.2)
     .from('.h1 u', { yPercent: 110, duration: 0.7, ease: 'expo.out', stagger: 0.08 }, 1.3)
     .from('.hero .p, .hero .cta', { y: 20, opacity: 0, duration: 0.6, stagger: 0.1 }, 1.6)
@@ -94,17 +94,17 @@
   // 2. layered stat cards fly in around the screen while the camera swings to the other side
   tl.to('.cam', { rotateY: 10, rotateX: 8, y: 30, x: 0, scale: 0.9, duration: 2.0, ease: 'power3.inOut' }, 2.6)
     .to('.title, .sub', { y: -40, opacity: 0, duration: 0.6, ease: 'power2.in' }, 2.6)
-    .from('.fa', { x: -300, rotateY: 40, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.0)
-    .from('.fb', { x: 300, rotateY: -40, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.2)
-    .from('.fc', { y: 200, opacity: 0, duration: 1.0, ease: 'expo.out' }, 3.4)
+    .from('.fa', { x: -300, rotateY: 40, opacity: 0, duration: 1.0, ease: 'move' }, 3.0)
+    .from('.fb', { x: 300, rotateY: -40, opacity: 0, duration: 1.0, ease: 'move' }, 3.2)
+    .from('.fc', { y: 200, opacity: 0, duration: 1.0, ease: 'move' }, 3.4)
     .from('.float .bar i', { scaleX: 0, duration: 0.9, ease: 'expo.out', stagger: 0.2 }, 3.4)
     .from('.float .av i', { scale: 0, duration: 0.4, ease: 'back.out(2)', stagger: 0.08 }, 3.7);
   // 3. scroll reveal: the page scrolls, blocks rise into place as they enter
   const total = doc.scrollHeight - view.clientHeight;
   tl.to(doc, { y: -total, duration: 2.2, ease: 'power2.inOut' }, 4.4);
-  tl.from('.row .blk', { y: 50, opacity: 0, duration: 0.7, ease: 'expo.out', stagger: 0.12 }, 4.7)
+  tl.from('.row .blk', { y: 50, opacity: 0, duration: 0.7, ease: 'move', stagger: 0.12 }, 4.7)
     .from('.row i', { scale: 0, duration: 0.5, ease: 'back.out(2)', stagger: 0.12 }, 4.9)
-    .from('.band', { y: 60, opacity: 0, duration: 0.8, ease: 'expo.out' }, 5.6)
+    .from('.band', { y: 60, opacity: 0, duration: 0.8, ease: 'move' }, 5.6)
     .to('.fa', { y: -30, duration: 2.2, ease: 'sine.inOut' }, 4.4)
     .to('.fb', { y: 30, duration: 2.2, ease: 'sine.inOut' }, 4.4)
     .to('.fc', { y: -20, duration: 2.2, ease: 'sine.inOut' }, 4.4)
@@ -113,7 +113,7 @@
   tl.to('.cam', { y: -700, rotateX: 40, scale: 0.8, duration: 0.8, ease: 'expo.in' }, 7.0)
     .to('.float', { opacity: 0, y: -120, duration: 0.5, ease: 'power2.in', stagger: 0.06 }, 7.0)
     .to('.end', { autoAlpha: 1, duration: 0.4 }, 7.7)
-    .from('.end .l', { y: 40, duration: 0.8, ease: 'expo.out' }, 7.7)
+    .from('.end .l', { y: 40, duration: 0.8, ease: 'move' }, 7.7)
     .from('.end .l i', { scale: 0, rotate: -90, duration: 0.7, ease: 'back.out(2)' }, 7.8)
     .from('.end p', { opacity: 0, y: 10, duration: 0.5 }, 8.0)
     .to('.end', { autoAlpha: 0, y: -20, duration: 0.35, ease: 'power2.in' }, 8.65);

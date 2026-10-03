@@ -65,7 +65,7 @@
     tl.to('.track', { x: -STEP * (i + 1), duration: 0.9, ease: 'expo.inOut' }, at);
     // the passing card dips, blurs, and springs back
     tl.to(cards[i], { scale: 0.9, filter: 'blur(10px)', opacity: 0.6, duration: 0.45, ease: 'power2.in' }, at);
-    tl.to(cards[i + 1], { y: -18, duration: 0.5, ease: 'expo.out' }, at + 0.4).to(cards[i + 1], { y: 0, duration: 0.5, ease: 'power2.inOut' }, at + 0.9);
+    tl.to(cards[i + 1], { y: -18, duration: 0.5, ease: 'move' }, at + 0.4).to(cards[i + 1], { y: 0, duration: 0.5, ease: 'power2.inOut' }, at + 0.9);
     tl.to(dots[i], { width: 10, backgroundColor: 'rgba(42,38,34,.25)', duration: 0.3 }, at + 0.3);
     tl.to(dots[(i + 1) % N], { width: 34, backgroundColor: '#2a2622', duration: 0.3 }, at + 0.3);
   }

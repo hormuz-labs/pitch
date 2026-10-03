@@ -33,10 +33,10 @@
   const rows = gsap.utils.toArray('.row');
   tl.from('.head', { y: -20, opacity: 0, duration: 0.6, ease: 'expo.out' }, 0);
   // rows snap in from the left as thin slivers that stretch open
-  tl.from(rows, { xPercent: -104, duration: 0.8, ease: 'expo.out', stagger: 0.12 }, 0.15);
+  tl.from(rows, { xPercent: -104, duration: 0.8, ease: 'move', stagger: 0.12 }, 0.15);
   tl.from(rows, { scaleY: 0.2, duration: 0.6, ease: 'expo.out', stagger: 0.12 }, 0.15);
-  tl.from('.row .name', { xPercent: -30, opacity: 0, duration: 0.6, ease: 'expo.out', stagger: 0.12 }, 0.45);
-  tl.from('.row .meta', { x: 40, opacity: 0, duration: 0.6, ease: 'expo.out', stagger: 0.12 }, 0.55);
+  tl.from('.row .name', { xPercent: -30, opacity: 0, duration: 0.6, ease: 'move', stagger: 0.12 }, 0.45);
+  tl.from('.row .meta', { x: 40, opacity: 0, duration: 0.6, ease: 'move', stagger: 0.12 }, 0.55);
   // a light sweep runs down the list, one row after another
   rows.forEach((r, i) => {
     const t = 2.2 + i * 0.55;

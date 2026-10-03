@@ -53,7 +53,7 @@
   // entrance: stack rises in, back to front
   cards.slice().reverse().forEach((c, j) => {
     const i = N - 1 - j;
-    tl.to(c, { ...pose(i), duration: 1.0, ease: 'expo.out' }, 0.15 + j * 0.1);
+    tl.to(c, { ...pose(i), duration: 1.0, ease: 'move' }, 0.15 + j * 0.1);
     tl.to(c, { opacity: pose(i).opacity, duration: 0.4 }, 0.15 + j * 0.1);
   });
   // each step: the front card peels away, the ones behind step forward

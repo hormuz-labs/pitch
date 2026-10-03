@@ -28,7 +28,7 @@
   const nameW = document.querySelector('.mask').offsetWidth;
   // the mark drops in and lands, centered
   tl.set('.lockup', { x: nameW / 2 })
-    .from('.mark', { y: -220, rotation: -18, duration: .7, ease: 'expo.out' }, 0)
+    .from('.mark', { y: -220, rotation: -18, duration: .7, ease: 'move' }, 0)
     .fromTo('.mark', { scaleY: .9, scaleX: 1.08 }, { scaleY: 1, scaleX: 1, duration: .5, ease: 'elastic.out(1,.4)' }, .55)
     .from('.m1', { drawSVG: '0%', duration: .6, ease: 'power2.inOut' }, .25)
     // the name slides out from behind the mark; the lockup recenters as it grows

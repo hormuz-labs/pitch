@@ -1,6 +1,6 @@
 {
   "move": "split title meets at seam, halves part to reveal product, slam shut",
-  "how": "Two dark half-panels cover the frame; the two halves of a word slide in from x:∓300 with expo.out to meet at a centre seam that draws with scaleY. At 0.29D the halves part (xPercent ∓100, expo.inOut 1.1s), revealing a video behind that eases from scale 1.3 to 1.05, and a product card flips in from scale 0.7, rotateY:30 with back.out(1.4); its text rises with expo.out stagger and a conic-gradient chip spins in. The card floats (y:-10, rotateY:-5, sine.inOut) through 0.78D, then at 0.89D the halves slam shut with expo.in, title text is reset, and the seam collapses to close the loop.",
+  "how": "Two dark half-panels cover the frame; the two halves of a word slide in from x:∓300 with move to meet at a centre seam that draws with scaleY. At 0.29D the halves part (xPercent ∓100, expo.inOut 1.1s), revealing a video behind that eases from scale 1.3 to 1.05, and a product card flips in from scale 0.7, rotateY:30 with back.out(1.4); its text rises with expo.out stagger and a conic-gradient chip spins in. The card floats (y:-10, rotateY:-5, sine.inOut) through 0.78D, then at 0.89D the halves slam shut with expo.in, title text is reset, and the seam collapses to close the loop.",
   "moves": [
     "split-reveal",
     "slide-in",

@@ -42,13 +42,13 @@
   // the hero: photo punches in, the athlete strides in from the left and keeps a slow lean forward
   tl.fromTo(img, { scale: 1.3, xPercent: -50, yPercent: -50 }, { scale: 1.05, duration: 4, ease: 'power2.out' }, 0);
   tl.fromTo('.flash', { opacity: 1 }, { opacity: 0, duration: 0.35, ease: 'power2.out' }, 0);
-  tl.from('.athlete', { x: -500, skewX: -20, opacity: 0, duration: 0.9, ease: 'expo.out' }, 0.05);
+  tl.from('.athlete', { x: -500, skewX: -20, opacity: 0, duration: 0.9, ease: 'move' }, 0.05);
   tl.to('.athlete', { x: 60, y: -20, scale: 1.08, duration: 3.1, ease: 'power1.out' }, 0.9);
   // the big type slams in line by line with a squash on landing
   tl.from('.headline .l span', { yPercent: 115, duration: 0.6, ease: 'expo.out', stagger: 0.1 }, 0.25);
   tl.fromTo('.headline', { scaleY: 1.08, transformOrigin: 'top' }, { scaleY: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' }, 0.75);
   // the stripe cuts across and its text runs the whole loop
-  tl.from('.stripe', { xPercent: -100, duration: 0.7, ease: 'expo.out' }, 0.6);
+  tl.from('.stripe', { xPercent: -100, duration: 0.7, ease: 'move' }, 0.6);
   tl.fromTo('.stripe span', { x: 0 }, { x: -700, duration: 4, ease: 'none' }, 0);
   tl.from('.sub i', { scaleX: 0, duration: 0.5, ease: 'expo.out' }, 1.0);
   tl.from('.sub', { opacity: 0, x: -20, duration: 0.5 }, 1.0);

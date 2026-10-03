@@ -63,13 +63,13 @@
   // slow drift on the frosted wall the whole loop
   tl.fromTo('.wall', { xPercent: -3, rotation: 0 }, { xPercent: 3, rotation: 2, duration: 8, ease: 'sine.inOut' }, 0);
   // header + cards arrive
-  tl.from('.head', { y: 40, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0);
-  tl.from(cards, { y: 260, opacity: 0, filter: 'blur(30px)', scale: 0.94, stagger: 0.09, duration: 0.9, ease: 'expo.out' }, 0.15);
-  tl.from('.tab', { y: 120, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.3);
+  tl.from('.head', { y: 40, opacity: 0, duration: 0.8, ease: 'move' }, 0);
+  tl.from(cards, { y: 260, opacity: 0, filter: 'blur(30px)', scale: 0.94, stagger: 0.09, duration: 0.9, ease: 'move' }, 0.15);
+  tl.from('.tab', { y: 120, opacity: 0, duration: 0.8, ease: 'move' }, 0.3);
   // page through the gallery: 3 steps forward, then a fast fling home
   const times = [1.7, 3.3, 4.9];
   times.forEach((at, i) => {
-    tl.to('.track', { x: -STEP * (i + 1), duration: 0.85, ease: 'expo.out' }, at);
+    tl.to('.track', { x: -STEP * (i + 1), duration: 0.85, ease: 'move' }, at);
     // the card leaving blurs on its way out, the arriving one sharpens
     tl.fromTo(cards[i], { filter: 'blur(0px)', scale: 1 }, { filter: 'blur(14px)', scale: 0.96, duration: 0.6, ease: 'power2.out' }, at);
     tl.fromTo(cards[i + 1], { filter: 'blur(14px)', scale: 0.96 }, { filter: 'blur(0px)', scale: 1, duration: 0.7, ease: 'power2.out' }, at + 0.15);

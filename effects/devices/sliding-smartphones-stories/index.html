@@ -47,9 +47,9 @@
   const seekV = { t: 0 };
   tl.to(seekV, { t: 3, duration: 3, ease: 'none', onUpdate() { vids.forEach((v, i) => { const d = v.duration || 5; v.currentTime = (seekV.t + i * 1.3) % d; }); } }, 0)
     // three phones slide in: sides from left/right, the hero from below
-    .fromTo('.sl', { x: -700, rotate: -12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'expo.out' }, 0.1)
-    .fromTo('.sr', { x: 700, rotate: 12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'expo.out' }, 0.2)
-    .from('.main', { y: 1200, rotate: 4, duration: 1.0, ease: 'expo.out' }, 0.25)
+    .fromTo('.sl', { x: -700, rotate: -12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'move' }, 0.1)
+    .fromTo('.sr', { x: 700, rotate: 12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'move' }, 0.2)
+    .from('.main', { y: 1200, rotate: 4, duration: 1.0, ease: 'move' }, 0.25)
     .from('.cap', { y: -30, opacity: 0, duration: 0.7, ease: 'power3.out' }, 0.3)
     // stories already playing: progress bars fill across the loop, text and sticker pop
     .fromTo('.pb', { scaleX: 0 }, { scaleX: 1, duration: 2.9, ease: 'none' }, 0.1)

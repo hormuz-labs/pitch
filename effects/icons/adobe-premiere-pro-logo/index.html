@@ -32,7 +32,7 @@
     .from('.head',{opacity:0,duration:.3},.1)
     .to('.head',{x:410,duration:2,ease:'power2.inOut'},.35)
     .fromTo('.tile',{clipPath:'inset(0 100% 0 0 round 56px)'},{clipPath:'inset(0 0% 0 0 round 56px)',duration:2,ease:'power2.inOut'},.35)
-    .from('.clip',{xPercent:-120,duration:.8,stagger:.5,ease:'expo.out'},.5)
+    .from('.clip',{xPercent:-120,duration:.8,stagger:.5,ease:'move'},.5)
     .fromTo('.tile',{scale:.96},{scale:1,duration:.6,ease:'elastic.out(1,.5)'},2.3)
     // exit: scrub back, everything folds away
     .to('.head',{x:-410,duration:.55,ease:'power3.in'},3.2)

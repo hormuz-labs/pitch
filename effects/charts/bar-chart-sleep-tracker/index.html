@@ -56,8 +56,8 @@
   // each day's stack grows from the baseline; segments build bottom→top
   document.querySelectorAll('.day').forEach((d,i)=>{const t=.8+i*.12;
     tl.from(d.querySelector('.deep'),{scaleY:0,duration:.6,ease:'expo.out'},t)
-      .from(d.querySelector('.core'),{scaleY:0,y:()=>d.querySelector('.deep').offsetHeight,duration:.6,ease:'expo.out'},t+.1)
-      .from(d.querySelector('.rem'),{scaleY:0,y:()=>d.querySelector('.deep').offsetHeight+d.querySelector('.core').offsetHeight,duration:.6,ease:'expo.out'},t+.2)});
+      .from(d.querySelector('.core'),{scaleY:0,y:()=>d.querySelector('.deep').offsetHeight,duration:.6,ease:'move'},t+.1)
+      .from(d.querySelector('.rem'),{scaleY:0,y:()=>d.querySelector('.deep').offsetHeight+d.querySelector('.core').offsetHeight,duration:.6,ease:'move'},t+.2)});
   const o={h:0,m:0,p:0,s:0};
   tl.to(o,{h:7,m:12,p:23,s:86,duration:1.6,ease:'power2.out',onUpdate(){document.getElementById('h').textContent=Math.round(o.h);document.getElementById('m').textContent=String(Math.round(o.m)).padStart(2,'0');document.getElementById('c1').textContent=Math.round(o.p)+'%';document.getElementById('c2').textContent=Math.round(o.s)}},.9)
     .from('.legend span',{opacity:0,y:8,duration:.4,stagger:.08},1.5)

@@ -66,7 +66,7 @@
   gsap.set('.cas', { rotateY: -18, rotateX: 8, x: 40 });
   items.forEach((it, i) => {
     const P = pose(i);
-    tl.fromTo('.s' + i, { x: P.x + 420, y: P.y - 60, z: P.z, opacity: 0, rotateY: -30 }, { x: P.x, y: P.y, z: P.z, opacity: 1, rotateY: 0, duration: 1.0, ease: 'expo.out' }, 0.15 + i * 0.28);
+    tl.fromTo('.s' + i, { x: P.x + 420, y: P.y - 60, z: P.z, opacity: 0, rotateY: -30 }, { x: P.x, y: P.y, z: P.z, opacity: 1, rotateY: 0, duration: 1.0, ease: 'move' }, 0.15 + i * 0.28);
     tl.to(`.s${i} .body`, { y: -120, duration: 1.4, ease: 'power3.inOut' }, 3.2 + i * 0.15)
       .to(`.s${i} .body`, { y: 0, duration: 1.4, ease: 'power3.inOut' }, 5.8 + i * 0.15);
   });

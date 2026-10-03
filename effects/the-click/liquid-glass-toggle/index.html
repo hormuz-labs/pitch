@@ -57,11 +57,11 @@
   }
   const tog = document.querySelector('.tog');
   const kx = tog.offsetLeft + 48, ky = tog.offsetTop + 48; // knob center in .row coords
-  tl.fromTo('.cursor', { x: kx - 200, y: ky + 180, opacity: 0 }, { x: kx, y: ky + 4, opacity: 1, duration: 0.8, ease: 'power3.out' }, 0.3);
+  tl.fromTo('.cursor', { x: kx - 200, y: ky + 180, opacity: 0 }, { x: kx, y: ky + 4, opacity: 1, duration: 0.8, ease: 'move' }, 0.3);
   flip(true, 1.3);
   tl.to('.cursor', { x: kx + D, duration: 0.5, ease: 'power2.inOut' }, 1.5);
   tl.to('.cursor', { x: kx + D + 260, y: ky + 160, opacity: 0, duration: 0.7, ease: 'power3.in' }, 2.6);
-  tl.fromTo('.cursor', { x: kx + D + 260, y: ky + 160, opacity: 0 }, { x: kx + D, y: ky + 4, opacity: 1, duration: 0.8, ease: 'power3.out' }, 4.6);
+  tl.fromTo('.cursor', { x: kx + D + 260, y: ky + 160, opacity: 0 }, { x: kx + D, y: ky + 4, opacity: 1, duration: 0.8, ease: 'move' }, 4.6);
   flip(false, 5.5);
   tl.to('.cursor', { x: kx, duration: 0.5, ease: 'power2.inOut' }, 5.7);
   tl.to('.cursor', { x: kx - 200, y: ky + 180, opacity: 0, duration: 0.7, ease: 'power3.in' }, 6.8);

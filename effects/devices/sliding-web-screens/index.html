@@ -67,17 +67,17 @@
   const tl = fx.timeline({ duration: 7 });
   // the stack sits at a slight 3D angle
   tl.fromTo('.stack', { rotateY: -12, rotateX: 6, x: 60 }, { rotateY: -6, rotateX: 4, x: 90, duration: 7, ease: 'sine.inOut' }, 0)
-    .from('.cap > *', { y: 20, opacity: 0, stagger: 0.1, duration: 0.6, ease: 'power3.out' }, 0.4)
+    .from('.cap > *', { y: 20, opacity: 0, stagger: 0.1, duration: 0.6, ease: 'move' }, 0.4)
     .to('.cap', { opacity: 0, duration: 0.3 }, 6.5);
   // each window slides in from the right, lands, and gets pushed back and down as the next one arrives
   wins.forEach((w, i) => {
     const t0 = 0.2 + i * 1.5;
-    tl.from(w, { x: 1100, rotateY: -20, duration: 0.9, ease: 'expo.out' }, t0);
+    tl.from(w, { x: 1100, rotateY: -20, duration: 0.9, ease: 'move' }, t0);
     for (let k = i + 1; k < wins.length; k++) {
       const tk = 0.2 + k * 1.5;
-      tl.to(w, { y: -(k - i) * 34, z: -(k - i) * 140, x: -(k - i) * 40, opacity: 1 - (k - i) * 0.12, duration: 0.9, ease: 'expo.out' }, tk);
+      tl.to(w, { y: -(k - i) * 34, z: -(k - i) * 140, x: -(k - i) * 40, opacity: 1 - (k - i) * 0.12, duration: 0.9, ease: 'move' }, tk);
     }
-    tl.from(w.querySelectorAll('.page > *'), { y: 18, opacity: 0, stagger: 0.05, duration: 0.4, ease: 'power3.out' }, t0 + 0.15);
+    tl.from(w.querySelectorAll('.page > *'), { y: 18, opacity: 0, stagger: 0.05, duration: 0.4, ease: 'move' }, t0 + 0.15);
   });
   tl.to('.win', { x: -1300, rotateY: 15, opacity: 0, duration: 0.55, ease: 'expo.in', stagger: 0.07 }, 6.3);
 </script>

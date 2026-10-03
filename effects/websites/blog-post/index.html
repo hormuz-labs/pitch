@@ -79,7 +79,7 @@
       let lo = 0, hi = 1; for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; (easeFn(m) * total < need ? lo = m : hi = m); }
       at = scrollStart + lo * scrollDur;
     }
-    tl.from(el, { y: 44, opacity: 0, duration: 0.7, ease: 'expo.out' }, at);
+    tl.from(el, { y: 44, opacity: 0, duration: 0.7, ease: 'move' }, at);
     const im = el.querySelector('.im');
     if (im) tl.fromTo(im, { scale: 1.2 }, { scale: 1, duration: 1.2, ease: 'expo.out' }, at);
   });

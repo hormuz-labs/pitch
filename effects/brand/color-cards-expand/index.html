@@ -44,8 +44,8 @@
     const t = 1.1 + i * STEP;
     tl.to(cards, { width: (j) => (j === i ? OPEN : SMALL), duration: 0.65, ease: 'expo.inOut' }, t);
     tl.to(c.querySelector('.v'), { opacity: 0, duration: 0.2 }, t);
-    tl.fromTo(c.querySelector('.n'), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out' }, t + 0.25);
-    tl.fromTo(c.querySelector('.h'), { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out' }, t + 0.33);
+    tl.fromTo(c.querySelector('.n'), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.5, ease: 'move' }, t + 0.25);
+    tl.fromTo(c.querySelector('.h'), { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: 'move' }, t + 0.33);
     // collapse: label folds back before the next one opens
     tl.to([c.querySelector('.n'), c.querySelector('.h')], { opacity: 0, x: -20, duration: 0.25, ease: 'power2.in' }, t + STEP - 0.15);
     tl.to(c.querySelector('.v'), { opacity: 1, duration: 0.3 }, t + STEP + 0.3);

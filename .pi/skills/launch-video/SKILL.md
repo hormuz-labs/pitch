@@ -56,9 +56,10 @@ An edit loads only what that change needs and keeps the established direction.
    not designed yet.
 2. **Everything new lands on the music** (`references/audio/music.md`), or on
    a narrated film's words.
-3. **The front of the shot becomes the transition.** A title, logo or object
-   moves toward the camera or across the frame while the next scene already
-   waits underneath.
+3. **The content makes the transition, never the frame.** The stage stays;
+   the old elements leave one by one, or one of them becomes the next thing
+   (a dot grows into the next ground, a pill opens into the card, a word
+   travels into the headline). No slide comes in or goes out.
 4. **One object carries the story** across shots and keeps its identity: the
    product's own file, message, card, cursor or mark, changing role as the
    film moves on. Separate scenes then read as one piece.
@@ -66,7 +67,7 @@ An edit loads only what that change needs and keeps the established direction.
    born travelling (scale, position, blur, a mask) and slows into a settle
    that lasts through the read instead of stopping dead. A later change comes
    from a cause that touches it (the cursor, a line, the camera), never from a
-   frozen object. The speed always changes; only a drift or a loop is linear.
+   frozen object. Every move starts from rest and settles long.
 6. **Cut only on a match.** A hard cut reads as continuous when size,
    direction or subject match on both sides; a question cut to its answer
    matches in meaning. A cut where nothing matches is a new chapter.

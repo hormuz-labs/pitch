@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import effectCommands, { loadEffects, searchEffects } from '../.pi/cli/effects.ts'
+import effectCommands, { loadEffects, searchEffects, stem } from '../.pi/cli/effects.ts'
 import { EFFECTS_DIR, resolveIn, SHARED_ROOTS } from '../.pi/lib/paths.ts'
 import { collectCommands } from '../.pi/lib/testing.ts'
 
@@ -20,6 +20,27 @@ describe('pitch effects', () => {
   it('finds a move by what happens on screen', () => {
     const hits = searchEffects(loadEffects(), 'checkmark strokes', 'icons')
     expect(hits[0].id).toBe('icons/check-icon')
+  })
+
+  it('ranks by the words that describe the move, not the filler around them', () => {
+    const effects = loadEffects()
+    const ids = (q: string) =>
+      searchEffects(effects, q)
+        .slice(0, 6)
+        .map(e => e.id)
+    expect(ids('the title rises through a mask')).toEqual(ids('title rises through mask'))
+    expect(['rise', 'rises', 'rising'].map(stem)).toEqual(['ris', 'ris', 'ris'])
+    expect(stem('becomes')).toBe(stem('becoming'))
+    expect(ids('pill becomes a card').some(id => id.startsWith('morph/'))).toBe(true)
+  })
+
+  it('spreads an unfiltered page across families, keeps a filtered one whole', () => {
+    const effects = loadEffects()
+    const page = searchEffects(effects, 'cards stack').slice(0, 6)
+    expect(new Set(page.map(e => e.family)).size).toBeGreaterThan(2)
+    expect(
+      searchEffects(effects, 'cards stack', 'devices').every(e => e.family === 'devices'),
+    ).toBe(true)
   })
 
   it('returns one contact sheet of the shortlist', async () => {

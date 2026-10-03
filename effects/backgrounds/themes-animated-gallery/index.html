@@ -83,7 +83,7 @@
     const at = 0.9 + j * 1.5;
     const row = rows[k];
     const r = row.getBoundingClientRect(), s = stage.getBoundingClientRect();
-    tl.to(pick, { y: k * 54, duration: 0.45, ease: 'expo.out' }, at)
+    tl.to(pick, { y: k * 54, duration: 0.45, ease: 'move' }, at)
       .to(stage, { ...vars(themes[k]), duration: 0.6, ease: 'power2.inOut' }, at + 0.05)
       .fromTo(ring, { x: r.left - s.left + 25 - 20, y: r.top - s.top + 23 - 20, scale: 0.3, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.7, ease: 'expo.out' }, at)
       .to(name, { y: -10, opacity: 0, duration: 0.2, ease: 'power2.in' }, at)

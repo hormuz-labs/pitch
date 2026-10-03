@@ -11,10 +11,9 @@ Before any scene:
   `recon/brand-tokens.json`. Extra treatment colours go in `brand.palette`.
 - Build any object several scenes share (a 3D model, the carried card, the
   product's mark) once.
-- Write the **handoffs** into `direction.md`: for every carried object or
-  matched cut, the exact box it occupies on both sides (x, y, width, height in
-  film pixels). A carried object lands on the same pixels either side of the
-  cut, or the cut jumps.
+- Write the **handoffs** into `direction.md`: for every matched cut, the
+  exact box its subject occupies on both sides (x, y, width, height in film
+  pixels), or the cut jumps. A morph measures its own ends.
 
 ## The engine
 
@@ -44,15 +43,16 @@ timeline time:
 
 ## Motion on the timeline
 
-- **Arrive decelerating, leave accelerating.** An `.out` ease to land
-  (`expo.out`, `power3.out`), an `.in` ease to leave (`power2.in`,
-  `power3.in`), `none` only for a continuous loop. Nothing bounces unless the
-  product itself does.
+- **Start from rest, settle long.** Leave the ease off: `move`, the default,
+  speeds up from rest and settles over the last two thirds. An `.out` ease is
+  at full speed on its first frame, so a long travel on it pops; keep
+  `expo.out` for short arrivals out of a mask or a blur. Leave on
+  `power3.in`; `none` only for a loop. Nothing bounces unless the product does.
 - **Build in reading order, on the beat.** The subject, then what it does,
   then its label, each on its own beat. A pulse, kick or shake on an element
   standing still is appear-then-dance, and pulls the eye off the lead.
-- **Settle, never stop.** An arrival's ease-out tail runs through the read
-  (`expo.out` over most of the hold) on top of the shot's slow drift: slow
+- **Settle, never stop.** An arrival's tail runs through the read (a long
+  `move` over most of the hold) on top of the shot's slow drift: slow
   motion reads, a freeze reads as a stall. Scrambling, flying in and morphing
   time is not reading time.
 - **Aim, never guess.** A cursor, arrow or travelling object goes to where its
@@ -61,34 +61,32 @@ timeline time:
 
 ## Joins
 
-Choose each join for what the viewer should see next. The engine's fields:
+The stage never cuts, so a join is something elements do. Choose each for what
+the viewer should see next:
 
 | The join | Write |
 |---|---|
-| **becomes**: the thing on screen turns into the next thing | an actor with `kind: "shape"` posed `w`/`h`/`r` (bar → pill → disc → card), or a `path` pose (MorphSVG); an `element` actor born `from: "#shot .sel"` and posed on; an actor that lands `into` the next shot's element |
-| **push**: the camera moves into a part of what is there | `cut: "zoom"` / `"zoom-out"`, a `zoom` beat, `ui-frame` `cursor.zoom` |
-| **carry**: one element travels across the cut to where it sits next | `carry: { from, to }` on the incoming shot; an actor `anchor`ed to a slot, then to its next place |
+| **becomes**: one thing turns into the next | `morph: { from, to }` on the incoming shot (a pill opens into the card, a word travels into the headline); `to: "ground"` grows a dot into the next scene's ground; inside a shot, `ShotKit.morph` |
+| **makes room**: what is there rearranges for the newcomer | `ShotKit.reflow` for a line; a layout's parts tweened to their new places |
+| **leaves**: the old pieces go one by one as the new arrive | `exit`, varied from join to join |
+| **push**: the camera moves into a part of what is there | a `zoom` beat (another zoom beat pans on), `ui-frame` `cursor.zoom` |
 | **flood**: the frame fills and the next scene is born from the colour | `cut: "flood"`, a `flood` beat |
-| **stays**: the picture leaves, the object remains | `motion.exit: "blur"` under an actor with `hold: true` |
+| **stays**: an object outlives several shots | an actor; `hold: true` keeps it past its last pose, so give it an `out` or `into` |
 | **match**: a hard cut, same size, direction or subject either side | a plain cut; set both sides from the handoff boxes |
 
-An actor posed in consecutive shots crosses a cut untouched; `hold: true` keeps
-it after its last pose, so give it an `out` or `into` when its job ends. Every
-pose field is in `--section actors`.
-
-Stage a transformation: the old idea holds long enough to read, its supporting
-copy clears, the object transforms, settles, then the new idea reveals. Leave
-no duplicate source and destination objects, or old labels, after the landing.
-Check the frames in between for clipping, twisted paths and leftover layers.
+No cut moves a whole shot, and neither may a type: sliding the composition as
+one page fails the audit. Stage a transformation: the old idea holds long
+enough to read, its supporting copy clears, the object transforms, settles,
+then the new idea reveals. Check the frames in between for clipping and
+leftover layers.
 
 ## Type
 
 - No word just appears: every line arrives through its row's text effect (or
-  `line.steps`, `word-build`, `type-wipe`), unlike the shot before it.
+  `line.steps`, `word-build`, `type-wipe`), unlike the shot before it; a line
+  built word by word makes room with `ShotKit.reflow`.
 - Over a picture, words get a backing, a scrim or a quiet area. Aim for 4.5:1
   contrast on anything that must be read.
-- Text that must move past other text fades out and back in at its
-  destination rather than travelling through.
 - Size for the delivery frame on a phone. Cut words before you shrink them.
 
 ## One scene at a time
@@ -96,7 +94,7 @@ Check the frames in between for clipping, twisted paths and leftover layers.
 Save complete shots and run `pitch motion check` after each, so the preview
 keeps running. Then look at the scene before the next:
 `pitch motion review --shots <id> --per_shot 3`, plus `--times` just before
-and after its entry and exit when it carries or matches. Compare its landing
+and after its entry and exit when it morphs or matches. Compare its landing
 with the handoff box. Move on when it is right, not when it compiles. Make
 targeted edits; reuse schema already in context.
 

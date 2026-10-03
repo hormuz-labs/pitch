@@ -66,7 +66,7 @@
   gsap.set('.wrap', { rotateY: -14, rotateX: 6, x: -80 });
   [2, 1, 0].forEach((i, k) => {
     const P = pose[i];
-    tl.fromTo('.w' + i, { x: P.x + 700, y: P.y + 80, z: P.z, rotateY: P.ry, opacity: 0 }, { x: P.x, y: P.y, z: P.z, rotateY: P.ry, opacity: 1, duration: 1.1, ease: 'expo.out' }, 0.1 + k * 0.25);
+    tl.fromTo('.w' + i, { x: P.x + 700, y: P.y + 80, z: P.z, rotateY: P.ry, opacity: 0 }, { x: P.x, y: P.y, z: P.z, rotateY: P.ry, opacity: 1, duration: 1.1, ease: 'move' }, 0.1 + k * 0.25);
     // the headline lines rise inside each screen after it lands
     tl.from(`.w${i} .h1 u`, { yPercent: 110, stagger: 0.08, duration: 0.6, ease: 'expo.out' }, 0.6 + k * 0.25)
       .from(`.w${i} .p, .w${i} .cta`, { y: 14, opacity: 0, stagger: 0.1, duration: 0.5, ease: 'power3.out' }, 0.8 + k * 0.25)

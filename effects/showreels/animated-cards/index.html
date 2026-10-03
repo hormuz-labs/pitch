@@ -41,7 +41,7 @@
   tl.from('.head h1', { yPercent: 110, duration: .7, ease: 'expo.out' }, 0)
     .from('.head p', { yPercent: 160, opacity: 0, duration: .6, ease: 'expo.out' }, .12)
     // cards rise with a tilt and land with overshoot
-    .from('.card', { y: 260, rotateX: -28, rotate: (i) => [-6, 4, -3][i], scale: .86, opacity: 0, duration: 1.0, ease: 'back.out(1.6)', stagger: .14 }, .25)
+    .from('.card', { y: 260, rotateX: -28, rotate: (i) => [-6, 4, -3][i], scale: .86, opacity: 0, duration: 1.0, ease: 'move', stagger: .14 }, .25)
     .from('.card .icon', { scale: 0, rotate: -90, duration: .7, ease: 'back.out(2.5)', stagger: .14 }, .7)
     .from('.card h2 span', { yPercent: 110, duration: .6, ease: 'expo.out', stagger: .06 }, .85)
     .from('.card p', { y: 18, opacity: 0, duration: .5, ease: 'power2.out', stagger: .14 }, 1.05)

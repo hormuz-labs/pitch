@@ -10,9 +10,11 @@ mixer and the renderer all read the same shot list.
   project adds its own types in `js/shots.custom.js`.
 - `js/factories.js` — the built-in types, including `lottie`, `rive` and the
   layered `ui-frame`. `window.ShotKit` exposes the helpers custom factories
-  use: `three` (a WebGL stage), `lottie`, `rive`, `ready`, `frameHook`.
-- `js/compiler.js` — brand tokens, fonts, cuts and transitions, the `carry`
-  match cut, timeline, canvas frame hooks, asset-ready gating, studio inspector.
+  use: `morph` and `reflow` (measured on the laid-out page), `three` (a WebGL
+  stage), `lottie`, `rive`, `ready`, `frameHook`.
+- `js/compiler.js` — brand tokens, fonts, the stage (ground and ambient under
+  every shot), cuts, element exits and `morph` joins, the `move` ease, timeline,
+  canvas frame hooks, asset-ready gating, studio inspector.
 - The render side (`shutter`/`samples`, 10-bit, the `grade`) is
   `.pi/scripts/launch-video/lib/encode.mjs`, read from the same
   shots.js by capture.mjs and review.mjs.

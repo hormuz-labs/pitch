@@ -54,7 +54,7 @@
     .fromTo('.halo', { scale: .4, opacity: .35 }, { scale: 4.5, opacity: 0, duration: .9, ease: 'expo.out' }, .7);
   B.forEach((b, i) => {
     const a = (i / B.length) * Math.PI * 2 + .2, r = 170 + rng() * 60;
-    tl.fromTo(b, { x: -110, y: 0, opacity: 1, scale: .5, rotation: 0 }, { x: -110 + Math.cos(a) * r, y: Math.sin(a) * r, scale: 1, rotation: 180, duration: .7, ease: 'expo.out' }, .72)
+    tl.fromTo(b, { x: -110, y: 0, opacity: 1, scale: .5, rotation: 0 }, { x: -110 + Math.cos(a) * r, y: Math.sin(a) * r, scale: 1, rotation: 180, duration: .7, ease: 'move' }, .72)
       .to(b, { opacity: 0, duration: .3 }, 1.15);
   });
   // release back to idle for the loop

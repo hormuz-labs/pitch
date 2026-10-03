@@ -40,7 +40,7 @@
   photos.forEach((p, i) => {
     const t = 0.5 + i * 0.5;
     tl.fromTo(p, { opacity: 0, scale: 1.6, rotation: rots[i] + 25, y: -80 },
-      { opacity: 1, scale: 1, rotation: rots[i], y: 0, duration: 0.75, ease: 'back.out(1.4)' }, t);
+      { opacity: 1, scale: 1, rotation: rots[i], y: 0, duration: 0.75, ease: 'move' }, t);
     // while they hold, each photo drifts slightly so the frame never freezes
     tl.to(p, { y: -10 + i * 3, rotation: rots[i] + (i % 2 ? 2 : -2), duration: 1.6, ease: 'sine.inOut' }, t + 0.75);
   });

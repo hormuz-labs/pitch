@@ -78,7 +78,7 @@
     .to('.cb i b', { scale: 1, duration: .35, stagger: .2, ease: 'back.out(2.5)' }, 5.3)
     .to('.cb i path', { drawSVG: '100%', duration: .3, stagger: .2, ease: 'power2.out' }, 5.45);
   // segmented: pill hops
-  tl.to('.pill', { xPercent: 100, duration: .5, ease: 'back.out(1.6)' }, 1.6).to('.pill', { xPercent: 200, duration: .5, ease: 'back.out(1.6)' }, 3.4).to('.pill', { xPercent: 0, duration: .55, ease: 'back.out(1.4)' }, 5.4);
+  tl.to('.pill', { xPercent: 100, duration: .5, ease: 'back.out(1.6)' }, 1.6).to('.pill', { xPercent: 200, duration: .5, ease: 'back.out(1.6)' }, 3.4).to('.pill', { xPercent: 0, duration: .55, ease: 'move' }, 5.4);
   tl.to('.seg span', { color: '#6b7080', duration: .2 }, 0).to('.seg span:nth-child(2)', { color: '#111', duration: .2 }, 0.2)
     .to('.seg span:nth-child(2)', { color: '#6b7080', duration: .2 }, 1.6).to('.seg span:nth-child(3)', { color: '#111', duration: .2 }, 1.6)
     .to('.seg span:nth-child(3)', { color: '#6b7080', duration: .2 }, 3.4).to('.seg span:nth-child(4)', { color: '#111', duration: .2 }, 3.4)

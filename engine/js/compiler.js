@@ -54,20 +54,33 @@
   }
 
   // shot.bg is a token (accent | ink | bg), a brand.palette name, or any CSS
-  // color. shot.ink overrides the text color; otherwise it is picked for contrast.
-  function applyShotBackground(el, shot, spec) {
+  // color. It is the colour of the stage while the shot plays — the shot
+  // itself is transparent — and sets the shot's text colour for contrast
+  // unless shot.ink overrides it. Returns the ground as CSS.
+  function shotGround(el, shot, spec) {
     const bg = shot.bg;
-    if (!bg) return;
+    if (!bg) return "var(--bg)";
     const palette = (spec.brand && spec.brand.palette) || {};
+    let ground;
     if (BG_TOKENS.has(bg)) {
       el.dataset.bg = bg;
+      ground = `var(--${bg})`;
     } else {
-      const color = palette[bg] || bg;
-      el.style.background = color;
-      const lum = luminance(color);
-      el.style.color = shot.ink || (lum == null ? "var(--ink)" : lum > 0.5 ? "var(--ink)" : "#fff");
+      ground = palette[bg] || bg;
+      const lum = luminance(ground);
+      el.style.color = lum == null ? "var(--ink)" : lum > 0.5 ? "var(--ink)" : "#fff";
     }
     if (shot.ink) el.style.color = shot.ink;
+    return ground;
+  }
+  // A CSS colour as the browser resolves it (rgb()), so it can be tweened.
+  function resolvedColor(css) {
+    const probe = document.createElement("div");
+    probe.style.cssText = `position:absolute;visibility:hidden;background:${css}`;
+    document.body.appendChild(probe);
+    const c = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return c;
   }
 
   // The state a shot element is in when it is simply "on": every cut resets
@@ -88,30 +101,31 @@
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
   }
 
-  function hardCut(outgoing, incoming) {
+  // `tail`: the outgoing shot stays up that long past the cut, while its
+  // elements finish leaving over the incoming ones (exitTween).
+  function hardCut(outgoing, incoming, tail) {
     const tl = gsap.timeline();
     tl.set(incoming, RESTING, 0);
-    tl.set(outgoing, { opacity: 0, pointerEvents: "none" }, 0);
+    tl.set(outgoing, { pointerEvents: "none" }, 0);
+    tl.set(outgoing, { opacity: 0 }, tail);
     return tl;
   }
-  function punchCut(outgoing, incoming) {
-    const tl = gsap.timeline();
-    tl.set(incoming, { ...RESTING, scale: 1.12 }, 0);
-    tl.set(outgoing, { opacity: 0, pointerEvents: "none" }, 0);
+  function punchCut(outgoing, incoming, tail) {
+    const tl = hardCut(outgoing, incoming, tail);
+    tl.set(incoming, { scale: 1.12 }, 0);
     tl.to(incoming, { scale: 1, duration: 0.38, ease: "expo.out" }, 0);
     return tl;
   }
 
-  // ---- Cross-shot transitions ---------------------------------------------
-  // `shot.cut` on the incoming shot. `hard` and `punch` are one-frame cuts; the
-  // kinds below composite the two shots for `cutDur` seconds (default 0.5,
-  // capped at 45% of the incoming shot) — the one place two shots share the
-  // frame. The outgoing shot's exit motion is suppressed under a transition
-  // unless that shot sets `exit` itself, so nothing leaves twice.
-  const TRANSITIONS = new Set([
-    "dissolve", "wipe-left", "wipe-right", "wipe-up", "wipe-down",
-    "push-left", "push-right", "push-up", "push-down", "iris", "zoom", "zoom-out", "flip", "flood", "glitch",
-  ]);
+  // ---- Cuts ---------------------------------------------------------------
+  // `shot.cut` on the incoming shot. The stage (#stage: the ground and the
+  // ambient layer) never cuts: the shots are transparent layers on it, so a
+  // join is something their elements do — the outgoing ones leave (`exit`),
+  // one becomes the next (`morph`), the camera pushes in (a `zoom` beat). No
+  // cut moves a whole shot. `hard` (default) and `punch` are one-frame cuts;
+  // `flood` and `glitch` take `cutDur` seconds (default 0.5, capped at 45% of
+  // the incoming shot), and the outgoing shot does not exit under them.
+  const TRANSITIONS = new Set(["flood", "glitch"]);
   // A digital tear: whole-frame jumps between the two shots on a 25fps
   // cadence, each step displaced sideways, colour-broken and cut by a noise
   // band, landing clean on the incoming shot. The same steps drive the
@@ -171,142 +185,69 @@
   }
   function transitionCut(outgoing, incoming, kind, T, spec, shot) {
     const tl = gsap.timeline();
-    const io = "power3.inOut";
     tl.set(outgoing, { pointerEvents: "none" }, 0);
-    switch (kind) {
-      case "zoom-out": {
-        // The outgoing shot shrinks into the frame and blurs away; the incoming
-        // one arrives from past the camera, blurred, and lands.
-        tl.set(incoming, { ...RESTING, opacity: 0, scale: 2.4, filter: "blur(14px)" }, 0);
-        tl.to(outgoing, { scale: 0.35, opacity: 0, filter: "blur(12px)", duration: T * 0.7, ease: "power3.in", transformOrigin: "50% 50%" }, 0);
-        tl.to(incoming, { scale: 1, opacity: 1, filter: "blur(0px)", duration: T, ease: "power3.out", transformOrigin: "50% 50%" }, 0);
-        break;
-      }
-      case "flood": {
-        const fp = floodPlate(spec, shot);
-        // At the cut: incoming at rest under the plate, outgoing gone.
-        tl.set(incoming, RESTING, 0);
-        tl.set(outgoing, { opacity: 0 }, 0);
-        tl.set(fp.halo, { autoAlpha: 0 }, 0);
-        tl.set(fp.plate, { autoAlpha: 1, clipPath: "inset(0% 0% 0% 0% round 0px)" }, 0);
-        // The retreat: the colour pulls back to the point it flooded from.
-        const l = (fp.ax / W) * 100, tp = (fp.ay / H) * 100;
-        tl.to(fp.plate, { clipPath: `inset(${tp}% ${100 - l}% ${100 - tp}% ${l}% round 600px)`, duration: T, ease: "power3.inOut" }, fp.hold);
-        tl.set(fp.plate, { autoAlpha: 0 }, fp.hold + T);
-        tl.__flood = fp;
-        break;
-      }
-      case "dissolve":
-        tl.set(incoming, { ...RESTING, opacity: 0 }, 0);
-        tl.to(incoming, { opacity: 1, duration: T, ease: "power2.inOut" }, 0);
-        break;
-      case "wipe-left": case "wipe-right": case "wipe-up": case "wipe-down": {
-        // The edge travels in the named direction, revealing the incoming shot.
-        // Every value carries a unit: GSAP interpolates the numbers and keeps
-        // the end string's units, and an intermediate "inset(0 0 0 85)" is
-        // invalid CSS that leaves the element fully clipped.
-        const from = { "wipe-left": "inset(0% 0% 0% 100%)", "wipe-right": "inset(0% 100% 0% 0%)", "wipe-up": "inset(100% 0% 0% 0%)", "wipe-down": "inset(0% 0% 100% 0%)" }[kind];
-        tl.set(incoming, { ...RESTING, clipPath: from }, 0);
-        tl.to(incoming, { clipPath: "inset(0% 0% 0% 0%)", duration: T, ease: io }, 0);
-        break;
-      }
-      case "push-left": case "push-right": case "push-up": case "push-down": {
-        const axis = /left|right/.test(kind) ? "x" : "y";
-        const size = axis === "x" ? W : H;
-        const sign = /left|up/.test(kind) ? -1 : 1;
-        tl.set(incoming, { ...RESTING, [axis]: -sign * size }, 0);
-        tl.to(outgoing, { [axis]: sign * size, duration: T, ease: io }, 0);
-        tl.to(incoming, { [axis]: 0, duration: T, ease: io }, 0);
-        break;
-      }
-      case "iris":
-        tl.set(incoming, { ...RESTING, clipPath: "circle(0px at 50% 50%)" }, 0);
-        tl.to(incoming, { clipPath: `circle(${Math.ceil(Math.hypot(W, H) / 2) + 20}px at 50% 50%)`, duration: T, ease: "power2.inOut" }, 0);
-        break;
-      case "zoom":
-        // The outgoing shot flies past the camera; the incoming one arrives from behind it.
-        tl.set(incoming, { ...RESTING, opacity: 0, scale: 0.78 }, 0);
-        tl.to(outgoing, { scale: 2.6, opacity: 0, filter: "blur(16px)", duration: T * 0.8, ease: "power3.in", transformOrigin: "50% 50%" }, 0);
-        tl.to(incoming, { scale: 1, opacity: 1, duration: T, ease: "power3.out", transformOrigin: "50% 50%" }, 0);
-        break;
-      case "glitch": {
-        const band = glitchBand();
-        document.getElementById("cut-layer").appendChild(band);
-        tl.set(incoming, { ...RESTING, opacity: 0 }, 0);
-        glitchSteps(tl, { show: incoming, hide: outgoing, at: 0, dur: T, seed: (shot.seed || 0) + shot.id.length * 31 + 5, band });
-        break;
-      }
-      case "flip":
-        tl.set(incoming, { ...RESTING, opacity: 0, rotationY: 90 }, 0);
-        tl.to(outgoing, { rotationY: -90, opacity: 0, duration: T * 0.5, ease: "power2.in", transformOrigin: "50% 50%" }, 0);
-        tl.to(incoming, { rotationY: 0, opacity: 1, duration: T * 0.5, ease: "power2.out", transformOrigin: "50% 50%" }, T * 0.5);
-        break;
+    if (kind === "flood") {
+      const fp = floodPlate(spec, shot);
+      // At the cut: incoming at rest under the plate, outgoing gone.
+      tl.set(incoming, RESTING, 0);
+      tl.set(outgoing, { opacity: 0 }, 0);
+      tl.set(fp.halo, { autoAlpha: 0 }, 0);
+      tl.set(fp.plate, { autoAlpha: 1, clipPath: "inset(0% 0% 0% 0% round 0px)" }, 0);
+      // The retreat: the colour pulls back to the point it flooded from.
+      const l = (fp.ax / W) * 100, tp = (fp.ay / H) * 100;
+      tl.to(fp.plate, { clipPath: `inset(${tp}% ${100 - l}% ${100 - tp}% ${l}% round 600px)`, duration: T, ease: "power3.inOut" }, fp.hold);
+      tl.set(fp.plate, { autoAlpha: 0 }, fp.hold + T);
+      tl.__flood = fp;
+    } else {
+      const band = glitchBand();
+      document.getElementById("cut-layer").appendChild(band);
+      tl.set(incoming, { ...RESTING, opacity: 0 }, 0);
+      glitchSteps(tl, { show: incoming, hide: outgoing, at: 0, dur: T, seed: (shot.seed || 0) + shot.id.length * 31 + 5, band });
     }
     tl.set(outgoing, { opacity: 0 }, T);
     return tl;
   }
-  function cutTween(outgoing, incoming, shot, motion, spec) {
+  function cutTween(outgoing, incoming, shot, motion, spec, tail) {
     const kind = shot.cut || "hard";
-    if (kind === "punch") return punchCut(outgoing, incoming);
+    if (kind === "punch") return punchCut(outgoing, incoming, tail);
     if (TRANSITIONS.has(kind)) {
       const T = Math.max(0.1, Math.min(shot.cutDur ?? motion.cutDur ?? 0.5, shot.dur * 0.45));
       return transitionCut(outgoing, incoming, kind, T, spec, shot);
     }
-    if (kind !== "hard") console.warn("[compiler] unknown cut kind", kind, "in", shot.id, "— hard cut used");
-    return hardCut(outgoing, incoming);
+    if (kind !== "hard") console.warn("[compiler] unknown cut kind", kind, "in", shot.id, "— hard cut used (cuts: hard, punch, flood, glitch; a join between elements is `morph` or `exit`)");
+    return hardCut(outgoing, incoming, tail);
   }
-  window.__TRANSITIONS = [...TRANSITIONS];
 
-  // ---- Carry: a match cut on one element ----------------------------------
-  // shot.carry = { from: sel, to: sel, dur?, ease? } on the incoming shot. At
-  // the cut a ghost of `from` — measured in the outgoing shot at the cut
-  // instant — travels to where `to` sits in the incoming shot `dur` later,
-  // and `to` stays hidden until the ghost lands. Measured after fonts and
-  // assets are ready by seeking the master to the two instants, so the
-  // geometry is what the frames really show. Pairs with a hard cut.
   function measureBox(el) {
     const r = el.getBoundingClientRect();
     const w = el.offsetWidth || r.width;
     const h = el.offsetHeight || r.height;
     return { left: r.left, top: r.top, width: r.width, height: r.height, w, h, scale: w ? r.width / w : 1 };
   }
-  function buildCarries(master, nodes, shots) {
-    const carries = [];
-    let clock = 0;
-    shots.forEach((shot, i) => {
-      const start = clock;
-      clock += shot.dur;
-      if (!shot.carry || i === 0) return;
-      const c = shot.carry;
-      const fromEl = nodes[i - 1].inner.querySelector(c.from || c.to);
-      const toEl = nodes[i].inner.querySelector(c.to || c.from);
-      if (!fromEl || !toEl) { console.warn("[compiler] carry in", shot.id, "found no element for", c.from, "→", c.to); return; }
-      carries.push({ start, dur: Math.max(0.15, Math.min(c.dur ?? 0.55, shot.dur * 0.6)), ease: c.ease || "power3.inOut", fromEl, toEl });
-    });
-    if (!carries.length) return;
-    const layer = document.createElement("div");
-    layer.className = "carry-layer";
-    document.getElementById("camera").appendChild(layer);
-    const wasAt = master.time();
-    for (const k of carries) {
-      master.seek(Math.max(0, k.start - 0.001), false);
-      const a = measureBox(k.fromEl);
-      master.seek(k.start + k.dur, false);
-      const b = measureBox(k.toEl);
-      const cs = getComputedStyle(k.fromEl);
-      const ghost = k.fromEl.cloneNode(true);
-      ghost.classList.add("carry-ghost");
-      ghost.style.cssText = `position:absolute;left:${a.left}px;top:${a.top}px;width:${a.w}px;height:${a.h}px;margin:0;transform-origin:0 0;color:${cs.color};font:${cs.font};letter-spacing:${cs.letterSpacing};visibility:hidden;opacity:0;`;
-      layer.appendChild(ghost);
-      const tl = gsap.timeline();
-      tl.set(ghost, { autoAlpha: 1, x: 0, y: 0, scale: a.scale }, 0);
-      tl.set(k.toEl, { visibility: "hidden" }, 0);
-      tl.to(ghost, { x: b.left - a.left, y: b.top - a.top, scale: a.w ? b.width / a.w : 1, duration: k.dur, ease: k.ease }, 0);
-      tl.set(ghost, { autoAlpha: 0 }, k.dur);
-      tl.set(k.toEl, { visibility: "inherit" }, k.dur);
-      master.add(tl, k.start);
+  // Master time of a moment in a nested timeline, through every parent's
+  // start and time scale (a compressed factory timeline included).
+  function toMaster(master, anim, t) {
+    let a = anim;
+    while (a && a !== master) { t = a.startTime() + t / a.timeScale(); a = a.parent; }
+    return t;
+  }
+
+  // ---- Morph: the join where one element becomes the next -----------------
+  // shot.morph = { from: sel, to: sel | "ground", dur? (0.7), ease? } on the
+  // incoming shot: at the cut the outgoing shot's `from` becomes this shot's
+  // `to` (ShotKit.morph), or grows into this shot's ground ("ground").
+  function morphJoin(master, prev, node, shot, start, stage) {
+    const m = shot.morph;
+    const fromEl = m.from ? prev.inner.querySelector(m.from) : null;
+    const toEl = m.to === "ground" ? "ground" : node.inner.querySelector(m.to || m.from);
+    if (!fromEl || !toEl) {
+      console.warn("[compiler] morph in", shot.id, "found no element for", m.from, "→", m.to);
+      if (m.to === "ground") master.set(stage, { backgroundColor: node.ground }, start);
+      return;
     }
-    master.seek(wasAt, false);
+    const tl = gsap.timeline();
+    master.add(tl, start);
+    ShotKit.morph(tl, fromEl, toEl, { at: 0, dur: Math.max(0.2, Math.min(m.dur ?? 0.7, shot.dur * 0.6)), ease: m.ease || "move", ground: node.ground });
   }
 
   // ---- Actors: one object across many shots -------------------------------
@@ -459,7 +400,7 @@
             else tl.set(p, { attr: { d: pose.path } }, pose.t);
             if (pose.fill) tl.to(p, { attr: { fill: cssColor(pose.fill, spec) } , duration: dur }, pose.t);
           }
-          const ease = pose.ease || "expo.out";
+          const ease = pose.ease || "move";
           if (!visible && !bornAt) {
             // First appearance.
             const enter = pose.enter || "scale-blur";
@@ -530,8 +471,14 @@
     if (found.length) gsap.registerPlugin(...found);
     window.__PLUGINS = names.filter((n) => window[n]);
     // Named eases the whole engine shares (CustomEase is in the thin shell).
+    // `move` is the house ease and every tween's default: it starts from rest,
+    // peaks a third of the way through and settles long — the speed curve
+    // measured on reference motion-design films. An `.out` ease (expo.out,
+    // power3.out) is at full speed on its first frame: a visible element pops.
     if (window.CustomEase) {
       try {
+        CustomEase.create("move", "M0,0 C0.5,0 0.15,1 1,1");
+        gsap.defaults({ ease: "move" });
         CustomEase.create("whip", "M0,0 C0.1,0 0.15,1 1,1");          // violent in, long settle
         CustomEase.create("slamHard", "M0,0 C0.05,0.6 0.15,1 1,1");   // faster than expo.out
         CustomEase.create("settle", "M0,0 C0.2,1.2 0.4,0.95 1,1");    // one overshoot, no wobble
@@ -554,10 +501,11 @@
   }
 
   // ---- Ambient stage -------------------------------------------------------
-  // A persistent layer that lives BETWEEN a shot's background and its content
-  // and moves continuously through the whole film (positions are a function of
-  // global time, so cuts don't reset it). Position-only motion: nothing here
-  // ever changes opacity, so it reads as a stage, not a flicker.
+  // A layer on the stage, between the ground and every shot, that moves
+  // continuously through the whole film (positions are a function of film
+  // time, so cuts don't touch it). Position-only motion: nothing here changes
+  // opacity, so it reads as a stage, not a flicker. A shot with
+  // `ambient: false` hides it while it plays.
   //
   // spec.ambient = { kind, color?, count?, seed?, blur?, opacity?, size? }
   //   kind: blobs     soft blurred discs (deep space + glow, studio backdrop)
@@ -568,9 +516,9 @@
   //         halftone  a dot screen panning slowly (duotone poster, print)
   //         shapes    flat geometry — discs, bars, rounded slabs — drifting and turning (solid brand field)
   //         none
-  function ambientMount(spec, shot) {
+  function ambientMount(spec) {
     const a = spec.ambient;
-    if (!a || a.kind === "none" || shot.ambient === false) return null;
+    if (!a || a.kind === "none") return null;
     const kind = a.kind || "blobs";
     const layer = document.createElement("div");
     layer.className = "ambient " + kind;
@@ -693,34 +641,85 @@
   }
 
   // ---- Exit motion --------------------------------------------------------
-  // The outgoing shot's content leaves the frame in its last 0.28s instead of
-  // freezing until the cut. shot.exit / spec.motion.exit:
-  //   up | down | scale | scatter | blur | left | right | none
-  //   blur  — rises 70px and blurs to nothing over 9 frames (the continuous-take exit)
-  //   left / right — the whole line accelerates off that side (ease-in, 0.5s)
-  function exitTween(wrap, inner, shot, D, mode) {
-    const tl = gsap.timeline();
-    const dur = Math.min(0.32, D * 0.25);
-    const at = Math.max(0, D - dur);
-    if (mode === "up") tl.to(wrap, { y: -140, opacity: 0, duration: dur, ease: "power4.in" }, at);
-    else if (mode === "down") tl.to(wrap, { y: 140, opacity: 0, duration: dur, ease: "power4.in" }, at);
-    else if (mode === "blur") tl.to(wrap, { y: -70, opacity: 0, filter: "blur(14px)", duration: Math.min(0.3, D * 0.25), ease: "power3.in" }, Math.max(0, D - Math.min(0.3, D * 0.25)));
-    else if (mode === "left" || mode === "right") {
-      const d = Math.min(0.5, D * 0.3);
-      tl.to(wrap, { x: mode === "left" ? -1400 : 1400, duration: d, ease: "power3.in" }, Math.max(0, D - d));
+  // How the outgoing shot's elements leave. shot.exit / spec.motion.exit:
+  //   blur | up | down | left | right | scale | scatter | none
+  // Never the shot as a whole: each element — a word, a card, an image, a
+  // piece of UI — leaves on its own, in reading order, accelerating away. They
+  // start EXIT_LEAD before the cut and the last finishes EXIT_TAIL after it,
+  // over the incoming shot's arrivals. A backdrop filling most of the frame
+  // fades instead of moving; the element the next shot morphs from stays put.
+  // Built once the page is laid out (ready), from what is on screen then.
+  const EXIT_LEAD = 0.3, EXIT_TAIL = 0.2, EXIT_EACH = 0.34;
+  const EXITS = new Set(["blur", "up", "down", "left", "right", "scale", "scatter", "none"]);
+  const ATOMIC = new Set(["IMG", "svg", "CANVAS", "VIDEO", "PICTURE", "IFRAME"]);
+  const clear = (c) => !c || c === "transparent" || /rgba\([^)]*,\s*0\)$/.test(c);
+  function paints(cs) {
+    return !clear(cs.backgroundColor) || cs.backgroundImage !== "none" || cs.boxShadow !== "none" ||
+      (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== "none" && !clear(cs.borderTopColor));
+  }
+  const ownText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+  // The pieces a shot is made of, top-most first: anything that paints a box,
+  // holds its own text, or is media — never a bare wrapper, never the stage.
+  // A box holding `keep` (the next morph's source) is `late`: it leaves after
+  // the cut, once the morph has taken its source away.
+  function unitsOf(inner, keep) {
+    const units = [];
+    const late = new Set();
+    const walk = (el) => {
+      for (const c of el.children) {
+        const cs = getComputedStyle(c);
+        if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) continue;
+        if (c === keep) continue;
+        const holds = keep && c.contains(keep);
+        if (ATOMIC.has(c.tagName) || paints(cs) || (!holds && ownText(c))) {
+          const r = c.getBoundingClientRect();
+          if (r.width >= 2 && r.height >= 2 && r.right > 0 && r.bottom > 0 && r.left < W && r.top < H) units.push(c);
+          if (holds) late.add(c);
+        } else walk(c);
+      }
+    };
+    walk(inner);
+    // Letter-split type is dozens of units: leave by the word or line instead.
+    let set = units;
+    while (set.length > 36) {
+      const up = [...new Set(set.map((u) => (u.parentElement && u.parentElement !== inner && !u.parentElement.contains(keep) ? u.parentElement : u)))];
+      if (up.length === set.length) break;
+      set = up.filter((u) => !up.some((o) => o !== u && o.contains(u)));
     }
-    else if (mode === "scale") tl.to(wrap, { scale: 1.25, opacity: 0, duration: dur, ease: "power3.in", transformOrigin: "50% 50%" }, at);
-    else if (mode === "scatter") {
-      const parts = inner.querySelectorAll(".word, .mq-item, .pile-item, .notif, .stat-col, .logo-lockup, .ui-frame, .punch-card");
-      const rand = rng((shot.seed || 5) + 17);
-      const targets = parts.length ? parts : [wrap];
-      tl.to(targets, {
-        x: () => (rand() - 0.5) * 900, y: () => (rand() - 0.5) * 700,
-        rotation: () => (rand() - 0.5) * 60, opacity: 0,
-        duration: dur + 0.08, ease: "power3.in", stagger: { each: 0.012, from: "random" },
-      }, at - 0.08);
-    }
-    return tl;
+    const box = new Map(set.map((u) => [u, u.getBoundingClientRect()]));
+    return set.sort((p, q) => Math.round(box.get(p).top / 40) - Math.round(box.get(q).top / 40) || box.get(p).left - box.get(q).left)
+      .map((el) => ({ el, late: late.has(el), backdrop: box.get(el).width * box.get(el).height > W * H * 0.6 }));
+  }
+  function exitTween(tl, inner, shot, D, mode, keep, lead) {
+    const units = unitsOf(inner, keep);
+    const movers = units.filter((u) => !u.backdrop && !u.late);
+    const window_ = lead + EXIT_TAIL;
+    const each = movers.length > 1 ? Math.min(0.05, (window_ - EXIT_EACH) / (movers.length - 1)) : 0;
+    const rand = rng((shot.seed || 5) + 17);
+    const at = D - lead;
+    const leave = ({ el }, start, dur) => {
+      const cs = getComputedStyle(el);
+      const from = {
+        x: gsap.getProperty(el, "x"), y: gsap.getProperty(el, "y"), scale: gsap.getProperty(el, "scale"),
+        rotation: gsap.getProperty(el, "rotation"), opacity: parseFloat(cs.opacity),
+        filter: cs.filter === "none" ? "blur(0px)" : cs.filter,
+      };
+      const to = { opacity: 0, duration: dur, ease: "power3.in", immediateRender: false };
+      if (mode === "blur") Object.assign(to, { y: from.y - 40, filter: "blur(12px)" });
+      else if (mode === "up") to.y = from.y - 110;
+      else if (mode === "down") to.y = from.y + 110;
+      else if (mode === "left") to.x = from.x - 240;
+      else if (mode === "right") to.x = from.x + 240;
+      else if (mode === "scale") Object.assign(to, { scale: from.scale * 1.35, filter: "blur(8px)", transformOrigin: "50% 50%" });
+      else if (mode === "scatter") Object.assign(to, { x: from.x + (rand() - 0.5) * 900, y: from.y + (rand() - 0.5) * 700, rotation: from.rotation + (rand() - 0.5) * 60 });
+      tl.fromTo(el, from, to, start);
+    };
+    movers.forEach((u, k) => leave(u, at + k * each, EXIT_EACH));
+    // Measured now, before the cut, like the rest: nothing moves it until then.
+    units.filter((u) => u.late && !u.backdrop).forEach((u) => leave(u, D, EXIT_TAIL));
+    units.filter((u) => u.backdrop).forEach(({ el }) => {
+      tl.fromTo(el, { opacity: parseFloat(getComputedStyle(el).opacity) }, { opacity: 0, duration: window_, ease: "power1.in", immediateRender: false }, at);
+    });
   }
 
   // ---- Beats --------------------------------------------------------------
@@ -816,15 +815,19 @@
           const dur = b.dur ?? 0.25;
           const fill = b.fill ?? 0.6;
           const others = [...inner.children].filter((c) => !c.contains(sel));
-          // Measured at ready (fonts and assets in), like a carry: the camera
+          // Measured at ready (fonts and assets in), like a morph: the camera
           // lands on where the element really is.
           deferred.push({ t: shotStart + at, fn: () => {
-            const c = centerOf(sel);
+            // Where `sel` sits with no camera on it, so a second zoom beat
+            // pans on from the first instead of aiming through its push.
+            const seen = centerOf(sel);
+            const k = gsap.getProperty(wrap, "scaleX") || 1;
+            const c = { x: (seen.x - gsap.getProperty(wrap, "x")) / k, y: (seen.y - gsap.getProperty(wrap, "y")) / k, w: seen.w / k };
             const s = Math.min(6, Math.max(1.05, (W * fill) / Math.max(40, c.w)));
-            tl.to(wrap, { scale: s, x: W / 2 - s * c.x, y: H / 2 - s * c.y, duration: dur, ease: b.ease || "power3.inOut", transformOrigin: "0 0" }, at);
+            tl.to(wrap, { scale: s, x: W / 2 - s * c.x, y: H / 2 - s * c.y, duration: dur, ease: b.ease || "move", transformOrigin: "0 0" }, at);
             if (b.dof !== false && others.length) tl.to(others, { filter: "blur(10px)", opacity: 0.35, duration: dur, ease: "power2.in" }, at);
             if (b.release) {
-              tl.to(wrap, { scale: 1, x: 0, y: 0, duration: 0.6, ease: "power3.inOut" }, at + dur + b.release);
+              tl.to(wrap, { scale: 1, x: 0, y: 0, duration: 0.6, ease: "move" }, at + dur + b.release);
               if (b.dof !== false && others.length) tl.to(others, { filter: "blur(0px)", opacity: 1, duration: 0.5 }, at + dur + b.release);
             }
           } });
@@ -1330,10 +1333,19 @@
         : Promise.resolve(null);
       (window.__PENDING = window.__PENDING || []).push(words.then((timeline) => captionsTime(captions, spec, timeline, report.captions)));
     }
+    // The stage: the ground and the ambient layer, once, under every shot.
+    const stage = document.createElement("div");
+    stage.id = "stage";
+    camera.appendChild(stage);
+    const ambient = AUDIT ? null : ambientMount(spec);
+    if (ambient) stage.appendChild(ambient);
     // Where the flood plates and halos of cuts live: above the shots, below the actors.
     const cutLayer = document.createElement("div");
     cutLayer.id = "cut-layer";
     camera.appendChild(cutLayer);
+    // Work measured on the laid-out page (ShotKit.morph, ShotKit.reflow, the
+    // joins between shots) registers here while the shots animate.
+    window.__LAYOUT_HOOKS = [];
     // Work that needs the page laid out with its fonts and assets in — anchors,
     // zoom beats, actors born from elements — runs at ready(), against the master.
     const deferred = [];
@@ -1355,8 +1367,6 @@
       const el = document.createElement("div");
       el.className = "shot";
       el.id = id;
-      const ambient = AUDIT ? null : ambientMount(spec, shot);
-      if (ambient) el.appendChild(ambient);
       const exitWrap = document.createElement("div");
       exitWrap.className = "shot-exit";
       const inner = document.createElement("div");
@@ -1364,10 +1374,11 @@
       exitWrap.appendChild(inner);
       el.appendChild(exitWrap);
       fac.mount(inner, shot, spec);
-      applyShotBackground(el, { ...shot, bg: shot.bg || inner.dataset.bg }, spec);
+      const ground = resolvedColor(shotGround(el, { ...shot, bg: shot.bg || inner.dataset.bg }, spec));
       camera.appendChild(el);
-      nodes.push({ el, inner, exitWrap, ambient, shot });
+      nodes.push({ el, inner, exitWrap, ground, shot });
     });
+    if (nodes.length) stage.style.backgroundColor = nodes[0].ground;
 
     const timing = {};
     shots.forEach((s) => {
@@ -1387,10 +1398,11 @@
     // it never stretches the shot or gets chopped mid-beat.
     const overruns = [];
     const chapters = [];
+    const exits = [];
     let clock = 0;
     shots.forEach((shot, i) => {
       const fac = factories[shot.type];
-      const { el, inner, exitWrap, ambient } = nodes[i];
+      const { el, inner, exitWrap, ground } = nodes[i];
       const D = shot.dur;
       const start = clock;
       const body = gsap.timeline();
@@ -1402,13 +1414,18 @@
       }
       body.add(ft, 0);
       // The end card never exits by default — the film ends on the mark, not on
-      // air — and a shot the next cut transitions out of leaves through the
-      // transition, not before it.
-      const nextCut = i + 1 < shots.length ? shots[i + 1].cut : null;
-      const exitMode = shot.exit ?? (i === shots.length - 1 || TRANSITIONS.has(nextCut) ? "none" : motion.exit ?? "none");
-      if (exitMode && exitMode !== "none") body.add(exitTween(exitWrap, inner, shot, D, exitMode), 0);
+      // air — and a shot the next cut floods or tears out of leaves through
+      // that cut, not before it.
+      const next = shots[i + 1];
+      let exitMode = shot.exit ?? (!next || TRANSITIONS.has(next.cut) ? "none" : motion.exit ?? "none");
+      if (!EXITS.has(exitMode)) { console.warn("[compiler] unknown exit", exitMode, "in", shot.id, "— exits:", [...EXITS].join(", ")); exitMode = "none"; }
+      exits[i] = exitMode;
+      if (exitMode !== "none") {
+        const lead = Math.min(EXIT_LEAD, D * 0.25);
+        const keep = next && next.morph && next.morph.from ? inner.querySelector(next.morph.from) : null;
+        deferred.push({ t: start + D - lead, fn: () => exitTween(body, inner, shot, D, exitMode, keep, lead) });
+      }
       if (Array.isArray(shot.beats) && shot.beats.length) body.add(beatTweens(el, inner, exitWrap, shot, D, shot.beats, spec, deferred, start), 0);
-      if (ambient) body.add(ambientAnimate(ambient, clock, D), 0);
       clock += D;
       // Rest travel is an authored choice, including for custom factories.
       // A shot may opt out of a film-wide drift without changing its own animation.
@@ -1422,14 +1439,20 @@
           transformOrigin: "50% 50%",
         }, 0);
       }
+      // The stage takes this shot's ground at the cut — or, when the join is a
+      // morph into the ground, when the morph lands.
+      const groundMorph = i > 0 && shot.morph && shot.morph.to === "ground";
+      if (!groundMorph) master.set(stage, { backgroundColor: ground }, start);
+      if (ambient) master.set(ambient, { opacity: shot.ambient === false ? 0 : 1 }, start);
       if (i === 0) {
         gsap.set(el, { opacity: 1, pointerEvents: "auto" });
         master.add(body, 0).addLabel(shot.id, 0);
       } else {
         gsap.set(el, { opacity: 0, pointerEvents: "none" });
         const prev = nodes[i - 1].el;
-        const cut = cutTween(prev, el, shot, motion, spec);
+        const cut = cutTween(prev, el, shot, motion, spec, exits[i - 1] !== "none" ? EXIT_TAIL : 0);
         master.add(cut, start).add(body, start).addLabel(shot.id, start);
+        if (shot.morph) morphJoin(master, nodes[i - 1], nodes[i], shot, start, stage);
         // A flood's halo blooms on the outgoing shot before the cut.
         if (cut.__flood) {
           const fp = cut.__flood;
@@ -1443,6 +1466,7 @@
       if (shot.chapter && (i === 0 || shots[i - 1].chapter !== shot.chapter)) chapters.push({ id: shot.chapter, time: start, shot: shot.id });
     });
     window.__CHAPTERS = chapters;
+    if (ambient) master.add(ambientAnimate(ambient, 0, clock), 0);
     // Pin the end of the film to the last shot's `dur` (a zero-length marker
     // keeps master.duration() honest even if something short-changed the tail).
     master.set({}, {}, clock);
@@ -1558,8 +1582,10 @@
       const wasAt = master.time();
       master.seek(0, false);
       for (const d of deferred) { try { master.seek(d.t, false); d.fn(); } catch (e) { console.warn("[compiler] deferred build failed", e); } }
+      for (const hk of window.__LAYOUT_HOOKS) {
+        try { hk.run((t) => master.seek(toMaster(master, hk.tl, t), false)); } catch (e) { console.warn("[compiler] layout work failed", e); }
+      }
       try { actorsBuild(master, spec, nodes, shots); } catch (e) { console.warn("[compiler] actors failed", e); }
-      try { buildCarries(master, nodes, shots); } catch (e) { console.warn("[compiler] carry failed", e); }
       master.seek(wasAt, false);
       runFrameHooks();
       if (captions) {
@@ -1618,7 +1644,7 @@
 
   function resolveTargetElement(raw) {
     if (!raw || raw === document.body || raw === document.documentElement) return null;
-    if (raw.id === "viewport" || raw.id === "camera" || raw.id === "preview-bar" || raw.id?.startsWith("studio-inspect")) {
+    if (raw.id === "viewport" || raw.id === "camera" || raw.id === "stage" || raw.id === "preview-bar" || raw.id?.startsWith("studio-inspect")) {
       return null;
     }
 

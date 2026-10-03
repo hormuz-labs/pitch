@@ -126,7 +126,7 @@ the true-peak overs or crush the mix to match perceived loudness.
   0.1–0.15s with a one-frame `flash`; holds of 2–5s with `push` 1 → 1.06.
 - **Match cuts on the motif**: prepare both clips with `--focus` on the shared
   form (the iris, the planet, the ring) so it lands in the same place of the
-  frame, then cut hard. A 0.3s `dissolve` only where the forms truly overlap.
+  frame, then cut hard.
 - **Thin-line diagrams** (orbits, labels, measurement marks): a project type
   drawing SVG with DrawSVG on the timeline; the `signal` recipe in
   [recipes.md](recipes.md) is the pattern for a canvas line.

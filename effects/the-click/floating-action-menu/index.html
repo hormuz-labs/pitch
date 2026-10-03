@@ -51,7 +51,7 @@
   const tl = fx.timeline({ duration: 4 });
   const fx0 = 316 - 22 - 34, fy0 = 656 - 30 - 34; // fab center in screen coords
   gsap.set('.opt', { y: 30, scale: 0.6, transformOrigin: '100% 50%' });
-  tl.fromTo('.cursor', { x: fx0 - 120, y: fy0 - 200, opacity: 0 }, { x: fx0, y: fy0, opacity: 1, duration: 0.6, ease: 'power3.out' }, 0)
+  tl.fromTo('.cursor', { x: fx0 - 120, y: fy0 - 200, opacity: 0 }, { x: fx0, y: fy0, opacity: 1, duration: 0.6, ease: 'move' }, 0)
     .to('.fab', { scale: 0.88, duration: 0.1, ease: 'power2.in' }, 0.6)
     .to('.fab', { scale: 1.08, duration: 0.55, ease: 'elastic.out(1,0.5)', borderRadius: '34px' }, 0.72)
     .to('.fab svg', { rotation: 135, duration: 0.5, ease: 'back.out(2)' }, 0.68)

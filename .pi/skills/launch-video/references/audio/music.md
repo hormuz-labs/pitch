@@ -11,8 +11,8 @@ Then `pitch motion beats --duration <film>` measures it: tempo, bars, loudness
 per bar, the changes and the drop, in film seconds. Write the storyboard in
 bars of it:
 
-- a chapter starts on a downbeat (`cue: "bar 5"`); the turn, or the moment
-  worth replaying, lands on the drop (`cue: "drop"`);
+- a scene (a shot) starts on a downbeat (`cue: "bar 5"`) and runs several
+  bars; the turn, or the moment worth replaying, lands on the drop;
 - inside a shot each arrival takes its own beat (`s.beatTimes` in a custom
   type, `cue: "bar 5.3"` on a beat or line); quiet bars are for reading, busy
   ones for building;

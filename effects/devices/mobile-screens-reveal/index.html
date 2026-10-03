@@ -48,9 +48,9 @@
   // left, below, right — with a whip of motion blur, a flash on impact, and settle into a fan
   gsap.set('.glow', { scale: 0.3, opacity: 0 });
   tl.to('.glow', { scale: 1, opacity: 1, duration: 1.0, ease: 'power2.out' }, 0)
-    .fromTo('.p1', { y: 900, rotateX: -40, scale: 1.1, filter: 'blur(14px)' }, { y: -10, rotateX: 0, scale: 1, filter: 'blur(0px)', duration: 0.7, ease: 'expo.out' }, 0.35)
-    .fromTo('.p0', { x: -1000, rotateY: 60, rotateZ: -12, filter: 'blur(14px)' }, { x: -300, rotateY: 22, rotateZ: -6, filter: 'blur(0px)', duration: 0.7, ease: 'expo.out' }, 0.5)
-    .fromTo('.p2', { x: 1000, rotateY: -60, rotateZ: 12, filter: 'blur(14px)' }, { x: 300, rotateY: -22, rotateZ: 6, filter: 'blur(0px)', duration: 0.7, ease: 'expo.out' }, 0.6)
+    .fromTo('.p1', { y: 900, rotateX: -40, scale: 1.1, filter: 'blur(14px)' }, { y: -10, rotateX: 0, scale: 1, filter: 'blur(0px)', duration: 0.7, ease: 'move' }, 0.35)
+    .fromTo('.p0', { x: -1000, rotateY: 60, rotateZ: -12, filter: 'blur(14px)' }, { x: -300, rotateY: 22, rotateZ: -6, filter: 'blur(0px)', duration: 0.7, ease: 'move' }, 0.5)
+    .fromTo('.p2', { x: 1000, rotateY: -60, rotateZ: 12, filter: 'blur(14px)' }, { x: 300, rotateY: -22, rotateZ: 6, filter: 'blur(0px)', duration: 0.7, ease: 'move' }, 0.6)
     .set('.p0', { z: -120, y: 30 }, 0).set('.p2', { z: -120, y: 30 }, 0)
     // impact flash + a shake on the group
     .fromTo('.flash', { opacity: 0.85 }, { opacity: 0, duration: 0.35, ease: 'power2.out', immediateRender: false }, 0.62)

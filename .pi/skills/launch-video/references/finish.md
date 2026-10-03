@@ -10,7 +10,7 @@ not the intention.
 1. **Measure.** One `pitch motion audit` of the whole film (timeline validity,
    brand colours, frame one, still stretches, notes); read the sheet it
    writes, a frame a second. Then one `pitch motion review --times '[…]'` just
-   before, during and after each signature transition and each carry or match.
+   before, during and after each signature transition and each morph or match.
 2. **List the problems, ranked,** each with its timestamp, in `critique.md`:
    biggest first. End the list with **ship** or **one more pass**.
 3. **Fix the biggest first.** Batch fixes that touch different shots, then
@@ -34,8 +34,8 @@ On the sheets, in this order:
   shot where everything arrives together, where something appears and only
   then moves, or where the frame freezes, is not finished. Does each arrival
   land on its beat?
-- **Joins:** does each carried object land on its handoff box? Does each cut
-  carry or match, or does it read as an accidental restart?
+- **Joins:** do the elements make each join, with the frame never moving as
+  a page? Does each cut morph or match, or read as an accidental restart?
 - **Frame one:** a finished composition, good enough as a thumbnail, never a
   word halfway through flying in.
 - **Sameness:** the same layout or text entrance in neighbouring shots; web-page
@@ -46,11 +46,7 @@ On the sheets, in this order:
 
 Defects that pass every automatic check and still get films rejected:
 
-- A wipe that splices two titles into one word: the outgoing title leaves
-  before the wipe, the incoming one enters after it.
 - A card or panel that goes blank between states: crossfade its contents in place.
-- Text travelling through other text during a move: fade out, then in at the
-  destination.
 - An overlay that drifts off its anchor because its parent has a slow push:
   give the overlay the same push.
 - A label that names the wrong thing, often one tween targeting two variants.

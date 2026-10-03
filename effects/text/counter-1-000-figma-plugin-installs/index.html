@@ -45,7 +45,7 @@
     const p = document.createElement('div'); p.className = 'p'; p.style.background = cols[i % cols.length]; conf.appendChild(p);
     const a = rng() * Math.PI * 2, r = 260 + rng() * 380;
     tl.fromTo(p, { x: 0, y: 0, opacity: 1, rotation: 0, scale: .6 + rng() * .8 },
-      { x: Math.cos(a) * r, y: Math.sin(a) * r + 160, rotation: (rng() - .5) * 720, opacity: 0, duration: .9 + rng() * .4, ease: 'power2.out' }, 1.8);
+      { x: Math.cos(a) * r, y: Math.sin(a) * r + 160, rotation: (rng() - .5) * 720, opacity: 0, duration: .9 + rng() * .4, ease: 'move' }, 1.8);
   }
   tl.to('.num, .lbl, .pill, .logo', { opacity: 0, y: -20, duration: .3, stagger: .03, ease: 'power2.in' }, 2.7);
 </script>

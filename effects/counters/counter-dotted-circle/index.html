@@ -50,7 +50,7 @@
   // landing pop
   tl.fromTo('.val', { scale: 1 }, { scale: 1.12, duration: 0.15, ease: 'power3.out' }, 2.7).to('.val', { scale: 1, duration: 0.6, ease: 'elastic.out(1,0.4)' }, 2.85);
   pieces.forEach(p => {
-    tl.fromTo(p.el, { x: 0, y: 0, opacity: 1, rotation: 0, scale: 0.6 }, { x: Math.cos(p.a) * p.r, y: Math.sin(p.a) * p.r, rotation: p.rot, scale: 1, duration: 0.9, ease: 'expo.out' }, 2.72)
+    tl.fromTo(p.el, { x: 0, y: 0, opacity: 1, rotation: 0, scale: 0.6 }, { x: Math.cos(p.a) * p.r, y: Math.sin(p.a) * p.r, rotation: p.rot, scale: 1, duration: 0.9, ease: 'move' }, 2.72)
       .to(p.el, { opacity: 0, y: '+=60', duration: 0.5, ease: 'power2.in' }, 3.2);
   });
   tl.to(['.ring', '.center'], { opacity: 0, scale: 0.9, duration: 0.3, ease: 'power2.in' }, 3.7);

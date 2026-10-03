@@ -13,7 +13,7 @@
     "gsap",
     "css-3d"
   ],
-  "adapt": "Replace the items array (kind web/app, hero gradient, title, dark flag), the title text and the background gradients; pose() controls spacing. Keep the 1.0s expo.out entries with 0.28s stagger and the 6s sine pan.",
+  "adapt": "Replace the items array (kind web/app, hero gradient, title, dark flag), the title text and the background gradients; pose() controls spacing. Keep the 1.0s move entries with 0.28s stagger and the 6s sine pan.",
   "port": "mount(el, shot) builds .cas with the mixed screens from shot.items and applies the initial wrapper gsap.set; animate(el, shot, D) returns the timeline with entries at (0.015 + i*0.028)*D, pan at 0.15D, scrolls at 0.32D/0.58D and exit at 0.85D. The title from() should be fromTo with immediateRender:false; el needs perspective:2200px.",
   "caveats": [
     "catalog lists 18s but the file renders 10s",

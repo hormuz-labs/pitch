@@ -45,7 +45,7 @@
   cards.forEach(c => gsap.set(`${c} .stars i`, { scale: 0 }));
   tl.to('.hd span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.1);
   // the stack arrives, back first
-  cards.slice().reverse().forEach((c, j) => tl.to(c, { ...pose(2 - j), duration: 0.9, ease: 'expo.out' }, 0.05 + j * 0.1));
+  cards.slice().reverse().forEach((c, j) => tl.to(c, { ...pose(2 - j), duration: 0.9, ease: 'move' }, 0.05 + j * 0.1));
   // one at a time: words of the front quote rise, stars pop; then the front card flicks off and the next steps up
   for (let s = 0; s < 3; s++) {
     const t = 0.5 + s * STEP;

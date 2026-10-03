@@ -29,7 +29,7 @@ export function extractSpec() {
       return {
       id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
       beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
-      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: names.length, carry: !!x.carry,
+      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: names.length, carry: !!x.carry, morph: x.morph || null,
       chapter: x.chapter || null, typing: !!x.typing, container: x.container || null,
       breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"), rippleBeats: beatsOf(x, "ripple"),
       capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\//.test(x.src),
@@ -47,6 +47,8 @@ export function extractSpec() {
   };
 }
 
+const CUTS = new Set(["hard", "punch", "flood", "glitch"]);
+
 /**
  * Lint the shot list (the shape extractSpec returns).
  * Returns [{ level: "fail" | "warn", code, msg }].
@@ -55,8 +57,11 @@ export function lintDesign(spec) {
   const out = [];
   const shots = spec.shots || [];
   if (!shots.length) out.push({ level: "fail", code: "count", msg: "The timeline has no shots. Add the first shot before auditing." });
-  shots.forEach((s) => {
+  shots.forEach((s, i) => {
     if (!Number.isFinite(s.dur) || s.dur <= 0) out.push({ level: "fail", code: "duration", msg: `#${s.id}: duration must be a finite, positive number (got ${s.dur}).` });
+    if (!CUTS.has(s.cut)) out.push({ level: "fail", code: "cut", msg: `#${s.id}: cut "${s.cut}" does not exist — cuts are ${[...CUTS].join(", ")}, and none moves a whole shot. Join by the elements: the outgoing ones leave (exit), one becomes the next (morph), or the camera pushes in (a zoom beat).` });
+    if (s.carry) out.push({ level: "fail", code: "carry", msg: `#${s.id}: carry is gone — write morph: { from, to } (one element becomes the next).` });
+    if (s.morph && (i === 0 || !s.morph.from)) out.push({ level: "fail", code: "morph", msg: `#${s.id}: morph needs { from } in the shot before it${i === 0 ? ", and the first shot has none" : ""}.` });
     if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: review this whole-screen ${s.frame || "browser"} view at delivery size. An overview is valid; if a particular control or label must be read, crop, focus or rebuild that detail.` });
   });
   return out;

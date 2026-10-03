@@ -1,6 +1,6 @@
 {
   "move": "stacked headline rises, orange floats up between lines, middle word yields",
-  "how": "An orange 1080 square with four faint bubbles, two corner badges, three masked serif rows (the middle one behind the fruit) and an SVG orange with a leaf. Rows rise yPercent 110 to 0 with a 0.12s stagger (expo.out, 0.9s); the orange rises from y 700 rotating -40 scale 0.8 to rest (expo.out, 1.3s, at 7%) and the middle word slides x -250 to make room (expo.out). From 27% the orange bobs y -28 three times and tilts to 14deg and back (sine.inOut) while drifting x 90 and the middle word drifts further; the leaf wags. Bubbles rise from y 120 to -320 over the whole clip. At 88% the orange drops through y 800 rotating 60 (power3.in), rows fly up and badges fade.",
+  "how": "An orange 1080 square with four faint bubbles, two corner badges, three masked serif rows (the middle one behind the fruit) and an SVG orange with a leaf. Rows rise yPercent 110 to 0 with a 0.12s stagger (expo.out, 0.9s); the orange rises from y 700 rotating -40 scale 0.8 to rest (expo.out, 1.3s, at 7%) and the middle word slides x -250 to make room (move). From 27% the orange bobs y -28 three times and tilts to 14deg and back (sine.inOut) while drifting x 90 and the middle word drifts further; the leaf wags. Bubbles rise from y 120 to -320 over the whole clip. At 88% the orange drops through y 800 rotating 60 (power3.in), rows fly up and badges fade.",
   "moves": [
     "mask-rise",
     "float",

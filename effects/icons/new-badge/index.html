@@ -38,7 +38,7 @@
   const ln = document.getElementById('ln'), L = [];
   for (let k = 0; k < 8; k++) { const b = document.createElement('b'); ln.appendChild(b); L.push(b); }
   const tl = fx.timeline({ duration: 4 });
-  tl.from('.panel', { y: 40, opacity: 0, duration: .7, ease: 'expo.out' }, 0)
+  tl.from('.panel', { y: 40, opacity: 0, duration: .7, ease: 'move' }, 0)
     .from('#h span', { yPercent: 100, opacity: 0, duration: .55, stagger: .025, ease: 'expo.out' }, .15)
     .from('p', { y: 20, opacity: 0, duration: .6, ease: 'power3.out' }, .5)
     // badge: confident wipe in — white cover slides off, letters follow
@@ -53,7 +53,7 @@
   L.forEach((b, k) => {
     const a = (k / L.length) * Math.PI * 2;
     tl.fromTo(b, { x: bx - 640, y: by - 360, rotation: a * 180 / Math.PI + 90, scaleY: 0, opacity: 1 },
-      { x: bx - 640 + Math.cos(a) * 130, y: by - 360 + Math.sin(a) * 130, scaleY: 1, opacity: 0, duration: .7, ease: 'expo.out', immediateRender: false }, 1.15);
+      { x: bx - 640 + Math.cos(a) * 130, y: by - 360 + Math.sin(a) * 130, scaleY: 1, opacity: 0, duration: .7, ease: 'move', immediateRender: false }, 1.15);
   });
   // subtle idle pulse then exit
   tl.to('.badge', { scale: 1.06, duration: .35, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 2.4)

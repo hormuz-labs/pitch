@@ -31,7 +31,7 @@
   // each card drops from above in sequence, tilting back as it falls, and lands with a soft bounce
   cards.forEach((c, i) => {
     const t = 0.1 + i * 0.22;
-    tl.fromTo(c, { y: -820, rotateX: -35, rotateZ: -6 + i * 3 }, { y: 0, rotateX: 0, rotateZ: 0, duration: 1.0, ease: 'back.out(1.2)' }, t)
+    tl.fromTo(c, { y: -820, rotateX: -35, rotateZ: -6 + i * 3 }, { y: 0, rotateX: 0, rotateZ: 0, duration: 1.0, ease: 'move' }, t)
       .fromTo(c, { scaleY: 1 }, { scaleY: 0.94, duration: 0.12, ease: 'power2.out', yoyo: true, repeat: 1 }, t + 0.72)
       .from([c.querySelector('.n'), c.querySelector('.h')], { y: 18, opacity: 0, duration: 0.5, ease: 'expo.out', stagger: 0.08 }, t + 0.8);
   });

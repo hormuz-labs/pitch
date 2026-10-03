@@ -66,9 +66,9 @@
   gsap.set('.row span', { yPercent: 110 });
   gsap.set('.bar i', { scaleX: 0 });
   // bold entrance: the stack slams up from below, back card lags
-  tl.to('.card.back', { y: 0, rotateX: 0, scale: 0.94, duration: 0.9, ease: 'expo.out' }, 0.05)
+  tl.to('.card.back', { y: 0, rotateX: 0, scale: 0.94, duration: 0.9, ease: 'move' }, 0.05)
     .to('.card.back', { y: -22, duration: 0.6, ease: 'power2.out' }, 0.5)
-    .to('.card:not(.back)', { y: 0, rotateX: 0, scale: 1, duration: 0.9, ease: 'expo.out' }, 0.15)
+    .to('.card:not(.back)', { y: 0, rotateX: 0, scale: 1, duration: 0.9, ease: 'move' }, 0.15)
     .fromTo('.card:not(.back)', { scaleY: 1.06 }, { scaleY: 1, duration: 0.5, ease: 'elastic.out(1,0.5)' }, 0.75)
     .to('.top span', { yPercent: 0, duration: 0.6, ease: 'expo.out' }, 0.2)
     .to('.live', { scale: 1, duration: 0.55, ease: 'back.out(3)' }, 0.7)

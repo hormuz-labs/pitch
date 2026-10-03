@@ -49,7 +49,7 @@
   const wins = gsap.utils.toArray('.win');
   // each window arrives in sequence: rises from below with a 3D tilt, lands flat
   wins.forEach((w, i) => {
-    tl.fromTo(w, { y: 260, z: -300, rotateX: -35, opacity: 0, scale: 0.9 }, { y: 0, z: 0, rotateX: 0, opacity: 1, scale: 1, duration: 0.9, ease: 'expo.out' }, 0.1 + i * 0.16);
+    tl.fromTo(w, { y: 260, z: -300, rotateX: -35, opacity: 0, scale: 0.9 }, { y: 0, z: 0, rotateX: 0, opacity: 1, scale: 1, duration: 0.9, ease: 'move' }, 0.1 + i * 0.16);
     // the site inside scrolls a beat after landing
     tl.to(w.querySelector('.site'), { y: -40, duration: 0.8, ease: 'power3.inOut' }, 1.6 + i * 0.1)
       .to(w.querySelector('.site'), { y: 0, duration: 0.8, ease: 'power3.inOut' }, 2.5 + i * 0.1);

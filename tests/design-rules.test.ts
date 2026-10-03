@@ -89,6 +89,17 @@ describe('lintDesign', () => {
       expect(codes(film([{}, { ...desk, ...fix }, {}, {}]))).not.toContain('desktop')
   })
 
+  it('fails a cut that moves a whole shot, and the joins that are gone', () => {
+    for (const cut of ['hard', 'punch', 'flood', 'glitch'])
+      expect(codes(film([{}, { cut }]))).not.toContain('cut')
+    for (const cut of ['push-left', 'dissolve', 'wipe-up', 'zoom', 'iris', 'flip'])
+      expect(codes(film([{}, { cut }]))).toContain('cut')
+    expect(codes(film([{}, { carry: true }]))).toContain('carry')
+    expect(codes(film([{}, { morph: { from: '.pill', to: '.card' } }]))).toEqual([])
+    expect(codes(film([{ morph: { from: '.pill' } }, {}]))).toContain('morph')
+    expect(codes(film([{}, { morph: { to: 'ground' } }]))).toContain('morph')
+  })
+
   it('allows a bare stage and intentional stillness', () => {
     const bare = film([{}, {}, {}, {}], { ambient: null, actors: 0 })
     expect(lintDesign(bare)).toEqual([])
