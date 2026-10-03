@@ -28,6 +28,7 @@ import {
   projectDetail,
   rowById,
 } from '../projects/service.js'
+import { thumbRequestOf } from '../projects/thumb-request.js'
 import { readCover } from '../worker/checkpoint.js'
 import { currentOwner, withOwner } from '../worker/client.js'
 
@@ -358,13 +359,7 @@ router.get('/projects/:id/assets/thumb', async (req, res) => {
   const p = await reviewRow(req, res, 'asset thumbnail', false)
   if (!p) return
   try {
-    const at = req.query.at === undefined ? undefined : Number(req.query.at)
-    const buf = await withOwner(p.id, w =>
-      w.assetThumbnail(p.id, {
-        path: String(req.query.path ?? ''),
-        at: Number.isFinite(at) ? at : undefined,
-      }),
-    )
+    const buf = await withOwner(p.id, w => w.assetThumbnail(p.id, thumbRequestOf(req.query)))
     if (!buf) return res.status(404).end()
     res.setHeader('Content-Type', 'image/jpeg')
     res.end(buf)

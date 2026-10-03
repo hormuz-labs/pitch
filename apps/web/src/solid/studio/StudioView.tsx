@@ -867,7 +867,7 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                       busy={s.busy}
                       stillUrl={path =>
                         s.mediaUrl(
-                          `/projects/${encodeURIComponent(s.project?.id ?? '')}/assets/thumb?path=${encodeURIComponent(path)}`,
+                          `/projects/${encodeURIComponent(s.project?.id ?? '')}/assets/thumb?path=${encodeURIComponent(path)}&w=640`,
                         )
                       }
                       onAnswer={s.readOnly ? undefined : s.send}

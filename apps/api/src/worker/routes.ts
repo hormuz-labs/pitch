@@ -11,6 +11,7 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { parseRow, rowById } from '../projects/rows.js'
+import { thumbRequestOf } from '../projects/thumb-request.js'
 import type { StudioEvent } from '../studio/events.js'
 import { authorizedByWorkerToken } from './auth.js'
 import { WORKER_ID, WORKER_TOKEN } from './config.js'
@@ -154,11 +155,7 @@ router.delete(
 router.get(
   '/projects/:id/assets/thumb',
   route('asset thumbnail', async (req, res) => {
-    const at = req.query.at === undefined ? undefined : Number(req.query.at)
-    const buf = await host.assetThumbnail(req.params.id, {
-      path: String(req.query.path ?? ''),
-      at: Number.isFinite(at) ? at : undefined,
-    })
+    const buf = await host.assetThumbnail(req.params.id, thumbRequestOf(req.query))
     if (!buf) {
       res.status(404).end()
       return

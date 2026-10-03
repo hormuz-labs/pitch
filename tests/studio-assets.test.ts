@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { buildContext } from '../apps/api/src/agent/index.js'
 import { describeUsage, videoFromInteraction } from '../apps/api/src/pipelines/video-gen.js'
 import { assetThumbnail, deleteAsset, kindOf, listAssets } from '../apps/api/src/projects/assets.js'
+import { thumbRequestOf } from '../apps/api/src/projects/thumb-request.js'
 import type { Workspace } from '../apps/api/src/studio/paths.js'
 import { withTargetLegend } from '../apps/web/src/solid/studio/helpers.js'
 
@@ -216,6 +217,23 @@ describe('asset thumbnails', () => {
     const buf = await assetThumbnail(ws, { path: 'uploads/hero.png' })
     expect(buf).not.toBeNull()
     expect(buf!.length).toBeGreaterThan(0)
+  })
+
+  it('shows proposed directions on the shelf, with a still large enough to judge', async () => {
+    const ws = workspace()
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    write(ws, 'directions/a.html', '<p>a</p>')
+    mkdirSync(path.join(ws.dir, 'directions'), { recursive: true })
+    writeFileSync(path.join(ws.dir, 'directions/a.png'), tinyPng)
+    expect((await listAssets(ws, 'proj1')).map(a => a.path)).toEqual(['directions/a.png'])
+    expect(await assetThumbnail(ws, { path: 'directions/a.png', width: 640 })).not.toBeNull()
+    expect(thumbRequestOf({ path: 'directions/a.png', w: '640', at: 'x' })).toEqual({
+      path: 'directions/a.png',
+      width: 640,
+    })
   })
 
   it('refuses 0-byte image files and does not list them as assets', async () => {

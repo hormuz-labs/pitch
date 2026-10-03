@@ -81,11 +81,13 @@ And for every frame:
   is about scale, not count: several things may share a large frame.
 - **Frame one is a finished picture.** It is the thumbnail and the autoplay
   still, never a word halfway through flying in.
-- **Set the film on the product's ground.** Use the background and surfaces
-  recon measured, never colours remembered from a brand. A dark ground needs a
-  reason in `direction.md` (the product lives in dark mode, the idea needs
-  night); dark grey-blue with glowing lines is the stock "tech film" look, and
-  the audit notes it.
+- **Set the film on the product's ground.** The background and surfaces are
+  colours recon measured (`recon/brand-tokens.md`) or the user gave you. A
+  colour that is not there is not the product's, whatever you call it ("its
+  IDE canvas"). Go dark only when recon measured a dark site or the user asks;
+  a mood (power, speed, energy, premium, cinematic) is not a reason. Dark
+  grey-blue with glowing lines is the stock "tech film" look, and the audit
+  notes it.
 - **Design for the MP4.** Video keeps colour at half resolution, so thin text
   that differs from its ground only in hue (red code on navy) smears on export.
   Essential text carries light-dark contrast and is sized to read on a phone:

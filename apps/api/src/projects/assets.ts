@@ -23,6 +23,7 @@ import { createLogger } from '@saas/shared'
 import { download } from '../flows/recording-edit/index.js'
 import type { UploadRef } from '../flows/types.js'
 import { fileUrl, type Workspace } from '../studio/paths.js'
+import type { ThumbRequest } from './thumb-request.js'
 
 const execFileP = promisify(execFile)
 const logger = createLogger('studio:assets')
@@ -71,6 +72,7 @@ const SOURCES: Array<{ dir: string; origin: AssetOrigin; depth: number }> = [
   { dir: 'uploads', origin: 'upload', depth: 1 },
   { dir: 'input', origin: 'upload', depth: 1 },
   { dir: 'renders', origin: 'generated', depth: 1 },
+  { dir: 'directions', origin: 'generated', depth: 1 },
   { dir: 'audio', origin: 'generated', depth: 1 },
   { dir: 'recon', origin: 'harvested', depth: 2 },
   { dir: 'build/images', origin: 'harvested', depth: 2 },
@@ -230,6 +232,8 @@ export async function deleteAsset(ws: Workspace, rel: string): Promise<boolean> 
  * same name must not keep showing the old frame.
  */
 const THUMB_WIDTH = 320
+/** Widths a caller may ask for; a few fixed sizes keep the cache small. */
+const THUMB_WIDTHS = [320, 640, 1280]
 
 /**
  * ffmpeg cannot open a PDF; poppler can, and it ships in Dockerfile.base.
@@ -238,7 +242,7 @@ const THUMB_WIDTH = 320
  * and although it documents `-` for stdout, poppler 26 exits 0 having written
  * nothing that way. So it writes a real file and we read it back.
  */
-async function pdfThumbnail(file: string, page: number): Promise<Buffer | null> {
+async function pdfThumbnail(file: string, page: number, width: number): Promise<Buffer | null> {
   const dir = await mkdtemp(path.join(tmpdir(), 'studio-pdfthumb-'))
   const prefix = path.join(dir, 'page')
   try {
@@ -250,7 +254,7 @@ async function pdfThumbnail(file: string, page: number): Promise<Buffer | null> 
       String(page),
       '-singlefile',
       '-scale-to',
-      String(THUMB_WIDTH),
+      String(width),
       file,
       prefix,
     ])
@@ -262,7 +266,12 @@ async function pdfThumbnail(file: string, page: number): Promise<Buffer | null> 
   }
 }
 
-async function frameThumbnail(file: string, atSec: number, isVideo = true): Promise<Buffer | null> {
+async function frameThumbnail(
+  file: string,
+  atSec: number,
+  isVideo: boolean,
+  width: number,
+): Promise<Buffer | null> {
   const args = isVideo
     ? [
         '-ss',
@@ -272,7 +281,7 @@ async function frameThumbnail(file: string, atSec: number, isVideo = true): Prom
         '-frames:v',
         '1',
         '-vf',
-        `thumbnail,scale=${THUMB_WIDTH}:-2`,
+        `thumbnail,scale=${width}:-2`,
         '-f',
         'image2pipe',
         '-vcodec',
@@ -287,7 +296,7 @@ async function frameThumbnail(file: string, atSec: number, isVideo = true): Prom
         '-frames:v',
         '1',
         '-vf',
-        `scale=${THUMB_WIDTH}:-2`,
+        `scale=${width}:-2`,
         '-f',
         'image2pipe',
         '-vcodec',
@@ -304,13 +313,6 @@ async function frameThumbnail(file: string, atSec: number, isVideo = true): Prom
   return buf.length ? buf : null
 }
 
-export interface ThumbRequest {
-  /** Workspace-relative path of the asset. */
-  path: string
-  /** Seconds into a video, or the 1-based page of a PDF. */
-  at?: number
-}
-
 /**
  * What may be pictured, which is slightly more than what the shelf lists: a
  * deck's own `build/output.pdf` is previewed and page-selected without being
@@ -319,6 +321,8 @@ export interface ThumbRequest {
  * what the shelf shows.
  */
 const THUMBABLE = new RegExp(`(?:${ASSET_PATH.source})|^build\\/output\\.pdf$`, 'i')
+
+export type { ThumbRequest }
 
 export async function assetThumbnail(ws: Workspace, req: ThumbRequest): Promise<Buffer | null> {
   const rel = req.path
@@ -334,7 +338,11 @@ export async function assetThumbnail(ws: Workspace, req: ThumbRequest): Promise<
   if (kind === 'audio' || kind === 'other' || kind === null) return null
 
   const at = Number.isFinite(req.at) ? Math.max(0, Number(req.at)) : null
-  const key = `${rel}@${at ?? 'auto'}`.replace(/[^\w.-]+/g, '_').slice(0, 120)
+  const width =
+    THUMB_WIDTHS.find(w => w >= (req.width ?? THUMB_WIDTH)) ?? THUMB_WIDTHS[THUMB_WIDTHS.length - 1]
+  const key = `${rel}@${at ?? 'auto'}${width === THUMB_WIDTH ? '' : `@${width}w`}`
+    .replace(/[^\w.-]+/g, '_')
+    .slice(0, 120)
   const cacheFile = path.join(ws.dir, '.thumbs', `asset_${key}.jpg`)
 
   try {
@@ -346,10 +354,10 @@ export async function assetThumbnail(ws: Workspace, req: ThumbRequest): Promise<
 
   let buf: Buffer | null = null
   try {
-    if (kind === 'pdf') buf = await pdfThumbnail(file, Math.max(1, Math.round(at ?? 1)))
+    if (kind === 'pdf') buf = await pdfThumbnail(file, Math.max(1, Math.round(at ?? 1)), width)
     // A poster frame at 0s is often black; a moment in is more use. ffmpeg
     // reads stills too, so images take the same path and come back scaled.
-    else buf = await frameThumbnail(file, kind === 'video' ? (at ?? 1) : 0, kind === 'video')
+    else buf = await frameThumbnail(file, kind === 'video' ? (at ?? 1) : 0, kind === 'video', width)
   } catch (err) {
     logger.warn({ err, ws: ws.internal, rel }, 'could not make an asset thumbnail')
     return null

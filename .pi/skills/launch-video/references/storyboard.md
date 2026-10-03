@@ -56,15 +56,17 @@ between two or three directions before you storyboard one. Most users cannot
 name the film they want; they can recognise it.
 
 - Each direction is a different idea from the mechanism, not the same idea in
-  three palettes. All of them are on the product's ground and type.
+  three palettes. All of them are on the product's measured ground and type:
+  directions differ in what happens, never in light versus dark.
 - Give each one a still of its **opening frame**: a static page at the film's
-  size, `directions/<a|b|c>.html`, using the brand fonts and colours from
+  size, `directions/<a|b|c>.html` (the stills land on the asset shelf), using the brand fonts and colours from
   recon, then capture them all in one call:
   `pitch motion screenshot --html directions/a.html --out directions/a.png --width 1920 --height 1080 && …`.
   Look at each still; it has to be a frame you would be proud to open on.
 - Ask with one `ask_user` question: per direction, `label` is the idea in a
-  few plain words, `hint` one line on how it feels, `image` its still, and
-  `details` its three signature moments. Put your pick first with the reason
+  few plain words, `hint` one line on what the viewer sees, `image` its still,
+  and `details` its three signature moments. Write for someone who is not a
+  motion designer: no craft words (kinetic, glow, cinematic, slam). Put your pick first with the reason
   in `intro`, then end the turn.
 
 The chosen still is frame one's target; the others stay in `directions/` and

@@ -291,7 +291,7 @@ function remote(w: WorkerRow): WorkerClient {
         'GET',
         pathOf(
           id,
-          `/assets/thumb?path=${encodeURIComponent(r.path)}${r.at !== undefined ? `&at=${encodeURIComponent(r.at)}` : ''}`,
+          `/assets/thumb?path=${encodeURIComponent(r.path)}${r.at !== undefined ? `&at=${encodeURIComponent(r.at)}` : ''}${r.width !== undefined ? `&w=${encodeURIComponent(r.width)}` : ''}`,
         ),
       ).then(b => (b?.length ? b : null), absentAsNull),
     startExport: (id, body) => call(w, 'POST', pathOf(id, '/export'), body),

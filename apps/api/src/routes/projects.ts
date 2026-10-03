@@ -6,6 +6,7 @@ import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { IDLE_EXPORT } from '../projects/export.js'
 import * as projects from '../projects/service.js'
+import { thumbRequestOf } from '../projects/thumb-request.js'
 import { listStudioModels } from '../studio/session.js'
 import { readCover } from '../worker/checkpoint.js'
 import { currentOwner, withOwner } from '../worker/client.js'
@@ -207,13 +208,7 @@ router.get('/:id/assets/thumb', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    const at = req.query.at === undefined ? undefined : Number(req.query.at)
-    const buf = await withOwner(p.id, w =>
-      w.assetThumbnail(p.id, {
-        path: String(req.query.path ?? ''),
-        at: Number.isFinite(at) ? at : undefined,
-      }),
-    )
+    const buf = await withOwner(p.id, w => w.assetThumbnail(p.id, thumbRequestOf(req.query)))
     if (!buf) return res.status(404).end()
     res.setHeader('Content-Type', 'image/jpeg')
     res.setHeader('Cache-Control', 'private, max-age=60')
