@@ -502,9 +502,33 @@ export default function motionCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'beats',
+    description:
+      "Measure the music bed's pulse → audio/music-beats.json: tempo, every beat, the bars (4/4) with their loudness, where the energy changes, and the drop. " +
+      'Times are film times (the mixer lays the bed from its start). Then cue shots, beats and lines with "bar N", "bar N.3", "beat N" or "drop" and run pitch motion sync. Re-run after changing or trimming the bed.',
+    parameters: Type.Object({
+      music: Type.Optional(Type.String({ description: 'Music bed (default audio/music.<ext>)' })),
+      duration: Type.Optional(
+        Type.Number({ description: 'Film length in seconds: limits the printed bars' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a: string[] = []
+      if (p.music) a.push('--music=' + relativeIn(ws, p.music))
+      if (p.duration) a.push('--duration=' + p.duration)
+      try {
+        return text(await runScript('beats.mjs', a, ws, 120_000))
+      } catch (err: any) {
+        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
+      }
+    },
+  })
+
+  commands.push({
     verb: 'sync',
     description:
-      'Cut the picture to the words: reads shot/beat/line/more `cue` phrases against audio/vo-words.json and retimes shots.js so each lands ~0.12s before its word. write=true edits shots.js (backup shots.js.bak) and re-times audio/sfx-cues.json; otherwise it prints the plan. Run after every script or cue change.',
+      'Cut the picture to the words and the music: reads shot/beat/line/more `cue`s — a phrase from audio/vo-words.json (lands ~0.12s before its word) or "bar N" / "bar N.3" / "beat N" / "drop" from audio/music-beats.json (lands on the beat) — and retimes shots.js. write=true edits shots.js (backup shots.js.bak) and re-times audio/sfx-cues.json; otherwise it prints the plan. Run after every script, cue or bed change.',
     parameters: Type.Object({
       write: Type.Optional(
         Type.Boolean({ description: 'Apply to shots.js (default false = plan only)' }),

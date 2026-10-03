@@ -14,11 +14,6 @@ plays as you save, every scene animated on one seekable GSAP timeline, three.js
 only where depth explains something. The user exports the MP4; never render one
 to check your work.
 
-Elsewhere: an ad, promo, brand anthem or editorial montage is
-[promo-video](../promo-video/SKILL.md); changing an existing video file is
-[video-editing](../video-editing/SKILL.md); a recorded browser walkthrough is
-demo-video.
-
 ## The order of work
 
 1. **Understand the product.** Explore it with `pitch motion inspect <url>` and
@@ -36,57 +31,66 @@ demo-video.
    reference.
 3. **Let the user choose a direction, then write the brief and storyboard**
    in `direction.md` and critique it before building anything
-   (`references/storyboard.md`). A narrated film writes and
-   records its read first (`references/audio/narration.md`); the picture is
-   timed to it.
-4. **Build the shared pieces, then one scene at a time,** checking each before
-   the next (`references/build.md`; `references/3d.md` when a scene has depth).
+   (`references/storyboard.md`). The picture is cut to the sound, so the sound
+   comes first: the music, measured with `pitch motion beats`
+   (`references/audio/music.md`), and for a narrated film its read
+   (`references/audio/narration.md`). Each row is built from an effect in the
+   library (`references/effects.md`).
+4. **Build the shared pieces, then one scene at a time,** porting each row's
+   effect and checking each scene before the next (`references/build.md`;
+   `references/3d.md` when a scene has depth).
 5. **Critique the whole film as a stranger would,** fix the biggest problem,
    and go again until it holds up (`references/finish.md`).
-6. **Sound** (`references/audio.md`), then report.
+6. **Mix** (`references/audio.md`), then report.
 
 An edit loads only what that change needs and keeps the established direction.
 
 ## Motion principles
 
-1. **The front of the shot becomes the transition.** A title, logo or object
+1. **Motion tells the eye what to read, and in what order.** Nothing that
+   matters appears all at once: each element arrives when it is to be read,
+   and the movement of one leads the eye to the next (a line draws to the
+   label, the cursor travels to the button, the camera pushes to the number).
+   One movement leads; smaller ones start a little after it and overlap it.
+   If you cannot say where the eye lands first, second and third, the shot is
+   not designed yet.
+2. **Everything new lands on the music** (`references/audio/music.md`), or on
+   a narrated film's words.
+3. **The front of the shot becomes the transition.** A title, logo or object
    moves toward the camera or across the frame while the next scene already
-   waits underneath. The thing that clears a shot is often what the next one
-   is about.
-2. **One object carries the story** across shots and keeps its identity: the
+   waits underneath.
+4. **One object carries the story** across shots and keeps its identity: the
    product's own file, message, card, cursor or mark, changing role as the
    film moves on. Separate scenes then read as one piece.
-3. **One movement leads.** Smaller ones layer under it, start a little after
-   it and overlap it, so the frame never stops or starts all at once. A
-   composition can hold many elements; only one leads.
-4. **The speed always changes.** Things arrive decelerating, rest long enough
-   to read, leave accelerating, and the next thing slows as it arrives.
-   Nothing moves linearly except a continuous loop.
-5. **Cut only on a match.** A hard cut reads as continuous when size,
+5. **Things come to life; they never appear and then move.** An element is
+   born travelling (scale, position, blur, a mask) and slows into a settle
+   that lasts through the read instead of stopping dead. A later change comes
+   from a cause that touches it (the cursor, a line, the camera), never from a
+   frozen object. The speed always changes; only a drift or a loop is linear.
+6. **Cut only on a match.** A hard cut reads as continuous when size,
    direction or subject match on both sides; a question cut to its answer
    matches in meaning. A cut where nothing matches is a new chapter.
-6. **Every action has a visible result.** A tap makes a new state, a scan
-   makes findings, a request makes a confirmation. An action with no
-   consequence is decoration, and a click lands on the thing it clicks.
-7. **Type is motion.** Big words enter from opposite sides, reveal the next
-   scene, arrive in phrases fully formed, and never sit over a busy picture
-   without something behind them. Text never collides with or travels
-   through other text.
-8. **Vary the scale.** Close, wide, overhead, full-frame type. Never the same
+7. **Every action has a visible result.** A tap makes a new state, a scan
+   makes findings, a request makes a confirmation; a click lands on the thing
+   it clicks.
+8. **Type is motion, never the same motion twice running.** Words arrive in a
+   way that fits what they say, from the library's `text` family (word by
+   word, letter by letter, a mask wipe, a scramble, out of a blur), and
+   no text entrance repeats in the next shot, and rarely at all in one film.
+   Words never sit over a busy picture without something behind them, and
+   never collide with or travel through other text.
+9. **Vary the scale.** Close, wide, overhead, full-frame type. Never the same
    layout twice running (a heading over three cards, again).
 
 And for every frame:
 
 - **What leads fills the frame.** No small cards floating in empty space. This
   is about scale, not count: several things may share a large frame.
-- **Frame one is a finished picture.** It is the thumbnail and the autoplay
-  still, never a word halfway through flying in.
-- **Build the palette from the brand.** Grounds, surfaces and accents come
-  from what recon measured (`recon/brand-tokens.md`: background, surfaces,
-  theme colour, accent) or what the user gave you. Light or dark is your call,
-  but a dark film is the brand's own dark (its theme colour, its dark
-  surfaces) with its accent, not an invented navy. Dark grey-blue with glowing
-  lines is the stock "tech film" look, and the audit notes it.
+- **The brand's colours, and only those.** The ground follows the site's
+  measured page (`recon/brand-tokens.md`): a light site makes a light film,
+  and its dark surfaces are for objects inside it (a card, a screen). Every
+  colour in your code is a token or a measured surface; a treatment colour is
+  declared once in `brand.palette`. The audit fails anything else.
 - **Design for the MP4.** Video keeps colour at half resolution, so thin text
   that differs from its ground only in hue (red code on navy) smears on export.
   Essential text carries light-dark contrast and is sized to read on a phone:
@@ -102,13 +106,14 @@ the difference.
   user's), placed as it is: never redrawn, retyped or approximated as a path.
   If the film needs the mark alone and only the full logo exists, use the full
   logo or ask the user for the mark.
+- An icon is a real asset: the product's own, a brand mark (`pitch icons`), or
+  an animated one from the library. Never a Unicode glyph (↑ ✓ ↗), an emoji
+  or a path you draw.
 - On screen goes only what `facts.md` holds: no invented testimonial, rating,
   price, saving, warranty, customer or result.
 - Build in code first. A generated image (`pitch motion image`) or clip is a
   supporting plate, labelled a concept, never the product, a screen, a real
   customer or a finished job.
-- In reports, separate what you measured from what still needs a person to
-  watch or listen to.
 
 ## What it is for
 
@@ -123,22 +128,6 @@ The brief decides the kind of film; each puts something different at the centre.
 | Teaser | one reveal: what is withheld, why the viewer cares, what they remember |
 | 3D product film | something physical or spatial (layers, parts, placement, scale) that flat cannot show |
 
-Runtime follows what the film has to show and be read; it is approximate unless
-the user says exact or a maximum. Report the actual length.
-
-## References
-
-Paths are relative to this skill. Load each when its step comes.
-
-| Step | Read |
-|---|---|
-| Study a video the user supplied | `references/reference-video.md` |
-| Brief, idea, directions to choose from, storyboard and its critique | `references/storyboard.md` |
-| Build with the engine: shared pieces, scenes, joins, type | `references/build.md` |
-| A scene with real depth (three.js) | `references/3d.md` |
-| Critique rounds, the quality bar, the report | `references/finish.md` |
-| Narration: script and record before building | `references/audio/narration.md` |
-| Music, sound effects, mix | `references/audio.md` |
-
+Paths are relative to this skill; load each reference when its step comes.
 The motion principles are adapted from Chris (@everestchris6)'s published
 motion-video prompt and his MIT-licensed motion-video-kit.

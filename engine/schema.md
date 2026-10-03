@@ -18,7 +18,8 @@ window.SHOTS = {
     accent: "#D97757",        // one accent
     font: '"Fraunces", Georgia, serif',   // CSS font stack for all type
     mono: '"JetBrains Mono", ui-monospace, monospace',   // optional, used by ui-frame's URL bar
-    palette: { sage: "#9CB59B", night: "#1E2A24" },      // optional named colors → shot.bg = "sage"
+    palette: { sage: "#9CB59B", night: "#1E2A24" },      // optional named colors → shot.bg = "sage"; a colour recon did not measure is declared here
+    // ground: "dark",        // only when the user asked for the opposite of the site's light/dark scheme (the audit holds the film to it otherwise)
     fonts: [                                             // optional self-hosted @font-face (deterministic renders)
       { family: "Fraunces", src: "assets/fonts/Fraunces.woff2", weight: "100 900" },
     ],
@@ -26,7 +27,7 @@ window.SHOTS = {
   audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only); fx: [...] (see "Audio effects"); pace: "ad" for a short-form ad read (2.7–3.5 words/s)
   // captions: { style: {…}, phrases: [{ cue: "here's the thing" }, …] },   // the spoken words on screen (see "Captions")
   ambient: { kind: "none" },                     // optional stage treatment (see "Density layer")
-  motion: { exit: "none", drift: false, cutDur: 0.5 }, // no added motion by default; opt into exits or drift for this film
+  motion: { exit: "none", drift: true, cutDur: 0.5 }, // drift keeps every shot alive; a shot with its own camera sets drift: false
   actors: { folder: { src: "assets/harvested/folder.png", w: 320 } },   // objects that live across shots (see "Actors")
   // render: { shutter: 0.5, samples: 4 },          // only when direction.md asks for motion blur: `samples` captures per frame = samples× the export time (see "Render and grade")
   // grade: { temperature: 5600, vignette: 0.3 },    // only when direction.md names a finish (see "Render and grade")
@@ -36,11 +37,9 @@ window.SHOTS = {
 
 ## Density layer (optional stage, exits and beats)
 
-These fields add motion beyond the shot factory. Choose them for the
-treatment; none is required. The engine adds no ambient, drift or exit by
-default. A hold, a simple reveal and a long take are valid. The audit reports
-pixel-change diagnostics for review against direction.md, not a required
-density or a universal animation pattern.
+These fields add motion beyond the shot factory. The engine adds no ambient,
+drift or exit by default; the starter film turns drift on so no shot freezes.
+The audit's pixel-change diagnostics are for review, not a required density.
 
 | Field | Where | Meaning |
 |---|---|---|
@@ -130,7 +129,8 @@ and leave dead air between them.
 | `beats` | Mid-shot events — see "Density layer". |
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
 | `ambient` | `false` hides the ambient stage on this shot. |
-| `cue` | The script phrase this shot lands on (`"step two"`). `pitch motion sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
+| `cue` | The script phrase this shot lands on (`"step two"`). `pitch motion sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). Or a musical position from `audio/music-beats.json` (`pitch motion beats`): `"bar 5"`, `"bar 5.3"` (its third beat), `"beat 17"`, `"drop"` — the shot starts on the beat. |
+| `beatTimes` | Written by `pitch motion sync` when the film has a measured bed: the beats inside this shot, in shot seconds. A custom type lands its arrivals on them (`s.beatTimes[2]`). |
 | `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `pitch motion audit` (fragmented narration). |
 | `drift` | `true` enables slow rest travel; otherwise inherits `motion.drift` (default false). `false` opts out of a film-wide drift. `driftScale` / `driftX` / `driftY` set the target scale and position when drift is enabled. |
 

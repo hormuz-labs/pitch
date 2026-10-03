@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * sync.mjs — cut the picture to the narration.
+ * sync.mjs — cut the picture to the narration and the music.
  *
  *   node sync.mjs [--shots=shots.js] [--words=audio/vo-words.json] [--lead=0.12] [--write]
  *
@@ -12,12 +12,17 @@
  *   lines: [{ cue: "you want", parts: […] }, { cue: "editing", parts: […] }]
  *   more:  [{ cue: "second", … }]
  *
+ * A cue may instead name a musical position — "bar 5", "bar 5.3", "beat 17",
+ * "drop" — read from audio/music-beats.json (beats.mjs); those land on the
+ * beat itself. A music-only film cues nothing else.
+ *
  * With the word timeline from align.mjs this script computes when each cue
  * is spoken and RETIMES the shot list so the cued shot starts `lead` seconds
  * before its word (a visual that lands a hair early reads as "on the word").
  * Shots between two cues are scaled proportionally to fill the interval.
  * Beat `at`, `lineAt` and `moreAt` are filled from their cues (relative to
- * the shot). With --write the numbers are written back into shots.js and an
+ * the shot), and with a measured bed every shot gets `beatTimes`: the beats inside
+ * it, in shot seconds, for its factory to land arrivals on. With --write the numbers are written back into shots.js and an
  * existing audio/sfx-cues.json is re-timed the same way; without it you get
  * the plan only.
  *
@@ -26,6 +31,7 @@
  */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { isMusicCue, loadBeats, musicCueTime } from "./lib/music-beats.mjs";
 import { findPhrase, loadShots, loadWords, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 
 const argv = process.argv.slice(2);
@@ -42,14 +48,17 @@ const MIN_DUR = 0.6;
 const spec = loadShots(SHOTS_PATH);
 if (!spec) { console.error(`❌ ${SHOTS_PATH} not found or has no window.SHOTS`); process.exit(1); }
 const voFile = typeof spec.audio?.vo === "string" ? spec.audio.vo : null;
-if (!voFile) {
-  console.error("❌ shots.js audio.vo must be the continuous narration path (e.g. audio: { vo: \"audio/vo.wav\" }).\n   Per-shot vo/voDur clips are the fragmented, robotic mode — retire them.");
+const music = loadBeats();
+const allCues = spec.shots.flatMap(s => [s.cue, ...(s.beats || []).map(b => b.cue), ...(s.lines || []).map(l => l?.cue), ...(s.more || []).map(m => m?.cue)]).filter(Boolean);
+if (allCues.some(isMusicCue) && !music) { console.error("❌ shots.js cues the music but audio/music-beats.json is missing — run pitch motion beats first."); process.exit(1); }
+if (!voFile && allCues.some(c => !isMusicCue(c))) {
+  console.error("❌ word cues need the continuous narration: shots.js audio.vo (e.g. audio: { vo: \"audio/vo.wav\" }). A music-only film cues \"bar N\", \"beat N\" or \"drop\".");
   process.exit(1);
 }
-const WORDS_PATH = resolve(flag("words", wordsPathFor(voFile)));
-const timeline = loadWords(WORDS_PATH);
-if (!timeline) { console.error(`❌ ${WORDS_PATH} not found — run motion_align on ${voFile} first.`); process.exit(1); }
-const words = timeline.words;
+const WORDS_PATH = voFile ? resolve(flag("words", wordsPathFor(voFile))) : null;
+const timeline = voFile ? loadWords(WORDS_PATH) : null;
+if (voFile && !timeline) { console.error(`❌ ${WORDS_PATH} not found — run motion_align on ${voFile} first.`); process.exit(1); }
+const words = timeline?.words ?? [];
 const VO_START = voStartOf(spec);
 const shots = spec.shots;
 const legacy = shots.filter(s => typeof s.vo === "string").length;
@@ -57,18 +66,24 @@ const legacy = shots.filter(s => typeof s.vo === "string").length;
 // --- 1. resolve every cue to a time on the film's clock -------------------------
 const notFound = [];
 let cursor = 0;
-const cueTime = (phrase, from) => {
-  const hit = findPhrase(words, phrase, from);
-  if (!hit) { notFound.push(phrase); return null; }
-  return hit;
+// → { at: the cue's film time, land: when the visual lands, index/count for words }
+const cueTime = (cue, from) => {
+  if (isMusicCue(cue)) {
+    const at = musicCueTime(music, cue);
+    if (at === null) { notFound.push(cue); return null; }
+    return { at, land: at };
+  }
+  const hit = findPhrase(words, cue, from);
+  if (!hit) { notFound.push(cue); return null; }
+  return { at: VO_START + hit.start, land: VO_START + hit.start - LEAD, index: hit.index, count: hit.count };
 };
 const plan = shots.map((s, i) => ({ id: s.id || `shot${i + 1}`, i, oldDur: Number(s.dur) || 0, cue: s.cue || null, cueAt: null, wordIndex: null }));
 for (const p of plan) {
   if (!p.cue) continue;
   const hit = cueTime(p.cue, cursor);
   if (!hit) continue;
-  p.cueAt = hit.start; p.wordIndex = hit.index; cursor = hit.index + hit.count;
-  p.target = Math.max(0, VO_START + hit.start - LEAD);
+  p.cueAt = hit.at; p.target = Math.max(0, hit.land);
+  if (hit.index !== undefined) { p.wordIndex = hit.index; cursor = hit.index + hit.count; }
 }
 
 // --- 2. retime: cued shots are anchors; the shots between them share the interval
@@ -92,17 +107,27 @@ for (const a of order) {
   }
 }
 // the tail after the last anchor keeps its authored durations, but must cover the read
-const speechEnd = VO_START + (timeline.speechEnd ?? words[words.length - 1].e);
+const speechEnd = timeline ? VO_START + (timeline.speechEnd ?? words[words.length - 1].e) : 0;
 let total = newDur.reduce((t, d) => t + d, 0);
 let tailNote = null;
-if (total < speechEnd + 0.6) {
+if (!timeline) {
+  // music-only: nothing to cover
+} else if (total < speechEnd + 0.6) {
   const add = speechEnd + 0.8 - total;
   newDur[newDur.length - 1] += add;
   tailNote = `last shot extended +${add.toFixed(2)}s so the picture outlasts the final word (${speechEnd.toFixed(2)}s)`;
 } else if (total - speechEnd > 3.5) {
   tailNote = `⚠ ${(total - speechEnd).toFixed(1)}s of picture after the last word — trim the tail or add copy`;
 }
-newDur.forEach((d, k) => { newDur[k] = Math.round(d * 20) / 20; if (newDur[k] < MIN_DUR) squeezed.push(`${plan[k].id}: ${newDur[k]}s — under ${MIN_DUR}s; the cues are too close for this many shots`); });
+// round the cut points, not the durations, so rounding never accumulates past a cue
+let edge = 0, rounded = 0;
+newDur.forEach((d, k) => {
+  edge += d;
+  const next = Math.round(edge * 100) / 100;
+  newDur[k] = Math.round((next - rounded) * 100) / 100;
+  rounded = next;
+  if (newDur[k] < MIN_DUR) squeezed.push(`${plan[k].id}: ${newDur[k]}s — under ${MIN_DUR}s; the cues are too close for this many shots`);
+});
 total = newDur.reduce((t, d) => t + d, 0);
 
 // shot starts under the new durations
@@ -116,8 +141,7 @@ shots.forEach((s, i) => {
   const relAt = (phrase) => {
     const hit = cueTime(phrase, base);
     if (!hit) return null;
-    const at = VO_START + hit.start - LEAD - starts[i];
-    return Math.min(Math.max(0.05, at), D - 0.1);
+    return Math.min(Math.max(0.05, hit.land - starts[i]), D - 0.1);
   };
   if (Array.isArray(s.beats)) {
     const ats = s.beats.map(b => (b.cue ? relAt(b.cue) : (b.at ?? null)));
@@ -133,29 +157,37 @@ shots.forEach((s, i) => {
   }
 });
 
+// the beats that fall inside each shot, in shot seconds, for a factory to land on
+if (music) shots.forEach((s, i) => {
+  const ats = music.beats.filter(t => t >= starts[i] - 0.005 && t < starts[i] + newDur[i] - 0.05).map(t => Math.max(0, t - starts[i]));
+  inner.push({ i, field: "beatTimes", ats });
+});
+
 // --- 4. report ---------------------------------------------------------------------
 const rel = p => (p.startsWith(process.cwd()) ? p.slice(process.cwd().length + 1) : p);
-console.log(`🎯 sync — ${rel(SHOTS_PATH)} ⟵ ${rel(WORDS_PATH)}  (VO starts at ${VO_START}s, lead ${LEAD}s)\n`);
+const sources = [timeline && `${rel(WORDS_PATH)} (VO starts at ${VO_START}s, lead ${LEAD}s)`, music && `${music.file} (${music.bpm} BPM)`].filter(Boolean).join(" + ");
+console.log(`🎯 sync — ${rel(SHOTS_PATH)} ⟵ ${sources}\n`);
 console.log("   #  id                 old    new    start   cue");
 plan.forEach((p, k) => {
-  const cue = p.cue ? `"${p.cue}"${p.cueAt !== null ? ` @${(VO_START + p.cueAt).toFixed(2)}s` : "  (NOT FOUND)"}` : "";
+  const cue = p.cue ? `"${p.cue}"${p.cueAt !== null ? ` @${p.cueAt.toFixed(2)}s` : "  (NOT FOUND)"}` : "";
   const delta = newDur[k] !== p.oldDur ? (newDur[k] > p.oldDur ? "▲" : "▼") : " ";
   console.log(`  ${String(k + 1).padStart(2)}  ${p.id.padEnd(18)} ${p.oldDur.toFixed(2).padStart(5)} ${delta}${newDur[k].toFixed(2).padStart(5)}  ${starts[k].toFixed(2).padStart(6)}   ${cue}`);
 });
-for (const x of inner) {
+for (const x of inner.filter(x => x.field !== "beatTimes")) {
   console.log(`      ${plan[x.i].id}.${x.field} → [${x.ats.map(a => (a === null ? "–" : a.toFixed(2))).join(", ")}]`);
 }
-console.log(`\n   film ${total.toFixed(2)}s · narration ${VO_START.toFixed(2)}→${speechEnd.toFixed(2)}s · ${anchors.length} anchors from ${plan.filter(p => p.cue).length} cued shots`);
+console.log(`\n   film ${total.toFixed(2)}s${timeline ? ` · narration ${VO_START.toFixed(2)}→${speechEnd.toFixed(2)}s` : ""} · ${anchors.length} anchors from ${plan.filter(p => p.cue).length} cued shots`);
 if (tailNote) console.log(`   ${tailNote}`);
 if (legacy) console.log(`   ⚠ ${legacy} shot(s) still carry per-shot vo/voDur — delete those fields; the mixer uses audio.vo.`);
 for (const s of squeezed) console.log(`   ⚠ ${s}`);
 if (notFound.length) {
-  console.log(`\n❌ cue phrase(s) not in the script: ${notFound.map(c => `"${c}"`).join(", ")}`);
-  console.log(`   script: ${timeline.text}`);
+  console.log(`\n❌ cue(s) not found: ${notFound.map(c => `"${c}"`).join(", ")}`);
+  if (timeline) console.log(`   script: ${timeline.text}`);
+  if (music) console.log(`   music: bars 1–${music.bars.length}, beats 1–${music.beats.length}${music.drop ? "" : ", no drop"}`);
   process.exit(1);
 }
 if (!anchors.length) {
-  console.log(`\n❌ no cued shot after the first — add \`cue: "<phrase>"\` to the shots that must land on a word.`);
+  console.log(`\n❌ no cued shot after the first — add \`cue: "<phrase>"\` or \`cue: "bar N"\` to the shots that must land on a word or a beat.`);
   process.exit(1);
 }
 if (!WRITE) { console.log("\n   (plan only — pass --write to apply to shots.js)"); process.exit(0); }
@@ -194,12 +226,12 @@ function setArrayField(block, field, values) {
   const arr = `[${values.map(v => (v === null ? "null" : fmt(v))).join(", ")}]`;
   const re = new RegExp(`(\\b${field}\\s*:\\s*)\\[[^\\]]*\\]`);
   if (re.test(block)) return block.replace(re, `$1${arr}`);
-  // insert after the dur line, matching its indentation
-  const dm = block.match(/(\n[ \t]*)dur\s*:\s*[-\d.]+\s*,?/);
+  // insert after dur: on its own line when dur has one, else right beside it
+  const dm = block.match(/(\n[ \t]*)?\bdur\s*:\s*[-\d.]+\s*,?/);
   if (!dm) return null;
   const insertAt = dm.index + dm[0].length;
   const comma = dm[0].trim().endsWith(",") ? "" : ",";
-  return block.slice(0, insertAt) + comma + `${dm[1]}${field}: ${arr},` + block.slice(insertAt);
+  return block.slice(0, insertAt) + comma + `${dm[1] ?? ""}${field}: ${arr},` + block.slice(insertAt);
 }
 /** Set `at` on the k-th beat object inside the shot block. */
 function setBeatAts(block, ats, beats) {

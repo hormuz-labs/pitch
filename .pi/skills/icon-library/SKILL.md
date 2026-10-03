@@ -6,9 +6,11 @@ description: Find and use local brand logos and general-purpose SVG icons in vid
 # Icon library
 
 1. Search the concept: `pitch icons search "slack messaging" --limit 3`.
-   Use `--collection lucide` for general actions, `svgl` for original-color
-   brand marks, or `simple-icons` for monochrome brands. Pick a variant for
-   the scene's background; light/dark variants are named in the result.
+   Prefer the product's own icons and `svgl` original-colour brand marks
+   (`simple-icons` for monochrome). `lucide` is the generic look: use it only
+   for an action no brand owns, restyled to the film (the type's stroke
+   weight, a brand colour), never a thin grey outline. Pick the light/dark
+   variant for the scene's background.
 2. Import selected IDs in one call:
    `pitch icons import --ids svgl/slack,lucide/check`.
    Use the returned workspace paths. Source metadata and licenses come with them.

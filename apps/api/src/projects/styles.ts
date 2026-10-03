@@ -63,7 +63,7 @@ export const STUDIO_STYLES: StudioStyle[] = [
     label: 'Show how it works',
     hint: 'Your real screens, step by step, ending on the result',
     direction:
-      'The product itself is the subject: show a real workflow and its result, directing attention to one meaningful action at a time. Keep controls and outcomes readable; use camera focus where needed and let results settle. Avoid decorative cursor movement and redundant captions.',
+      'The product itself is the subject: one real workflow from input to result. Lead the eye through it in order: the camera pushes to each control as it is used, every action lands on a beat with a visible result, and the result gets the biggest moment.',
   },
   {
     id: 'teaser',

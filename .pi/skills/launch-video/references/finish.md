@@ -8,10 +8,9 @@ not the intention.
 ## A round
 
 1. **Measure.** One `pitch motion audit` of the whole film (timeline validity,
-   seek determinism, narration alignment, still stretches, notes) and one
-   `pitch motion review --per_shot 2 --times '[0, …]'`: frame one, plus a few
-   moments just before, during and after each signature transition and each
-   carry or match. Read each sheet once.
+   brand colours, frame one, still stretches, notes); read the sheet it
+   writes, a frame a second. Then one `pitch motion review --times '[…]'` just
+   before, during and after each signature transition and each carry or match.
 2. **List the problems, ranked,** each with its timestamp, in `critique.md`:
    biggest first. End the list with **ship** or **one more pass**.
 3. **Fix the biggest first.** Batch fixes that touch different shots, then
@@ -29,12 +28,18 @@ lets a later round, or a person, see the film converge.
 On the sheets, in this order:
 
 - **Sound off:** does a stranger understand what the product does by the end?
-- **The signature moments:** are they there, and do they land as planned?
+- **The signature moments:** are they there, do they land as planned, and is
+  one worth replaying?
+- **The eye:** in each shot, name what it lands on first, second and last. A
+  shot where everything arrives together, where something appears and only
+  then moves, or where the frame freezes, is not finished. Does each arrival
+  land on its beat?
 - **Joins:** does each carried object land on its handoff box? Does each cut
   carry or match, or does it read as an accidental restart?
-- **Frame one:** a finished composition, good enough as a thumbnail.
-- **Sameness:** the same layout in neighbouring shots; web-page type (a small
-  kicker over a big gradient headline) where the film needed a picture.
+- **Frame one:** a finished composition, good enough as a thumbnail, never a
+  word halfway through flying in.
+- **Sameness:** the same layout or text entrance in neighbouring shots; web-page
+  type (a small kicker over a big headline) where the film needed a picture.
 - **Reading:** essential text at 4.5:1 contrast or better, stable while read,
   large enough on a phone.
 - **Brand:** the ground and colours match recon; 3D grounds match by pixel.
@@ -51,31 +56,24 @@ Defects that pass every automatic check and still get films rejected:
 - A label that names the wrong thing, often one tween targeting two variants.
 - Rows and lists with unequal spacing or ragged left edges.
 - A dark or empty first image, or a lone element on an empty field.
-- Motion bolted onto a finished shot (pulses, kicks, shakes) that shows nothing.
 - A click that lands beside its button: sample the frame of the click.
 - A logo that is not the product's file: a redrawn or approximated mark.
 
 ## The audit's numbers
 
-The audit samples every 0.25s and counts a pair of samples with enough changed
-pixels as an event. That is not a semantic event: a continuous move counts
-several times, a small but important UI change may not register. Its notes
-(still stretches, event rate) never fail a film. For a flagged stretch, ask:
-
-- Is the viewer reading, anticipating or taking in a payoff? Keep it.
-- Has the action finished and attention gone nowhere? Tighten the shot, change
-  its composition, or develop the idea.
-
-A frozen screen reads as a stall, and strong films rarely hold still longer
-than reading needs. Never add a pulse, shake, flash or extra word just to move
-the count. ❌ items (rendering errors, non-determinism, narration contract) are
-broken and must be fixed.
+The audit counts changed pixels every 0.25s: a continuous move counts several
+times, a small UI change may not count at all. Its still-stretch and event-rate
+notes never fail a film, but each flagged stretch is a question: is the viewer
+still reading? If not, the eye has nowhere to go; give it the next thing, on
+the next beat. ❌ items (rendering errors, non-determinism, a shot off its word
+or beat) are broken and must be fixed.
 
 ## Done
 
 The film is done when the latest round says ship:
 
-- no frozen stretch beyond what reading needs;
+- no frozen stretch beyond what reading needs, and every new thing lands on
+  its beat or word;
 - frame one is a finished composition;
 - essential text meets 4.5:1 contrast; nothing collides with or travels
   through other text;
@@ -84,7 +82,7 @@ The film is done when the latest round says ship:
 - set beside the references (or the principles, without any), it does not look
   weaker.
 
-Then sound (`references/audio.md`; narration was recorded before building).
+Then mix (`references/audio.md`).
 Report the actual runtime, the critique rounds in one line each, what you
 measured, and what still needs a person to watch or listen to. Then stop. The
 user exports the MP4: do not render a review copy, and run the paid film review

@@ -5,9 +5,13 @@
 import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import {
+  colourAudit,
+  colourLiterals,
   groundOf,
+  isEmptyFrame,
   isStockNavy,
   measuredBrandColours,
+  schemeGroundIssue,
   stockGroundNote,
 } from '../.pi/scripts/launch-video/lib/ground.mjs'
 
@@ -98,5 +102,67 @@ describe('stockGroundNote', () => {
   it('stays quiet on a light film', () => {
     const light = Array.from({ length: 4 }, () => png(frame(160, 90, [0xf7, 0xf7, 0xf4], NAVY)))
     expect(stockGroundNote(light, null)).toBeNull()
+  })
+})
+
+// A white-led site with one dark card, as recon measured trypitch.co.
+const lightSite = {
+  colors: {
+    bg: '#FFFFFF',
+    ink: '#202020',
+    accent: '#1385D6',
+    surfaces: [{ hex: '#FFFFFF' }, { hex: '#111111' }, { hex: '#F6F6F6' }],
+    saturated: [{ hex: '#1385D6' }],
+    gradients: ['linear-gradient(158deg, rgb(27, 27, 31), rgb(10, 10, 12))'],
+  },
+}
+
+describe('schemeGroundIssue', () => {
+  const dark = Array.from({ length: 4 }, () => png(frame(160, 90, [8, 8, 11], [255, 255, 255])))
+
+  it('fails a dark film for a light site, however close its dark is to a card on it', () => {
+    expect(schemeGroundIssue(dark, lightSite, undefined)).toMatch(/site is light .* sit on dark/)
+  })
+
+  it('accepts a dark film the user asked for', () => {
+    expect(schemeGroundIssue(dark, lightSite, 'dark')).toBeNull()
+  })
+
+  it('accepts a light film for a light site', () => {
+    const light = Array.from({ length: 4 }, () =>
+      png(frame(160, 90, [255, 255, 255], [17, 17, 17])),
+    )
+    expect(schemeGroundIssue(light, lightSite, undefined)).toBeNull()
+  })
+})
+
+describe('colourAudit', () => {
+  it('reads colour values, not id selectors', () => {
+    expect(
+      colourLiterals('#camera { color: #1385d6; background: rgba(0, 0, 0, .5) } #bed {'),
+    ).toEqual([
+      { r: 0x13, g: 0x85, b: 0xd6 },
+      { r: 0, g: 0, b: 0 },
+    ])
+  })
+
+  it('fails invented colours and reports declared ones as authored', () => {
+    const code = [
+      {
+        file: 'css/shots/a.css',
+        text: '.a{color:#94A3B8;background:#1385D6;border:1px solid rgba(255,255,255,.1)} .b{color:#60B8FF}',
+      },
+    ]
+    const { unmeasured, authored } = colourAudit(code, lightSite, { glow: '#60B8FF' })
+    expect(unmeasured).toEqual([{ colour: '#94A3B8', files: ['css/shots/a.css'] }])
+    expect(authored).toEqual(['glow #60B8FF'])
+  })
+})
+
+describe('isEmptyFrame', () => {
+  it('knows a flat frame from a picture', () => {
+    const flat = new Uint8Array(160 * 90 * 3).fill(10)
+    expect(isEmptyFrame(png({ width: 160, height: 90, channels: 3, data: flat }))).toBe(true)
+    expect(isEmptyFrame(png(frame(160, 90, [10, 10, 10], [255, 255, 255])))).toBe(false)
   })
 })

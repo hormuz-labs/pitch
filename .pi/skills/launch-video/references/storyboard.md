@@ -11,11 +11,10 @@ A few lines each:
 - **Watching** — who the viewer is and what they care about.
 - **Then** — what they should do at the end.
 - **Length and frame** — approximate runtime, `SHOTS.format`.
-- **Brand** — colours, type and logo from `recon/brand-tokens.md`, and the
-  ground the film is set on (with the reason, if it is dark).
-- **Facts** — `facts.md`; the only source for anything on screen.
-- **Material** — uploads, screenshots, the site's own video frames, icons.
-- **References** — the notes from `references/reference-video.md`, if any.
+- **Brand** — the ground the film is set on (with the reason, if it is dark).
+- **Sound** — the bed, its tempo and drop from `pitch motion beats`; the voice, if any.
+- **Material** — uploads, screenshots, the site's own video frames, icons, and
+  reference notes (`references/reference-video.md`).
 
 When a consequential fact or file is missing and the site cannot give it, ask
 once (logo files, the real numbers, a product recording). Otherwise decide and
@@ -46,7 +45,10 @@ the chain.
 
 Name three moments a viewer would describe afterwards, in plain words and
 without effect names: "the invoice folds itself into the email", not "a morph
-transition". If you cannot name three, the idea is not there yet.
+transition". One of them is the moment someone would replay: the mechanism
+made into a picture they have not seen before, landing on the biggest hit in
+the music. If you cannot name three, or none would be replayed, the idea is
+not there yet; a clean film without one is a slideshow.
 
 ## Show the directions
 
@@ -75,31 +77,29 @@ are not built.
 
 One table:
 
-| t | on screen | for | leaves by | carries into next |
-|---|---|---|---|---|
+| t | on screen | effect | for | leaves by | carries into next |
+|---|---|---|---|---|---|
 
-- **on screen** — the complete visible state, including what leads.
+- **t** — bars of the measured bed (`bar 5`, `bar 7.3`), or the narration's
+  words; these become the shots' `cue`s.
+- **on screen** — the complete visible state, and the order the eye takes
+  through it: what arrives first, what it leads to, what lands last.
 - **for** — what the moment does for the viewer. A row without one goes.
 - **leaves by** — how it exits: becomes the transition, cuts on a match,
   pushes in, clears.
+- **effect** — the library effects the row is built from (`references/effects.md`).
 - **carries into next** — the object or match that crosses, or "new chapter".
 
 Strong 30-second launch films turn over about 12–15 compositions, each on
 screen 1.4–3.5s; that turnover is much of why they feel alive. It is a
-description, not a quota. Each row's length comes from what it has to show and
-read: about 0.6s plus 0.3s per essential word, plus a beat for the eye to land.
-A sequence of single words can run faster; a number, an unfamiliar name or a UI
-action needs longer. Count every word visible in the state, not just the new
-ones, and count each internal state of a busy shot separately.
+description, not a quota. A row lasts what it has to show and read — about
+0.6s plus 0.3s per essential word, rounded to whole beats — counting every
+word visible in the state and each internal state of a busy shot.
 
-Composition, row by row:
-
-- What leads fills the frame; vary close, wide, overhead and full-frame type.
-- Read the column of layouts top to bottom: two neighbouring rows with the same
-  layout is one too many.
-- Show the product's own screens cropped to what matters, never a whole
-  interface at thumbnail size, and never the site's crowded layout as the film's.
-- Familiar tools appear as their real marks (`pitch icons search`).
+Read the column of layouts and text entrances top to bottom: neighbouring rows
+sharing either is one too many. Show screens cropped to what matters, never the site's
+crowded layout as the film's; familiar tools appear as their real marks
+(`pitch icons search`).
 
 ## Critique it before building
 
@@ -107,10 +107,12 @@ There is no second person here, so read the storyboard as the viewer, not as
 its author. Cover the "for" column and read only "on screen":
 
 - With the sound off, does a stranger know what the product does by the end?
-- Do the three signature moments exist in the table, at the right weight?
+- Do the three signature moments exist in the table, at the right weight, and
+  would someone replay one?
+- In every row, where does the eye land first, second and last, and what moves
+  it there? On which beat does each new thing arrive?
 - Does every row leave by something, and does each cut either carry or match?
 - Does anything on screen fail `facts.md`?
-- Is any row decoration: motion that shows nothing changing?
 - Would the frame at t=0 make a good thumbnail?
 
 Fix what fails in the table, then build.

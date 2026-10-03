@@ -22,12 +22,12 @@ Ask `pitch motion schema` for only what you use: no arguments lists the types
 and sections; `--types a --types b` gives those types' fields; `--section
 "actors,custom shot types"` gives sections. Read the common fields once.
 
-When no built-in type shows a moment well, write one in the project:
+A row's effect becomes a type in the project (`references/effects.md`):
 `js/shots/<type>.js`, its styles in `css/shots/<type>.css`, registered with
 `Object.assign(window.ProjectShotFactories ||= {}, { "<type>": ... })`.
-`pitch motion check` links new files. The whole GSAP plugin set is loaded:
-Flip for an element moving between layouts, MorphSVG for one shape becoming
-another, DrawSVG for a traced stroke, MotionPath for travel on a curve.
+`pitch motion check` links new files. Place its arrivals on `s.beatTimes` (the
+beats inside the shot, written by `pitch motion sync`), never on round seconds.
+Every GSAP plugin is loaded (`--section "custom shot types"`).
 
 ## Every frame renders the same every time
 
@@ -48,13 +48,13 @@ timeline time:
   (`expo.out`, `power3.out`), an `.in` ease to leave (`power2.in`,
   `power3.in`), `none` only for a continuous loop. Nothing bounces unless the
   product itself does.
-- **Overlap.** Start the secondary moves a fraction after the lead, inside its
-  movement, never after it finishes. A frame where everything starts together
-  or stops together reads as a slide.
-- **Hold to read, then go.** A state is fully formed and still while it is
-  read; scrambling, flying-in and morphing time is not reading time.
-- **No decoration.** A pulse, shake, flash or kick on a label that changed
-  nothing distracts from the lead. Add motion that shows something happening.
+- **Build in reading order, on the beat.** The subject, then what it does,
+  then its label, each on its own beat. A pulse, kick or shake on an element
+  standing still is appear-then-dance, and pulls the eye off the lead.
+- **Settle, never stop.** An arrival's ease-out tail runs through the read
+  (`expo.out` over most of the hold) on top of the shot's slow drift: slow
+  motion reads, a freeze reads as a stall. Scrambling, flying in and morphing
+  time is not reading time.
 - **Aim, never guess.** A cursor, arrow or travelling object goes to where its
   target really is: `ShotKit.aim(cursor, button)` measures it (call it before
   any `tl.set` start state). Typed coordinates click beside the button.
@@ -83,8 +83,8 @@ Check the frames in between for clipping, twisted paths and leftover layers.
 
 ## Type
 
-- A line can build in phrases, each fully formed in one frame; `line.steps`
-  with `add` and `replace` does this. Whole lines and still type are as valid.
+- No word just appears: every line arrives through its row's text effect (or
+  `line.steps`, `word-build`, `type-wipe`), unlike the shot before it.
 - Over a picture, words get a backing, a scrim or a quiet area. Aim for 4.5:1
   contrast on anything that must be read.
 - Text that must move past other text fades out and back in at its
@@ -97,7 +97,8 @@ Save complete shots and run `pitch motion check` after each, so the preview
 keeps running. Then look at the scene before the next:
 `pitch motion review --shots <id> --per_shot 3`, plus `--times` just before
 and after its entry and exit when it carries or matches. Compare its landing
-with the handoff box. Move on when it is right, not when it compiles.
+with the handoff box. Move on when it is right, not when it compiles. Make
+targeted edits; reuse schema already in context.
 
 ## Imagery
 
@@ -106,10 +107,3 @@ Product detail from the real thing: `pitch motion screenshot --url … --selecto
 Generated stills (`pitch motion image`) are for supporting plates and objects
 only; generated footage is the generated-video skill. Either is labelled a
 concept in `direction.md`, and anything that warps is regenerated or dropped.
-
-## Working habits
-
-Make targeted edits instead of rewriting files. Join decided commands with `&&`
-in one shell call; reuse schema already in context. For invalid arguments,
-follow the returned help. If a host service is unavailable, report what failed;
-never hand-write a measurement or claim a check passed.

@@ -141,7 +141,7 @@ export function starterShots(tokens: ReconTokens | null, format?: string): strin
     '  },',
     '  // audio: { vo: "audio/vo.wav" },    // after pitch motion tts + motion_align',
     '  ambient: { kind: "none" },          // the stage: pitch motion schema --section "density layer"',
-    '  motion: { exit: "none", drift: false, cutDur: 0.5 }, // add motion only where the treatment needs it',
+    '  motion: { exit: "none", drift: true, cutDur: 0.5 }, // every shot keeps moving; a shot with its own camera sets drift: false',
     '  shots: [',
     ...openingShot(tokens),
     '  ],',

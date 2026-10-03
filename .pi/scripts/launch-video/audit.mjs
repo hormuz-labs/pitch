@@ -37,12 +37,14 @@
  */
 import os from "node:os";
 import { fitStage, localPageUrl, openStudioBrowser, seekFilm } from "./lib/browser.mjs";
+import { isMusicCue, loadBeats, musicCueTime } from "./lib/music-beats.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
-import { stockGroundNote } from "./lib/ground.mjs";
-import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
+import { colourAudit, isEmptyFrame, schemeGroundIssue, stockGroundNote } from "./lib/ground.mjs";
+import { findPhrase, loadShots, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintAd, lintDesign } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -149,7 +151,7 @@ if (!spec) {
       let cursor = 0, maxDrift = 0, worst = null;
       const missing = [];
       shots.forEach((s, i) => {
-        if (!s.cue) return;
+        if (!s.cue || isMusicCue(s.cue)) return;
         const hit = findPhrase(words, s.cue, cursor);
         if (!hit) { missing.push(`#${s.id} "${s.cue}"`); return; }
         cursor = hit.index + hit.count;
@@ -182,6 +184,18 @@ if (!spec) {
     narration = { mode: "none" };
   }
   if (legacyClips > 1) narration = { mode: "fragmented", clips: legacyClips };
+
+  // ---- Shots cued to the music land on their beat ------------------------------------
+  const onMusic = shots.filter(s => isMusicCue(s.cue));
+  if (onMusic.length) {
+    const music = loadBeats();
+    if (!music) lint.push({ level: "fail", msg: `${onMusic.length} shot(s) cue the music but audio/music-beats.json is missing — run pitch motion beats, then pitch motion sync.` });
+    else {
+      const off = onMusic.map(s => ({ s, at: musicCueTime(music, s.cue), start: cues.find(c => c.label === s.id)?.time }))
+        .filter(o => o.at === null || (typeof o.start === "number" && Math.abs(o.start - o.at) > 0.04));
+      if (off.length) lint.push({ level: "fail", msg: `Off the beat: ${off.map(o => `#${o.s.id} "${o.s.cue}" ${o.at === null ? "is not in the track" : `starts ${(o.start - o.at).toFixed(2)}s from it`}`).join(", ")} — run pitch motion sync --write.` });
+    }
+  }
 
   // ---- Factories that ignore their shot's dur -----------------------------------
   for (const o of overruns) {
@@ -341,11 +355,34 @@ if (longestQuiet > maxQuiet) warns.push(`Pacing: no pixel change above the event
 // A film-level number, so only a film-level run may raise it: one shot sampled
 // alone is a different measurement, and "over the film" would be a lie about it.
 // The ground the film is set on, against the colours recon measured on the product.
+let authored = [];
+let sheet = null;
 if (!scoped) {
   let recon = null;
   try { recon = JSON.parse(readFileSync(resolve("recon/brand-tokens.json"), "utf8")); } catch {}
-  const note = stockGroundNote(samples.filter((_, i) => i % 4 === 0).map(s => s.buf), recon);
+  const frames = samples.filter((_, i) => i % 4 === 0).map(s => s.buf);
+  const brand = loadShots(resolve("shots.js"))?.brand ?? {};
+  const note = stockGroundNote(frames, recon);
   if (note) warns.push(note);
+  const scheme = schemeGroundIssue(frames, recon, brand.ground);
+  if (scheme) fails.push(scheme);
+  if (recon) {
+    const code = ["shots.js", "js/shots.custom.js", "css/shots.custom.css"]
+      .concat(["js/shots", "css/shots"].flatMap(d => (existsSync(d) ? readdirSync(d).map(f => `${d}/${f}`) : [])))
+      .filter(f => existsSync(f))
+      .map(file => ({ file, text: readFileSync(file, "utf8") }));
+    const colours = colourAudit(code, recon, brand.palette);
+    authored = colours.authored;
+    if (colours.unmeasured.length) fails.push(`Colours the product does not use: ${colours.unmeasured.slice(0, 8).map(u => `${u.colour} (${u.files.slice(0, 2).join(", ")}${u.files.length > 2 ? ` +${u.files.length - 2}` : ""})`).join("; ")}${colours.unmeasured.length > 8 ? ` and ${colours.unmeasured.length - 8} more` : ""}. Use the measured tokens (var(--bg), var(--ink), var(--accent), the surfaces in recon/brand-tokens.md); a deliberate treatment colour is declared once in brand.palette.`);
+  }
+  if (samples[0]?.t === 0 && isEmptyFrame(samples[0].buf)) fails.push("Frame one is empty: the film opens on a flat colour. Frame one is the thumbnail and the autoplay still; open on a finished picture.");
+  // One look at the whole film: a frame a second, at most 30, six across.
+  const seconds = readdirSync(outDir).filter(f => /^frame_\d+_[\d.]+s\.png$/.test(f)).length;
+  const every = Math.max(1, Math.ceil(seconds / 30));
+  try {
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-pattern_type", "glob", "-i", join(outDir, "frame_*.png"), "-vf", `select=not(mod(n\\,${every})),scale=320:-2,tile=6x${Math.ceil(Math.ceil(seconds / every) / 6)}`, "-frames:v", "1", "-q:v", "4", join(outDir, "sheet.jpg")], { stdio: "ignore" });
+    sheet = join(outDir, "sheet.jpg");
+  } catch {}
 }
 if (!scoped && eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} pixel-change events/s, below the diagnostic threshold ${minEps}. Review the chosen rhythm; this is not a quality score or a required event rate.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
@@ -353,7 +390,7 @@ if (determinismWarnings) fails.push("Render is not deterministic.");
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
 console.log(`\n──────── Render and pacing report ────────`);
-console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}`);
+console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}${authored.length ? ` · authored, not the brand's: ${authored.join(", ")}` : ""}`);
 if (spec) console.log(`   ${designSummary(spec)}`);
 console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s${scoped ? ` (${spanLabel})` : ""} · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
 const nline = narration.mode === "continuous"
@@ -363,12 +400,12 @@ console.log(`   narration: ${nline}`);
 for (const w of warns) console.log(`   ⚠️  ${w}`);
 for (const f of fails) console.log(`   ❌ ${f}`);
 if (fails.length) {
-  console.error(`\n❌ AUDIT FAILED (${fails.length}) — fix every ❌ above, then re-run. Frames in '${outDir}/'.`);
+  console.error(`\n❌ AUDIT FAILED (${fails.length}) — fix every ❌ above, then re-run. Frames in '${outDir}/'${sheet ? `; the whole film at a glance: ${sheet}` : ""}.`);
   process.exit(1);
 } else {
   const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
   const other = warns.length - pacing;
-  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}${other ? `; ${other} other note${other === 1 ? "" : "s"} (⚠️ above) to answer` : ""}. Frames in '${outDir}/'.${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
+  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}${other ? `; ${other} other note${other === 1 ? "" : "s"} (⚠️ above) to answer` : ""}. Frames in '${outDir}/'.${sheet ? ` Look at the whole film before judging it: ${sheet} (a frame a second).` : ""}${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
 }
 
 /**

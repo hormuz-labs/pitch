@@ -93,3 +93,99 @@ export function stockGroundNote(frames, recon, { share = 0.5, tolerance = 28 } =
     : "recon never ran, so nothing says the product uses it";
   return `Ground: ${pct}% of sampled frames sit on a dark grey-blue (≈${typical}), and ${source}. That is the stock "tech film" look, not a brand. Set the film on the product's own background and surfaces, or keep this dark and give the reason in direction.md (the product lives in dark mode, the idea needs night).`;
 }
+
+const luminance = ({ r, g, b }) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+
+function groundsOf(frames) {
+  const grounds = [];
+  for (const buf of frames) {
+    try {
+      const g = groundOf(decodePng(buf));
+      if (g) grounds.push(g);
+    } catch {}
+  }
+  return grounds;
+}
+
+/**
+ * ❌ when the film is set on the opposite of the product's page: a light site
+ * shot on dark, or a dark one on light. One dark card on a white site is an
+ * object, not a ground. `ground` is brand.ground, set only when the user
+ * asked for the other scheme.
+ */
+export function schemeGroundIssue(frames, recon, ground, { share = 0.5 } = {}) {
+  const page = hexToRgb(recon?.colors?.bg);
+  if (!page) return null;
+  const light = luminance(page) > 0.5;
+  const other = light ? "dark" : "light";
+  if (ground === other) return null;
+  const grounds = groundsOf(frames);
+  const off = grounds.filter(g => luminance(g) > 0.5 !== light);
+  if (!grounds.length || off.length / grounds.length < share) return null;
+  return `Ground: the product's site is ${light ? "light" : "dark"} (page ${recon.colors.bg}), but ${Math.round((off.length / grounds.length) * 100)}% of sampled frames sit on ${other} (≈${hex(off[Math.floor(off.length / 2)])}). Its ${other} surfaces are for objects inside the film (a card, a screen), not the ground: set the film on the page colour and its surfaces. Only if the user asked for a ${other} film, set brand.ground: "${other}".`;
+}
+
+/** Every colour recon measured on the product: page, ink, accent, CTA, surfaces, saturated, gradient stops. */
+function measuredColours(recon) {
+  const c = recon?.colors ?? {};
+  const stops = (c.gradients ?? []).flatMap(g => [...String(g).matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)].map(m => ({ r: +m[1], g: +m[2], b: +m[3] })));
+  return [c.bg, c.ink, c.accent, c.ctaBg, ...(c.surfaces ?? []).map(s => s?.hex), ...(c.saturated ?? []).map(s => s?.hex), "#FFFFFF", "#000000"]
+    .map(hexToRgb)
+    .filter(Boolean)
+    .concat(stops);
+}
+
+/** The colour literals in a source: hex values (not `#id {` selectors) and integer rgb()/rgba(). */
+export function colourLiterals(text) {
+  const out = [];
+  for (const m of String(text).matchAll(/#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])(?!\s*\{)/gi)) {
+    const h = m[1].length > 6 ? m[1].slice(0, 6) : m[1].length === 4 ? m[1].slice(0, 3) : m[1];
+    const rgb = hexToRgb(h);
+    if (rgb) out.push(rgb);
+  }
+  for (const m of String(text).matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) out.push({ r: +m[1], g: +m[2], b: +m[3] });
+  return out;
+}
+
+/**
+ * Colours the film's own code uses that recon did not measure on the product.
+ * A deliberate treatment colour is declared in brand.palette: it is reported
+ * as authored, never as the brand's. `sources` are { file, text }.
+ */
+export function colourAudit(sources, recon, palette = {}, { tolerance = 20 } = {}) {
+  const measured = measuredColours(recon);
+  const isMeasured = c => measured.some(m => near(c, m, tolerance));
+  const declared = Object.values(palette).map(hexToRgb).filter(Boolean);
+  const unmeasured = new Map();
+  for (const { file, text } of sources) {
+    for (const c of colourLiterals(text)) {
+      if (isMeasured(c) || declared.some(d => near(c, d, tolerance))) continue;
+      const key = hex(c);
+      unmeasured.set(key, [...new Set([...(unmeasured.get(key) ?? []), file])]);
+    }
+  }
+  const authored = Object.entries(palette).filter(([, v]) => {
+    const c = hexToRgb(v);
+    return c && !isMeasured(c);
+  });
+  return {
+    unmeasured: [...unmeasured].map(([colour, files]) => ({ colour, files })),
+    authored: authored.map(([name, v]) => `${name} ${v}`),
+  };
+}
+
+/** True when frame one is (nearly) one flat colour: no picture to open on. */
+export function isEmptyFrame(buf, { share = 0.985, tolerance = 40 } = {}) {
+  const { width, height, channels, data } = decodePng(buf);
+  const g = groundOf({ width, height, channels, data });
+  if (!g) return false;
+  let same = 0, n = 0;
+  for (let y = 0; y < height; y += 4) {
+    for (let x = 0; x < width; x += 4) {
+      const i = (y * width + x) * channels;
+      n++;
+      if (near({ r: data[i], g: data[i + 1], b: data[i + 2] }, g, tolerance)) same++;
+    }
+  }
+  return same / n >= share;
+}
