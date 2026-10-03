@@ -46,6 +46,12 @@ product's own sources (inspect, recon, the user's files). Never invent a
 testimonial, rating, price, saving or result. Generated imagery is a concept
 plate, never the product, a real customer or a finished job.
 
+The film is set on the product's own colours: the background and surfaces
+`pitch motion recon` measured, never colours remembered from a brand. A dark
+ground needs a reason written in `direction.md` (the product lives in dark mode,
+the idea needs night). A dark grey-blue with glowing lines is the stock "tech
+film" look; the audit notes it when recon didn't measure it on the product.
+
 ## Motion craft
 
 These hold whatever the treatment. They describe how motion reads, not a look:
@@ -63,6 +69,11 @@ These hold whatever the treatment. They describe how motion reads, not a look:
 - **Type is motion and must stay readable.** Words over a busy picture get a
   backing, a scrim or a quiet area; text never collides with or passes through
   other text.
+- **Design for the MP4, not the browser.** Video keeps colour at half the
+  resolution of brightness, so thin text that differs from its ground only in
+  hue (red code on navy) smears on export. Essential text carries light-dark
+  contrast, and the smallest text that must be read is sized for a phone, not
+  a monitor: crop into code or UI rather than showing a whole editor.
 - **Frame one is a finished picture.** The first frame is the thumbnail and the
   autoplay still: a composed state, not a word halfway through its entrance.
 

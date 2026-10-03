@@ -38,6 +38,7 @@
 import os from "node:os";
 import { fitStage, localPageUrl, openStudioBrowser, seekFilm } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
+import { stockGroundNote } from "./lib/ground.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintAd, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
@@ -348,6 +349,13 @@ for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
 if (longestQuiet > maxQuiet) warns.push(`Pacing: no pixel change above the event threshold for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}. Review against direction.md and reading time. Intentional holds and subtle action are valid; change only an accidental stall. Do not add decorative motion to raise this metric. No re-run is needed for an intentional hold.`);
 // A film-level number, so only a film-level run may raise it: one shot sampled
 // alone is a different measurement, and "over the film" would be a lie about it.
+// The ground the film is set on, against the colours recon measured on the product.
+if (!scoped) {
+  let recon = null;
+  try { recon = JSON.parse(readFileSync(resolve("recon/brand-tokens.json"), "utf8")); } catch {}
+  const note = stockGroundNote(samples.filter((_, i) => i % 4 === 0).map(s => s.buf), recon);
+  if (note) warns.push(note);
+}
 if (!scoped && eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} pixel-change events/s, below the diagnostic threshold ${minEps}. Review the chosen rhythm; this is not a quality score or a required event rate.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
@@ -368,7 +376,8 @@ if (fails.length) {
   process.exit(1);
 } else {
   const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
-  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}. Frames in '${outDir}/'.${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
+  const other = warns.length - pacing;
+  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}${other ? `; ${other} other note${other === 1 ? "" : "s"} (⚠️ above) to answer` : ""}. Frames in '${outDir}/'.${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
 }
 
 /**
