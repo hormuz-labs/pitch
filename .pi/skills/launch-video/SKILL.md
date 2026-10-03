@@ -31,8 +31,9 @@ demo-video.
 2. **Study the references** the user gave, before planning
    (`references/reference-video.md`). With none, the principles below are the
    reference.
-3. **Write the brief and storyboard** in `direction.md` and critique it before
-   building anything (`references/storyboard.md`). A narrated film writes and
+3. **Let the user choose a direction, then write the brief and storyboard**
+   in `direction.md` and critique it before building anything
+   (`references/storyboard.md`). A narrated film writes and
    records its read first (`references/audio/narration.md`); the picture is
    timed to it.
 4. **Build the shared pieces, then one scene at a time,** checking each before
@@ -124,7 +125,7 @@ Paths are relative to this skill. Load each when its step comes.
 | Step | Read |
 |---|---|
 | Study a video the user supplied | `references/reference-video.md` |
-| Brief, idea, storyboard and its critique | `references/storyboard.md` |
+| Brief, idea, directions to choose from, storyboard and its critique | `references/storyboard.md` |
 | Build with the engine: shared pieces, scenes, joins, type | `references/build.md` |
 | A scene with real depth (three.js) | `references/3d.md` |
 | Critique rounds, the quality bar, the report | `references/finish.md` |

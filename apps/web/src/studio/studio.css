@@ -1876,6 +1876,24 @@
   font-size: 11.5px;
   line-height: 1.5;
 }
+.lv-studio .ask-still {
+  grid-column: 2;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+}
+.lv-studio .ask-details {
+  grid-column: 2;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
 .lv-studio .ask-other .ask-row {
   cursor: text;
   row-gap: 7px;

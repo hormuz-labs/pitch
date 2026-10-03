@@ -182,7 +182,11 @@ you could decide yourself:
    never put craft names (kinetic, cinematic) in front of them.
 2. **What it is about** — after recon, once you have seen the product and
    know what it actually has. Offer the real features, in the product's own
-   words, and mark that one `multi: true`.
+   words, and mark that one `multi: true`. For a new film this question is
+   **which direction** instead: two or three ideas for their product, each
+   with a still of its opening frame and its signature moments, so the user
+   chooses between versions of their own film rather than names
+   (launch-video's storyboard reference says how).
 
 Both can be one call when you already know the product (they gave you files,
 or the workspace holds it). Do not use `ask_user` to discover whether a

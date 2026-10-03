@@ -45,7 +45,7 @@ import {
   listAssets as listAssetsOf,
   type ThumbRequest,
 } from '../projects/assets.js'
-import { durationOptionFromText, videoTypeOptionFromText } from '../projects/creation-options.js'
+import { durationOptionFromText } from '../projects/creation-options.js'
 import { cancelExport, type ExportStatus, exportProject, getExport } from '../projects/export.js'
 import { notifyProjectCompleted } from '../projects/notifications.js'
 import {
@@ -412,7 +412,6 @@ export async function prompt(
   }
   const inferredOptions = {
     ...durationOptionFromText(text),
-    ...videoTypeOptionFromText(text),
     ...resolvedAnswer?.options,
   }
   if (Object.keys(inferredOptions).length) {

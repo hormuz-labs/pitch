@@ -865,6 +865,11 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                     <Thread
                       entries={s.entries}
                       busy={s.busy}
+                      stillUrl={path =>
+                        s.mediaUrl(
+                          `/projects/${encodeURIComponent(s.project?.id ?? '')}/assets/thumb?path=${encodeURIComponent(path)}`,
+                        )
+                      }
                       onAnswer={s.readOnly ? undefined : s.send}
                       onEdit={s.readOnly ? undefined : entry => void s.rollback(entry)}
                     />

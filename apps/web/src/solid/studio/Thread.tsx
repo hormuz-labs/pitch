@@ -189,6 +189,8 @@ export function Thread(props: {
   busy: boolean
   onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
+  /** URL of a workspace still, for proposed directions on a question card. */
+  stillUrl?: (path: string) => string | null
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
@@ -278,6 +280,7 @@ export function Thread(props: {
                 entryId={e.id}
                 ask={e.ask!}
                 disabled={!props.onAnswer || e.id !== open()?.id}
+                stillUrl={props.stillUrl}
                 onSend={(text, answer) => props.onAnswer?.(text, { answer })}
               />
             </Show>

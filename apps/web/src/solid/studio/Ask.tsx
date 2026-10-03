@@ -7,6 +7,7 @@ export function QuestionCard(props: {
   entryId: string
   ask: Ask
   disabled: boolean
+  stillUrl?: (path: string) => string | null
   onSend: (
     text: string,
     answer: {
@@ -152,7 +153,7 @@ export function QuestionCard(props: {
                       <li>
                         <button
                           type="button"
-                          class={`ask-row${(picked()[cur.id] ?? []).includes(o.label) ? ' on' : ''}`}
+                          class={`ask-row${o.image ? ' has-still' : ''}${(picked()[cur.id] ?? []).includes(o.label) ? ' on' : ''}`}
                           aria-pressed={(picked()[cur.id] ?? []).includes(o.label)}
                           disabled={locked()}
                           onClick={() => choose(o.label)}
@@ -173,6 +174,14 @@ export function QuestionCard(props: {
                           </span>
                           <Show when={o.hint}>
                             <span class="ask-hint">{o.hint}</span>
+                          </Show>
+                          <Show when={o.image && props.stillUrl?.(o.image)}>
+                            {src => <img class="ask-still" src={src()} alt="" draggable={false} />}
+                          </Show>
+                          <Show when={o.details?.length}>
+                            <ul class="ask-details">
+                              <For each={o.details}>{d => <li>{d}</li>}</For>
+                            </ul>
                           </Show>
                         </button>
                       </li>

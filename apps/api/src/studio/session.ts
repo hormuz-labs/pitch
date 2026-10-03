@@ -64,12 +64,24 @@ function warnConfigOnce(fields: Record<string, unknown>, message: string): void 
 
 export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
 
+/** One answer on a question card. A proposed direction also shows a still and its moments. */
+export interface AskOption {
+  id: string
+  label: string
+  hint?: string
+  recommended?: boolean
+  /** Workspace-relative still (png, jpg, webp) shown on the option. */
+  image?: string
+  /** Up to three short lines: what the viewer will see. */
+  details?: string[]
+}
+
 /** One question the studio draws as clickable options (see .pi/extensions/ask-tools.ts). */
 export interface AskQuestion {
   id: string
   bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { id: string; label: string; hint?: string; recommended?: boolean }[]
+  options: AskOption[]
   multi?: boolean
 }
 
@@ -464,11 +476,24 @@ export function parseAsk(args: any): Ask | null {
         ? (findStyle(o?.id)?.label ?? (o?.id === AUTO_KIND.id ? AUTO_KIND.label : ''))
         : '')
     const options = (Array.isArray(q?.options) ? q.options : [])
-      .map((o: any) => ({
-        id: optionId(o?.id, labelOf(o)),
-        label: labelOf(o),
-        ...(o?.hint ? { hint: String(o.hint).trim() } : {}),
-      }))
+      .map((o: any): AskOption => {
+        const image = stillPath(o?.image)
+        const details = (Array.isArray(o?.details) ? o.details : [])
+          .map((d: unknown) =>
+            String(d ?? '')
+              .trim()
+              .slice(0, 140),
+          )
+          .filter(Boolean)
+          .slice(0, 3)
+        return {
+          id: optionId(o?.id, labelOf(o)),
+          label: labelOf(o),
+          ...(o?.hint ? { hint: String(o.hint).trim() } : {}),
+          ...(image ? { image } : {}),
+          ...(details.length ? { details } : {}),
+        }
+      })
       .filter((o: { id: string; label: string }) => o.id && o.label)
       .slice(0, 6)
     const question = String(q?.question ?? '').trim()
@@ -490,12 +515,19 @@ export function parseAsk(args: any): Ask | null {
   return { ...(intro ? { intro } : {}), questions }
 }
 
+/** A still the card may show: an image inside the workspace, by relative path. */
+function stillPath(value: unknown): string | null {
+  const rel = typeof value === 'string' ? value.trim().replace(/^\.\//, '') : ''
+  if (!/\.(png|jpe?g|webp)$/i.test(rel) || rel.startsWith('/')) return null
+  return rel.split('/').some(part => part === '..' || part === '') ? null : rel
+}
+
 /**
  * A kind question shows the studio's own words for each kind (styles.ts), not
  * the agent's: the same kind reads the same in every project, in terms of
  * what the user gets. "Let Pitch choose" always closes the list.
  */
-function kindOptions(options: AskQuestion['options']): AskQuestion['options'] {
+function kindOptions(options: AskOption[]): AskOption[] {
   const kinds = options
     .filter(o => o.id !== AUTO_KIND.id)
     .map(o => {

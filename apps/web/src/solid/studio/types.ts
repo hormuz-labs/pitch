@@ -125,11 +125,20 @@ export interface MusicTrack {
   url: string
   duration: number | null
 }
+export interface AskOption {
+  id: string
+  label: string
+  hint?: string
+  recommended?: boolean
+  /** Workspace-relative still of a proposed direction. */
+  image?: string
+  details?: string[]
+}
 export interface AskQuestion {
   id: string
   bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { id: string; label: string; hint?: string; recommended?: boolean }[]
+  options: AskOption[]
   multi?: boolean
 }
 export interface Ask {

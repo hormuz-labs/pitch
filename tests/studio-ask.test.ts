@@ -104,6 +104,32 @@ describe('parseAsk', () => {
     ])
   })
 
+  it('shows a direction with its still and moments, and only a still inside the workspace', () => {
+    const ask = parseAsk({
+      questions: [
+        question({
+          options: [
+            {
+              id: 'a',
+              label: 'The invoice that sends itself',
+              image: './directions/a.png',
+              details: ['  The invoice folds into an email  ', '', 'It lands paid', 'A', 'B'],
+            },
+            { id: 'b', label: 'Outside', image: '../other/b.png' },
+            { id: 'c', label: 'Absolute', image: '/etc/c.png' },
+            { id: 'd', label: 'Not a still', image: 'directions/d.html' },
+          ],
+        }),
+      ],
+    })
+    const [a, b, c, d] = ask!.questions[0].options
+    expect(a).toMatchObject({
+      image: 'directions/a.png',
+      details: ['The invoice folds into an email', 'It lands paid', 'A'],
+    })
+    expect([b.image, c.image, d.image]).toEqual([undefined, undefined, undefined])
+  })
+
   it('recommends nothing on a multi question', () => {
     const ask = parseAsk({ questions: [question({ multi: true })] })
     expect(ask?.questions[0].options.some(o => o.recommended)).toBe(false)

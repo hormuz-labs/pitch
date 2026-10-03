@@ -33,6 +33,17 @@ const Option = Type.Object({
       description: 'One short line under the label saying what it means for the film',
     }),
   ),
+  image: Type.Optional(
+    Type.String({
+      description:
+        'A proposed direction: workspace-relative still of its opening frame (png/jpg/webp), e.g. "directions/a.png"',
+    }),
+  ),
+  details: Type.Optional(
+    Type.Array(Type.String(), {
+      description: 'A proposed direction: its three signature moments, in plain words',
+    }),
+  ),
 })
 
 const Question = Type.Object({

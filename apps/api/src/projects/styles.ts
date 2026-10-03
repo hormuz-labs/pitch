@@ -12,8 +12,7 @@
  * tells them nothing about what they will get. So `label` and `hint` are what
  * the person sees, in words about the outcome, and the studio writes them onto
  * the question card itself (studio/session.ts parseAsk) rather than letting
- * the agent phrase them anew each time. `aliases` are the craft names a brief
- * may still use ("make a teaser").
+ * the agent phrase them anew each time.
  *
  * `direction` is what the agent reads. It is written as an instruction, not a
  * label, because "style: teaser" in an options list changes nothing — the
@@ -28,8 +27,6 @@ export interface StudioStyle {
   label: string
   /** One plain line under the label: what this kind looks like. */
   hint: string
-  /** Craft names a brief may use for it. */
-  aliases?: string[]
   /** One instruction, appended to the first turn's <studio-context>. */
   direction: string
 }
@@ -41,7 +38,6 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Let the words do it',
     hint: 'Big animated words carry the message, with little product on screen',
-    aliases: ['Kinetic typography', 'kinetic type'],
     direction:
       'Language and typography carry the idea. Choose whole phrases, paced word reveals or layout transformations to suit the copy; keep essential words stable long enough to read. Product evidence appears where it makes the message concrete.',
   },
@@ -50,7 +46,6 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Announce the launch',
     hint: 'A bold film built around one idea about your product',
-    aliases: ['Cinematic'],
     direction:
       'Build a cinematic idea through deliberate framing, light, atmosphere and contrast between movement and stillness. Use product imagery, objects or sourced/generated footage where the concept needs it. One lead movement at a time; preserve readable holds. Narration and music follow the brief, not this preset.',
   },
@@ -59,7 +54,6 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Show it in 3D',
     hint: 'For physical products, or anything with layers and parts',
-    aliases: ['3D animation'],
     direction:
       'Use geometry, material, lighting and camera movement to explain or reveal the subject in space. Keep depth and object motion purposeful; design connected shots without requiring a rotating device or persistent object at every cut.',
   },
@@ -68,7 +62,6 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Show how it works',
     hint: 'Your real screens, step by step, ending on the result',
-    aliases: ['Product walkthrough'],
     direction:
       'The product itself is the subject: show a real workflow and its result, directing attention to one meaningful action at a time. Keep controls and outcomes readable; use camera focus where needed and let results settle. Avoid decorative cursor movement and redundant captions.',
   },
@@ -77,7 +70,6 @@ export const STUDIO_STYLES: StudioStyle[] = [
     skill: 'launch-video',
     label: 'Build hype',
     hint: 'Short, holds back the reveal, ends on the name or date',
-    aliases: ['Teaser'],
     direction:
       'Build anticipation around one product-specific reveal, with minimal copy and a clear ending. Keep it concise, letting the reveal and its payoff determine runtime within the user brief; avoid a feature list.',
   },
@@ -246,14 +238,6 @@ export const AUTO_KIND = {
   label: 'Let Pitch choose',
   hint: 'Pitch picks what fits your product best',
 } as const
-
-/** The kind a brief names, by its label or one of its craft names. */
-export function styleNamedIn(text: string, ids?: readonly string[]): StudioStyle | undefined {
-  const normalized = text.toLowerCase()
-  return STUDIO_STYLES.filter(s => !ids || ids.includes(s.id)).find(s =>
-    [s.label, ...(s.aliases ?? [])].some(name => normalized.includes(name.toLowerCase())),
-  )
-}
 
 /** The kinds the agent may offer, per outcome: ids plus the label the user will see. Short, since it rides every turn until a kind is picked. */
 export function kindMenu(): string {
