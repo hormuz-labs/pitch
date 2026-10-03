@@ -24,7 +24,7 @@
  *   node $SKILL/scripts/recon.mjs --url=... --no-fonts
  *   node $SKILL/scripts/recon.mjs --url=https://example.com
  */
-import { openStudioBrowser } from "./lib/browser.mjs";
+import { openWebBrowser, settle } from "./lib/browser.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
@@ -74,9 +74,7 @@ function lum({ r, g, b }) {
 const toHex = (s) => { const c = parseRgb(s); return c && c.a > 0.05 ? hex(c) : null; };
 
 // ---- browser ----------------------------------------------------------------
-// Recon deliberately uses the same ordinary local Chromium as other render
-// work. Interactive authenticated browsing is a separate worker-owned path.
-const studio = await openStudioBrowser({
+const studio = await openWebBrowser({
   viewport: { width, height },
   deviceScaleFactor: 1,
 });
@@ -97,9 +95,15 @@ page.on("response", async (res) => {
   } catch (_) {}
 });
 
-console.log(`🔎 Measuring ${url} (Chromium)`);
-await page.goto(String(url), { waitUntil: "domcontentloaded", timeout: 45000 });
-await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+console.log(`🔎 Measuring ${url}`);
+try {
+  await page.goto(String(url), { waitUntil: "domcontentloaded", timeout: 45000 });
+} catch (err) {
+  console.error(`❌ Could not open ${url}: ${String(err?.message ?? err).split("\n")[0]}`);
+  await studio.close();
+  process.exit(2);
+}
+await settle(page, 15000);
 await page.waitForTimeout(waitMs);
 await page.evaluate(() => (document.fonts && document.fonts.ready) || null).catch(() => {});
 
@@ -108,8 +112,7 @@ const title0 = await page.title().catch(() => "");
 if (/sorry, you have been blocked|attention required|checking your browser|access denied|just a moment|verify you are human/i
   .test(`${title0}\n${bodyText.slice(0, 600)}`)) {
   console.error(
-    `❌ Bot wall detected at ${url} ("${title0}"). Nothing measured.\n` +
-    `   Chromium could not pass this challenge; use another authorized source.`,
+    `❌ Bot wall at ${url} ("${title0}"): the site refused the browser.`,
   );
   await studio.close();
   process.exit(2);
@@ -583,5 +586,9 @@ console.log(`   type: ${headFamily} (headline) / ${bodyFamily} (body) · h1 ${da
 if (data.cta) console.log(`   CTA "${data.cta.text}": ${toHex(data.cta.bg) || data.cta.bg} on ${toHex(data.cta.color) || data.cta.color}, radius ${data.cta.radius}`);
 console.log(`   ${varEntries.length} :root custom properties · ${accents.length} saturated colors · ${fontFiles.length} font file(s) saved${fontsDir ? ` to ${fontsDir}/` : ""}`);
 if (data.opaqueSheets.length) console.log(`   note: ${data.opaqueSheets.length} cross-origin stylesheet(s) read by fetch (variables inside them are not visible)`);
+// A page that rendered but gave almost nothing (an app shell, a login wall):
+// the numbers above are the page's defaults, not the brand.
+if (bodyText.trim().length < 200 && !logoFiles.length && !data.copy.h1.length)
+  console.log(`   ⚠ The page gave almost nothing to measure (${bodyText.trim().length} characters of text, no headline, no logo), so these colours are likely its defaults. Ask the user to upload screenshots of the product's main screens, the logo and any brand colours or fonts, then end the turn.`);
 console.log(`   Next: read ${out}, then choose the treatment in direction.md. Preserve the measured brand identity; distinguish authored treatment colours from these measurements and declare them in brand.palette.`);
 console.log(`   ${jsonOut} is the same measurement for the tools (motion_scaffold seeds shots.js from it) — nothing to read there.`);

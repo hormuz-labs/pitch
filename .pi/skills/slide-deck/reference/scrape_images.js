@@ -253,9 +253,9 @@ async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null
     // --engine-order can override this (e.g. "gemini,pinterest" for comic-pop).
     const order = engineOrder || ["pinterest", "gemini"];
     const results = {};
-    // Use the bundled Chromium without overriding its user agent.
-    const { openStudioBrowser } = await studioBrowserLib();
-    const browser = await openStudioBrowser({ viewport: { width: 1440, height: 900 } });
+    // Image search sites turn plain headless Chromium away; the web browser passes.
+    const { openWebBrowser } = await studioBrowserLib();
+    const browser = await openWebBrowser({ viewport: { width: 1440, height: 900 } });
     const context = browser.context;
     
     for (const kw of keywords) {

@@ -24,7 +24,10 @@ demo-video.
 1. **Understand the product.** Explore it with `pitch motion inspect <url>` and
    the links it returns (product-research when it is unfamiliar), then
    `pitch motion recon <canonical-url>` once for its colours, type, logo and
-   fonts. Find its mechanism: what goes in, what comes out, what changes for
+   fonts. If recon fails or finds next to nothing, ask the user for
+   screenshots of the product, its logo and any brand colours or fonts, and
+   end the turn; their screenshots then stand in for recon. Never fill the gap
+   from memory. Find its mechanism: what goes in, what comes out, what changes for
    the person using it, and what the landing page fails to show. Write
    `facts.md`: every number, name, quote and claim the film may use, each with
    its source. Nothing reaches the screen that is not in it.

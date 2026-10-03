@@ -239,7 +239,7 @@ mkdirSync(framesDir, { recursive: true });
 
 const T = { start: Date.now(), marks: {} };
 const mark = (k) => { T.marks[k] = Date.now(); };
-const studio = await openStudioBrowser({ log: () => {} });
+const studio = await openStudioBrowser();
 mark("connect");
 const page = await studio.newPage();
 const cdp = await page.context().newCDPSession(page);

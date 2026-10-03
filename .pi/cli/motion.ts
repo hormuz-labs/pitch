@@ -61,6 +61,14 @@ const SCRIPTS = join(SCRIPTS_DIR, 'launch-video')
 const MAX_BUFFER = 16 * 1024 * 1024
 const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i
 
+/**
+ * When the site cannot be read (a dead URL, a site that refuses the browser),
+ * the agent fills the gap from memory: the stock navy film. The person has the
+ * real product, so ask them for it.
+ */
+const ASK_FOR_MATERIAL =
+  "The site could not be read. Do not fill the gap from memory: ask the user to upload screenshots of the product's main screens, the logo (SVG or PNG), and any brand colours or fonts they have, then end the turn. Build from the uploads when they arrive, or from what you know is true if they say go ahead."
+
 function text(out: string) {
   return { content: [{ type: 'text' as const, text: out }], details: {} }
 }
@@ -692,7 +700,11 @@ export default function motionCommands(): CommandSpec[] {
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       const args = [`--url=${p.url}`]
       if (p.max_chars) args.push(`--max-chars=${p.max_chars}`)
-      return text(await hostAction(workspaceOf(ctx), 'launch_inspect', { args }))
+      try {
+        return text(await hostAction(workspaceOf(ctx), 'launch_inspect', { args }))
+      } catch (err) {
+        throw new Error(`${(err as Error).message}\n\n${ASK_FOR_MATERIAL}`)
+      }
     },
   })
 
@@ -733,10 +745,8 @@ export default function motionCommands(): CommandSpec[] {
       if (p.wait) a.push('--wait=' + p.wait)
       try {
         return text(await runScript('recon.mjs', a, ws, 240_000))
-      } catch (err: any) {
-        const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
-        if (out) return text(out)
-        throw err
+      } catch (err) {
+        throw new Error(`${(err as Error).message}\n\n${ASK_FOR_MATERIAL}`)
       }
     },
   })

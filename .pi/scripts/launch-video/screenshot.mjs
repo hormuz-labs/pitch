@@ -17,7 +17,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { localPageUrl, openStudioBrowser, openWebBrowser, settle } from "./lib/browser.mjs";
 import { AUTO_SELECTOR, layersSnippet, planLayers } from "./lib/layers.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -41,8 +41,9 @@ if (!url && !html) {
 
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
-// A --html template is served into local Chromium from disk (see lib/browser.mjs).
-const studio = await openStudioBrowser({
+// A live site gets the web browser; a --html template is served into the
+// render browser from disk (see lib/browser.mjs).
+const studio = await (url ? openWebBrowser : openStudioBrowser)({
   viewport: { width, height },
   deviceScaleFactor: scale,
 });
@@ -61,7 +62,7 @@ try {
   await studio.close().catch(() => {});
   process.exit(1);
 }
-await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+await settle(page, 10000);
 await page.waitForTimeout(Number(args.wait) || 800);
 
 /**
@@ -92,9 +93,9 @@ if (hit && url) {
     `   Page title: ${JSON.stringify(pageTitle)}\n` +
     `   Matched:    ${hit}\n` +
     `   Saved anyway for inspection: ${out}\n\n` +
-    `   This capture ran through the bundled Chromium and the site blocked it.\n` +
-    `   Do NOT proceed to Phase 1 on a block page and do NOT install\n` +
-    `   a browser — try a different authorized page on the same site or raise --wait.\n`
+    `   The site refused the browser. Do not build on a block page and do not\n` +
+    `   install a browser: try another page on the same site, raise --wait, or\n` +
+    `   ask the user to upload screenshots of the product.\n`
   );
   process.exit(2);
 }

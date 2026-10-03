@@ -1,15 +1,21 @@
 /**
- * The studio's render browser. This is ordinary local Playwright Chromium;
- * CloakBrowser is reserved for interactive authentication and demo sessions.
+ * The studio's browsers, one per job:
  *
- * Local pages are still served through request interception so this works in
- * the same constrained runtime as network pages:
+ *   • `openStudioBrowser` renders our own pages (capture, check, review,
+ *     audit): ordinary local Playwright Chromium.
+ *   • `openWebBrowser` visits a product's live site (recon, inspect, a live
+ *     screenshot): CloakBrowser, a stealth Chromium build, headless. Many
+ *     product sites sit behind Cloudflare, which turns plain headless
+ *     Chromium away (replit.com: 403 "Attention Required"); CloakBrowser
+ *     loads the real page.
  *
- *   • It cannot see the workspace. `file://` is meaningless to it, so the
- *     local page is served INTO it by request interception: `localPageUrl()`
- *     maps an absolute path onto http://studio.local<abs-path>, and
- *     `serveLocalFiles()` fulfils every request under that origin from disk.
- *     Because the URL path IS the filesystem path, `../../engine/js/x.js`
+ * Local pages are served through request interception:
+ *
+ *   • The browser cannot see the workspace. `file://` is meaningless to it,
+ *     so the local page is served INTO it by request interception:
+ *     `localPageUrl()` maps an absolute path onto http://studio.local<abs-path>,
+ *     and `serveLocalFiles()` fulfils every request under that origin from
+ *     disk. Because the URL path IS the filesystem path, `../../engine/js/x.js`
  *     inside index.html resolves exactly as it does on disk.
  *
  *   • Browser launch flags are not ours to pass. A 2x capture is a
@@ -21,6 +27,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
+import { launch as launchCloak } from "cloakbrowser";
 import { chromium } from "playwright";
 
 /** Synthetic origin the workspace is served under. Never resolved by DNS. */
@@ -106,27 +113,12 @@ export async function serveLocalFiles(target) {
   });
 }
 
-/**
- * Open a browser for a motion script.
- *
- * Each caller owns its browser process. `serveLocal` (default true) wires the
- * studio.local file route, and close always terminates the process.
- */
-export async function openStudioBrowser({
-  viewport = { width: 1920, height: 1080 },
-  deviceScaleFactor = 1,
-  serveLocal = true,
-  log = console.log,
-} = {}) {
-  const timeout = Number(process.env.BROWSER_START_TIMEOUT_MS || 60_000);
-  const browser = await chromium.launch({ headless: true, timeout });
+const startTimeout = () => Number(process.env.BROWSER_START_TIMEOUT_MS || 60_000);
+
+async function openWith(browser, { viewport, deviceScaleFactor, serveLocal }) {
   const context = await browser.newContext({ viewport, deviceScaleFactor });
-
   if (serveLocal) await serveLocalFiles(context);
-
   return {
-    mode: "local",
-    endpoint: null,
     browser,
     context,
     async newPage() {
@@ -137,6 +129,48 @@ export async function openStudioBrowser({
       await browser.close().catch(() => {});
     },
   };
+}
+
+/**
+ * A browser for our own pages. Each caller owns its browser process.
+ * `serveLocal` (default true) wires the studio.local file route, and close
+ * always terminates the process.
+ */
+export async function openStudioBrowser({
+  viewport = { width: 1920, height: 1080 },
+  deviceScaleFactor = 1,
+  serveLocal = true,
+} = {}) {
+  const browser = await chromium.launch({ headless: true, timeout: startTimeout() });
+  return openWith(browser, { viewport, deviceScaleFactor, serveLocal });
+}
+
+/**
+ * Wait for a live page's network to go quiet, at most `ms`. Many product
+ * sites never go quiet (analytics, long-polls), and Playwright's own timeout
+ * on networkidle does not fire under CloakBrowser: a 10s cap waited 812s on
+ * replit.com. Our own timer bounds it.
+ */
+export async function settle(page, ms) {
+  let timer;
+  await Promise.race([
+    page.waitForLoadState("networkidle").catch(() => {}),
+    new Promise((done) => { timer = setTimeout(done, ms); }),
+  ]);
+  clearTimeout(timer);
+}
+
+/** A browser for a product's live site; see the header. */
+export async function openWebBrowser({
+  viewport = { width: 1440, height: 900 },
+  deviceScaleFactor = 1,
+} = {}) {
+  // A script never downloads a browser mid-run or nags about wrapper updates,
+  // and the image lacks the Windows fonts the fingerprint claims by design.
+  process.env.CLOAKBROWSER_AUTO_UPDATE ??= "false";
+  process.env.CLOAKBROWSER_SUPPRESS_FONT_WARNING ??= "1";
+  const browser = await launchCloak({ headless: true, launchOptions: { timeout: startTimeout() } });
+  return openWith(browser, { viewport, deviceScaleFactor, serveLocal: false });
 }
 
 /**
