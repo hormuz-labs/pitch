@@ -1860,6 +1860,16 @@
   min-width: 0;
   font-weight: 500;
 }
+.lv-studio .ask-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
 .lv-studio .ask-hint {
   grid-column: 2;
   color: var(--muted);

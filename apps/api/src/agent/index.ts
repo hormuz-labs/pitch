@@ -25,7 +25,7 @@ import { deckUpload, modeOf, parseUpload } from '../flows/deck/index.js'
 import { download, extOf } from '../flows/recording-edit/index.js'
 import type { Description, TurnInput, UploadRef } from '../flows/types.js'
 import { stageMusic } from '../lib/music.js'
-import { styleDirection } from '../projects/styles.js'
+import { kindMenu, styleDirection } from '../projects/styles.js'
 import { describeBeat, readTimeline, scenesFromTimeline } from '../render/utils/beats.js'
 import type { Workspace } from '../studio/paths.js'
 import { artifactKind, describeWorkspace, hasArtifact, RELEVANT } from './describe.js'
@@ -205,6 +205,10 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
     )
   const direction = styleDirection(options.videoType)
   if (direction) parts.push(direction)
+  else
+    parts.push(
+      `If you ask what kind (ask_user, bind videoType), offer only these ids, at most the three that fit this product; the studio writes each one's label and hint on the card and adds "Let Pitch choose". Put your pick first and give the reason in intro, in one plain sentence about their product.\n${kindMenu()}`,
+    )
 
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
 

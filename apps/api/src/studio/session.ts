@@ -28,6 +28,7 @@ import { createLogger } from '@saas/shared'
 import { EXTENSIONS } from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
+import { AUTO_KIND, findStyle } from '../projects/styles.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
 import {
   createWorkspaceCheckpoint,
@@ -68,7 +69,7 @@ export interface AskQuestion {
   id: string
   bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { id: string; label: string; hint?: string }[]
+  options: { id: string; label: string; hint?: string; recommended?: boolean }[]
   multi?: boolean
 }
 
@@ -455,27 +456,54 @@ export function parseAsk(args: any): Ask | null {
   const raw = Array.isArray(args?.questions) ? args.questions : []
   const questions: AskQuestion[] = []
   for (const q of raw.slice(0, 3)) {
+    const bind = ['videoType', 'durationSeconds'].includes(q?.bind) ? q.bind : undefined
+    // A kind may arrive as a bare id: the studio has its words.
+    const labelOf = (o: any) =>
+      String(o?.label ?? '').trim() ||
+      (bind === 'videoType'
+        ? (findStyle(o?.id)?.label ?? (o?.id === AUTO_KIND.id ? AUTO_KIND.label : ''))
+        : '')
     const options = (Array.isArray(q?.options) ? q.options : [])
       .map((o: any) => ({
-        id: optionId(o?.id, String(o?.label ?? '')),
-        label: String(o?.label ?? '').trim(),
+        id: optionId(o?.id, labelOf(o)),
+        label: labelOf(o),
         ...(o?.hint ? { hint: String(o.hint).trim() } : {}),
       }))
       .filter((o: { id: string; label: string }) => o.id && o.label)
       .slice(0, 6)
     const question = String(q?.question ?? '').trim()
-    if (!question || options.length < 2) continue
+    const offered = bind === 'videoType' ? kindOptions(options) : options
+    if (!question || offered.length < 2) continue
+    // The first option is the agent's own pick; say so on a single choice.
+    if (!q?.multi && offered[0].id !== AUTO_KIND.id)
+      offered[0] = { ...offered[0], recommended: true }
     questions.push({
       id: String(q?.id ?? `q${questions.length + 1}`),
-      ...(['videoType', 'durationSeconds'].includes(q?.bind) ? { bind: q.bind } : {}),
+      ...(bind ? { bind } : {}),
       question,
-      options,
+      options: offered,
       ...(q?.multi ? { multi: true } : {}),
     })
   }
   if (!questions.length) return null
   const intro = typeof args?.intro === 'string' ? args.intro.trim() : ''
   return { ...(intro ? { intro } : {}), questions }
+}
+
+/**
+ * A kind question shows the studio's own words for each kind (styles.ts), not
+ * the agent's: the same kind reads the same in every project, in terms of
+ * what the user gets. "Let Pitch choose" always closes the list.
+ */
+function kindOptions(options: AskQuestion['options']): AskQuestion['options'] {
+  const kinds = options
+    .filter(o => o.id !== AUTO_KIND.id)
+    .map(o => {
+      const style = findStyle(o.id)
+      return style ? { id: style.id, label: style.label, hint: style.hint } : o
+    })
+    .slice(0, 5)
+  return [...kinds, { ...AUTO_KIND }]
 }
 
 export function resolveAskAnswer(
@@ -513,7 +541,8 @@ export function resolveAskSelections(
       throw new Error(`Choose an answer for ${question.question}`)
     const labels = [...picks.map(pick => pick.label), ...(customText ? [customText] : [])]
     lines.push(`${question.question} → ${labels.join(', ')}`)
-    if (!customText && question.bind === 'videoType') options.videoType = picks[0].id
+    if (!customText && question.bind === 'videoType' && picks[0].id !== AUTO_KIND.id)
+      options.videoType = picks[0].id
     if (!customText && question.bind === 'durationSeconds') {
       const seconds = Number.parseInt(picks[0].label.match(/\d{1,3}/)?.[0] ?? '', 10)
       if (!Number.isFinite(seconds) || seconds < 3 || seconds > 300)

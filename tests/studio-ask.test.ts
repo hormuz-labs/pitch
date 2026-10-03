@@ -24,7 +24,7 @@ describe('parseAsk', () => {
           id: 'kind',
           question: 'What kind of launch video?',
           options: [
-            { id: 'cinematic', label: 'Cinematic', hint: 'Designed motion' },
+            { id: 'cinematic', label: 'Cinematic', hint: 'Designed motion', recommended: true },
             { id: 'teaser', label: 'Teaser' },
           ],
         },
@@ -75,8 +75,38 @@ describe('parseAsk', () => {
     })
     expect(ask?.questions[0]).toMatchObject({
       bind: 'videoType',
-      options: [{ id: 'product-walkthrough' }, { id: 'teaser' }],
+      options: [{ id: 'product-walkthrough' }, { id: 'teaser' }, { id: 'auto' }],
     })
+  })
+
+  it("writes the studio's plain words onto a kind question, not the agent's", () => {
+    const ask = parseAsk({
+      questions: [
+        question({
+          bind: 'videoType',
+          options: [
+            { id: 'kinetic-type', label: 'Kinetic typography', hint: 'Type-led motion' },
+            { id: 'my-own-idea', label: 'Founder story' },
+            { id: 'auto', label: 'You decide' },
+          ],
+        }),
+      ],
+    })
+    expect(ask?.questions[0].options).toEqual([
+      {
+        id: 'kinetic-type',
+        label: 'Let the words do it',
+        hint: 'Big animated words carry the message, with little product on screen',
+        recommended: true,
+      },
+      { id: 'my-own-idea', label: 'Founder story' },
+      { id: 'auto', label: 'Let Pitch choose', hint: 'Pitch picks what fits your product best' },
+    ])
+  })
+
+  it('recommends nothing on a multi question', () => {
+    const ask = parseAsk({ questions: [question({ multi: true })] })
+    expect(ask?.questions[0].options.some(o => o.recommended)).toBe(false)
   })
 })
 
@@ -127,6 +157,20 @@ describe('resolveAskSelections', () => {
         ],
       }).options,
     ).toEqual({ videoType: 'teaser' })
+  })
+
+  it('stores no kind when the user lets Pitch choose', () => {
+    const kind = parseAsk({
+      questions: [
+        question({ bind: 'videoType', options: [{ id: 'teaser' }, { id: 'cinematic' }] }),
+      ],
+    })!
+    expect(
+      resolveAskSelections(kind, {
+        askEntryId: 'ask-1',
+        selections: [{ questionId: 'kind', optionIds: ['auto'] }],
+      }),
+    ).toEqual({ text: 'What kind of launch video? → Let Pitch choose', options: {} })
   })
 
   it('requires exactly one answer for single-choice questions', () => {

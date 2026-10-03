@@ -165,7 +165,12 @@ export function QuestionCard(props: {
                               <Check size={12} strokeWidth={2.5} />
                             </Show>
                           </span>
-                          <span class="ask-text">{o.label}</span>
+                          <span class="ask-text">
+                            {o.label}
+                            <Show when={o.recommended}>
+                              <span class="ask-badge">Recommended</span>
+                            </Show>
+                          </span>
                           <Show when={o.hint}>
                             <span class="ask-hint">{o.hint}</span>
                           </Show>

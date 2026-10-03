@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { findStyle } from './styles.js'
+import { findStyle, styleNamedIn } from './styles.js'
 
 const STUDIO_ASPECT_RATIOS = new Set(['16:9', '9:16', '1:1', '4:5'])
 
@@ -81,8 +81,7 @@ export function durationOptionFromText(text: string): { durationSeconds: number 
 }
 
 export function videoTypeOptionFromText(text: string): { videoType: string } | undefined {
-  const normalized = text.toLowerCase()
-  const style = [
+  const style = styleNamedIn(text, [
     'product-walkthrough',
     'teaser',
     'cinematic',
@@ -92,8 +91,6 @@ export function videoTypeOptionFromText(text: string): { videoType: string } | u
     'onboarding-tour',
     'how-to',
     'sales-demo',
-  ]
-    .map(id => findStyle(id)!)
-    .find(item => normalized.includes(item.label.toLowerCase()))
+  ])
   return style ? { videoType: style.id } : undefined
 }

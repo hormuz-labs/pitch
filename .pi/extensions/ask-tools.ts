@@ -40,7 +40,7 @@ const Question = Type.Object({
   bind: Type.Optional(
     Type.Union([Type.Literal('videoType'), Type.Literal('durationSeconds')], {
       description:
-        'Persist this consequential answer as structured project metadata. Use videoType for the kind and durationSeconds for length.',
+        'Persist this consequential answer as structured project metadata. Use videoType for the kind (option ids from the kinds your context lists; the studio supplies their labels and hints and adds "Let Pitch choose") and durationSeconds for length.',
     }),
   ),
   question: Type.String({ description: 'The question itself, one line' }),
@@ -80,7 +80,7 @@ export default function askTools(pi: ExtensionAPI) {
       return text(
         `Asked: ${questions.map((q: any) => q.id).join(', ')}. The options are on screen now. ` +
           'End your turn without doing any more work — their answer will arrive as the next message. ' +
-          'If they answer "you decide", take your own first option for each and say so.',
+          'If they answer "you decide" or "Let Pitch choose", take your own first option for each and say so.',
       )
     },
   })

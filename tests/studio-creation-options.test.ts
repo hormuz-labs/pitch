@@ -84,4 +84,14 @@ describe('videoTypeOptionFromText', () => {
       videoType: 'product-walkthrough',
     })
   })
+
+  it('reads the plain label the card now shows', () => {
+    expect(videoTypeOptionFromText('What kind of video? → Build hype')).toEqual({
+      videoType: 'teaser',
+    })
+  })
+
+  it('stores nothing for "Let Pitch choose"', () => {
+    expect(videoTypeOptionFromText('What kind of video? → Let Pitch choose')).toBeUndefined()
+  })
 })

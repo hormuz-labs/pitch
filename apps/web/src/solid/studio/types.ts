@@ -129,7 +129,7 @@ export interface AskQuestion {
   id: string
   bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { id: string; label: string; hint?: string }[]
+  options: { id: string; label: string; hint?: string; recommended?: boolean }[]
   multi?: boolean
 }
 export interface Ask {
