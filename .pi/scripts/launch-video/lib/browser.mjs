@@ -1,13 +1,16 @@
 /**
- * The studio's browsers, one per job:
+ * The studio's browsers. Two engines, and the order matters:
  *
- *   • `openStudioBrowser` renders our own pages (capture, check, review,
- *     audit): ordinary local Playwright Chromium.
- *   • `openWebBrowser` visits a product's live site (recon, inspect, a live
- *     screenshot): CloakBrowser, a stealth Chromium build, headless. Many
- *     product sites sit behind Cloudflare, which turns plain headless
- *     Chromium away (replit.com: 403 "Attention Required"); CloakBrowser
- *     loads the real page.
+ *   • Chromium (plain headless Playwright) is the default for everything
+ *     here: our own pages (capture, check, review, audit) through
+ *     `openStudioBrowser`, and a product's live site through `openLivePage`.
+ *   • CloakBrowser, a stealth Chromium build, is the second try for a live
+ *     site that walls Chromium off (Cloudflare turns plain headless Chromium
+ *     away: replit.com answers 403 "Attention Required"). It has its own
+ *     quirks (Playwright's networkidle timeout never fires on it) and, under
+ *     a licence, a seat count, so it is used only when needed. Logged-in
+ *     sessions are the exception: they start in CloakBrowser
+ *     (apps/api/src/render/utils/cloak-browser.ts), not here.
  *
  * Local pages are served through request interception:
  *
@@ -114,6 +117,7 @@ export async function serveLocalFiles(target) {
 }
 
 const startTimeout = () => Number(process.env.BROWSER_START_TIMEOUT_MS || 60_000);
+const launchChromium = () => chromium.launch({ headless: true, timeout: startTimeout() });
 
 async function openWith(browser, { viewport, deviceScaleFactor, serveLocal }) {
   const context = await browser.newContext({ viewport, deviceScaleFactor });
@@ -141,8 +145,7 @@ export async function openStudioBrowser({
   deviceScaleFactor = 1,
   serveLocal = true,
 } = {}) {
-  const browser = await chromium.launch({ headless: true, timeout: startTimeout() });
-  return openWith(browser, { viewport, deviceScaleFactor, serveLocal });
+  return openWith(await launchChromium(), { viewport, deviceScaleFactor, serveLocal });
 }
 
 /**
@@ -160,17 +163,59 @@ export async function settle(page, ms) {
   clearTimeout(timer);
 }
 
-/** A browser for a product's live site; see the header. */
-export async function openWebBrowser({
-  viewport = { width: 1440, height: 900 },
-  deviceScaleFactor = 1,
-} = {}) {
+/** What a site shows a browser it refuses: Cloudflare, Akamai and the like. */
+const WALL = /sorry, you have been blocked|you are unable to access|attention required|checking your browser|verify you are (a )?human|access denied|request blocked|just a moment/i;
+
+/** Whether a loaded page is a bot wall rather than the site. */
+export async function isWalled(page, response) {
+  if (response && [403, 429, 503].includes(response.status())) return true;
+  const title = await page.title().catch(() => "");
+  const text = await page.evaluate(() => (document.body?.innerText || "").slice(0, 600)).catch(() => "");
+  return WALL.test(`${title}\n${text}`);
+}
+
+async function launchCloakBrowser() {
   // A script never downloads a browser mid-run or nags about wrapper updates,
   // and the image lacks the Windows fonts the fingerprint claims by design.
   process.env.CLOAKBROWSER_AUTO_UPDATE ??= "false";
   process.env.CLOAKBROWSER_SUPPRESS_FONT_WARNING ??= "1";
-  const browser = await launchCloak({ headless: true, launchOptions: { timeout: startTimeout() } });
-  return openWith(browser, { viewport, deviceScaleFactor, serveLocal: false });
+  return launchCloak({ headless: true, launchOptions: { timeout: startTimeout() } });
+}
+
+/**
+ * Open a product's live page: Chromium first, and only if the site walls it
+ * off, the same URL once more in CloakBrowser. Returns the browser handle
+ * with the loaded `page`, its `response`, the `engine` that loaded it, and
+ * `walled: true` when both were refused (the page is then the wall). A URL
+ * that does not load at all throws; the other engine would not fare better.
+ * `prepare(page)` runs before navigation (recon listens for font files).
+ */
+export async function openLivePage(url, {
+  viewport = { width: 1440, height: 900 },
+  deviceScaleFactor = 1,
+  waitUntil = "domcontentloaded",
+  timeout = 45_000,
+  prepare,
+} = {}) {
+  const engines = [
+    ["Chromium", launchChromium],
+    ["CloakBrowser", launchCloakBrowser],
+  ];
+  for (const [i, [engine, launch]] of engines.entries()) {
+    const live = await openWith(await launch(), { viewport, deviceScaleFactor, serveLocal: false });
+    const page = await live.newPage();
+    let response;
+    try {
+      await prepare?.(page);
+      response = await page.goto(String(url), { waitUntil, timeout });
+    } catch (err) {
+      await live.close();
+      throw err;
+    }
+    const walled = await isWalled(page, response);
+    if (!walled || i === engines.length - 1) return { ...live, page, response, engine, walled };
+    await live.close();
+  }
 }
 
 /**

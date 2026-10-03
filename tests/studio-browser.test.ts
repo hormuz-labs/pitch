@@ -181,3 +181,25 @@ describe('the api serves local files into Chromium the same way', () => {
     expect(api.contentTypeFor('/x/mystery')).toBe('application/octet-stream')
   })
 })
+
+describe('a live site walls Chromium off', () => {
+  const page = (title: string, text = '') => ({
+    title: async () => title,
+    evaluate: async () => text,
+  })
+  const response = (status: number) => ({ status: () => status })
+
+  it('knows a refusal by its status or its challenge page', async () => {
+    expect(await browser.isWalled(page('Replit'), response(403))).toBe(true)
+    expect(await browser.isWalled(page('Too many'), response(429))).toBe(true)
+    expect(await browser.isWalled(page('Just a moment...'), response(200))).toBe(true)
+    expect(await browser.isWalled(page('Acme', 'Verify you are human'), response(200))).toBe(true)
+  })
+
+  it('lets the real site through', async () => {
+    expect(
+      await browser.isWalled(page('Linear – The system for product development'), response(200)),
+    ).toBe(false)
+    expect(await browser.isWalled(page('Docs'), null)).toBe(false)
+  })
+})

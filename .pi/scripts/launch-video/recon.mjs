@@ -24,7 +24,7 @@
  *   node $SKILL/scripts/recon.mjs --url=... --no-fonts
  *   node $SKILL/scripts/recon.mjs --url=https://example.com
  */
-import { openWebBrowser, settle } from "./lib/browser.mjs";
+import { openLivePage, settle } from "./lib/browser.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
@@ -74,17 +74,10 @@ function lum({ r, g, b }) {
 const toHex = (s) => { const c = parseRgb(s); return c && c.a > 0.05 ? hex(c) : null; };
 
 // ---- browser ----------------------------------------------------------------
-const studio = await openWebBrowser({
-  viewport: { width, height },
-  deviceScaleFactor: 1,
-});
-const context = studio.context;
-const page = await context.newPage();
-
 // Every font file the page pulls, so Google Fonts / CDN faces are known
 // even when their stylesheet is cross-origin and hidden from CSSOM.
 const fontResponses = new Map();
-page.on("response", async (res) => {
+const listenForFonts = (page) => page.on("response", async (res) => {
   try {
     const u = res.url();
     const ct = (res.headers()["content-type"] || "").toLowerCase();
@@ -96,27 +89,25 @@ page.on("response", async (res) => {
 });
 
 console.log(`🔎 Measuring ${url}`);
+let live;
 try {
-  await page.goto(String(url), { waitUntil: "domcontentloaded", timeout: 45000 });
+  live = await openLivePage(url, { viewport: { width, height }, prepare: listenForFonts });
 } catch (err) {
   console.error(`❌ Could not open ${url}: ${String(err?.message ?? err).split("\n")[0]}`);
-  await studio.close();
   process.exit(2);
 }
+const { page, context } = live;
+if (live.walled) {
+  console.error(`❌ Bot wall at ${url} ("${await page.title().catch(() => "")}"): the site refused Chromium and CloakBrowser.`);
+  await live.close();
+  process.exit(2);
+}
+if (live.engine !== "Chromium") console.log(`   Chromium was refused; read with ${live.engine}.`);
 await settle(page, 15000);
 await page.waitForTimeout(waitMs);
 await page.evaluate(() => (document.fonts && document.fonts.ready) || null).catch(() => {});
 
 const bodyText = await page.evaluate(() => (document.body?.innerText || "").slice(0, 4000)).catch(() => "");
-const title0 = await page.title().catch(() => "");
-if (/sorry, you have been blocked|attention required|checking your browser|access denied|just a moment|verify you are human/i
-  .test(`${title0}\n${bodyText.slice(0, 600)}`)) {
-  console.error(
-    `❌ Bot wall at ${url} ("${title0}"): the site refused the browser.`,
-  );
-  await studio.close();
-  process.exit(2);
-}
 
 // ---- in-page measurement ------------------------------------------------------
 const data = await page.evaluate(() => {
@@ -460,7 +451,7 @@ if (logoDir) {
   }
 }
 
-await studio.close();
+await live.close();
 
 // ---- write -----------------------------------------------------------------------
 const tokens = {

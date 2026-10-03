@@ -17,7 +17,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { localPageUrl, openStudioBrowser, openWebBrowser, settle } from "./lib/browser.mjs";
+import { localPageUrl, openLivePage, openStudioBrowser, settle } from "./lib/browser.mjs";
 import { AUTO_SELECTOR, layersSnippet, planLayers } from "./lib/layers.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -41,61 +41,54 @@ if (!url && !html) {
 
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
-// A live site gets the web browser; a --html template is served into the
-// render browser from disk (see lib/browser.mjs).
-const studio = await (url ? openWebBrowser : openStudioBrowser)({
-  viewport: { width, height },
-  deviceScaleFactor: scale,
-});
-const page = await studio.newPage();
-
 const targetUrl = url ? String(url) : localPageUrl(html);
 console.log(`📸 Capturing screenshot from: ${targetUrl}`);
 
-// "load", then a bounded wait for the network to settle: a real product site
-// with analytics beacons or a long-poll never reaches networkidle, and a
-// screenshot that times out on that is a screenshot of nothing.
+// A live site opens through openLivePage (Chromium, then CloakBrowser if the
+// site walls Chromium off); a --html template is served into the render
+// browser from disk (see lib/browser.mjs). "load", then a bounded wait for the
+// network to settle: a real product site with analytics beacons or a
+// long-poll never reaches networkidle.
+let studio, page;
 try {
-  await page.goto(targetUrl, { waitUntil: "load", timeout: 60000 });
+  if (url) {
+    studio = await openLivePage(targetUrl, {
+      viewport: { width, height },
+      deviceScaleFactor: scale,
+      waitUntil: "load",
+      timeout: 60000,
+    });
+    page = studio.page;
+  } else {
+    studio = await openStudioBrowser({ viewport: { width, height }, deviceScaleFactor: scale });
+    page = await studio.newPage();
+    await page.goto(targetUrl, { waitUntil: "load", timeout: 60000 });
+  }
 } catch (err) {
   console.error(`❌ could not load ${targetUrl}: ${err.message.split("\n")[0]}`);
-  await studio.close().catch(() => {});
+  await studio?.close().catch(() => {});
   process.exit(1);
 }
 await settle(page, 10000);
 await page.waitForTimeout(Number(args.wait) || 800);
 
 /**
- * A bot-wall is the single most dangerous Phase-0 failure: the capture
- * "succeeds" (exit 0, a real PNG, a cheerful log line) but the image is a
+ * A bot wall is the most dangerous recon failure: the capture "succeeds"
+ * (exit 0, a real PNG, a cheerful log line) but the image is a
  * Cloudflare/Akamai interstitial. An agent that does not open the file then
- * invents a whole art direction from nothing. Detect it and fail loudly.
+ * invents a whole art direction from nothing. Fail loudly.
  */
-const blockSignals = [
-  /sorry, you have been blocked/i,
-  /you are unable to access/i,
-  /attention required/i,
-  /checking your browser/i,
-  /verify you are (a )?human/i,
-  /access denied/i,
-  /request blocked/i,
-  /just a moment\.\.\./i,
-];
-const pageTitle = await page.title();
-const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 2000) || "");
-const hit = blockSignals.find(re => re.test(pageTitle) || re.test(bodyText));
-
-if (hit && url) {
+if (studio.walled) {
   await page.screenshot({ path: out });   // keep it for inspection
+  const pageTitle = await page.title().catch(() => "");
   await studio.close();
   console.error(
     `\n❌ BOT WALL — this is NOT usable recon.\n` +
     `   Page title: ${JSON.stringify(pageTitle)}\n` +
-    `   Matched:    ${hit}\n` +
     `   Saved anyway for inspection: ${out}\n\n` +
-    `   The site refused the browser. Do not build on a block page and do not\n` +
-    `   install a browser: try another page on the same site, raise --wait, or\n` +
-    `   ask the user to upload screenshots of the product.\n`
+    `   The site refused Chromium and CloakBrowser. Do not build on a block\n` +
+    `   page and do not install a browser: try another page on the same site,\n` +
+    `   or ask the user to upload screenshots of the product.\n`
   );
   process.exit(2);
 }
