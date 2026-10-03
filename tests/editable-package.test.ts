@@ -146,8 +146,8 @@ it('packages only the selected silent movie with exact frames and losslessly rem
       .getEntries()
       .map(entry => entry.entryName)
       .sort(),
-  ).toEqual(['README.txt', 'manifest.json', 'media/video.mp4', 'project.xml'])
-  expect(JSON.parse(zip.readAsText('manifest.json'))).toEqual(result.manifest)
+  ).toEqual(['README.txt', 'media/manifest.json', 'media/video.mp4', 'project.xml'])
+  expect(JSON.parse(zip.readAsText('media/manifest.json'))).toEqual(result.manifest)
   expect(result.manifest).toMatchObject({
     version: 1,
     title: 'My film',
@@ -617,6 +617,100 @@ it('extracts the selected movie stereo mix as 24-bit PCM, retaining delayed onse
     expect(sample(frame, 0)).toBeCloseTo(0.25 * Math.sin(2 * Math.PI * 440 * time), 5)
     expect(sample(frame, 1)).toBeCloseTo(0.125 * Math.sin(2 * Math.PI * 880 * time), 5)
   }
+})
+
+async function stem(name: string, frequency: number) {
+  await mkdir(join(workspaceDir, 'audio', 'stems'), { recursive: true })
+  const file = join(workspaceDir, 'audio', 'stems', `${name}.flac`)
+  await exec('ffmpeg', [
+    '-v',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    `sine=frequency=${frequency}:sample_rate=48000:duration=2.4`,
+    '-ac',
+    '2',
+    '-c:a',
+    'flac',
+    file,
+  ])
+  return { name, file: `audio/stems/${name}.flac`, sha256: await sha256(file) }
+}
+
+const withSound = [
+  '-f',
+  'lavfi',
+  '-i',
+  'sine=frequency=330:sample_rate=48000:duration=1',
+  '-c:a',
+  'pcm_s16le',
+]
+
+it('packages verified stems as PCM at the movie length beside the mixed soundtrack', async () => {
+  await movie('sound.mov', withSound)
+  const stems = [await stem('voice', 220), await stem('music', 440)]
+  const { file, manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'sound.mov',
+    format: 'premiere',
+    title: 'Stems',
+    stems,
+  })
+  expect(manifest.stems).toEqual([
+    { name: 'voice', file: 'media/stems/voice.wav', channels: 2, sampleRate: 48000 },
+    { name: 'music', file: 'media/stems/music.wav', channels: 2, sampleRate: 48000 },
+  ])
+  const zip = new AdmZip(await readFile(file))
+  for (const name of ['voice', 'music']) {
+    const wav = join(root, `${name}.wav`)
+    await writeFile(wav, zip.readFile(`media/stems/${name}.wav`)!)
+    const probe = JSON.parse(
+      (await exec('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', wav]))
+        .stdout,
+    )
+    expect(probe.streams[0]).toMatchObject({ codec_name: 'pcm_s24le', channels: 2 })
+    expect(Number(probe.format.duration)).toBeCloseTo(1, 2)
+  }
+  expect(zip.readAsText('project.xml')).toContain('media/stems/voice.wav')
+  expect(manifest.warnings.join('\n')).not.toMatch(/stems/i)
+})
+
+it('drops every stem, with a warning, when one no longer matches its digest', async () => {
+  await movie('sound.mov', withSound)
+  const voice = await stem('voice', 220)
+  const music = await stem('music', 440)
+  const { file, manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'sound.mov',
+    format: 'premiere',
+    title: 'Stale stems',
+    stems: [voice, { ...music, sha256: '0'.repeat(64) }],
+  })
+  expect(manifest.stems).toBeUndefined()
+  expect(manifest.audio).not.toBeNull()
+  expect(manifest.warnings).toContain(
+    'Audio stems could not be verified against the mix; exported the mixed soundtrack only.',
+  )
+  const zip = new AdmZip(await readFile(file))
+  expect(zip.getEntries().some(entry => entry.entryName.startsWith('media/stems/'))).toBe(false)
+})
+
+it('refuses stems outside the workspace', async () => {
+  await movie('sound.mov', withSound)
+  const voice = await stem('voice', 220)
+  const { manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'sound.mov',
+    format: 'premiere',
+    title: 'Escape',
+    stems: [{ ...voice, file: '../outside.flac' }],
+  })
+  expect(manifest.stems).toBeUndefined()
 })
 
 it('normalizes fractional-fps marks into contiguous frame cuts with bounded labels and authoritative ends', async () => {

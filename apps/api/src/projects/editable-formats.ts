@@ -57,6 +57,23 @@ export interface NativeLayerSidecar {
   warnings: string[]
 }
 
+/** One bus of the soundtrack's mix, as mix.mjs left it: voice, music, effects. */
+export interface AudioStem {
+  name: string
+  /** Workspace-relative file. */
+  file: string
+  sha256: string
+}
+
+/** `<render>.stems.json`: the stems the movie's soundtrack was summed from. */
+export interface AudioStemSidecar {
+  version: 1
+  sourceBytes: number
+  sourceMtimeMs: number
+  sourceSha256: string
+  stems: AudioStem[]
+}
+
 export interface EditableManifest {
   version: 1
   title: string
@@ -68,6 +85,8 @@ export interface EditableManifest {
     frames: number
   }
   audio: { file: string; channels: number; sampleRate: number } | null
+  /** The mix's buses on their own tracks; the mixed soundtrack is then kept muted. */
+  stems?: Array<{ name: string; file: string; channels: number; sampleRate: number }>
   cuts: Array<{ label: string; start: number; end: number }>
   warnings: string[]
   native?: {
@@ -89,7 +108,7 @@ export function projectFiles(
   const instructions = {
     premiere: `Premiere Pro: File > Import, select project.xml, then open the imported sequence.
 The XML uses package-relative media references. If media is offline, use Link Media
-to relink video.mp4 to media/video.mp4 and soundtrack.wav to media/soundtrack.wav.
+to relink video.mp4 to media/video.mp4 and the audio to media/soundtrack.wav and media/stems/.
 Relative path resolution varies by importer; relinking may be required.
 The soundtrack's channels appear on separate tracks, each routed once.
 Use File > Save As to choose a new .prproj file.`,
@@ -131,7 +150,13 @@ This package is not a native .prproj, .aep or .blend until opened and saved in i
 The scripts do not automatically save or overwrite files. Choose a new filename when saving.
 
 ${fidelity}
-Audio, when present, is one final mixed soundtrack, not separate stems.
+${
+  manifest.stems?.length
+    ? `Audio: ${manifest.stems.map(stem => stem.name).join(', ')} stems sit on their own tracks in media/stems/;
+the final mixed soundtrack is included muted, for reference. Together the stems play as the mix
+(the mix adds only a final limiter).`
+    : 'Audio, when present, is one final mixed soundtrack, not separate stems.'
+}
 Cuts derived from markers may be beat boundaries rather than visual scene changes.
 Source and sequence frame coordinates match; ends are exclusive.
 Color management, media interpretation and display settings can change the appearance.
@@ -200,8 +225,9 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
     open.displayStartTime = 0;
     var bakedMode = open.layers.add(baked); bakedMode.name = "[MODE] BAKED FIDELITY"; bakedMode.audioEnabled = false; bakedMode.enabled = true;
     if (sound) {
-      var soundtrack = open.layers.add(sound); soundtrack.name = "Soundtrack"; soundtrack.startTime = 0; soundtrack.inPoint = 0; soundtrack.outPoint = duration; soundtrack.audioEnabled = true;
+      var soundtrack = open.layers.add(sound); soundtrack.name = data.stems ? "Soundtrack (full mix)" : "Soundtrack"; soundtrack.startTime = 0; soundtrack.inPoint = 0; soundtrack.outPoint = duration; soundtrack.audioEnabled = !data.stems;
     }
+${AE_STEMS('open')}
     try {
       var editable = app.project.items.addComp(data.title + " — EDITABLE", data.video.width, data.video.height, 1, duration, fps);
       editable.displayStartTime = 0;
@@ -286,12 +312,14 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
     if (data.audio) {
       var sound = app.project.importFile(new ImportOptions(File(root.fsName + "/" + data.audio.file)));
       var soundtrack = comp.layers.add(sound);
-      soundtrack.name = "Soundtrack";
+      soundtrack.name = data.stems ? "Soundtrack (full mix)" : "Soundtrack";
       soundtrack.startTime = 0;
       soundtrack.inPoint = 0;
       soundtrack.outPoint = duration;
-      soundtrack.audioEnabled = true;
+      // With stems the mix is the muted reference; the stems play.
+      soundtrack.audioEnabled = !data.stems;
     }
+${AE_STEMS('comp')}
     comp.openInViewer();
   } finally {
     app.endUndoGroup();
@@ -327,20 +355,49 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
           `<clipitem id="video-${i}"><name>${xml(cut.label)}</name><duration>${cut.end - cut.start}</duration>${rate}<start>${cut.start}</start><end>${cut.end}</end><in>${cut.start}</in><out>${cut.end}</out>${i === 0 ? `<file id="video"><name>video.mp4</name><pathurl>${xml(video.file)}</pathurl><duration>${video.frames}</duration>${rate}<media><video>${sample}</video></media></file>` : '<file id="video"/>'}</clipitem>`,
       )
       .join('')
-    const audioSample = audio
+    // The stems play; the mix stays beside them, muted, as the reference.
+    const stemmed = Boolean(manifest.stems?.length)
+    const sources = [
+      ...(manifest.stems ?? []).map(stem => ({
+        clip: `stem-${stem.name}-`,
+        id: `stem-${stem.name}`,
+        name: stem.name.charAt(0).toUpperCase() + stem.name.slice(1),
+        file: stem.file,
+        channels: stem.channels,
+        sampleRate: stem.sampleRate,
+        enabled: true,
+      })),
+      ...(audio
+        ? [
+            {
+              clip: 'audio-',
+              id: 'soundtrack',
+              name: stemmed ? 'Soundtrack (full mix)' : 'Soundtrack',
+              file: audio.file,
+              channels: audio.channels,
+              sampleRate: audio.sampleRate,
+              enabled: !stemmed,
+            },
+          ]
+        : []),
+    ]
+    const outputs = Math.max(0, ...sources.map(source => source.channels))
+    const audioFormat = audio
       ? `<samplecharacteristics><samplerate>${audio.sampleRate}</samplerate></samplecharacteristics>`
       : ''
-    // xmeml represents the channels of one mixed soundtrack as separate source tracks.
-    const audioTracks = audio
-      ? Array.from(
-          { length: audio.channels },
-          (_, i) =>
-            `<track><clipitem id="audio-${i}"><name>Soundtrack</name><duration>${video.frames}</duration>${rate}<start>0</start><end>${video.frames}</end><in>0</in><out>${video.frames}</out>${i === 0 ? `<file id="soundtrack"><name>soundtrack.wav</name><pathurl>${xml(audio.file)}</pathurl><duration>${video.frames}</duration>${rate}<media><audio>${audioSample}<channelcount>${audio.channels}</channelcount></audio></media></file>` : '<file id="soundtrack"/>'}<sourcetrack><mediatype>audio</mediatype><trackindex>${i + 1}</trackindex></sourcetrack></clipitem><outputchannelindex>${i + 1}</outputchannelindex></track>`,
-        ).join('')
-      : ''
-    const audioMedia = audio
-      ? `<audio><format>${audioSample}</format><outputs><group><index>1</index><numchannels>${audio.channels}</numchannels><downmix>0</downmix>${Array.from({ length: audio.channels }, (_, i) => `<channel><index>${i + 1}</index></channel>`).join('')}</group></outputs>${audioTracks}</audio>`
-      : ''
+    // xmeml represents the channels of one source as separate source tracks.
+    const audioMedia = (prefix = '') =>
+      sources.length
+        ? `<audio><format>${audioFormat}</format><outputs><group><index>1</index><numchannels>${outputs}</numchannels><downmix>0</downmix>${Array.from({ length: outputs }, (_, i) => `<channel><index>${i + 1}</index></channel>`).join('')}</group></outputs>${sources
+            .flatMap(source =>
+              Array.from(
+                { length: source.channels },
+                (_, i) =>
+                  `<track><clipitem id="${prefix}${source.clip}${i}"><name>${xml(source.name)}</name>${source.enabled ? '' : '<enabled>FALSE</enabled>'}<duration>${video.frames}</duration>${rate}<start>0</start><end>${video.frames}</end><in>0</in><out>${video.frames}</out>${i === 0 ? `<file id="${prefix}${source.id}"><name>${xml(source.file.slice(source.file.lastIndexOf('/') + 1))}</name><pathurl>${xml(source.file)}</pathurl><duration>${video.frames}</duration>${rate}<media><audio><samplecharacteristics><samplerate>${source.sampleRate}</samplerate></samplecharacteristics><channelcount>${source.channels}</channelcount></audio></media></file>` : `<file id="${prefix}${source.id}"/>`}<sourcetrack><mediatype>audio</mediatype><trackindex>${i + 1}</trackindex></sourcetrack></clipitem><outputchannelindex>${i + 1}</outputchannelindex></track>`,
+              ),
+            )
+            .join('')}</audio>`
+        : ''
     if (manifest.native) {
       const sx = video.width / manifest.native.stage.width
       const sy = video.height / manifest.native.stage.height
@@ -388,11 +445,8 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
           return `<track><clipitem id="native-${i}"><name>${xml(layer.name)}</name><duration>${duration}</duration>${rate}<start>${layer.inFrame}</start><end>${layer.outFrame}</end><in>0</in><out>${duration}</out><stillframe>TRUE</stillframe><alphatype>${alpha}</alphatype><compositemode>normal</compositemode><file id="native-file-${i}"><name>${xml(layer.name)}</name><pathurl>${xml(layer.asset)}</pathurl><duration>${duration}</duration>${rate}<media><video><duration>${duration}</duration><stillframe>TRUE</stillframe><alphatype>${alpha}</alphatype><samplecharacteristics>${rate}<width>${layer.box.width}</width><height>${layer.box.height}</height><anamorphic>FALSE</anamorphic><pixelaspectratio>square</pixelaspectratio><fielddominance>none</fielddominance></samplecharacteristics></video></media></file>${effects}</clipitem></track>`
         })
         .join('')
-      const nativeAudio = audioMedia
-        .replaceAll('id="audio-', 'id="native-audio-')
-        .replaceAll('id="soundtrack"', 'id="native-soundtrack"')
-      const baked = `<sequence id="sequence-baked"><name>${xml(`${manifest.title} — BAKED FIDELITY`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format><track>${clips}</track></video>${audioMedia}</media></sequence>`
-      const editable = `<sequence id="sequence-editable"><name>${xml(`${manifest.title} — EDITABLE IMAGES`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format>${nativeTracks}</video>${nativeAudio}</media></sequence>`
+      const baked = `<sequence id="sequence-baked"><name>${xml(`${manifest.title} — BAKED FIDELITY`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format><track>${clips}</track></video>${audioMedia()}</media></sequence>`
+      const editable = `<sequence id="sequence-editable"><name>${xml(`${manifest.title} — EDITABLE IMAGES`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format>${nativeTracks}</video>${audioMedia('native-')}</media></sequence>`
       return {
         'README.txt': readme,
         'project.xml': `<?xml version="1.0" encoding="UTF-8"?>
@@ -405,7 +459,7 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
       'README.txt': readme,
       'project.xml': `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE xmeml>
-<xmeml version="5"><sequence id="sequence"><name>${xml(manifest.title)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format><track>${clips}</track></video>${audioMedia}</media></sequence></xmeml>
+<xmeml version="5"><sequence id="sequence"><name>${xml(manifest.title)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format><track>${clips}</track></video>${audioMedia()}</media></sequence></xmeml>
 `,
     }
   }
@@ -516,16 +570,32 @@ for cut in data["cuts"]:
     # Frame 1 is source frame 0. Move handles, not the source origin.
     strip.frame_final_start = cut["start"] + 1
     strip.frame_final_end = cut["end"] + 1
+stems = data.get("stems") or []
 if data["audio"]:
-    sound = strips.new_sound("Soundtrack", str(root / data["audio"]["file"]), channel=baked_channel + 1, frame_start=1)
-    sound.mute = False
+    sound = strips.new_sound("Soundtrack (full mix)" if stems else "Soundtrack", str(root / data["audio"]["file"]), channel=baked_channel + 1, frame_start=1)
+    # With stems the mix is the muted reference; the stems play.
+    sound.mute = bool(stems)
     sound.frame_final_end = video["frames"] + 1
+for index, stem in enumerate(stems):
+    strip = strips.new_sound(stem["name"].capitalize(), str(root / stem["file"]), channel=baked_channel + 2 + index, frame_start=1)
+    strip.mute = False
+    strip.frame_final_end = video["frames"] + 1
 if bpy.context.window:
     bpy.context.window.scene = scene
 scene.frame_set(1)
 `,
   }
 }
+
+/** JSX adding each stem as its own audio layer of `comp`, over the whole film. */
+const AE_STEMS = (comp: string) => `    if (data.stems) {
+      for (var s = 0; s < data.stems.length; s++) {
+        var stem = data.stems[s];
+        var stemLayer = ${comp}.layers.add(app.project.importFile(new ImportOptions(File(root.fsName + "/" + stem.file))));
+        stemLayer.name = stem.name.charAt(0).toUpperCase() + stem.name.slice(1);
+        stemLayer.startTime = 0; stemLayer.inPoint = 0; stemLayer.outPoint = duration; stemLayer.audioEnabled = true;
+      }
+    }`
 
 function firstFontFamily(value: string): string {
   return value

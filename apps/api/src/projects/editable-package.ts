@@ -8,6 +8,7 @@ import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 import AdmZip from 'adm-zip'
 import {
+  type AudioStem,
   type EditableFormat,
   type EditableManifest,
   type NativeLayer,
@@ -26,6 +27,7 @@ export async function buildEditablePackage({
   signal,
   marks,
   nativeLayers,
+  stems,
   packageWarnings,
 }: {
   workspaceDir: string
@@ -36,6 +38,8 @@ export async function buildEditablePackage({
   signal?: AbortSignal
   marks?: Array<{ start: number; label?: string }>
   nativeLayers?: NativeLayerSidecar
+  /** The mix's buses, each checked against its digest before it is packaged. */
+  stems?: AudioStem[]
   packageWarnings?: string[]
 }): Promise<{ file: string; manifest: EditableManifest }> {
   signal?.throwIfAborted()
@@ -333,6 +337,26 @@ export async function buildEditablePackage({
         throw new Error('Combined archive media exceeds the 192 MiB cap.')
       }
     }
+    let packagedStems: EditableManifest['stems']
+    let stemWarning: string | undefined
+    if (stems?.length && audio) {
+      try {
+        packagedStems = await packageStems(stems, {
+          workspace,
+          mediaDir,
+          seconds: (frames * den) / num,
+          room: mediaCap - movieBytes - (await stat(join(mediaDir, 'soundtrack.wav'))).size,
+          run,
+          signal,
+        })
+      } catch {
+        signal?.throwIfAborted()
+        packagedStems = undefined
+        await rm(join(mediaDir, 'stems'), { recursive: true, force: true })
+        stemWarning =
+          'Audio stems could not be verified against the mix; exported the mixed soundtrack only.'
+      }
+    }
     const boundaries = new Map<number, string>()
     for (const mark of marks ?? []) {
       if (!Number.isFinite(mark.start)) continue
@@ -401,9 +425,11 @@ export async function buildEditablePackage({
             sampleRate: Number(audio.sample_rate),
           }
         : null,
+      ...(packagedStems ? { stems: packagedStems } : {}),
       cuts,
       warnings: [
         ...(packageWarnings ?? []),
+        ...(stemWarning ? [stemWarning] : []),
         ...(nativeWarning ? [nativeWarning] : []),
         ...(native?.warnings ?? []),
         ...(cuts.length === 1
@@ -428,8 +454,11 @@ export async function buildEditablePackage({
     zip.addFile(manifest.video.file, await readFile(join(mediaDir, 'video.mp4')))
     if (manifest.audio)
       zip.addFile(manifest.audio.file, await readFile(join(mediaDir, 'soundtrack.wav')))
+    for (const stem of manifest.stems ?? [])
+      zip.addFile(stem.file, await readFile(join(outputDir, stem.file)))
     for (const asset of nativeAssets) zip.addFile(asset.name, asset.bytes)
-    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2)))
+    // Beside the media it describes: the root holds only what a person opens.
+    zip.addFile('media/manifest.json', Buffer.from(JSON.stringify(manifest, null, 2)))
     for (const [name, content] of Object.entries(projectFiles(format, manifest))) {
       zip.addFile(name, Buffer.from(content))
     }
@@ -446,6 +475,128 @@ export async function buildEditablePackage({
     await rm(snapshot, { force: true })
     await rm(mediaDir, { recursive: true, force: true })
   }
+}
+
+/**
+ * Copy each stem out of the workspace under its digest, then decode it to
+ * PCM at the movie's length. All or nothing: a missing bus would leave the
+ * tracks silently short of the mix, so any failure throws.
+ */
+async function packageStems(
+  stems: AudioStem[],
+  {
+    workspace,
+    mediaDir,
+    seconds,
+    room,
+    run,
+    signal,
+  }: {
+    workspace: string
+    mediaDir: string
+    seconds: number
+    room: number
+    run: (binary: string, args: string[]) => Promise<string>
+    signal?: AbortSignal
+  },
+): Promise<NonNullable<EditableManifest['stems']>> {
+  if (!Array.isArray(stems) || stems.length > 8) throw new Error('stems')
+  const inputOptions = [
+    '-protocol_whitelist',
+    'file',
+    '-format_whitelist',
+    'flac,wav',
+    '-err_detect',
+    'explode',
+  ]
+  const dir = join(mediaDir, 'stems')
+  await mkdir(dir)
+  const names = new Set<string>()
+  const packaged: NonNullable<EditableManifest['stems']> = []
+  for (const stem of stems) {
+    signal?.throwIfAborted()
+    if (
+      !/^[a-z][a-z0-9-]{0,31}$/.test(stem?.name) ||
+      names.has(stem.name) ||
+      !validString(stem.file, 1000) ||
+      !/^[\da-f]{64}$/.test(stem.sha256) ||
+      isAbsolute(stem.file) ||
+      stem.file.split(/[\\/]/).includes('..') ||
+      !/\.(?:flac|wav)$/i.test(stem.file)
+    )
+      throw new Error('stem')
+    names.add(stem.name)
+    const source = resolve(workspace, stem.file)
+    const rel = relative(workspace, await realpath(source))
+    if (!rel || rel.startsWith('..') || resolve(workspace, rel) !== source)
+      throw new Error('escape')
+    const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW)
+    let bytes: Buffer
+    try {
+      const info = await handle.stat()
+      if (!info.isFile() || info.size === 0 || info.size > 64 * 1024 * 1024) throw new Error('size')
+      bytes = await handle.readFile()
+    } finally {
+      await handle.close()
+    }
+    const actual = createHash('sha256').update(bytes).digest()
+    if (!timingSafeEqual(actual, Buffer.from(stem.sha256, 'hex'))) throw new Error('digest')
+    const snapshot = join(dir, `.${stem.name}.source`)
+    await writeFile(snapshot, bytes, { flag: 'wx' })
+    try {
+      const probe = JSON.parse(
+        await run('ffprobe', [
+          '-v',
+          'error',
+          ...inputOptions,
+          '-show_streams',
+          '-of',
+          'json',
+          snapshot,
+        ]),
+      )
+      const streams = Array.isArray(probe.streams) ? probe.streams : []
+      const [audio] = streams
+      const sampleRate = Number(audio?.sample_rate)
+      if (
+        streams.length !== 1 ||
+        audio.codec_type !== 'audio' ||
+        !Number.isInteger(audio.channels) ||
+        audio.channels < 1 ||
+        audio.channels > 2 ||
+        !Number.isSafeInteger(sampleRate) ||
+        sampleRate <= 0 ||
+        sampleRate > 192000
+      )
+        throw new Error('stream')
+      room -= Math.ceil(seconds * sampleRate) * audio.channels * 3 + 4096
+      if (room < 0) throw new Error('cap')
+      const file = `media/stems/${stem.name}.wav`
+      await run('ffmpeg', [
+        '-v',
+        'error',
+        '-xerror',
+        '-nostdin',
+        '-y',
+        ...inputOptions,
+        '-i',
+        snapshot,
+        '-map',
+        '0:a:0',
+        '-af',
+        'apad',
+        '-t',
+        String(seconds),
+        '-c:a',
+        'pcm_s24le',
+        join(dir, `${stem.name}.wav`),
+      ])
+      packaged.push({ name: stem.name, file, channels: audio.channels, sampleRate })
+    } finally {
+      await rm(snapshot, { force: true })
+    }
+  }
+  return packaged
 }
 
 const validString = (value: unknown, max = 500) => typeof value === 'string' && value.length <= max

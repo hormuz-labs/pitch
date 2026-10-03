@@ -33,8 +33,9 @@
  *   --vo-map=audio/vo-map.json   →  [{ "file": "audio/vo.wav", "t": 0.3 }]
  */
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadShots, loadWords, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { muffleGraph, muffleStages, resolveAudioFx, ringArgs } from "./lib/audio-fx.mjs";
@@ -480,22 +481,26 @@ if (SFX_STEM) {
 }
 
 // Rings go in last and untouched: not ducked, not muffled, not carved.
+const RINGS = [];
 for (const [k, ring] of FX.rings.entries()) {
   const out = join(tmp, `ring_${k}.wav`);
   await sh(ringArgs(ring, DURATION + TAIL, out));
   stems.push(out);
+  RINGS.push(out);
   console.log(`Step R  ring ${k + 1}         ${ring.freq}Hz ${ring.level}dBFS ${ring.from.toFixed(2)}–${ring.to.toFixed(2)}s`);
 }
 
 const fadeOutAt = Math.max(0, DURATION - 1.5);
+/** Sum `inputs` the way the master does: same fades, same length. */
+const busGraph = (inputs, limit) =>
+  `${inputs.map((_, i) => `[${i}:a]aresample=48000,aformat=channel_layouts=stereo[s${i}]`).join(";")};` +
+  `${inputs.map((_, i) => `[s${i}]`).join("")}amix=inputs=${inputs.length}:dropout_transition=0:normalize=0[m];` +
+  `[m]afade=t=in:d=0.3,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=1.4,` +
+  `apad=whole_dur=${(DURATION + TAIL).toFixed(3)},atrim=0:${(DURATION + TAIL).toFixed(3)}` +
+  (limit ? `,alimiter=level=disabled:limit=0.95:latency=1[out]` : "[out]");
 await sh([
   ...stems.flatMap(s => ["-i", s]),
-  "-filter_complex",
-  `${stems.map((_, i) => `[${i}:a]aresample=48000,aformat=channel_layouts=stereo[s${i}]`).join(";")};` +
-  `${stems.map((_, i) => `[s${i}]`).join("")}amix=inputs=${stems.length}:dropout_transition=0:normalize=0[m];` +
-  `[m]afade=t=in:d=0.3,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=1.4,` +
-  `apad=whole_dur=${(DURATION + TAIL).toFixed(3)},atrim=0:${(DURATION + TAIL).toFixed(3)},` +
-  `alimiter=level=disabled:limit=0.95:latency=1[out]`,
+  "-filter_complex", busGraph(stems, true),
   "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", MIXED,
 ]);
 
@@ -591,7 +596,49 @@ if (outDur < DURATION + 1.0) {
   failed = true;
 }
 
-if (!failed && !problems.length) renameSync(MIXED, OUT);
+if (!failed && !problems.length) {
+  renameSync(MIXED, OUT);
+  if (!flag("out")) await publishStems();
+}
+
+/**
+ * The buses this mix was summed from, beside it in audio/stems/ — what an
+ * editable export puts on separate tracks. Each is the bus as the master
+ * heard it (fades and length included, limiter excluded), so together they
+ * play back as the mix. stems.json names the mix they belong to by digest;
+ * a later mix that writes no stems leaves them unclaimed, never misused.
+ */
+async function publishStems() {
+  const dir = join(dirname(OUT), "stems");
+  const build = join(tmp, "stems");
+  const sha256 = file => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const buses = [
+    ["voice", MUSIC_ONLY ? [] : [stems[0]]],
+    ["music", BED ? [BED] : []],
+    ["effects", [...(SFX_STEM ? [SFX_STEM] : []), ...RINGS]],
+  ];
+  try {
+    mkdirSync(build, { recursive: true });
+    const written = [];
+    for (const [name, inputs] of buses) {
+      if (!inputs.length) continue;
+      const file = join(build, `${name}.flac`);
+      await sh([
+        ...inputs.flatMap(s => ["-i", s]),
+        "-filter_complex", busGraph(inputs, false),
+        "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "flac", "-sample_fmt", "s32", file,
+      ]);
+      written.push({ name, file: relative(process.cwd(), join(dir, `${name}.flac`)).split("\\").join("/"), sha256: sha256(file) });
+    }
+    writeFileSync(join(build, "stems.json"), `${JSON.stringify({ version: 1, mixSha256: sha256(OUT), stems: written }, null, 2)}\n`);
+    rmSync(dir, { recursive: true, force: true });
+    renameSync(build, dir);
+    console.log(`   Stems for editable exports: ${written.map(w => w.name).join(", ")} → ${relative(process.cwd(), dir)}/`);
+  } catch (error) {
+    rmSync(dir, { recursive: true, force: true });
+    console.log(`⚠ stems skipped (${error?.message ?? error}); editable exports will carry the mix only.`);
+  }
+}
 console.log(`\n${failed || problems.length ? "⚠ Mix rejected; previous output preserved:" : "✅"} ${OUT}`);
 // The export/idle safety net uses this same script. Keep explicit mix choices
 // across its automatic rebuilds instead of reverting to the default gains.

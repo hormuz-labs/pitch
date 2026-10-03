@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -180,6 +181,41 @@ describe('launch audio regression', { timeout: MEDIA_TEST_TIMEOUT_MS }, () => {
     const rebuilt = await readFile(path.join(ws, 'audio/mix.wav'))
     expect(rebuilt.equals(original)).toBe(true)
     expect((await measureAudioWindows(path.join(ws, 'audio/mix.wav'), 4)).clipped).toBe(0)
+  })
+
+  it('leaves the buses beside the mix as stems that sum back to it', async () => {
+    await mix('--sfx-db=-18')
+    const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+    const index = JSON.parse(await readFile(path.join(ws, 'audio/stems/stems.json'), 'utf8'))
+    expect(index.mixSha256).toBe(sha256(await readFile(path.join(ws, 'audio/mix.wav'))))
+    // Music-only: no voice bus.
+    expect(index.stems.map((stem: { name: string }) => stem.name)).toEqual(['music', 'effects'])
+    const decode = async (file: string) =>
+      (
+        await exec(
+          'ffmpeg',
+          ['-v', 'error', '-i', path.join(ws, file), '-f', 'f32le', '-ac', '2', '-'],
+          {
+            encoding: 'buffer',
+            maxBuffer: 64 * 1024 * 1024,
+          },
+        )
+      ).stdout as unknown as Buffer
+    const buses = []
+    for (const stem of index.stems) {
+      expect(stem.file).toBe(`audio/stems/${stem.name}.flac`)
+      expect(stem.sha256).toBe(sha256(await readFile(path.join(ws, stem.file))))
+      buses.push(await decode(stem.file))
+    }
+    const mixed = await decode('audio/mix.wav')
+    expect(buses.every(bus => bus.length === mixed.length)).toBe(true)
+    let worst = 0
+    for (let i = 0; i < mixed.length; i += 4)
+      worst = Math.max(
+        worst,
+        Math.abs(buses.reduce((sum, bus) => sum + bus.readFloatLE(i), 0) - mixed.readFloatLE(i)),
+      )
+    expect(worst).toBeLessThan(0.01)
   })
 
   it('allows a designed SFX-only opening without treating silence as a music level', () => {

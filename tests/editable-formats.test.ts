@@ -108,6 +108,61 @@ it('routes each soundtrack channel once across the entire Premiere sequence with
   expect(nodes(sequence, 'media/video/track/clipitem/file/media/audio')).toHaveLength(0)
 })
 
+const stemmed: EditableManifest = {
+  ...manifest,
+  audio: { file: 'media/soundtrack.wav', channels: 2, sampleRate: 48000 },
+  stems: [
+    { name: 'voice', file: 'media/stems/voice.wav', channels: 2, sampleRate: 48000 },
+    { name: 'music', file: 'media/stems/music.wav', channels: 2, sampleRate: 48000 },
+  ],
+}
+
+it('puts each Premiere stem on its own tracks and keeps the mixed soundtrack muted', () => {
+  const sequence = nodes(xmlTree(projectFiles('premiere', stemmed)['project.xml']), 'sequence')[0]
+  const tracks = nodes(sequence, 'media/audio/track')
+  expect(tracks).toHaveLength(6)
+  const clips = tracks.map(track => nodes(track, 'clipitem')[0])
+  expect(clips.map(clip => text(clip, 'name'))).toEqual([
+    'Voice',
+    'Voice',
+    'Music',
+    'Music',
+    'Soundtrack (full mix)',
+    'Soundtrack (full mix)',
+  ])
+  expect(clips.map(clip => text(clip, 'enabled') ?? 'TRUE')).toEqual([
+    'TRUE',
+    'TRUE',
+    'TRUE',
+    'TRUE',
+    'FALSE',
+    'FALSE',
+  ])
+  expect(tracks.map(track => text(track, 'outputchannelindex'))).toEqual([
+    '1',
+    '2',
+    '1',
+    '2',
+    '1',
+    '2',
+  ])
+  expect(clips.map(clip => nodes(clip, 'file')[0].attrs.id)).toEqual([
+    'stem-voice',
+    'stem-voice',
+    'stem-music',
+    'stem-music',
+    'soundtrack',
+    'soundtrack',
+  ])
+  expect(text(clips[0], 'file/pathurl')).toBe('media/stems/voice.wav')
+  expect(text(clips[2], 'file/pathurl')).toBe('media/stems/music.wav')
+  for (const clip of clips)
+    expect(['start', 'end', 'in', 'out'].map(p => Number(text(clip, p)))).toEqual([0, 90, 0, 90])
+  const readme = projectFiles('premiere', stemmed)['README.txt']
+  expect(readme).toMatch(/voice, music stems sit on their own tracks/)
+  expect(readme).not.toMatch(/not separate stems/)
+})
+
 it('adds a sibling Premiere sequence containing only uniformly scaled native images', () => {
   const input: EditableManifest = {
     ...manifest,
@@ -364,6 +419,22 @@ it('builds AE cuts at matching source times, with movie audio muted and the soun
   expect(app.project.save).not.toHaveBeenCalled()
   expect(app.endUndoGroup).toHaveBeenCalledOnce()
   expect(comp.openInViewer).toHaveBeenCalledOnce()
+})
+
+it('adds AE stems as the audible layers and mutes the mixed soundtrack', () => {
+  const { layers, imports } = runAe(stemmed)
+  expect(imports.map(item => item.file.fsName)).toEqual([
+    '/extracted folder/media/video.mp4',
+    '/extracted folder/media/soundtrack.wav',
+    '/extracted folder/media/stems/voice.wav',
+    '/extracted folder/media/stems/music.wav',
+  ])
+  const audible = layers.filter(layer => layer.audioEnabled)
+  expect(audible.map(layer => layer.name)).toEqual(['Voice', 'Music'])
+  expect(
+    audible.every(layer => layer.inPoint === 0 && layer.outPoint === 90 / (30000 / 1001)),
+  ).toBe(true)
+  expect(layers.find(layer => layer.name === 'Soundtrack (full mix)')?.audioEnabled).toBe(false)
 })
 
 it('keeps hostile AE names as data, including legacy ExtendScript line separators, with no soundtrack', () => {
@@ -755,6 +826,34 @@ it('builds a new Blender scene with frame-one origin, source trims, rational fps
     visible_start: 1,
     visible_end: 91,
   })
+})
+
+it('adds unmuted Blender stem strips above a muted mixed soundtrack', () => {
+  const sounds = runBlender(stemmed).strips.filter(
+    (strip: { kind: string }) => strip.kind === 'SOUND',
+  )
+  expect(sounds).toMatchObject([
+    {
+      name: 'Soundtrack (full mix)',
+      filepath: '/extracted folder/media/soundtrack.wav',
+      channel: 2,
+      mute: true,
+    },
+    {
+      name: 'Voice',
+      filepath: '/extracted folder/media/stems/voice.wav',
+      channel: 3,
+      mute: false,
+      visible_end: 91,
+    },
+    {
+      name: 'Music',
+      filepath: '/extracted folder/media/stems/music.wav',
+      channel: 4,
+      mute: false,
+      visible_end: 91,
+    },
+  ])
 })
 
 it('adds muted native Blender image and text strips beneath the unmuted baked movie', () => {

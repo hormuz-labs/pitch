@@ -4,7 +4,7 @@ import path from 'node:path'
 import { newestMtime, renderFile, sourceTargets } from '../flows/launch-video/describe.js'
 import { readTimeline, sha256File } from '../render/utils/beats.js'
 import { fileUrl, slugify } from '../studio/paths.js'
-import type { EditableFormat, NativeLayerSidecar } from './editable-formats.js'
+import type { AudioStem, EditableFormat, NativeLayerSidecar } from './editable-formats.js'
 import { buildEditablePackage } from './editable-package.js'
 import type { ExportStatus } from './export.js'
 import type { ProjectRow } from './service.js'
@@ -134,6 +134,41 @@ async function trustedNativeLayers(
   }
 }
 
+/** The stems a launch render's soundtrack was summed from, when they are this movie's. */
+async function trustedStems(
+  video: string,
+  digest: () => Promise<string>,
+): Promise<{ stems?: AudioStem[]; packageWarnings?: string[] }> {
+  const dot = video.lastIndexOf('.')
+  const sidecar = `${dot < 0 ? video : video.slice(0, dot)}.stems.json`
+  let handle
+  try {
+    handle = await open(sidecar, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const info = await handle.stat()
+    if (!info.isFile() || info.size > 64 * 1024) throw new Error('invalid')
+    const parsed = JSON.parse((await handle.readFile()).toString('utf8'))
+    if (
+      parsed?.version !== 1 ||
+      typeof parsed.sourceSha256 !== 'string' ||
+      !Array.isArray(parsed.stems) ||
+      !(await describesMovie(parsed, await stat(video), digest))
+    )
+      return {
+        packageWarnings: [
+          'Audio stems belong to an earlier mix; exported the mixed soundtrack only.',
+        ],
+      }
+    return { stems: parsed.stems }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}
+    return {
+      packageWarnings: ['Audio stem metadata is invalid; exported the mixed soundtrack only.'],
+    }
+  } finally {
+    await handle?.close()
+  }
+}
+
 export async function startEditableExport(
   p: ProjectRow,
   artifact: Artifact | null,
@@ -216,6 +251,8 @@ export async function startEditableExport(
       }
       const marks = await trustedMarks(movie, digest)
       const native = launch ? await trustedNativeLayers(movie, digest) : {}
+      const audio = launch ? await trustedStems(movie, digest) : {}
+      const warnings = [...(native.packageWarnings ?? []), ...(audio.packageWarnings ?? [])]
       const result = await buildEditablePackage({
         workspaceDir: ws.dir,
         videoRel,
@@ -224,7 +261,9 @@ export async function startEditableExport(
         title: p.title || p.name,
         signal: controller.signal,
         marks,
-        ...native,
+        nativeLayers: native.nativeLayers,
+        stems: audio.stems,
+        ...(warnings.length ? { packageWarnings: warnings } : {}),
       })
       controller.signal.throwIfAborted()
       await rename(result.file, path.join(ws.dir, finalRel))

@@ -24,7 +24,7 @@
 import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, mkdirSync, rmSync, existsSync } from "node:fs";
-import { rename, stat, writeFile } from "node:fs/promises";
+import { readFile, rename, stat, writeFile } from "node:fs/promises";
 import { resolve, dirname, extname, isAbsolute, relative } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -351,7 +351,18 @@ try {
 }
 
 const encodeEndMs = Date.now();
-if (!isSegment && existsSync("audio/mix.wav")) {
+const muxed = !isSegment && existsSync("audio/mix.wav");
+// The stems mix.mjs left beside this exact mix, read before the mux so a mix
+// rebuilt meanwhile cannot pair new stems with this movie's sound.
+let mixStems = null;
+if (muxed) {
+  try {
+    const index = JSON.parse(await readFile("audio/stems/stems.json", "utf8"));
+    if (index?.version === 1 && Array.isArray(index.stems) && index.mixSha256 === (await sha256File("audio/mix.wav")))
+      mixStems = index.stems;
+  } catch {}
+}
+if (muxed) {
   console.log("\n🔊 Muxing Audio Mix (Voiceovers + Music + SFX) into final deliverable...");
   execFileSync("ffmpeg", [
     "-y", "-i", rawVideo, "-i", "audio/mix.wav", "-map", "0:v", "-map", "1:a",
@@ -416,6 +427,24 @@ try {
   console.warn(`⚠ native After Effects metadata skipped: ${error?.message ?? String(error)}`);
 } finally {
   rmSync(layersTmp, { force: true });
+}
+
+// Which stems this movie's soundtrack was summed from: an editable export
+// puts them on separate tracks. Absent when the mix left none.
+const stemsOut = finalOut.replace(/\.[^./]+$/, "") + ".stems.json";
+rmSync(stemsOut, { force: true });
+if (mixStems?.length) {
+  const stemsTmp = `${stemsOut}.${process.pid}.tmp`;
+  try {
+    await writeFile(stemsTmp, `${JSON.stringify({
+      version: 1, sourceBytes: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, sourceSha256, stems: mixStems,
+    }, null, 2)}\n`, "utf8");
+    await rename(stemsTmp, stemsOut);
+  } catch (error) {
+    console.warn(`⚠ audio stems metadata skipped: ${error?.message ?? String(error)}`);
+  } finally {
+    rmSync(stemsTmp, { force: true });
+  }
 }
 
 const secs = (a, b) => Math.round((b - a) / 100) / 10;

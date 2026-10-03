@@ -254,6 +254,39 @@ describe('editable export lifecycle', () => {
     expect(packageCalls[0].packageWarnings).toBeUndefined()
   })
 
+  it('passes the stems of a launch render only when they belong to that movie', async () => {
+    const sourceSha256 = createHash('sha256').update('movie').digest('hex')
+    const stems = [{ name: 'voice', file: 'audio/stems/voice.flac', sha256: 'a'.repeat(64) }]
+    for (const [id, digest] of [
+      ['stems-match', sourceSha256],
+      ['stems-stale', createHash('sha256').update('older movie').digest('hex')],
+    ] as const) {
+      const dir = await project(id)
+      artifacts.set(`studio--user_1--${id}`, { kind: 'launch', rel: 'index.html', at: 1 })
+      await writeFile(join(dir, 'index.html'), 'source')
+      await writeFile(join(dir, 'shots.js'), 'source')
+      await writeFile(join(dir, 'renders', 'launch-1080p.mp4'), 'movie')
+      await writeFile(
+        join(dir, 'renders', 'launch-1080p.stems.json'),
+        JSON.stringify({
+          version: 1,
+          sourceBytes: 5,
+          sourceMtimeMs: 0,
+          sourceSha256: digest,
+          stems,
+        }),
+      )
+      await exportProject('user_1', id, { format: 'premiere' })
+      await vi.waitFor(() => expect(getExport(id).stage).toBe('done'))
+    }
+    expect(packageCalls[0].stems).toEqual(stems)
+    expect(packageCalls[0].packageWarnings).toBeUndefined()
+    expect(packageCalls[1].stems).toBeUndefined()
+    expect(packageCalls[1].packageWarnings).toEqual([
+      'Audio stems belong to an earlier mix; exported the mixed soundtrack only.',
+    ])
+  })
+
   it('omits marks whose digest names a different movie of the same size', async () => {
     const dir = await project('digest-mismatch')
     await writeFile(join(dir, 'renders', 'video.mp4'), 'movie')
