@@ -57,9 +57,9 @@ An edit loads only what that change needs and keeps the established direction.
 2. **Everything new lands on the music** (`references/audio/music.md`), or on
    a narrated film's words.
 3. **The content makes the transition, never the frame.** The stage stays;
-   the old elements leave one by one, or one of them becomes the next thing
-   (a dot grows into the next ground, a pill opens into the card, a word
-   travels into the headline). No slide comes in or goes out.
+   the old elements leave one by one, or one already on screen becomes the
+   next thing (a pill opens into the card, a word travels into the headline).
+   No slide comes in or goes out.
 4. **One object carries the story** across shots and keeps its identity: the
    product's own file, message, card, cursor or mark, changing role as the
    film moves on. Separate scenes then read as one piece.

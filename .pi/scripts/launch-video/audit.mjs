@@ -20,6 +20,9 @@
  *   3. Scene overlap at every scene midpoint; seek determinism (❌).
  *   4. The timeline's tweens (lib/motion-lint.mjs): a composition sliding as
  *      one page fails; a long move at full speed on its first frame is a note.
+ *   5. The words on the sampled frames (lib/frame-text.mjs): words with
+ *      something on top of them for a second fail; a caret over a prompt that
+ *      is never typed is a note.
  *
  * Screenshots dominate capture time, so samples are taken by several tabs at
  * once, each seeking its own slice of the timeline — capture.mjs's pattern —
@@ -46,6 +49,7 @@ import { findPhrase, loadShots, loadWords, speechGaps, voStartOf, wordsPathFor }
 import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintAd, lintDesign } from "./lib/design-rules.mjs";
 import { measureMotion, motionFindings } from "./lib/motion-lint.mjs";
+import { frameTextFindings, measureFrameText } from "./lib/frame-text.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
@@ -221,6 +225,9 @@ const groups = sampleTimes(spans, step, duration);
 const times = groups.flat();
 const spanOf = groups.flatMap((g, gi) => g.map(() => gi));
 const samples = new Array(times.length);
+// Every other sample (about every 0.5s) also reads the words on the frame.
+const probes = new Set();
+for (let i = 0, g = 0; g < groups.length; g++) for (let j = 0; j < groups[g].length; j++, i++) if (j % 2 === 0) probes.add(i);
 const chunk = Math.ceil(times.length / workers);
 await Promise.all(Array.from({ length: workers }, async (_, w) => {
   const from = w * chunk, to = Math.min(from + chunk, times.length);
@@ -233,10 +240,14 @@ await Promise.all(Array.from({ length: workers }, async (_, w) => {
     await pg.goto(url, { waitUntil: "domcontentloaded" });
     await pg.waitForFunction("window.__READY === true", null, { timeout: 30000 });
   }
-  for (let i = from; i < to; i++) samples[i] = { t: times[i], buf: await grabAt(pg, sess, times[i]) };
+  for (let i = from; i < to; i++) {
+    samples[i] = { t: times[i], buf: await grabAt(pg, sess, times[i]) };
+    if (probes.has(i)) samples[i].text = await pg.evaluate(measureFrameText).catch(() => null);
+  }
   if (w > 0) await pg.close();
 }));
 mark("capture");
+lint.push(...frameTextFindings(samples.filter(s => s.text).map(s => ({ t: s.t, ...s.text })), only));
 // keep one frame per second on disk for the agent to look at; a scoped run
 // replaces the frames of its stretch and leaves the rest of the film's
 const frameName = t => `frame_${String(Math.round(t)).padStart(3, "0")}_${t.toFixed(1)}s.png`;

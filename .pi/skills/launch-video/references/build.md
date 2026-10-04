@@ -66,7 +66,7 @@ the viewer should see next:
 
 | The join | Write |
 |---|---|
-| **becomes**: one thing turns into the next | `morph: { from, to }` on the incoming shot (a pill opens into the card, a word travels into the headline); `to: "ground"` grows a dot into the next scene's ground; inside a shot, `ShotKit.morph` |
+| **becomes**: one thing turns into the next | `morph: { from, to }` on the incoming shot (a pill opens into the card, a word travels into the headline); `to: "ground"` grows it into the next scene's ground; inside a shot, `ShotKit.morph` |
 | **makes room**: what is there rearranges for the newcomer | `ShotKit.reflow` for a line; a layout's parts tweened to their new places |
 | **leaves**: the old pieces go one by one as the new arrive | `exit`, varied from join to join |
 | **push**: the camera moves into a part of what is there | a `zoom` beat (another zoom beat pans on), `ui-frame` `cursor.zoom` |
