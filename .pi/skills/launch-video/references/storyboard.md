@@ -84,7 +84,7 @@ One table:
   `bar 7.3`) where no one speaks; these become the shots' `cue`s.
 - **on screen** — the complete visible state, and the order the eye takes
   through it: what arrives first, what it leads to, what lands last. Under a
-  line of narration, a picture of what it says, its key words arriving as spoken.
+  spoken line, a picture of what it says; its key words arrive as said (`captions`).
 - **for** — what the moment does for the viewer. A row without one goes.
 - **leaves by** — the join: becomes the next thing, makes room, leaves piece
   by piece, pushes in, cuts on a match.

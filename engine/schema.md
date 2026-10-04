@@ -269,10 +269,10 @@ captions; `look` grades one shot, the top-level `grade` the whole film.
 
 ## Captions
 
-`captions` puts the spoken words on screen as the narrator says them — the
-big, stacked, word-by-word type of short-form ads. It is one layer above every
-shot, so a stack keeps building while the footage under it cuts; camera beats
-and cuts do not move it.
+`captions` puts the spoken words on screen as the narrator says them — big and
+stacked for a short-form ad, one line building as it is said for an explainer
+(`stack: "line"`). It is one layer above every shot, so a stack keeps building
+while the footage under it cuts; camera beats and cuts do not move it.
 
 ```js
 captions: {

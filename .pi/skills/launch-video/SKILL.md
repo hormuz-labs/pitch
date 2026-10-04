@@ -59,7 +59,6 @@ An edit loads only what that change needs and keeps the established direction.
 3. **The content makes the transition, never the frame.** The stage stays;
    the old elements leave one by one, or one already on screen becomes the
    next thing (a pill opens into the card, a word travels into the headline).
-   No slide comes in or goes out.
 4. **One object carries the story** across shots and keeps its identity: the
    product's own file, message, card, cursor or mark, changing role as the
    film moves on. Separate scenes then read as one piece.
@@ -122,6 +121,7 @@ The brief decides the kind of film; each puts something different at the centre.
 
 | Kind | Centre of the film |
 |---|---|
+| Explainer | the viewer's problem, the product and its result, narrated, on the product's real screens |
 | Launch / brand film | one product-specific visual idea and an emotional turn; scale, light and material carry it |
 | Product walkthrough | one task from input to visible result, on real or faithfully simplified screens, cropped to the control that matters |
 | Feature announcement | one change made visible: before, the action, after; supporting features stay out |
