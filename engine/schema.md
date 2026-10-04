@@ -433,12 +433,13 @@ Shorten it to `D * .2`, start earlier, or omit the repeat. For a staggered
 group include the last target's stagger offset, and check the returned
 timeline's total duration. Fractions of `D` alone do not prevent overruns.
 
-`window.ShotKit` also exposes `aim(mover, target, { at?, tip? })`, the
-`{ x, y }` that lands a cursor's tip (`tip`, default `[0, 0]`) on a point of
-the element it clicks (`at`, default its centre `[0.5, 0.5]`), measured from
-the page: call it in `animate` before any `tl.set` start state and tween the
-cursor to it (`tl.to(cursor, { ...ShotKit.aim(cursor, button) }, 1.2)`), never
-to typed numbers.
+A cursor in a custom shot is the engine's: `const c = ShotKit.cursor(el)`
+(`{ hand: true }` for the big hand), then `ShotKit.click(tl, c, button, 1.2)`
+travels it in, presses and ripples on the button and returns the press time
+for the click's result (`{ from: null }` moves on from the last click). For
+anything else that lands on an element, `ShotKit.aim(mover, target, { at?,
+tip? })` is the `{ x, y }` to tween it to, measured from the page, never typed
+numbers. Call either in `animate` before any `tl.set` start state.
 
 `ShotKit.morph(tl, from, to, { at, dur: 0.7, ease })` turns one element of
 the shot into another at `at` — the move the `morph` join makes between shots:

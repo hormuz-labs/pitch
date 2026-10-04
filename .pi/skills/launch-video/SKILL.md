@@ -74,9 +74,9 @@ An edit loads only what that change needs and keeps the established direction.
    makes findings, a request makes a confirmation; a click lands on the thing
    it clicks.
 8. **Type is motion, never the same motion twice running.** Words arrive in a
-   way that fits what they say, from the library's `text` family (word by
-   word, letter by letter, a mask wipe, a scramble, out of a blur), and
-   no text entrance repeats in the next shot, and rarely at all in one film.
+   way that fits what they say (word by word, letter by letter, a mask wipe,
+   a scramble, out of a blur; spoken words through `captions`), and no text
+   entrance repeats in the next shot, and rarely at all in one film.
    Words never sit over a busy picture without something behind them, and
    never collide with or travel through other text.
 9. **Vary the scale.** Close, wide, overhead, full-frame type. Never the same

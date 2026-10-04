@@ -1,6 +1,6 @@
 # The effects library
 
-`pitch effects` holds 444 studied motion pieces: type, logos, icons,
+`pitch effects` holds 455 studied motion pieces: type, logos, icons,
 buttons, cursors, devices, counters, charts, cards, transitions, each a
 working page with notes on how it is built. Films are built from it. A move
 invented from nothing is the fallback, for a job no effect does.
@@ -8,14 +8,13 @@ invented from nothing is the fallback, for a job no effect does.
 ## Choosing, in the storyboard
 
 Search for what has to happen on screen, not for a look: `pitch effects
-search "title rises through a mask"`, `--family text` for a row's words,
-`--family icons` for an icon that does something. Each search returns six
-candidates and one contact sheet of their frames; run every row's searches in
-one shell call, read the sheets together, and write the chosen id in each row.
-Edits reuse the ids already in `direction.md`.
+search "spoken line builds word by word"`, `--family icons` for an icon that
+does something. Each search returns six candidates and one contact sheet of
+their frames; run every row's searches in one shell call, read the sheets
+together, and write the chosen id in each row. Edits reuse the ids already in
+`direction.md`.
 
-- Every row's words arrive through a `text` effect, and no effect repeats in
-  the next row; across a film, use the range.
+- No effect repeats in the next row; across a film, use the range.
 - Effects combine: a text effect over a device effect, a counter inside a card.
 - An effect's id is your note. Never put it in front of the user.
 

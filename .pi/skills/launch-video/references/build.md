@@ -55,9 +55,9 @@ timeline time:
   `move` over most of the hold) on top of the shot's slow drift: slow
   motion reads, a freeze reads as a stall. Scrambling, flying in and morphing
   time is not reading time.
-- **Aim, never guess.** A cursor, arrow or travelling object goes to where its
-  target really is: `ShotKit.aim(cursor, button)` measures it (call it before
-  any `tl.set` start state). Typed coordinates click beside the button.
+- **Aim, never guess.** A cursor is the engine's (`ShotKit.cursor`, moved by
+  `ShotKit.click`); it and any travelling object go where the target really
+  is, measured by `ShotKit.aim`. Typed coordinates click beside the button.
 
 ## Joins
 

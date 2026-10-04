@@ -7,10 +7,10 @@ not the intention.
 
 ## A round
 
-1. **Measure.** One `pitch motion audit` of the whole film (timeline validity,
-   brand colours, frame one, still stretches, notes); read the sheet it
-   writes, a frame a second. Then one `pitch motion review --times '[…]'` just
-   before, during and after each signature transition and each morph or match.
+1. **Measure.** One `pitch motion audit` of the whole film; read both sheets
+   it writes (a frame a second, and `look.jpg`, the moments to judge). Then
+   one `pitch motion review --times '[…]'` around each signature transition
+   and each morph or match; `pitch motion look --at` names a frame's elements.
 2. **List the problems, ranked,** each with its timestamp, in `critique.md`:
    biggest first. End the list with **ship** or **one more pass**.
 3. **Fix the biggest first.** Batch fixes that touch different shots, then

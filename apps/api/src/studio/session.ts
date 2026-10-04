@@ -195,7 +195,9 @@ const SANDBOX_EXTENSION = path.join(PI_EXTENSIONS_DIR, 'bwrap-sandbox.ts')
 // sits at "working" forever. Check against the runtime before changing it.
 const MODEL_SPEC = process.env.STUDIO_MODEL || DEFAULT_STUDIO_MODEL
 const ALLOWED_SPECS = studioModelSpecs()
-const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'medium') as any
+// A film is planned before it is built; at medium the agent skimmed the plan
+// (and invented a token budget to hurry against), so the default is high.
+const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'high') as any
 const STUDIO_MODELS_JSON = path.join(PI_DIR, 'models.json')
 
 function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {

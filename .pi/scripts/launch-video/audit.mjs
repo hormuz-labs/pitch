@@ -23,6 +23,10 @@
  *   5. The words on the sampled frames (lib/frame-text.mjs): words with
  *      something on top of them for a second fail; a caret over a prompt that
  *      is never typed is a note.
+ *   6. The other things on them (lib/frame-objects.mjs): a logo with something
+ *      over it, a box with nothing in it, a box over part of another, a frame
+ *      with almost nothing in it. Not failures: each moment is drawn outlined
+ *      in audit/look.jpg for the agent to judge.
  *
  * Screenshots dominate capture time, so samples are taken by several tabs at
  * once, each seeking its own slice of the timeline — capture.mjs's pattern —
@@ -50,6 +54,7 @@ import { paceOf } from "./lib/pace.mjs";
 import { designSummary, extractSpec, lintAd, lintDesign } from "./lib/design-rules.mjs";
 import { measureMotion, motionFindings } from "./lib/motion-lint.mjs";
 import { frameTextFindings, measureFrameText } from "./lib/frame-text.mjs";
+import { drawOutlines, frameObjectFindings, lookLines, measureFrameObjects } from "./lib/frame-objects.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
@@ -77,6 +82,7 @@ let shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0
 
 if (!only.length) rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
+rmSync(join(outDir, "look.jpg"), { force: true });
 
 console.log(`\n🔍 Motion Audit — ${pageArg}`);
 
@@ -242,12 +248,17 @@ await Promise.all(Array.from({ length: workers }, async (_, w) => {
   }
   for (let i = from; i < to; i++) {
     samples[i] = { t: times[i], buf: await grabAt(pg, sess, times[i]) };
-    if (probes.has(i)) samples[i].text = await pg.evaluate(measureFrameText).catch(() => null);
+    if (probes.has(i)) {
+      samples[i].text = await pg.evaluate(measureFrameText).catch(() => null);
+      samples[i].objects = await pg.evaluate(measureFrameObjects).catch(() => null);
+    }
   }
   if (w > 0) await pg.close();
 }));
 mark("capture");
 lint.push(...frameTextFindings(samples.filter(s => s.text).map(s => ({ t: s.t, ...s.text })), only));
+const shotAt = (t) => [...cues].reverse().find(c => c.time <= t + 1e-6)?.label || "";
+const looks = frameObjectFindings(samples.filter(s => s.objects).map(s => ({ t: s.t, shot: shotAt(s.t), ...s.objects })), { only, step: step * 2 });
 // keep one frame per second on disk for the agent to look at; a scoped run
 // replaces the frames of its stretch and leaves the rest of the film's
 const frameName = t => `frame_${String(Math.round(t)).padStart(3, "0")}_${t.toFixed(1)}s.png`;
@@ -353,6 +364,26 @@ let determinismWarnings = 0;
     console.error(`\n❌ NON-DETERMINISTIC at ${probe.toFixed(1)}s (${(drift * 100).toFixed(1)}% of pixels moved) — something animates on the global ticker (bare gsap.to / CSS animation). Put it on the returned timeline.`);
   }
 }
+// The moments to look at, each drawn outlined on its own frame, two across.
+let lookSheet = null;
+if (looks.length) {
+  const dir = join(outDir, ".look");
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  for (const [i, m] of looks.entries()) {
+    await seekFilm(page, m.at);
+    await page.evaluate(drawOutlines, { items: m.outline, caption: `[${i + 1}] ${m.at.toFixed(1)}s` });
+    const { data } = await cdp.send("Page.captureScreenshot", { ...shotOpts, format: "jpeg", quality: 80 });
+    writeFileSync(join(dir, `l_${String(i).padStart(2, "0")}.jpg`), Buffer.from(data, "base64"));
+  }
+  await page.evaluate(drawOutlines, {});
+  const cols = stage.h > stage.w ? 4 : 2;
+  try {
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", join(dir, "l_%02d.jpg"), "-vf", `tile=${cols}x${Math.ceil(looks.length / cols)}:padding=6:color=0x141414`, "-frames:v", "1", "-q:v", "4", join(outDir, "look.jpg")], { stdio: "ignore" });
+    lookSheet = join(outDir, "look.jpg");
+  } catch {}
+  rmSync(dir, { recursive: true, force: true });
+}
 mark("checks");
 await studio.close();
 {
@@ -416,13 +447,17 @@ const nline = narration.mode === "continuous"
 console.log(`   narration: ${nline}`);
 for (const w of warns) console.log(`   ⚠️  ${w}`);
 for (const f of fails) console.log(`   ❌ ${f}`);
+if (looks.length) {
+  console.log(`\n👀 To look at${lookSheet ? ` — read ${lookSheet}: each one outlined and numbered` : ""}. Not failures: a viewer may read one as a mistake, or it is the design. Change what looks wrong; leave what is meant.`);
+  for (const l of lookLines(looks)) console.log(`   ${l}`);
+}
 if (fails.length) {
   console.error(`\n❌ AUDIT FAILED (${fails.length}) — fix every ❌ above, then re-run. Frames in '${outDir}/'${sheet ? `; the whole film at a glance: ${sheet}` : ""}.`);
   process.exit(1);
 } else {
   const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
   const other = warns.length - pacing;
-  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}${other ? `; ${other} other note${other === 1 ? "" : "s"} (⚠️ above) to answer` : ""}. Frames in '${outDir}/'.${sheet ? ` Look at the whole film before judging it: ${sheet} (a frame a second).` : ""}${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
+  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}${other ? `; ${other} other note${other === 1 ? "" : "s"} (⚠️ above) to answer` : ""}${looks.length ? `; ${looks.length} moment${looks.length === 1 ? "" : "s"} to look at (👀 above)` : ""}. Frames in '${outDir}/'.${sheet ? ` Look at the whole film before judging it: ${sheet} (a frame a second).` : ""}${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
 }
 
 /**

@@ -620,14 +620,7 @@
         screen.appendChild(img);
       });
     }
-    if (shot.cursor) {
-      // The pointer, or (`hand: true`) the big cartoon hand the reference
-      // films use at hero scale.
-      const hand = shot.cursor.hand
-        ? `<svg viewBox="0 0 64 64" width="64" height="64"><path d="M22 58c-6 0-9-4-11-9L5 34c-1-3 1-6 4-6 2 0 3 1 4 3l4 7V14c0-3 2-5 5-5s5 2 5 5v14h2V11c0-3 2-5 5-5s5 2 5 5v17h2V15c0-3 2-5 5-5s5 2 5 5v13h2v-7c0-3 2-5 5-5s5 2 5 5v20c0 10-7 17-17 17H22z" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M27 32v10M34 32v10M41 32v10" stroke="#111" stroke-width="3" stroke-linecap="round"/></svg>`
-        : `<svg viewBox="0 0 24 24" width="48" height="48"><path d="M4 2l16 9-7 2-3 8z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-      screen.appendChild(h(`<div class="ui-cursor ${shot.cursor.hand ? "hand" : ""}"><div class="ui-ripple"></div>${hand}</div>`));
-    }
+    if (shot.cursor) screen.appendChild(pointer(shot.cursor.hand));
     if (Array.isArray(shot.cursors)) {
       // Named collaborator cursors, each with a colour and a label, moving
       // along waypoints: the product is being used by several people.
@@ -1685,6 +1678,42 @@
   }
   function cardAnimate() { return gsap.timeline(); }
 
+  // The pointer, or (`hand`) the big cartoon hand the reference films use at
+  // hero scale; `tip` is where each one touches, as a fraction of its box.
+  const POINTERS = {
+    arrow: { tip: [8 / 48, 4 / 48], svg: `<svg viewBox="0 0 24 24" width="48" height="48"><path d="M4 2l16 9-7 2-3 8z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>` },
+    hand: { tip: [22 / 64, 9 / 64], svg: `<svg viewBox="0 0 64 64" width="64" height="64"><path d="M22 58c-6 0-9-4-11-9L5 34c-1-3 1-6 4-6 2 0 3 1 4 3l4 7V14c0-3 2-5 5-5s5 2 5 5v14h2V11c0-3 2-5 5-5s5 2 5 5v17h2V15c0-3 2-5 5-5s5 2 5 5v13h2v-7c0-3 2-5 5-5s5 2 5 5v20c0 10-7 17-17 17H22z" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M27 32v10M34 32v10M41 32v10" stroke="#111" stroke-width="3" stroke-linecap="round"/></svg>` },
+  };
+  function pointer(hand) {
+    return h(`<div class="ui-cursor ${hand ? "hand" : ""}"><div class="ui-ripple"></div>${POINTERS[hand ? "hand" : "arrow"].svg}</div>`);
+  }
+  /** The engine's cursor in a custom shot, appended to `parent`: `click` moves it. */
+  function cursor(parent, { hand = false } = {}) {
+    const node = pointer(hand);
+    parent.appendChild(node);
+    return node;
+  }
+  /**
+   * `node` (a `cursor`) travels to `target` and clicks it at `at`, as the
+   * ui-frame cursor does: in from `from` px off it (the first click; null
+   * travels from where the last left it), press, ripple, release. Measures
+   * the page, so call it before any start state on `target`. Returns the
+   * press time, for the click's result.
+   */
+  function click(tl, node, target, at, { from = [180, 140], point = [0.5, 0.5] } = {}) {
+    const to = aim(node, target, { at: point, tip: POINTERS[node.classList.contains("hand") ? "hand" : "arrow"].tip });
+    if (from) {
+      gsap.set(node, { x: to.x + from[0], y: to.y + from[1], opacity: 0 });
+      tl.to(node, { opacity: 1, duration: 0.15 }, at);
+    }
+    tl.to(node, { x: to.x, duration: 0.7, ease: "power2.inOut" }, at);
+    tl.to(node, { y: to.y, duration: 0.7, ease: "power3.out" }, at);
+    tl.to(node, { scale: 0.82, duration: 0.09, ease: "power2.in" }, at + 0.82);
+    tl.fromTo(node.querySelector(".ui-ripple"), { scale: 0, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.5, ease: "power2.out" }, at + 0.86);
+    tl.to(node, { scale: 1, duration: 0.18, ease: "back.out(2)" }, at + 0.94);
+    return at + 0.86;
+  }
+
   /**
    * Where to move `mover` so its tip lands on `target`: the { x, y } to tween
    * it to. A cursor aimed by hand-typed numbers clicks beside its button; this
@@ -1909,7 +1938,7 @@
   }
 
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, aim, morph, reflow, stage: STAGE, looks: LOOKS };
+  window.ShotKit = { h, qs, qsa, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap, aim, cursor, click, morph, reflow, stage: STAGE, looks: LOOKS };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },

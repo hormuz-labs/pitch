@@ -1,7 +1,7 @@
 /**
  * Launch films — `pitch motion` commands wrapping the Node programs in
  * .pi/scripts/launch-video (recon, screenshot, tts, align, sync, cues/check,
- * sfx, mix, audit, review, footage, stock) plus two small host helpers
+ * sfx, mix, audit, review, look, footage, stock) plus two small host helpers
  * (find_audio, verify_duration). MP4 capture is owned by the user-triggered exporter. Scripts
  * live outside .pi/skills on purpose: the skills directory is readable by the
  * agent, and 200KB of host-side code is nothing it should ever read.
@@ -615,9 +615,30 @@ export default function motionCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'look',
+    description:
+      'What is on the frame at a moment, named: every thing on screen numbered on a picture (look/look-N.jpg, read it) and listed with its selector, its box in film pixels and what it holds, then any logo with something over it, box with nothing in it or box over part of another. Use it to find the element you see before editing, instead of reading the code for it.',
+    parameters: Type.Object({
+      at: Type.Array(Type.Number(), {
+        minItems: 1,
+        maxItems: 6,
+        description: 'Moments, in seconds',
+      }),
+      page: Type.Optional(Type.String({ description: 'Page to look at (default index.html)' })),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a: string[] = []
+      if (p.page) a.push(relativeIn(ws, p.page))
+      a.push(`--at=${p.at.join(',')}`, '--out=look')
+      return text(await validateFilm('look.mjs', a, ws, 'look'))
+    },
+  })
+
+  commands.push({
     verb: 'audit',
     description:
-      'Render validation and pacing diagnostics. Loads index.html?audit (optional drift and ambient off), samples every 0.25s, checks timeline validity, narration alignment, factory overruns, seek determinism and scene visibility. Pixel-change rate is not a storytelling score: default notes flag quiet stretches over 1.5s or fewer than 0.7 events/s; max_quiet and min_eps may be chosen for the treatment. Review notes against direction.md and reading time. Intentional stillness needs no fix or re-run; never add decorative motion to raise the count. No prescribed shot count, duration, effect source, cut style or sound dip. Fix ❌ rendering failures and re-run. After timing, cue or beat edits, use shots to sample only the affected shots. Writes frames in audit/. Audio-only changes need pitch motion mix, not a visual audit.',
+      'Render validation and pacing diagnostics. Loads index.html?audit (optional drift and ambient off), samples every 0.25s, checks timeline validity, narration alignment, factory overruns, seek determinism and scene visibility. Pixel-change rate is not a storytelling score: default notes flag quiet stretches over 1.5s or fewer than 0.7 events/s; max_quiet and min_eps may be chosen for the treatment. Review notes against direction.md and reading time. Intentional stillness needs no fix or re-run; never add decorative motion to raise the count. No prescribed shot count, duration, effect source, cut style or sound dip. Fix ❌ rendering failures and re-run. Moments a viewer may read as mistakes (a logo with something over it, a box with nothing in it, a box over part of another, a frame with almost nothing in it) are not failures: they come back outlined in audit/look.jpg for you to judge. After timing, cue or beat edits, use shots to sample only the affected shots. Writes frames in audit/. Audio-only changes need pitch motion mix, not a visual audit.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       shots: Type.Optional(
