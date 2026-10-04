@@ -23,6 +23,19 @@ describe('pitch effects', () => {
     expect(effects.some(e => e.id.startsWith('_'))).toBe(false)
   })
 
+  it("finds the SaaS showcase and headline sets by their authored names (0xAdnan's improv-launch)", async () => {
+    const effects = loadEffects()
+    const families = await tools.families.run({}, os.tmpdir())
+    for (const [family, count] of Object.entries({ 'saas-showcase': 15, 'saas-text': 21 })) {
+      expect(effects.filter(e => e.family === family)).toHaveLength(count)
+      expect(families).toContain(`${family} (${count})`)
+    }
+    expect(searchEffects(effects, 'command palette')[0].id).toBe('saas-showcase/command-palette')
+    expect(searchEffects(effects, 'pill opens inside a headline')[0].id).toBe(
+      'saas-text/inline-media-pill',
+    )
+  })
+
   it('finds a move by what happens on screen', () => {
     const hits = searchEffects(loadEffects(), 'checkmark strokes', 'icons')
     expect(hits[0].id).toBe('icons/check-icon')

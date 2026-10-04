@@ -1,6 +1,6 @@
 # The effects library
 
-`pitch effects` holds 455 studied motion pieces: type, logos, icons,
+`pitch effects` holds 491 studied motion pieces: type, logos, icons,
 buttons, cursors, devices, counters, charts, cards, transitions, each a
 working page with notes on how it is built. Films are built from it. A move
 invented from nothing is the fallback, for a job no effect does.
