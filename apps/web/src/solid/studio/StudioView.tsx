@@ -1094,7 +1094,7 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                 onApply={track => {
                   setMusicOpen(false)
                   void s.send(
-                    `Change the background music to "${track.name}". Keep the visuals, edits, narration, and timing intact; update the current preview and any subsequent render to use this track.`,
+                    `Change the background music to "${track.name}". Keep the visuals, edits and narration, and re-time the cuts and arrivals to the new track's beats; update the current preview and any subsequent render to use this track.`,
                     {
                       options: { music: track.file },
                     },

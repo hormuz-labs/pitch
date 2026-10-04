@@ -996,6 +996,12 @@ export default function motionCommands(): CommandSpec[] {
       music: Type.Optional(Type.String({ description: 'Music bed path, e.g. audio/music.mp3' })),
       sfx: Type.Optional(Type.String({ description: 'SFX bus path, e.g. audio/sfx_bus.wav' })),
       music_only: Type.Optional(Type.Boolean({ description: 'No narration in this film' })),
+      keep_music: Type.Optional(
+        Type.Boolean({
+          description:
+            "Lay the bed whole. By default a bed longer than the film loses whole bars near the end so the track's own ending closes the film",
+        }),
+      ),
       bed_db: Type.Optional(
         Type.Number({ description: 'Bed attenuation in dB (default -13, or -10 music-only)' }),
       ),
@@ -1025,6 +1031,7 @@ export default function motionCommands(): CommandSpec[] {
       if (p.music) a.push('--music=' + relativeIn(ws, p.music))
       if (p.sfx) a.push('--sfx=' + relativeIn(ws, p.sfx))
       if (p.music_only) a.push('--music-only')
+      if (p.keep_music) a.push('--keep-music')
       if (p.bed_db !== undefined) a.push('--bed-db=' + p.bed_db)
       if (p.sfx_db !== undefined) a.push('--sfx-db=' + p.sfx_db)
       if (p.no_breaths !== undefined) a.push('--no-breaths=' + p.no_breaths)

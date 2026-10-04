@@ -41,6 +41,7 @@ import { loadShots, loadWords, voStartOf, wordsPathFor } from "./lib/vo-words.mj
 import { muffleGraph, muffleStages, resolveAudioFx, ringArgs } from "./lib/audio-fx.mjs";
 import { breathFilter, breathsFromSpec } from "./lib/breaths.mjs";
 import { balanceProblems, balanceRegions, measureAudioWindows } from "./lib/audio-levels.mjs";
+import { loadBeats, musicEdit } from "./lib/music-beats.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -94,6 +95,7 @@ const BED_ATTEN_DB = Number(setting("bed-db", MUSIC_ONLY ? -10 : -13));
 const SFX_TRIM_DB = Number(setting("sfx-db", MUSIC_ONLY ? -3 : 0));
 let DUCK_DEPTH = Number(setting("duck", 9));
 const NO_BREATHS = [true, "true"].includes(setting("no-breaths", false));
+const KEEP_MUSIC = !!flag("keep-music");          // lay the bed as it is, no edit to its ending
 const MIN_CONTRAST = Number(flag("min-contrast", 10));  // VO vs music-only gap
 
 
@@ -368,10 +370,39 @@ if (!MUSIC_ONLY) {
 // 3. Step B — music bed: trimmed, vocal-band carved, attenuated
 // ---------------------------------------------------------------------------
 let BED = null;
+let musicEnds = false; // the bed was cut to end on its own ending
 if (MUSIC) {
   const musicPath = abs(MUSIC);
   if (!existsSync(musicPath)) { console.error(`Music not found: ${musicPath}`); process.exit(1); }
   BED = join(tmp, "music_bed.wav");
+  // A bed that runs past the film loses whole bars late on, so its own
+  // ending lands on the film's instead of a fade halfway through a phrase.
+  let source = musicPath, edited = "";
+  if (!KEEP_MUSIC) {
+    let beats = loadBeats();
+    if (!beats || abs(beats.file) !== musicPath) {
+      const out = join(tmp, "music-beats.json");
+      try {
+        await execFileAsync(process.execPath, [join(dirname(new URL(import.meta.url).pathname), "beats.mjs"), `--music=${musicPath}`, `--out=${out}`], { timeout: 120000 });
+        beats = loadBeats(out);
+      } catch { beats = null; }
+    }
+    const seconds = await probeDur(musicPath).catch(() => 0);
+    const cut = beats && seconds && Math.abs(seconds - beats.seconds) < 1 ? musicEdit({ ...beats, seconds }, DURATION + TAIL) : null;
+    if (cut) {
+      source = join(tmp, "music_fit.wav");
+      const x = 0.04; // an 80ms crossfade centred on the cut
+      await sh([
+        "-i", musicPath, "-filter_complex",
+        `[0:a]atrim=0:${(cut.a + x).toFixed(3)},asetpts=PTS-STARTPTS[h];` +
+        `[0:a]atrim=start=${(cut.b - x).toFixed(3)},asetpts=PTS-STARTPTS[t];` +
+        `[h][t]acrossfade=d=${2 * x}:c1=tri:c2=tri[out]`,
+        "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", source,
+      ]);
+      musicEnds = true;
+      edited = ` · bars ${cut.from}–${cut.to} cut at ${cut.a.toFixed(2)}s so the track's own ending closes the film (--keep-music lays it whole)`;
+    }
+  }
   // Breaths: the `breath` beats the page exported through cues.mjs. The bed
   // dips there — the pause before a payoff both reference films have.
   let cues = null;
@@ -385,7 +416,7 @@ if (MUSIC) {
   // and wide beats one deep notch — the bed keeps its character, the voice
   // gets a clear lane.
   await sh([
-    "-i", musicPath,
+    "-i", source,
     "-af",
     `aresample=48000,aformat=channel_layouts=stereo,` +
     `atrim=0:${(DURATION + TAIL).toFixed(3)},asetpts=PTS-STARTPTS,` +
@@ -403,7 +434,7 @@ if (MUSIC) {
     console.error(`❌ Music bed averages ${bedStats.mean}dB; raise --bed-db before mixing SFX (need at least -30dB).`);
     process.exit(1);
   }
-  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (${MUSIC_ONLY ? "uncarved" : "carved"} + ${BED_ATTEN_DB}dB${breaths.length ? ` · ${breaths.length} scheduled breath${breaths.length === 1 ? "" : "s"} at ${breaths.map((b) => b.at.toFixed(1) + "s").join(", ")}` : ""})`);
+  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (${MUSIC_ONLY ? "uncarved" : "carved"} + ${BED_ATTEN_DB}dB${breaths.length ? ` · ${breaths.length} scheduled breath${breaths.length === 1 ? "" : "s"} at ${breaths.map((b) => b.at.toFixed(1) + "s").join(", ")}` : ""}${edited})`);
 
   // ---- Step C — duck the bed against the VO ------------------------------
   if (MUSIC_ONLY) {
@@ -490,12 +521,15 @@ for (const [k, ring] of FX.rings.entries()) {
   console.log(`Step R  ring ${k + 1}         ${ring.freq}Hz ${ring.level}dBFS ${ring.from.toFixed(2)}–${ring.to.toFixed(2)}s`);
 }
 
-const fadeOutAt = Math.max(0, DURATION - 1.5);
+// A bed that ends on its own ending needs only a short fade at the last
+// frame; one cut off mid-phrase gets the long one.
+const fadeLen = musicEnds ? 0.4 : 1.4;
+const fadeOutAt = Math.max(0, DURATION - 0.1 - fadeLen);
 /** Sum `inputs` the way the master does: same fades, same length. */
 const busGraph = (inputs, limit) =>
   `${inputs.map((_, i) => `[${i}:a]aresample=48000,aformat=channel_layouts=stereo[s${i}]`).join(";")};` +
   `${inputs.map((_, i) => `[s${i}]`).join("")}amix=inputs=${inputs.length}:dropout_transition=0:normalize=0[m];` +
-  `[m]afade=t=in:d=0.3,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=1.4,` +
+  `[m]afade=t=in:d=0.3,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${fadeLen},` +
   `apad=whole_dur=${(DURATION + TAIL).toFixed(3)},atrim=0:${(DURATION + TAIL).toFixed(3)}` +
   (limit ? `,alimiter=level=disabled:limit=0.95:latency=1[out]` : "[out]");
 await sh([

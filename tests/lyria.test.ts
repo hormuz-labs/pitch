@@ -1,6 +1,16 @@
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { musicPrompt } from '../apps/api/src/pipelines/lyria.js'
-import { findDrops, fitOffset, WINDOW } from '../apps/api/src/pipelines/music-fit.js'
+import {
+  describeFit,
+  findDrops,
+  fitBed,
+  fitOffset,
+  WINDOW,
+} from '../apps/api/src/pipelines/music-fit.js'
 
 /** A low-band level track: [dB, seconds] runs, sliced into WINDOW windows. */
 const track = (...runs: [number, number][]) =>
@@ -47,5 +57,31 @@ describe('Lyria music bed', () => {
     expect(fitOffset(drops, 60)).toEqual({ offset: 16.75, drop: drops[3] })
     expect(fitOffset(drops, 80)).toEqual({ offset: 0 })
     expect(fitOffset(drops, undefined)).toEqual({ offset: 0 })
+  })
+})
+
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0
+
+describe.skipIf(!hasFfmpeg)('fitting a generated take', { timeout: 30_000 }, () => {
+  it('starts the bed where the sound does when there is no drop to land', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'music-fit-'))
+    try {
+      // ElevenLabs has returned a take that opens on ~4s of nothing
+      const raw = path.join(dir, 'raw.wav')
+      spawnSync('ffmpeg', [
+        '-v',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        "aevalsrc='gte(t,3.2)*0.5*sin(2*PI*110*t)':s=44100:d=20",
+        raw,
+      ])
+      const fit = await fitBed(raw, path.join(dir, 'bed.mp3'), 10, undefined)
+      expect(fit.offset).toBeCloseTo(3.15, 1)
+      expect(describeFit(fit, 'audio/music.mp3', 10)[1]).toMatch(/3\.1\ds of silence trimmed/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

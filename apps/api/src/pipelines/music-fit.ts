@@ -120,6 +120,26 @@ async function lowBandLevels(file: string): Promise<number[]> {
     .map(line => Number.parseFloat(line.split('=')[1]))
 }
 
+/** Seconds of nothing before the take starts: an ElevenLabs bed has opened with ~4s of it. */
+async function leadingSilence(file: string): Promise<number> {
+  const { stderr } = await execFileAsync('ffmpeg', [
+    '-hide_banner',
+    '-nostats',
+    '-t',
+    '15',
+    '-i',
+    file,
+    '-af',
+    'silencedetect=noise=-50dB:d=0.25',
+    '-f',
+    'null',
+    '-',
+  ])
+  const start = /silence_start: (-?[\d.]+)/.exec(stderr)
+  const end = /silence_end: ([\d.]+)/.exec(stderr)
+  return start && Number(start[1]) <= 0.05 && end ? Number(end[1]) : 0
+}
+
 export interface Fit {
   rawDuration: number
   drops: Drop[]
@@ -137,7 +157,11 @@ export async function fitBed(
 ): Promise<Fit> {
   const rawDuration = await getMediaDurationSec(raw)
   const drops = findDrops(await lowBandLevels(raw))
-  const { offset, drop } = fitOffset(drops, dropAt)
+  // With no drop to land, the bed starts where the take's sound does.
+  const { offset, drop } =
+    dropAt === undefined
+      ? { offset: Math.max(0, (await leadingSilence(raw)) - 0.05), drop: undefined }
+      : fitOffset(drops, dropAt)
   const length = Math.min(duration, rawDuration - offset)
   await execFileAsync('ffmpeg', [
     '-y',
@@ -174,7 +198,12 @@ const list = (drops: Drop[], shift = 0) =>
 export function describeFit(fit: Fit, rel: string, duration: number, dropAt?: number): string[] {
   const inFilm = fit.drops.filter(d => d.at >= fit.offset && d.at - fit.offset < fit.length)
   const lines = [`Measured drops in the raw take: ${list(fit.drops)}.`]
-  if (dropAt === undefined) lines.push('No drop_at given: the bed starts at the top of the take.')
+  if (dropAt === undefined)
+    lines.push(
+      fit.offset > 0
+        ? `No drop_at given: the bed starts where the take's sound does (${fit.offset.toFixed(2)}s of silence trimmed).`
+        : 'No drop_at given: the bed starts at the top of the take.',
+    )
   else if (fit.drop)
     lines.push(
       `Trimmed ${fit.offset.toFixed(2)}s from the head so the ${fit.drop.at.toFixed(2)}s drop lands on ${dropAt.toFixed(2)}s.`,
