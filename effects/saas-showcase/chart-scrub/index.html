@@ -1,0 +1,185 @@
+<!doctype html><meta charset="utf-8">
+<title>Chart Scrub</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:radial-gradient(ellipse 60% 50% at 50% 30%,color-mix(in srgb,var(--accent) 9%,var(--bg)) 0%,var(--bg) 70%)}
+  .card{position:absolute;left:50%;top:50%;width:920px;height:500px;margin:-250px 0 0 -460px;border-radius:24px;background:linear-gradient(180deg,var(--surface),var(--panel));
+    border:1px solid color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 50px 120px -30px rgba(0,0,0,.9),inset 0 1px 0 color-mix(in srgb,var(--ink) 5%,transparent);will-change:transform,opacity,filter}
+  .hd{position:absolute;left:40px;top:34px}
+  .hd .lb{font-size:16px;color:var(--muted)}
+  .hd .val{margin-top:8px;display:flex;align-items:center;gap:14px}
+  .hd .num{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:52px;letter-spacing:-.035em;color:var(--ink);font-variant-numeric:tabular-nums}
+  .hd .chip{font-size:14px;font-weight:500;color:var(--positive);background:color-mix(in srgb,var(--positive) 14%,transparent);border:1px solid color-mix(in srgb,var(--positive) 30%,transparent);padding:5px 10px;border-radius:999px}
+  .hd .mo{margin-left:4px;font-size:15px;color:var(--muted)}
+  .range{position:absolute;right:36px;top:38px;display:flex;gap:4px;padding:4px;border-radius:10px;background:var(--raise);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .range span{padding:6px 11px;border-radius:7px}
+  .range .on{background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
+  svg.ch{position:absolute;left:40px;top:160px;width:840px;height:300px;overflow:visible}
+  .tip{position:absolute;left:0;top:0;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:0 16px 40px -10px rgba(0,0,0,.8);
+    font-size:13px;color:var(--muted);white-space:nowrap;opacity:0;will-change:transform,opacity}
+  .tip b{display:block;font-weight:500;font-size:18px;color:var(--ink);margin-top:2px;font-variant-numeric:tabular-nums}
+  .hd,.range{will-change:opacity,transform}
+</style>
+<div class="stage">
+  <div class="card">
+    <div class="hd"><div class="lb">Monthly recurring revenue</div><div class="val"><span class="num">$0</span><span class="chip">+12.4%</span><span class="mo"></span></div></div>
+    <div class="range"><span>3M</span><span>6M</span><span class="on">12M</span><span>All</span></div>
+    <svg class="ch" viewBox="0 0 840 300">
+      <defs>
+        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)" stop-opacity=".38"/><stop offset="1" style="stop-color:var(--accent)" stop-opacity="0"/></linearGradient>
+        <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--accent)"/><stop offset=".6" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent-2)"/></linearGradient>
+        <clipPath id="reveal"><rect class="rv" x="-10" y="-20" width="0" height="360"/></clipPath>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+      </defs>
+      <g class="gridlines" style="stroke:color-mix(in srgb,var(--ink) 7%,transparent)" stroke-dasharray="3 6"></g>
+      <g class="xl" style="fill:var(--faint)" font-size="12.5" text-anchor="middle"></g>
+      <path class="area" fill="url(#area)" clip-path="url(#reveal)"/>
+      <path class="glowline" fill="none" style="stroke:var(--accent)" stroke-width="6" stroke-linecap="round" opacity=".45" filter="url(#glow)"/>
+      <path class="line" fill="none" stroke="url(#stroke)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <line class="hair" y1="0" y2="262" style="stroke:color-mix(in srgb,var(--ink) 30%,transparent)" stroke-width="1" stroke-dasharray="3 4" opacity="0"/>
+      <circle class="halo" r="14" style="fill:var(--accent)" opacity="0" filter="url(#glow)"/>
+      <circle class="dot" r="6" style="fill:var(--ink);stroke:var(--accent)" stroke-width="3" opacity="0"/>
+    </svg>
+    <div class="tip"><span class="tm">Dec 2025</span><b class="tv">$184,920</b></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('draw', '0.6,0,0.25,1');
+  CustomEase.create('scrub', '0.65,0,0.3,1');
+  fx.wait(document.fonts.load('500 52px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 16px "Atlas Grotesk"'));
+
+  const D = 7.4, W = 840, H = 262;
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const DATA = [96.4, 101.2, 99.8, 112.5, 118.9, 116.3, 131.7, 138.2, 147.6, 158.1, 171.4, 184.9];   // $k
+  const MIN = 80, MAX = 200;
+  const X = (i) => 10 + (i / (DATA.length - 1)) * (W - 20);
+  const Y = (v) => H - ((v - MIN) / (MAX - MIN)) * H;
+  const pts = DATA.map((v, i) => [X(i), Y(v)]);
+
+  /* Monotone cubic (Fritsch–Carlson) so the curve never overshoots the data. */
+  function monotone(p) {
+    const n = p.length, dx = [], m = [], tan = [];
+    for (let i = 0; i < n - 1; i++) { dx[i] = p[i + 1][0] - p[i][0]; m[i] = (p[i + 1][1] - p[i][1]) / dx[i]; }
+    tan[0] = m[0]; tan[n - 1] = m[n - 2];
+    for (let i = 1; i < n - 1; i++) tan[i] = m[i - 1] * m[i] <= 0 ? 0 : (3 * (dx[i - 1] + dx[i])) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]);
+    let d = `M${p[0][0]},${p[0][1]}`;
+    for (let i = 0; i < n - 1; i++) {
+      const h = dx[i] / 3;
+      d += `C${p[i][0] + h},${p[i][1] + tan[i] * h} ${p[i + 1][0] - h},${p[i + 1][1] - tan[i + 1] * h} ${p[i + 1][0]},${p[i + 1][1]}`;
+    }
+    return d;
+  }
+  const d = monotone(pts);
+  const svg = document.querySelector('svg.ch');
+  const line = svg.querySelector('.line'), glowline = svg.querySelector('.glowline'), area = svg.querySelector('.area');
+  line.setAttribute('d', d); glowline.setAttribute('d', d);
+  area.setAttribute('d', `${d}L${X(11)},${H}L${X(0)},${H}Z`);
+  const NS = 'http://www.w3.org/2000/svg';
+  for (let k = 0; k <= 3; k++) {
+    const l = document.createElementNS(NS, 'line');
+    l.setAttribute('x1', 0); l.setAttribute('x2', W); l.setAttribute('y1', (k / 3) * H); l.setAttribute('y2', (k / 3) * H);
+    svg.querySelector('.gridlines').append(l);
+  }
+  MONTHS.forEach((m, i) => {
+    const tx = document.createElementNS(NS, 'text');
+    tx.setAttribute('x', X(i)); tx.setAttribute('y', H + 30); tx.textContent = m;
+    svg.querySelector('.xl').append(tx);
+  });
+
+  // x → point on the curve, from a dense sample of the path (x is monotone).
+  const LEN = line.getTotalLength();
+  const samples = [];
+  for (let s = 0; s <= LEN; s += 1) samples.push(line.getPointAtLength(s));
+  function atX(x) {
+    let lo = 0, hi = samples.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (samples[mid].x < x) lo = mid; else hi = mid; }
+    const a = samples[lo], b = samples[hi], f = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+    return { x, y: a.y + (b.y - a.y) * f };
+  }
+  const valueAtY = (y) => MIN + ((H - y) / H) * (MAX - MIN);
+  const money = (k) => '$' + Math.round(k * 1000).toLocaleString('en-US');
+
+  const S = { draw: 0, scrubX: X(11), show: 0 };
+  const num = document.querySelector('.hd .num'), mo = document.querySelector('.hd .mo');
+  const tip = document.querySelector('.tip'), tm = tip.querySelector('.tm'), tv = tip.querySelector('.tv');
+  const hair = svg.querySelector('.hair'), dot = svg.querySelector('.dot'), halo = svg.querySelector('.halo');
+  const rv = svg.querySelector('.rv');
+  const OX = 40, OY = 160;   // chart origin inside the card
+
+  function paint() {
+    // Draw-on: stroke dash, area clip and a glowing tip all from one progress.
+    const len = LEN * S.draw;
+    for (const el of [line, glowline]) { el.style.strokeDasharray = `${LEN}`; el.style.strokeDashoffset = (LEN - len).toFixed(2); }
+    const tipPt = line.getPointAtLength(Math.max(0.01, len));
+    rv.setAttribute('width', (tipPt.x + 10).toFixed(2));
+    // Scrub: the hairline, dot and tooltip ride the curve; the headline value follows.
+    const scrubbing = S.show > 0;
+    const p = scrubbing ? atX(S.scrubX) : tipPt;
+    // The tip dot rides the draw-on, waits at the end point and hands over to
+    // the scrub there (same spot), so it never blinks out between the two.
+    const dotA = S.draw > 0 ? (tl.time() > 3 ? S.show : 1) : 0;
+    for (const c of [dot, halo]) { c.setAttribute('cx', p.x.toFixed(2)); c.setAttribute('cy', p.y.toFixed(2)); }
+    dot.style.opacity = dotA; halo.style.opacity = dotA * 0.8;
+    hair.setAttribute('x1', p.x.toFixed(2)); hair.setAttribute('x2', p.x.toFixed(2));
+    hair.style.opacity = S.show;
+    const v = scrubbing ? valueAtY(p.y) : valueAtY(tipPt.y);
+    num.textContent = money(S.draw > 0 ? v : DATA[0]);
+    const mi = Math.round(((p.x - 10) / (W - 20)) * 11);
+    tm.textContent = `${MONTHS[Math.max(0, Math.min(11, mi))]} 2025`;
+    tv.textContent = money(v);
+    mo.textContent = scrubbing ? `${MONTHS[Math.max(0, Math.min(11, mi))]} 2025` : '';
+    mo.style.opacity = S.show;
+    const tw = tip.offsetWidth;
+    const tx = Math.min(OX + W - tw + 10, Math.max(OX - 10, OX + p.x - tw / 2));
+    tip.style.opacity = S.show;
+    tip.style.transform = `translate(${tx.toFixed(2)}px,${(OY + p.y - 86).toFixed(2)}px) scale(${(0.92 + 0.08 * S.show).toFixed(4)})`;
+  }
+
+  const tl = fx.timeline({ duration: D, onUpdate: paint });
+  tl.fromTo('.card', { opacity: 0, y: 24, scale: 0.97, filter: 'blur(10px)' }, { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: 0.9, ease: 'softOut' }, 0.1)
+    .fromTo('.hd, .range', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.7, stagger: 0.08, ease: 'softOut' }, 0.35)
+    .fromTo('.gridlines, .xl', { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.out' }, 0.45)
+    .fromTo(S, { draw: 0 }, { draw: 1, duration: 1.7, ease: 'draw' }, 0.65)
+  // Scrub: appear at December, glide back to June, forward to September, home.
+    .fromTo(S, { show: 0 }, { show: 1, duration: 0.35, ease: 'power2.out', immediateRender: false }, 2.55)
+    .to(S, { scrubX: X(5), duration: 1.2, ease: 'scrub' }, 2.8)
+    .to(S, { scrubX: X(8), duration: 0.9, ease: 'scrub' }, 4.25)
+    .to(S, { scrubX: X(11), duration: 0.9, ease: 'scrub' }, 5.4)
+    .to(S, { show: 0, duration: 0.3, ease: 'power2.in' }, 6.35)
+    .to('.card', { opacity: 0, y: -16, scale: 0.98, filter: 'blur(8px)', duration: 0.55, ease: 'power2.inOut' }, 6.6);
+  paint();
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.3, event: 'whoosh_deep', label: 'card in' },
+    { t: 0.7, event: 'data', clip: 'pitch-data-stream', align: 'file', dur: 1.55, label: 'chart draws' },
+    { t: 2.6, event: 'glitch', clip: 'pitch-glitch-pop', label: 'scrub appears' },
+    { t: 4.0, event: 'glitch', clip: 'pitch-glitch-tick', label: 'scrub to Jun' },
+    { t: 5.15, event: 'glitch', clip: 'pitch-glitch-tick', label: 'scrub to Sep' },
+    { t: 6.3, event: 'glitch', clip: 'pitch-glitch-lock', label: 'scrub home' },
+    { t: 6.78, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

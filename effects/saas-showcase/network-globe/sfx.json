@@ -1,0 +1,55 @@
+{
+ "duration": 7.4,
+ "cues": [
+  {
+   "t": 0.7,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-sweep",
+   "label": "globe rises"
+  },
+  {
+   "t": 0.95,
+   "event": "data",
+   "clip": "pitch-odometer-roll",
+   "align": "file",
+   "dur": 1.6,
+   "targetLufs": -29,
+   "label": "counter runs"
+  },
+  {
+   "t": 2.1204630338126353,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "route lands"
+  },
+  {
+   "t": 3.2872948960256445,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "route lands"
+  },
+  {
+   "t": 4.5441717769683425,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "route lands"
+  },
+  {
+   "t": 5.581424880226067,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "route lands"
+  },
+  {
+   "t": 6.269538435209629,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "route lands"
+  },
+  {
+   "t": 6.95,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

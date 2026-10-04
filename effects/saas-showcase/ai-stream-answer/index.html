@@ -1,0 +1,184 @@
+<!doctype html><meta charset="utf-8">
+<title>AI Stream Answer</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:radial-gradient(ellipse 60% 50% at 50% 0%,color-mix(in srgb,var(--accent) 10%,var(--bg)) 0%,var(--bg) 70%)}
+  .col{position:absolute;left:50%;top:92px;width:800px;margin-left:-400px;will-change:transform,opacity,filter}
+  .ask{display:flex;justify-content:flex-end}
+  .bubble{font-size:21px;color:var(--ink);padding:14px 22px;border-radius:20px 20px 6px 20px;background:var(--raise);border:1px solid var(--line);transform-origin:100% 100%;will-change:transform,opacity}
+  .reply{display:flex;gap:18px;margin-top:30px}
+  .avatar{position:relative;width:38px;height:38px;flex:none}
+  .avatar .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,var(--accent),var(--accent-2),var(--ink),var(--accent))}
+  .avatar .core{position:absolute;inset:2px;border-radius:50%;background:var(--bg);display:grid;place-items:center}
+  .avatar svg{width:18px;height:18px;color:var(--ink)}
+  .body{position:relative;flex:1;padding-top:4px}
+  .thinking{position:absolute;left:0;top:6px;font-size:20px;font-weight:500;color:transparent;
+    background:linear-gradient(90deg,var(--faint) 0%,var(--faint) 35%,var(--ink) 50%,var(--faint) 65%,var(--faint) 100%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text}
+  .answer{font-size:23px;line-height:1.55;color:var(--text);letter-spacing:-.005em}
+  .answer strong{font-weight:500;color:var(--ink)}
+  .answer .t{display:inline-block;opacity:0;will-change:opacity,filter,transform}
+  .dot{position:absolute;left:0;top:0;width:11px;height:11px;margin:-5.5px 0 0 0;border-radius:50%;background:color-mix(in srgb,var(--accent) 25%,#fff);box-shadow:0 0 12px 3px color-mix(in srgb,var(--accent) 90%,transparent),0 0 30px 8px color-mix(in srgb,var(--accent-2) 35%,transparent);opacity:0}
+
+  .chart{margin-top:24px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--panel));padding:18px 22px 14px;will-change:transform,opacity}
+  .chart h4{font-size:15px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
+  .chart h4 b{font-weight:500;color:var(--positive)}
+  .bars{height:150px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px;align-items:end;margin-top:12px}
+  .b{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .b .v{font-size:14px;color:var(--text)}
+  .b .fill{width:100%;border-radius:8px 8px 3px 3px;background:color-mix(in srgb,var(--ink) 13%,var(--surface));transform-origin:50% 100%}
+  .b.top .fill{background:linear-gradient(180deg,var(--accent-2),var(--accent));box-shadow:0 0 30px color-mix(in srgb,var(--accent) 45%,transparent)}
+  .b .q{font-size:13px;color:var(--muted)}
+  .src{display:flex;gap:10px;margin-top:16px}
+  .chip{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+  .chip svg{width:14px;height:14px;color:var(--muted)}
+</style>
+<div class="stage">
+  <div class="col">
+    <div class="ask"><div class="bubble">How did revenue change last quarter?</div></div>
+    <div class="reply">
+      <div class="avatar"><div class="ring"></div><div class="core"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg></div></div>
+      <div class="body">
+        <div class="thinking">Thinking</div>
+        <p class="answer">Revenue grew <strong>18.4%</strong> quarter over quarter to <strong>$2.41M</strong>. Most of the lift came from <strong>annual plans</strong>, which now make up 62% of new bookings.</p>
+        <div class="dot"></div>
+        <div class="chart">
+          <h4>Revenue by quarter <b>+18.4%</b></h4>
+          <div class="bars">
+            <div class="b"><span class="v">$1.48M</span><div class="fill" style="height:52%"></div><span class="q">Q1</span></div>
+            <div class="b"><span class="v">$1.71M</span><div class="fill" style="height:60%"></div><span class="q">Q2</span></div>
+            <div class="b"><span class="v">$2.04M</span><div class="fill" style="height:71%"></div><span class="q">Q3</span></div>
+            <div class="b top"><span class="v">$2.41M</span><div class="fill" style="height:86%"></div><span class="q">Q4</span></div>
+          </div>
+        </div>
+        <div class="src">
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/></svg>Billing export</span>
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Q4 board metrics</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('pop', '0.16,1,0.3,1');
+  fx.wait(document.fonts.load('400 23px "Atlas Grotesk"'));
+  fx.wait(document.fonts.load('500 23px "Atlas Grotesk"'));
+
+  const D = 8, STREAM = 2.15, FADE = 0.22;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const outCubic = (p) => 1 - Math.pow(1 - clamp(p), 3);
+
+  /* Split the answer into token spans in place (bold runs keep their <strong>).
+     Every token is laid out from the start, so streaming never reflows. */
+  const answer = document.querySelector('.answer');
+  const tokens = [];
+  (function split(node) {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.append(part); return; }
+          const s = document.createElement('span');
+          s.className = 't';
+          s.textContent = part;
+          frag.append(s);
+          tokens.push(s);
+        });
+        child.replaceWith(frag);
+      } else split(child);
+    }
+  })(answer);
+
+  /* Token arrival: a model's cadence — quick, uneven, with an occasional
+     chunk pause. Seeded, so every render streams identically. */
+  const rng = fx.rng(11);
+  let at = STREAM;
+  const times = tokens.map((_, i) => {
+    const t = at;
+    at += 0.04 + rng() * 0.05 + (rng() < 0.12 ? 0.14 : 0);
+    return t;
+  });
+  const DONE = times[times.length - 1] + 0.2;
+
+  const dot = document.querySelector('.dot');
+  const thinking = document.querySelector('.thinking');
+  const ring = document.querySelector('.avatar .ring');
+  const body = document.querySelector('.body');
+
+  function caretAt(i) {
+    const s = tokens[i];
+    return { x: s.offsetLeft + s.offsetWidth + 9, y: s.offsetTop + s.offsetHeight / 2 };
+  }
+
+  function paint() {
+    const t = tl.time();
+    // Tokens fade up out of a light blur as they arrive.
+    let last = -1;
+    tokens.forEach((s, i) => {
+      const p = clamp((t - times[i]) / FADE);
+      if (t >= times[i]) last = i;
+      s.style.opacity = p.toFixed(3);
+      s.style.filter = p < 1 ? `blur(${((1 - p) * 4).toFixed(2)}px)` : 'none';
+      s.style.transform = p < 1 ? `translateY(${((1 - p) * 4).toFixed(2)}px)` : 'none';
+    });
+    // The glowing caret glides to each new token on the same line, and jumps
+    // on a line break rather than sweeping back across the text.
+    if (last >= 0) {
+      const to = caretAt(last);
+      let { x, y } = to;
+      if (last > 0) {
+        const from = caretAt(last - 1);
+        if (Math.abs(from.y - to.y) < 4) x = from.x + (to.x - from.x) * outCubic((t - times[last]) / 0.09);
+      }
+      dot.style.transform = `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)`;
+    }
+    dot.style.opacity = (clamp((t - STREAM) / 0.15) * (1 - clamp((t - DONE) / 0.3))).toFixed(3);
+    // Thinking: a shimmer band sweeps the label, then it hands over to the answer.
+    thinking.style.backgroundPosition = `${(100 - ((t * 0.85) % 1) * 100).toFixed(2)}% 0`;
+    thinking.style.opacity = (clamp((t - 1.05) / 0.25) * (1 - clamp((t - STREAM + 0.15) / 0.2))).toFixed(3);
+    ring.style.transform = `rotate(${(t * 140).toFixed(1)}deg)`;
+  }
+
+  const tl = fx.timeline({ duration: D, onUpdate: paint });
+  tl.fromTo('.bubble', { opacity: 0, scale: 0.9, y: 14 }, { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'back.out(1.5)' }, 0.25)
+    .fromTo('.avatar', { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(2)' }, 0.85)
+    .fromTo('.chart', { opacity: 0, y: 18, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'softOut' }, DONE + 0.05)
+    .fromTo('.b .fill', { scaleY: 0 }, { scaleY: 1, duration: 0.9, stagger: 0.09, ease: 'pop' }, DONE + 0.25)
+    .fromTo('.b .v', { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.09, ease: 'softOut' }, DONE + 0.5)
+    .fromTo('.chip', { opacity: 0, y: 10, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08, ease: 'back.out(1.8)' }, DONE + 0.75)
+    .to('.col', { opacity: 0, y: -18, filter: 'blur(8px)', duration: 0.55, ease: 'power2.inOut' }, D - 0.75);
+  paint();
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.33, event: 'glitch', clip: 'pitch-glitch-pop', label: 'question' },
+    { t: 1.1, event: 'data', clip: 'pitch-data-stream', align: 'file', dur: 0.95, label: 'thinking' },
+    { t: STREAM, event: 'type', clip: 'pitch-type-burst', dur: 1.05, gainDb: 1, label: 'answer streams' },
+    { t: STREAM + 1.05, event: 'type', clip: 'pitch-type-burst', dur: Math.max(0.2, Math.min(1.05, DONE - STREAM - 1.15)), gainDb: 1, label: 'answer streams (cont.)' },
+    { t: DONE + 0.2, event: 'whoosh_deep', label: 'chart card' },
+    ...[0, 3].map((i) => ({ t: DONE + 0.32 + i * 0.09, event: 'glitch', clip: 'pitch-glitch-tick', label: 'bars grow' })),
+    { t: DONE + 0.82, event: 'glitch', clip: 'pitch-glitch-blip', label: 'sources' },
+    { t: D - 0.6, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

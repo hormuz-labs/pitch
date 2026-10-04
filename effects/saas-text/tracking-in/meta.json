@@ -1,0 +1,29 @@
+{
+  "name": "Tracking In",
+  "family": "SaaS Text",
+  "seconds": 4.5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "An uppercase title converges from wide letter-spacing while its blur clears, then a subline blurs in; it exits by tracking back out into blur.",
+  "move": "An uppercase title converges from wide letter-spacing while its blur clears, then a subline blurs in; it exits by tracking back out into blur.",
+  "moves": [
+    "tracking",
+    "letter-spacing",
+    "blur-in",
+    "uppercase",
+    "title"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "A CSS variable --ls drives letter-spacing and an equal padding-left, which keeps the word optically centred at every frame (letter-spacing also trails the last glyph). --ls 0.4em→-0.03em and blur 12→0 over 1.7s with cubic-bezier(0.16,1,0.3,1); opacity reaches 1 in 0.7s. Exit: --ls to 0.25em, blur 10px, fade, power2.in.",
+  "adapt": "Keep the start tracking small enough that the widest frame stays inside the stage: roughly (characters × (glyph width + start tracking)) < stage width. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Tracking In Long\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

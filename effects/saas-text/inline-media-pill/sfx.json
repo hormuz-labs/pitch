@@ -1,0 +1,33 @@
+{
+ "duration": 6,
+ "cues": [
+  {
+   "t": 0.45,
+   "event": "whoosh_deep",
+   "label": "lines rise"
+  },
+  {
+   "t": 1.12,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "avatar pill"
+  },
+  {
+   "t": 1.44,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "visual pill"
+  },
+  {
+   "t": 1.76,
+   "event": "glitch",
+   "clip": "pitch-glitch-chirp",
+   "label": "heart pill"
+  },
+  {
+   "t": 5.15,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

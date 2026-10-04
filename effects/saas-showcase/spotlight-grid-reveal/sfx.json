@@ -1,0 +1,34 @@
+{
+ "duration": 6.4,
+ "cues": [
+  {
+   "t": 0.6,
+   "event": "whoosh_deep",
+   "label": "flashlight on"
+  },
+  {
+   "t": 3.6,
+   "event": "riser",
+   "clip": "pitch-riser-digital",
+   "dur": 0.85,
+   "label": "build to lights up"
+  },
+  {
+   "t": 3.98,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-sweep",
+   "label": "lights come up"
+  },
+  {
+   "t": 4.2,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "CTA"
+  },
+  {
+   "t": 5.85,
+   "event": "whoosh_deep",
+   "label": "lights off"
+  }
+ ]
+}

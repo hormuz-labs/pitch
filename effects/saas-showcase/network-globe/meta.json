@@ -1,0 +1,31 @@
+{
+  "name": "Network Globe",
+  "family": "SaaS Showcase",
+  "seconds": 7.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A dotted planet with procedural continents rises and turns; glowing routes draw on between cities with a bright head, landing cities ring out, and a live payments counter runs beside it.",
+  "move": "A dotted planet with procedural continents rises and turns; glowing routes draw on between cities with a bright head, landing cities ring out, and a live payments counter runs beside it.",
+  "moves": [
+    "globe",
+    "network",
+    "arcs",
+    "payments",
+    "global",
+    "three.js",
+    "map"
+  ],
+  "libs": [
+    "three.js",
+    "DOM"
+  ],
+  "how": "three.js: a Fibonacci-lattice dotted sphere masked by 3D value noise into land/ocean, over an occluding core drawn first. Routes are great-circle arcs lifted by their length, drawn on with setDrawRange on Flow cubic, with a sprite head and an expanding landing ring. Camera view offset frames the globe on the right third.",
+  "adapt": "Change the seed for different continents and routes, or replace pick() with real city vectors. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time. Sound: fx.sfx() cues in the film cue-sheet format; the render muxes them and sfx.json is the sheet to reuse in a film (offset by the shot start).",
+  "caveats": [
+    "Original implementation of a common SaaS launch-film move; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

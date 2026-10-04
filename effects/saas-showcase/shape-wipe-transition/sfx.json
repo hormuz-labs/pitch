@@ -1,0 +1,35 @@
+{
+ "duration": 6.2,
+ "cues": [
+  {
+   "t": 1.55,
+   "event": "click",
+   "clip": "pitch-click-soft",
+   "label": "button"
+  },
+  {
+   "t": 2.1500000000000004,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-deep-2",
+   "label": "wipe in"
+  },
+  {
+   "t": 2.55,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "chips"
+  },
+  {
+   "t": 4.3500000000000005,
+   "event": "click",
+   "clip": "pitch-click-soft",
+   "label": "close"
+  },
+  {
+   "t": 4.95,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-glitch",
+   "label": "wipe back"
+  }
+ ]
+}

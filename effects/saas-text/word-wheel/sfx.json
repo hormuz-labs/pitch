@@ -1,0 +1,35 @@
+{
+ "duration": 7.1,
+ "cues": [
+  {
+   "t": 0.4,
+   "event": "whoosh_deep",
+   "label": "line in"
+  },
+  {
+   "t": 1.929,
+   "event": "whoosh_deep",
+   "label": "drum turns"
+  },
+  {
+   "t": 3.2090000000000005,
+   "event": "whoosh_deep",
+   "label": "drum turns"
+  },
+  {
+   "t": 4.489000000000001,
+   "event": "whoosh_deep",
+   "label": "drum turns"
+  },
+  {
+   "t": 5.769,
+   "event": "whoosh_deep",
+   "label": "drum turns"
+  },
+  {
+   "t": 6.6,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

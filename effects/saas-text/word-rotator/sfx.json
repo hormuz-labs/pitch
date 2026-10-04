@@ -1,0 +1,30 @@
+{
+ "duration": 6.4,
+ "cues": [
+  {
+   "t": 0.42,
+   "event": "whoosh_deep",
+   "label": "line in"
+  },
+  {
+   "t": 1.875,
+   "event": "whoosh_deep",
+   "label": "word rolls"
+  },
+  {
+   "t": 3.125,
+   "event": "whoosh_deep",
+   "label": "word rolls"
+  },
+  {
+   "t": 4.375,
+   "event": "whoosh_deep",
+   "label": "word rolls"
+  },
+  {
+   "t": 5.65,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

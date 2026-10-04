@@ -1,0 +1,172 @@
+<!doctype html><meta charset="utf-8">
+<title>Network Globe</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. */
+  :root{--bg:#0c0c0d;--surface:#161618;--ink:#f3f2ee;--muted:#8d8b85;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 60% 70% at 68% 55%,color-mix(in srgb,var(--accent) 7%,var(--bg)) 0%,var(--bg) 65%)}
+  .halo{position:absolute;left:860px;top:390px;width:860px;height:860px;margin:-430px 0 0 -430px;border-radius:50%;
+    background:radial-gradient(closest-side,transparent 74%,color-mix(in srgb,var(--accent) 22%,transparent) 79%,transparent 100%);will-change:transform,opacity}
+  canvas{position:absolute;inset:0;width:1280px;height:720px}
+  .copy{position:absolute;left:110px;top:210px;width:420px}
+  .kick{font-size:15px;font-weight:500;letter-spacing:.16em;color:var(--accent)}
+  .copy h1{margin-top:14px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:56px;line-height:1.04;letter-spacing:-.045em;color:var(--ink)}
+  .stat{margin-top:34px;display:flex;flex-direction:column;gap:6px}
+  .stat b{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:40px;letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat span{font-size:16px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .stat i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .copy > *{opacity:0;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="halo"></div>
+  <canvas width="1280" height="720"></canvas>
+  <div class="copy"><div class="kick">GLOBAL PAYMENTS</div><h1>Every market.<br>One platform.</h1><div class="stat"><b class="num">$0</b><span><i></i>processed in the last hour</span></div></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script type="module">
+import * as THREE from '../../../assets/three/three.module.min.js';
+
+const fontsReady = Promise.all([document.fonts.load('500 56px "Sharp Grotesk"'), document.fonts.load('500 16px "Atlas Grotesk"')]);
+fx.wait(fontsReady);
+const W = 1280, H = 720, D = 7.4;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+function bezier(x1, y1, x2, y2) {
+  const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+  return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+}
+// Flow curves (effects/flow-easing).
+const flowQuintOut = bezier(0.22, 1, 0.36, 1), flowCubic = bezier(0.66, 0, 0.34, 1);
+
+/* Palette tokens → three.js colours. */
+const probe = document.createElement('i'); document.body.append(probe);
+const px = Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d', { willReadFrequently: true });
+function color(css) { probe.style.color = css; px.clearRect(0, 0, 1, 1); px.fillStyle = getComputedStyle(probe).color; px.fillRect(0, 0, 1, 1); const d = px.getImageData(0, 0, 1, 1).data; return new THREE.Color(d[0] / 255, d[1] / 255, d[2] / 255).convertSRGBToLinear(); }
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), alpha: true, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false); renderer.setClearColor(0, 0);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, W / H, 1, 5000);
+const R = 1;
+// Frame the globe on the right third of the stage.
+camera.position.set(0, 0, 4.25);
+camera.setViewOffset(W, H, -220, -30, W, H);
+
+const globe = new THREE.Group();
+globe.rotation.x = 0.38;
+scene.add(globe);
+const spin = new THREE.Group();
+globe.add(spin);
+
+// An occluding core so far-side dots and arcs are hidden by the planet.
+const core = new THREE.Mesh(new THREE.SphereGeometry(R * 0.985, 64, 48), new THREE.MeshBasicMaterial({ color: color('color-mix(in srgb,var(--surface) 70%,var(--bg))'), transparent: true, opacity: 0 }));
+// Drawn first: as a fading (transparent) object it would otherwise be sorted
+// among the dots and could paint over them.
+core.renderOrder = -1;
+spin.add(core);
+
+/* Procedural continents: smooth 3D value noise thresholded into "land". */
+const rng = fx.rng(7);
+const PERM = Array.from({ length: 512 }, () => rng());
+const hash = (x, y, z) => PERM[(((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) % 512];
+function noise(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi;
+  const s = (v) => v * v * (3 - 2 * v), u = s(xf), v = s(yf), w = s(zf);
+  const L = (a, b, k) => a + (b - a) * k;
+  const c = (dx, dy, dz) => hash(xi + dx, yi + dy, zi + dz);
+  return L(L(L(c(0, 0, 0), c(1, 0, 0), u), L(c(0, 1, 0), c(1, 1, 0), u), v), L(L(c(0, 0, 1), c(1, 0, 1), u), L(c(0, 1, 1), c(1, 1, 1), u), v), w);
+}
+const land = (p) => noise(p.x * 1.6 + 5, p.y * 1.6 + 5, p.z * 1.6 + 5) * 0.65 + noise(p.x * 4 + 9, p.y * 4 + 9, p.z * 4 + 9) * 0.35 > 0.52;
+
+// Dotted sphere: a Fibonacci lattice; land dots bright, ocean dots faint.
+const N = 5200, landPts = [], seaPts = [], landVecs = [];
+for (let i = 0; i < N; i++) {
+  const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = i * Math.PI * (3 - Math.sqrt(5));
+  const v = new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r).multiplyScalar(R);
+  if (land(v)) { landPts.push(v.x, v.y, v.z); landVecs.push(v); } else if (i % 3 === 0) seaPts.push(v.x, v.y, v.z);
+}
+const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, '#fff'); gr.addColorStop(0.55, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
+const pts = (arr, size, col, op) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); const m = new THREE.PointsMaterial({ size, map: dotTex, color: col, transparent: true, opacity: op, depthWrite: false }); return new THREE.Points(g, m); };
+const landDots = pts(landPts, 0.018, color('color-mix(in srgb,var(--ink) 85%,var(--accent))'), 0.9);
+const seaDots = pts(seaPts, 0.012, color('var(--muted)'), 0.25);
+spin.add(landDots, seaDots);
+
+/* Routes: great-circle arcs lifted off the surface by their length. */
+const ACC = color('var(--accent)'), ACC2 = color('var(--accent-2)');
+const pick = () => landVecs[Math.floor(rng() * landVecs.length)];
+const ROUTES = [];
+const ring = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.strokeStyle = '#fff'; g.lineWidth = 5; g.beginPath(); g.arc(32, 32, 26, 0, Math.PI * 2); g.stroke(); return new THREE.CanvasTexture(c); })();
+for (let k = 0; k < 9; k++) {
+  const a = pick(), b = pick();
+  if (a.angleTo(b) < 0.5) { k--; continue; }
+  const SEG = 72, arr = [];
+  const lift = 0.12 + a.angleTo(b) * 0.16;
+  const qa = new THREE.Quaternion(), axis = new THREE.Vector3().crossVectors(a, b).normalize(), ang = a.angleTo(b);
+  const curve = [];
+  for (let i = 0; i <= SEG; i++) {
+    const s = i / SEG;
+    qa.setFromAxisAngle(axis, ang * s);
+    const p = a.clone().applyQuaternion(qa).normalize().multiplyScalar(R * (1 + Math.sin(Math.PI * s) * lift));
+    curve.push(p); arr.push(p.x, p.y, p.z);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: k % 2 ? ACC2 : ACC, transparent: true, opacity: 0, depthWrite: false }));
+  const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color: new THREE.Color(1, 1, 1), transparent: true, opacity: 0, depthWrite: false }));
+  head.scale.setScalar(0.06);
+  const land1 = new THREE.Sprite(new THREE.SpriteMaterial({ map: ring, color: ACC, transparent: true, opacity: 0, depthWrite: false }));
+  land1.position.copy(b.clone().multiplyScalar(1.01));
+  spin.add(line, head, land1);
+  ROUTES.push({ line, head, land1, curve, SEG, at: 1.0 + k * 0.52, dur: 0.95 + ang * 0.25 });
+}
+
+const halo = document.querySelector('.halo');
+const copy = [...document.querySelectorAll('.copy > *')];
+const num = document.querySelector('.num');
+
+function draw(t) {
+  const enter = flowQuintOut(clamp((t - 0.1) / 1.4)), exit = smooth(t, 6.7, 7.25);
+  spin.rotation.y = -0.6 + t * 0.16;
+  globe.scale.setScalar((0.86 + 0.14 * enter) * (1 - 0.05 * exit));
+  landDots.material.opacity = 0.9 * smooth(t, 0.1, 1.0) * (1 - exit);
+  seaDots.material.opacity = 0.25 * smooth(t, 0.1, 1.0) * (1 - exit);
+  core.material.opacity = smooth(t, 0.1, 1.0) * (1 - exit);
+  halo.style.opacity = (smooth(t, 0.2, 1.4) * (1 - exit)).toFixed(3);
+  halo.style.transform = `scale(${(0.9 + 0.1 * enter).toFixed(4)})`;
+  for (const r of ROUTES) {
+    // Draw on (Flow cubic), a bright head rides the leading end, the landing
+    // city rings out, then the trail fades from the start.
+    const p = flowCubic(clamp((t - r.at) / r.dur));
+    const fade = smooth(t, r.at + r.dur + 0.5, r.at + r.dur + 1.3);
+    const n = Math.max(2, Math.round(p * r.SEG) + 1);
+    r.line.geometry.setDrawRange(0, n);
+    r.line.material.opacity = (t > r.at ? 0.95 : 0) * (1 - fade) * (1 - exit);
+    const i = Math.min(r.SEG, Math.round(p * r.SEG));
+    r.head.position.copy(r.curve[i]);
+    r.head.material.opacity = t > r.at && p < 1 ? 1 : 0;
+    const q = clamp((t - r.at - r.dur) / 0.9);
+    r.land1.material.opacity = q > 0 && q < 1 ? (1 - q) * 0.9 * (1 - exit) : 0;
+    r.land1.scale.setScalar(0.04 + flowQuintOut(q) * 0.16);
+  }
+  // Copy and the live counter.
+  copy.forEach((el, k) => {
+    const c = smooth(t, 0.5 + k * 0.15, 1.2 + k * 0.15) * (1 - exit);
+    el.style.opacity = c.toFixed(3);
+    el.style.transform = `translateY(${((1 - smooth(t, 0.5 + k * 0.15, 1.3 + k * 0.15)) * 18).toFixed(2)}px)`;
+  });
+  const v = 4218903 * flowQuintOut(clamp((t - 0.9) / 2.2)) + Math.max(0, t - 3.1) * 23917;
+  num.textContent = '$' + Math.round(v).toLocaleString('en-US');
+  renderer.render(scene, camera);
+}
+fx.register({ duration: D, seek: draw });
+
+// Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+// Pitch SaaS pack (ElevenLabs-generated); signature moments name their clip.
+fx.sfx([
+  { t: 0.7, event: 'whoosh_deep', clip: 'pitch-whoosh-sweep', label: 'globe rises' },
+  { t: 0.95, event: 'data', clip: 'pitch-odometer-roll', align: 'file', dur: 1.6, targetLufs: -29, label: 'counter runs' },
+  ...ROUTES.filter((_, k) => k % 2 === 0).map((r) => ({ t: r.at + r.dur, event: 'notify', clip: 'pitch-net-ping', label: 'route lands' })),
+  { t: 6.95, event: 'whoosh_deep', label: 'exit' },
+]);
+</script>

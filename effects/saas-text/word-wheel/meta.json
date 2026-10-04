@@ -1,0 +1,29 @@
+{
+  "name": "Word Wheel",
+  "family": "SaaS Text",
+  "seconds": 7.1,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "\"Built for ___\" with a 3D drum of words: neighbours sit above and below in perspective, and the drum turns one word at a time with a small wind-up and a settling overshoot; the word on the reading line takes the accent.",
+  "move": "\"Built for ___\" with a 3D drum of words: neighbours sit above and below in perspective, and the drum turns one word at a time with a small wind-up and a settling overshoot; the word on the reading line takes the accent.",
+  "moves": [
+    "wheel",
+    "drum",
+    "rotator",
+    "3d",
+    "perspective",
+    "words"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). Words sit on a cylinder (radius from font size so neighbours are one line apart); each is placed with translate3d and rotateX from its angle to the reading line, faded by cos², and coloured accent↔muted by distance. Turns use a true back in-out (zero velocity at both ends) after 0.5s holds.",
+  "adapt": "Edit the drum words. STEP_DEG sets drum curvature; HOLD/MOVE the rhythm. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Drum / wheel word rotator\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

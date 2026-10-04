@@ -1,0 +1,69 @@
+{
+ "duration": 6.6,
+ "cues": [
+  {
+   "t": 0.4,
+   "event": "glitch",
+   "clip": "pitch-glitch-stutter",
+   "label": "hub"
+  },
+  {
+   "t": 0.62,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "nodes"
+  },
+  {
+   "t": 0.95,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "nodes"
+  },
+  {
+   "t": 1.4,
+   "event": "whoosh_deep",
+   "label": "headline"
+  },
+  {
+   "t": 2.44,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 2.99,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 3.54,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 4.09,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 4.640000000000001,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 5.19,
+   "event": "notify",
+   "clip": "pitch-net-ping",
+   "label": "pulse lands"
+  },
+  {
+   "t": 5.8,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

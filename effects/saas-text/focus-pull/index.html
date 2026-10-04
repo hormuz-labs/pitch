@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8">
+<title>Focus Pull</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#0c0c0d;--surface:#161618;--ink:#f3f2ee;--muted:#8d8b85;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 70% 60% at 50% 45%,color-mix(in srgb,var(--surface) 75%,var(--bg)) 0%,var(--bg) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px}
+  .title{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:140px;line-height:1;letter-spacing:-.055em;color:var(--ink);white-space:nowrap;will-change:transform,filter,opacity}
+  .sub{font-size:30px;color:var(--muted);letter-spacing:-.01em}
+  .w{display:inline-block;will-change:transform,filter,opacity}
+</style>
+<div class="stage">
+  <h1 class="title">Clarity at scale.</h1>
+  <p class="sub">One platform for every team.</p>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('lensOut', '0.16,1,0.3,1');
+  fx.wait(document.fonts.load('500 140px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 30px "Atlas Grotesk"'));
+
+  function split(el) {
+    const parts = el.textContent.trim().split(/\s+/);
+    el.textContent = '';
+    return parts.map((part, i) => {
+      if (i) el.append(' ');
+      const w = document.createElement('span');
+      w.className = 'w';
+      w.textContent = part;
+      el.append(w);
+      return w;
+    });
+  }
+  const sub = split(document.querySelector('.sub'));
+  const tl = fx.timeline({ duration: 4.8 });
+
+  // Enter: a lens racks into focus — the headline settles from 118% scale and a
+  // heavy blur, the way a camera finds a subject.
+  tl.fromTo('.title', { scale: 1.18, filter: 'blur(26px)' }, { scale: 1, filter: 'blur(0px)', duration: 1.7, ease: 'lensOut' }, 0.15)
+    .fromTo('.title', { opacity: 0 }, { opacity: 1, duration: 0.95, ease: 'sine.inOut' }, 0.15)
+  // Hold: a slow push keeps the frame alive.
+    .to('.title', { scale: 1.035, duration: 2.0, ease: 'sine.inOut' }, 1.85)
+    .fromTo(sub, { y: 14, opacity: 0, filter: 'blur(6px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, stagger: 0.06, ease: 'softOut' }, 1.05)
+  // Exit: focus drifts off as it recedes.
+    .to('.title', { scale: 0.97, filter: 'blur(18px)', opacity: 0, duration: 0.7, ease: 'power2.inOut' }, 3.85)
+    .to(sub, { opacity: 0, filter: 'blur(6px)', duration: 0.45, stagger: 0.03, ease: 'power2.inOut' }, 3.8);
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.55, event: 'whoosh_deep', label: 'lens racks into focus' },
+    { t: 4.05, event: 'whoosh_deep', label: 'drifts out of focus' },
+  ]);
+</script>

@@ -1,0 +1,25 @@
+{
+ "duration": 5,
+ "cues": [
+  {
+   "t": 0.52,
+   "event": "data",
+   "clip": "pitch-odometer-roll",
+   "align": "file",
+   "dur": 1.6,
+   "targetLufs": -29,
+   "label": "digits roll"
+  },
+  {
+   "t": 2.4,
+   "event": "glitch",
+   "clip": "pitch-glitch-lock",
+   "label": "figure settles"
+  },
+  {
+   "t": 4.35,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

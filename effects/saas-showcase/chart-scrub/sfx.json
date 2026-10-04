@@ -1,0 +1,47 @@
+{
+ "duration": 7.4,
+ "cues": [
+  {
+   "t": 0.3,
+   "event": "whoosh_deep",
+   "label": "card in"
+  },
+  {
+   "t": 0.7,
+   "event": "data",
+   "clip": "pitch-data-stream",
+   "align": "file",
+   "dur": 1.55,
+   "label": "chart draws"
+  },
+  {
+   "t": 2.6,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "scrub appears"
+  },
+  {
+   "t": 4,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "scrub to Jun"
+  },
+  {
+   "t": 5.15,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "scrub to Sep"
+  },
+  {
+   "t": 6.3,
+   "event": "glitch",
+   "clip": "pitch-glitch-lock",
+   "label": "scrub home"
+  },
+  {
+   "t": 6.78,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

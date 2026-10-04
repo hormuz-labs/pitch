@@ -1,0 +1,15 @@
+{
+ "duration": 4.8,
+ "cues": [
+  {
+   "t": 0.55,
+   "event": "whoosh_deep",
+   "label": "lens racks into focus"
+  },
+  {
+   "t": 4.05,
+   "event": "whoosh_deep",
+   "label": "drifts out of focus"
+  }
+ ]
+}

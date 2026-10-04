@@ -1,0 +1,29 @@
+{
+  "name": "Kinetic Slam",
+  "family": "SaaS Text",
+  "seconds": 5.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Four words slam in one per beat at full-frame size, each knocking the last back; then the line assembles with a final accent word, a warm bloom and a damped camera shake on every impact.",
+  "move": "Four words slam in one per beat at full-frame size, each knocking the last back; then the line assembles with a final accent word, a warm bloom and a damped camera shake on every impact.",
+  "moves": [
+    "kinetic-typography",
+    "slam",
+    "impact",
+    "camera-shake",
+    "beat",
+    "promo"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). Each slam drops from 2.3× scale through an 18px blur on Flow expoOut in 0.32s (an impact is meant to arrive hard). Camera shake sums seeded damped sinusoids per impact. The bloom is a radial accent glow with a two-frame smoothstep attack. The line exits as one unit so words never collide.",
+  "adapt": "Edit the solo words, final line and BEATS to your track's tempo. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Kinetic type slam\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

@@ -1,0 +1,48 @@
+{
+ "duration": 6.8,
+ "cues": [
+  {
+   "t": 0.6,
+   "event": "whoosh_deep",
+   "label": "cards rise"
+  },
+  {
+   "t": 2.05,
+   "event": "click",
+   "clip": "pitch-click-soft",
+   "label": "yearly"
+  },
+  {
+   "t": 2.15,
+   "event": "select",
+   "clip": "pitch-toggle",
+   "label": "toggle"
+  },
+  {
+   "t": 2.25,
+   "event": "data",
+   "clip": "pitch-odometer-roll",
+   "align": "file",
+   "dur": 0.8,
+   "targetLufs": -29,
+   "label": "prices roll"
+  },
+  {
+   "t": 2.4,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "save badge"
+  },
+  {
+   "t": 3.48,
+   "event": "tick",
+   "clip": "pitch-hover",
+   "label": "hover"
+  },
+  {
+   "t": 6.05,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Highlight Sweep",
+  "family": "SaaS Text",
+  "seconds": 5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A two-line headline blurs in, then an accent marker sweeps behind the key phrase and the text inverts exactly where the marker has passed.",
+  "move": "A two-line headline blurs in, then an accent marker sweeps behind the key phrase and the text inverts exactly where the marker has passed.",
+  "moves": [
+    "highlight",
+    "marker",
+    "emphasis",
+    "sweep",
+    "invert",
+    "headline"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "The marked phrase holds a bar (scaleX from the left) and a dark copy of the text clipped with clip-path inset to the same box; one progress value drives both through a timeline onUpdate, so they never drift. Sweep 0.75s with cubic-bezier(0.65,0,0.35,1). On exit the bar retracts from the left edge.",
+  "adapt": "Wrap the emphasised phrase in the .mark structure (bar, base, over with identical text). Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Marker highlight with track matte\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

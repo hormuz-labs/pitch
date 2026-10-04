@@ -1,0 +1,29 @@
+{
+  "name": "Reading Highlight",
+  "family": "SaaS Text",
+  "seconds": 6.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A paragraph sits dim, then lights up word by word as a reading head passes, with a soft two-word leading edge; key phrases light in the accent.",
+  "move": "A paragraph sits dim, then lights up word by word as a reading head passes, with a soft two-word leading edge; key phrases light in the accent.",
+  "moves": [
+    "reading",
+    "scroll-text",
+    "highlight",
+    "paragraph",
+    "word-by-word",
+    "apple-style"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). Each word carries a --lit custom property (0–1) that drives color-mix from dim ink to ink, or to the accent for <b> key words. A reading head moves through the words on Flow ease (0.42,0,0.58,1); each word lights over a 2.2-word soft edge. Opacity enters and exits on smoothsteps.",
+  "adapt": "Edit the paragraph; wrap key phrases in <b>. SOFT sets the width of the lit edge. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Scroll-read highlight\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

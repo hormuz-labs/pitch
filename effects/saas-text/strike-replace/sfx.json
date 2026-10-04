@@ -1,0 +1,27 @@
+{
+ "duration": 5.6,
+ "cues": [
+  {
+   "t": 0.45,
+   "event": "whoosh_deep",
+   "label": "old line"
+  },
+  {
+   "t": 1.62,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-deep-3",
+   "label": "strike drawn"
+  },
+  {
+   "t": 2.12,
+   "event": "success",
+   "clip": "pitch-success",
+   "label": "new line"
+  },
+  {
+   "t": 4.68,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

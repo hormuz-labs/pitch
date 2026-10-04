@@ -1,0 +1,54 @@
+{
+ "duration": 6.6,
+ "cues": [
+  {
+   "t": 0.72,
+   "event": "click",
+   "clip": "pitch-click-key",
+   "label": "⌘K pressed"
+  },
+  {
+   "t": 1.02,
+   "event": "whoosh_deep",
+   "label": "palette opens"
+  },
+  {
+   "t": 1.55,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 0.39,
+   "gainDb": 3,
+   "label": "query typed"
+  },
+  {
+   "t": 1.8,
+   "event": "glitch",
+   "clip": "pitch-glitch-stutter",
+   "label": "list filters"
+  },
+  {
+   "t": 2.7,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "arrow down"
+  },
+  {
+   "t": 3.25,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "arrow up"
+  },
+  {
+   "t": 3.7,
+   "event": "click",
+   "clip": "pitch-click-key",
+   "label": "enter"
+  },
+  {
+   "t": 4.32,
+   "event": "notify",
+   "clip": "pitch-toast",
+   "label": "toast lands"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "duration": 5,
+ "cues": [
+  {
+   "t": 0.3,
+   "event": "glitch",
+   "clip": "pitch-decode-scramble",
+   "align": "file",
+   "dur": 1.5,
+   "label": "glyphs scramble"
+  },
+  {
+   "t": 1.95,
+   "event": "glitch",
+   "clip": "pitch-glitch-lock",
+   "label": "last letter locks"
+  },
+  {
+   "t": 3.88,
+   "event": "glitch",
+   "clip": "pitch-decode-scramble",
+   "align": "file",
+   "dur": 0.75,
+   "label": "scrambles away"
+  }
+ ]
+}

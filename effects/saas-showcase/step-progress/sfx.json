@@ -1,0 +1,57 @@
+{
+ "duration": 7,
+ "cues": [
+  {
+   "t": 0.3,
+   "event": "whoosh_deep",
+   "label": "in"
+  },
+  {
+   "t": 2.05,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "step active"
+  },
+  {
+   "t": 3.2,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "step active"
+  },
+  {
+   "t": 4.35,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "step active"
+  },
+  {
+   "t": 1.83,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "step done"
+  },
+  {
+   "t": 2.98,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "step done"
+  },
+  {
+   "t": 4.13,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "step done"
+  },
+  {
+   "t": 5.1,
+   "event": "success",
+   "clip": "pitch-success",
+   "label": "all done"
+  },
+  {
+   "t": 6.45,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

@@ -1,0 +1,21 @@
+{
+ "duration": 4.5,
+ "cues": [
+  {
+   "t": 0.33,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "pill"
+  },
+  {
+   "t": 0.62,
+   "event": "whoosh_deep",
+   "label": "letters rise"
+  },
+  {
+   "t": 3.45,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

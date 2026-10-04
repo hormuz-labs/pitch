@@ -1,0 +1,150 @@
+<!doctype html><meta charset="utf-8">
+<title>Particle Text Form</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:radial-gradient(ellipse 60% 55% at 50% 50%,color-mix(in srgb,var(--accent) 8%,var(--bg)) 0%,var(--bg) 70%)}
+  canvas{position:absolute;inset:0;width:1280px;height:720px}
+  .sub{position:absolute;left:0;right:0;top:468px;text-align:center;font-size:24px;color:var(--muted);letter-spacing:-.005em;opacity:0}
+</style>
+<div class="stage"><canvas width="1280" height="720"></canvas><p class="sub">Infrastructure that grows with you.</p></div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 6.2, TEXT = 'Built for scale.', FONT = '500 136px "Sharp Grotesk"', CX = 640, BASE = 400;
+  const canvas = document.querySelector('canvas'), ctx = canvas.getContext('2d');
+  const sub = document.querySelector('.sub');
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const outQuint = (p) => 1 - Math.pow(1 - clamp(p), 5);
+  const inQuad = (p) => clamp(p) * clamp(p);
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  /* Particle colours sweep the palette left to right: accent → accent-2 → ink. */
+  function rgbOf(expr) {
+    const probe = document.createElement('i');
+    probe.style.color = expr;
+    document.body.append(probe);
+    const c = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    c.fillStyle = getComputedStyle(probe).color;
+    c.fillRect(0, 0, 1, 1);
+    probe.remove();
+    return [...c.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+  }
+  const STOPS = ['var(--accent)', 'var(--accent-2)', 'var(--ink)'].map(rgbOf);
+  const GLOW = rgbOf('var(--accent)');
+  const hue = (u) => {
+    const k = clamp(u) * (STOPS.length - 1), i = Math.min(STOPS.length - 2, Math.floor(k)), f = k - i;
+    return STOPS[i].map((v, j) => Math.round(v + (STOPS[i + 1][j] - v) * f));
+  };
+
+  let parts = [], grad, minX, maxX;
+
+  /* Sample the headline's pixels into particle targets once the font is in. */
+  function build() {
+    const off = document.createElement('canvas');
+    off.width = 1280; off.height = 720;
+    const o = off.getContext('2d');
+    o.font = FONT;
+    o.textAlign = 'center';
+    o.letterSpacing = '-5px';
+    o.fillText(TEXT, CX, BASE);
+    const data = o.getImageData(0, 0, 1280, 720).data;
+    const rng = fx.rng(23);
+    const STEP = 3;
+    minX = 1280; maxX = 0;
+    for (let y = 0; y < 720; y += STEP) for (let x = 0; x < 1280; x += STEP) {
+      if (data[(y * 1280 + x) * 4 + 3] > 140) {
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        parts.push({ tx: x, ty: y });
+      }
+    }
+    for (const p of parts) {
+      // Start somewhere on a wide ring around the frame centre, then arrive in
+      // a left-to-right wave with a little scatter.
+      const a = rng() * Math.PI * 2, r = 520 + rng() * 520;
+      p.sx = CX + Math.cos(a) * r; p.sy = 360 + Math.sin(a) * r * 0.62;
+      const u = (p.tx - minX) / (maxX - minX);
+      p.d = 0.3 + u * 0.95 + rng() * 0.3;
+      p.spin = 0.9 + rng() * 0.9;
+      p.c = hue(u);
+      p.size = 1.6 + rng() * 1.2;
+      // Exit drift: outward and upward, scattered.
+      const ea = rng() * Math.PI * 2;
+      p.ex = Math.cos(ea) * (60 + rng() * 220); p.ey = Math.sin(ea) * (40 + rng() * 120) - 160 - rng() * 120;
+      p.ed = u * 0.35 + rng() * 0.2;
+    }
+    grad = ctx.createLinearGradient(minX, 0, maxX, 0);
+    STOPS.forEach((s, i) => grad.addColorStop(i / (STOPS.length - 1), `rgb(${s.join(',')})`));
+  }
+  fx.wait(document.fonts.load(FONT).then(build));
+
+  const FORM = 1.7, SOLID = 3.35, BREAK = 4.75;
+
+  function draw(t) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, 1280, 720);
+    // Crisp type takes over from the particles once they have landed, and
+    // hands back to them just before they scatter.
+    const solid = smooth(t, SOLID - 0.45, SOLID) * (1 - smooth(t, BREAK - 0.1, BREAK + 0.25));
+    const dots = 1 - solid * 0.92;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of parts) {
+      const q = (t - p.d) / FORM;
+      if (q <= 0) continue;
+      const e = outQuint(q);
+      // Spiral in: the offset from the target rotates and shrinks together.
+      const ang = (1 - e) * p.spin;
+      const dx = (p.sx - p.tx) * (1 - e), dy = (p.sy - p.ty) * (1 - e);
+      let x = p.tx + dx * Math.cos(ang) - dy * Math.sin(ang);
+      let y = p.ty + dx * Math.sin(ang) + dy * Math.cos(ang);
+      let alpha = clamp(q * 4) * dots;
+      const out = clamp((t - BREAK - p.ed) / 1.0);
+      if (out > 0) {
+        const k = inQuad(out);
+        x += p.ex * k; y += p.ey * k;
+        alpha *= 1 - out;
+      }
+      if (alpha <= 0.003) continue;
+      const s = p.size * (1 + (1 - e) * 0.8);
+      ctx.fillStyle = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},${(alpha * 0.85).toFixed(3)})`;
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    if (solid > 0.001) {
+      ctx.globalAlpha = solid;
+      ctx.font = FONT;
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '-5px';
+      ctx.shadowColor = `rgba(${GLOW.join(',')},.55)`;
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = grad;
+      ctx.fillText(TEXT, CX, BASE);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+    const s = smooth(t, 3.2, 3.9) * (1 - smooth(t, 4.6, 5.0));
+    sub.style.opacity = s.toFixed(3);
+    sub.style.transform = `translateY(${((1 - smooth(t, 3.2, 4.0)) * 12).toFixed(2)}px)`;
+  }
+
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: SOLID - 0.4, event: 'riser', clip: 'pitch-particles', dur: 0.5, label: 'particles gather' },
+    { t: SOLID - 0.3, event: 'impact', clip: 'pitch-impact-slam', label: 'headline resolves' },
+    { t: BREAK + 0.35, event: 'whoosh_deep', clip: 'pitch-whoosh-glitch', label: 'particles scatter' },
+  ]);
+</script>

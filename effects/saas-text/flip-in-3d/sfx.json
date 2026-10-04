@@ -1,0 +1,15 @@
+{
+ "duration": 4.6,
+ "cues": [
+  {
+   "t": 0.5,
+   "event": "whoosh_deep",
+   "label": "letters flip up"
+  },
+  {
+   "t": 3.5,
+   "event": "whoosh_deep",
+   "label": "letters tip away"
+  }
+ ]
+}

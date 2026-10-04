@@ -1,0 +1,31 @@
+{
+  "name": "Pricing Toggle",
+  "family": "SaaS Showcase",
+  "seconds": 6.8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A cursor clicks Monthly→Yearly: the toggle thumb springs across, every price rolls digit by digit like an odometer, a \"Save 20%\" badge pops, and the cursor hovers the highlighted plan.",
+  "move": "A cursor clicks Monthly→Yearly: the toggle thumb springs across, every price rolls digit by digit like an odometer, a \"Save 20%\" badge pops, and the cursor hovers the highlighted plan.",
+  "moves": [
+    "pricing",
+    "toggle",
+    "odometer",
+    "cursor",
+    "click",
+    "plans",
+    "saas"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Prices are per-digit clipped 0–9 stacks rolled by yPercent with cubic-bezier(0.65,0,0.35,1), staggered per card and column, with a blur yoyo at speed. The thumb uses a single-overshoot ease (0.34,1.45,0.64,1). The cursor follows eased, sideways-bowed segments computed from measured element centres.",
+  "adapt": "Set data-from / data-to per card (same digit count), the billing lines and features. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

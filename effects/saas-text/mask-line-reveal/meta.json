@@ -1,0 +1,30 @@
+{
+  "name": "Mask Line Reveal",
+  "family": "SaaS Text",
+  "seconds": 4.5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Three headline lines slide up from behind their own masks with a slight hinge settle; an underline draws on; lines exit up through the same masks.",
+  "move": "Three headline lines slide up from behind their own masks with a slight hinge settle; an underline draws on; lines exit up through the same masks.",
+  "moves": [
+    "mask",
+    "line-reveal",
+    "rise",
+    "underline",
+    "editorial",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Each authored line sits in an overflow:hidden block padded for descenders. Lines go yPercent 115→0 and rotation 4→0 about the bottom-left corner over 1.15s, stagger 0.12, ease cubic-bezier(0.22,1,0.36,1). A rule scales X 0→1 with cubic-bezier(0.65,0,0.35,1). Exit: yPercent -115 with power3.in; the rule retracts to the right.",
+  "adapt": "Author line breaks explicitly in the HTML (one .m > .line per line). The accent word is an <em>. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Slide Up by line with track matte\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

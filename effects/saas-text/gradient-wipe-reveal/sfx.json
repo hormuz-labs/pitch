@@ -1,0 +1,15 @@
+{
+ "duration": 4.8,
+ "cues": [
+  {
+   "t": 0.75,
+   "event": "whoosh_deep",
+   "label": "wipe on"
+  },
+  {
+   "t": 3.95,
+   "event": "whoosh_deep",
+   "label": "wipe off"
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Text Cube Rotate",
+  "family": "SaaS Text",
+  "seconds": 6.2,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "\"Your data, ___\" where the last word is a 3D prism that rolls a quarter turn at a time — unified, secured, automated, everywhere — with a wind-up and a settling overshoot, faces shading as they turn away.",
+  "move": "\"Your data, ___\" where the last word is a 3D prism that rolls a quarter turn at a time — unified, secured, automated, everywhere — with a wind-up and a settling overshoot, faces shading as they turn away.",
+  "moves": [
+    "3d",
+    "cube",
+    "prism",
+    "rotate",
+    "words",
+    "swap"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Four faces at rotateX(−90°·i) translateZ(half the line height) inside a preserve-3d spinner. Each turn is back.inOut(1.4) (true function: zero velocity at both ends). A shade layer darkens faces by their angle to the camera, and faces fade out before going edge-on so no hairline shows.",
+  "adapt": "Edit the four face words; the cube width follows the widest. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves and inline helper eases, scope selectors to the shot, rebuild the timeline; state painted in onUpdate stays a function of tl.time().",
+  "caveats": [
+    "Original implementation of the \"Text cube\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

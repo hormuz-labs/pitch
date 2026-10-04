@@ -1,0 +1,30 @@
+{
+  "name": "Fade Up Characters",
+  "family": "SaaS Text",
+  "seconds": 4.5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A pill label lifts in, then each letter of the headline rises 70% of its height and fades on in a fast left-to-right ripple.",
+  "move": "A pill label lifts in, then each letter of the headline rises 70% of its height and fades on in a fast left-to-right ripple.",
+  "moves": [
+    "characters",
+    "stagger",
+    "rise",
+    "fade",
+    "headline",
+    "pill"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Characters split inside unbreakable word spans. yPercent 70→0 over 1.0s, stagger 0.028, ease cubic-bezier(0.22,1,0.36,1); opacity 0→1 over 0.45s with the same stagger. Exit at 3.3s: yPercent -55 and fade, stagger 0.016, power2.in.",
+  "adapt": "Use for short headlines (under ~30 characters); longer lines should lower the stagger so the ripple stays under ~0.8s. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Fade Up Characters\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

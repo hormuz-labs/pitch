@@ -1,0 +1,20 @@
+{
+ "duration": 6,
+ "cues": [
+  {
+   "t": 0.48,
+   "event": "whoosh_deep",
+   "label": "tape one"
+  },
+  {
+   "t": 0.62,
+   "event": "whoosh_deep",
+   "label": "tape two"
+  },
+  {
+   "t": 5.3,
+   "event": "whoosh_deep",
+   "label": "tapes off"
+  }
+ ]
+}

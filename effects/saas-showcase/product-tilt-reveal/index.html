@@ -1,0 +1,136 @@
+<!doctype html><meta charset="utf-8">
+<title>Product Tilt Reveal</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:var(--bg)}
+  .bloom{position:absolute;left:50%;top:330px;width:1300px;height:700px;margin-left:-650px;background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 52%,transparent),color-mix(in srgb,var(--accent-2) 16%,transparent) 55%,transparent);filter:blur(20px);will-change:transform,opacity}
+  .head{position:absolute;left:0;right:0;top:66px;text-align:center}
+  .head h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:-.045em;line-height:1.05;color:var(--ink)}
+  .head h1 .w{display:inline-block;will-change:transform,opacity,filter}
+  .head p{margin-top:14px;font-size:21px;color:var(--muted)}
+  /* The product window sits in a perspective wrapper and leans back from its
+     bottom edge; the bottom of the shot fades it into the page. */
+  .persp{position:absolute;left:0;right:0;top:250px;height:470px;perspective:1100px;perspective-origin:50% -10%;
+    -webkit-mask-image:linear-gradient(#000 62%,transparent 100%);mask-image:linear-gradient(#000 62%,transparent 100%)}
+  .win{position:absolute;left:50%;top:0;width:1060px;height:620px;margin-left:-530px;border-radius:16px;background:var(--surface);border:1px solid color-mix(in srgb,var(--ink) 11%,transparent);
+    box-shadow:0 -1px 0 color-mix(in srgb,var(--ink) 8%,transparent),0 40px 120px -20px rgba(0,0,0,.9);overflow:hidden;transform-origin:50% 100%;will-change:transform,opacity}
+  .edge{position:absolute;left:8%;right:8%;top:-1px;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent-2) 60%,#fff),transparent);box-shadow:0 0 18px 2px color-mix(in srgb,var(--accent) 60%,transparent)}
+  .sheen{position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,color-mix(in srgb,var(--ink) 7%,transparent) 48%,transparent 60%);transform:translateX(-120%);pointer-events:none}
+  .bar{height:42px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line)}
+  .bar i{width:11px;height:11px;border-radius:50%;background:var(--raise)}
+  .ui{display:grid;grid-template-columns:210px 1fr;height:calc(100% - 42px)}
+  .nav{border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;font-size:14.5px;color:var(--text)}
+  .ws{display:flex;align-items:center;gap:10px;font-weight:500;color:var(--ink);padding:4px 8px 14px}
+  .ws b{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--accent-2),var(--accent))}
+  .nav span{padding:7px 10px;border-radius:7px}
+  .nav span.on{background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink)}
+  .nav .sec{font-size:12px;color:var(--muted);padding:16px 10px 4px}
+  .main{padding:0}
+  .top{height:52px;display:flex;align-items:center;gap:10px;padding:0 22px;border-bottom:1px solid var(--line);font-size:15px;color:var(--ink)}
+  .top .f{font-size:13px;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid var(--line)}
+  .grp{font-size:13px;color:var(--muted);padding:12px 22px 6px;display:flex;align-items:center;gap:8px}
+  .row{position:relative;height:44px;display:flex;align-items:center;gap:14px;padding:0 22px;font-size:14.5px;color:var(--text);border-bottom:1px solid color-mix(in srgb,var(--ink) 4%,transparent)}
+  .row .id{width:64px;color:var(--muted);font-size:13px}
+  .row .st{width:15px;height:15px;border-radius:50%;border:2px solid var(--accent-2);flex:none}
+  .row .st.todo{border-color:var(--faint)}
+  .row .st.done{border:0;background:var(--accent)}
+  .row .tt{flex:1;white-space:nowrap}
+  .row .lb{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);display:flex;align-items:center;gap:6px}
+  .row .lb i{width:7px;height:7px;border-radius:50%}
+  .row .av{width:22px;height:22px;border-radius:50%}
+  .row .dt{width:52px;text-align:right;font-size:13px;color:var(--muted)}
+  .row.sel{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  .ringfill{position:absolute;left:100px;top:50%;width:15px;height:15px;margin-top:-7.5px}
+</style>
+<div class="stage">
+  <div class="bloom"></div>
+  <div class="head">
+    <h1><span class="w">Plan,</span> <span class="w">build</span> <span class="w">and</span> <span class="w">ship</span> <span class="w">in</span> <span class="w">one</span> <span class="w">flow.</span></h1>
+    <p>The issue tracker your engineers actually enjoy.</p>
+  </div>
+  <div class="persp">
+    <div class="win">
+      <div class="edge"></div>
+      <div class="bar"><i></i><i></i><i></i></div>
+      <div class="ui">
+        <div class="nav">
+          <div class="ws"><b></b>Northwind</div>
+          <span>Inbox</span><span class="on">My issues</span><span>Projects</span><span>Views</span>
+          <div class="sec">Teams</div><span>Engineering</span><span>Design</span><span>Growth</span>
+        </div>
+        <div class="main">
+          <div class="top">Active issues <span class="f">Status</span><span class="f">Assignee</span><span class="f">Label</span></div>
+          <div class="grp"><span class="st" style="width:12px;height:12px;border-radius:50%;border:2px solid var(--accent-2)"></span>In progress · 4</div>
+          <div class="row sel"><span class="id">ENG-214</span><span class="st"></span><span class="tt">Realtime sync for shared views</span><span class="lb"><i style="background:var(--accent)"></i>Feature</span><span class="av" style="background:linear-gradient(135deg,var(--accent-2),var(--accent))"></span><span class="dt">Oct 12</span>
+            <svg class="ringfill" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" style="stroke:var(--accent)" stroke-width="3" stroke-dasharray="40.84" stroke-dashoffset="40.84" transform="rotate(-90 8 8)"/><path class="chk" d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" style="stroke:var(--on-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0"/></svg></div>
+          <div class="row"><span class="id">ENG-209</span><span class="st"></span><span class="tt">Batch import from CSV</span><span class="lb"><i style="background:var(--accent-2)"></i>Improvement</span><span class="av" style="background:linear-gradient(135deg,color-mix(in srgb,var(--ink) 70%,var(--bg)),color-mix(in srgb,var(--ink) 35%,var(--bg)))"></span><span class="dt">Oct 14</span></div>
+          <div class="row"><span class="id">ENG-201</span><span class="st"></span><span class="tt">Keyboard shortcuts for triage</span><span class="lb"><i style="background:var(--accent)"></i>Feature</span><span class="av" style="background:linear-gradient(135deg,var(--accent-2),var(--positive))"></span><span class="dt">Oct 15</span></div>
+          <div class="row"><span class="id">ENG-198</span><span class="st"></span><span class="tt">Reduce cold start on mobile</span><span class="lb"><i style="background:var(--negative)"></i>Performance</span><span class="av" style="background:linear-gradient(135deg,var(--positive),color-mix(in srgb,var(--positive) 50%,var(--bg)))"></span><span class="dt">Oct 18</span></div>
+          <div class="grp"><span class="st" style="width:12px;height:12px;border-radius:50%;border:2px solid var(--faint)"></span>Todo · 3</div>
+          <div class="row"><span class="id">ENG-226</span><span class="st todo"></span><span class="tt">Audit log export</span><span class="lb"><i style="background:var(--accent-2)"></i>Improvement</span><span class="av" style="background:linear-gradient(135deg,var(--accent-2),var(--accent))"></span><span class="dt">Oct 21</span></div>
+          <div class="row"><span class="id">ENG-231</span><span class="st todo"></span><span class="tt">SAML for enterprise workspaces</span><span class="lb"><i style="background:var(--accent)"></i>Feature</span><span class="av" style="background:linear-gradient(135deg,color-mix(in srgb,var(--ink) 70%,var(--bg)),color-mix(in srgb,var(--ink) 35%,var(--bg)))"></span><span class="dt">Oct 24</span></div>
+        </div>
+      </div>
+      <div class="sheen"></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('settle', '0.16,1,0.3,1');
+  CustomEase.create('land', '0.3,0.05,0.12,1');   // a long, even flatten that slows only at the end
+  fx.wait(document.fonts.load('500 64px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 15px "Atlas Grotesk"'));
+
+  const tl = fx.timeline({ duration: 6.4 });
+  tl.fromTo('.head .w', { y: 22, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.95, stagger: 0.05, ease: 'softOut' }, 0.15)
+    .fromTo('.head p', { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'softOut' }, 0.55)
+  // The window rises out of a steep lean-back and lands flat; the bloom
+  // behind it brightens in step, and the top edge catches light.
+    .fromTo('.win', { rotationX: 64, y: 120, scale: 0.94 }, { rotationX: 0, y: 0, scale: 1, duration: 2.6, ease: 'land' }, 0.4)
+    .fromTo('.win', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.out' }, 0.4)
+    .fromTo('.bloom', { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 2.2, ease: 'softOut' }, 0.5)
+    .fromTo('.edge', { opacity: 0, scaleX: 0.2 }, { opacity: 1, scaleX: 1, duration: 1.4, ease: 'softOut' }, 1.3)
+    .to('.sheen', { x: '120%', duration: 1.3, ease: 'power2.inOut' }, 2.6)
+  // A slow push keeps the hold alive while the selected issue completes.
+    .to('.persp', { scale: 1.035, y: -10, duration: 3.2, ease: 'sine.inOut' }, 2.6)
+    .to('.ringfill circle', { strokeDashoffset: 0, duration: 0.7, ease: 'power2.inOut' }, 3.1)
+    .to('.ringfill circle', { attr: { r: 7.5 }, strokeWidth: 15, strokeDasharray: 60, duration: 0.25, ease: 'power2.out' }, 3.8)
+    .to('.ringfill .chk', { opacity: 1, duration: 0.2 }, 3.9)
+    .fromTo('.ringfill', { scale: 1 }, { scale: 1.3, duration: 0.14, ease: 'power2.out', yoyo: true, repeat: 1, transformOrigin: '50% 50%', immediateRender: false }, 3.85)
+  // Exit: the window sinks back and everything dims to black.
+    .to('.win', { rotationX: 18, y: 80, opacity: 0, duration: 0.7, ease: 'power2.inOut' }, 5.5)
+    .to('.head', { opacity: 0, y: -12, filter: 'blur(8px)', duration: 0.5, ease: 'power2.inOut' }, 5.45)
+    .to('.bloom', { opacity: 0, duration: 0.6, ease: 'power2.inOut' }, 5.55);
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.35, event: 'whoosh_deep', label: 'headline' },
+    { t: 1.15, event: 'whoosh_deep', clip: 'pitch-whoosh-sweep', label: 'window rises' },
+    { t: 1.6, event: 'chime', clip: 'pitch-shimmer', dur: 1.0, targetLufs: -22, label: 'edge catches light' },
+    { t: 3.25, event: 'whoosh_deep', clip: 'pitch-whoosh-deep-3', label: 'sheen' },
+    { t: 3.85, event: 'success', clip: 'pitch-success', label: 'issue completes' },
+    { t: 5.8, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

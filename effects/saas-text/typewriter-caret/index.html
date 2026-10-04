@@ -1,0 +1,127 @@
+<!doctype html><meta charset="utf-8">
+<title>Typewriter Caret</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#f3f2ee;--surface:#ffffff;--ink:#141414;--muted:#77756f;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 75% 65% at 50% 45%,var(--surface) 0%,var(--bg) 75%)}
+  .block{position:absolute;left:150px;top:50%;transform:translateY(-50%)}
+  .label{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:500;color:var(--accent);margin-bottom:26px}
+  .label svg{width:22px;height:22px}
+  .line{position:relative;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:66px;line-height:1.2;letter-spacing:-.035em;color:var(--ink);white-space:pre;height:1.2em}
+  .text{position:relative;z-index:1}
+  .sel{position:absolute;top:.08em;height:1.04em;background:color-mix(in srgb,var(--accent) 24%,var(--surface));border-radius:6px;z-index:0}
+  .caret{position:absolute;top:.1em;width:5px;height:1em;margin-left:3px;border-radius:3px;background:var(--accent);z-index:2}
+</style>
+<div class="stage">
+  <div class="block">
+    <div class="label"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>Ask anything</div>
+    <div class="line"><span class="text"></span><div class="sel"></div><div class="caret"></div></div>
+  </div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 66px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 22px "Atlas Grotesk"'));
+
+  const D = 6.2;
+  const FIRST = "Summarize last week's churn";
+  const REPLACE = 'growth';
+  const WORD_START = FIRST.length - 'churn'.length;
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  const outQuint = (p) => 1 - Math.pow(1 - clamp(p), 5);
+  const inQuad = (p) => clamp(p) * clamp(p);
+
+  /* Keystroke schedule: a human cadence from a seeded RNG, slower after spaces. */
+  const rng = fx.rng(7);
+  const keys = [];   // { t, text }
+  let at = 0.55;
+  for (let i = 1; i <= FIRST.length; i++) {
+    keys.push({ t: at, text: FIRST.slice(0, i) });
+    at += 0.042 + rng() * 0.04 + (FIRST[i - 1] === ' ' ? 0.06 : 0);
+  }
+  const typedAt = keys[keys.length - 1].t;
+  const SELECT = typedAt + 0.85;            // option+shift+left selects the last word
+  const SELECT_DUR = 0.22;
+  at = SELECT + SELECT_DUR + 0.45;
+  for (let i = 1; i <= REPLACE.length; i++) {
+    keys.push({ t: at, text: FIRST.slice(0, WORD_START) + REPLACE.slice(0, i) });
+    at += 0.05 + rng() * 0.04;
+  }
+  const EXIT = 5.35;
+
+  const line = document.querySelector('.line');
+  const block = document.querySelector('.block');
+  const label = document.querySelector('.label');
+  const textEl = document.querySelector('.text');
+  const sel = document.querySelector('.sel');
+  const caret = document.querySelector('.caret');
+  const range = document.createRange();
+
+  /* x of the caret after n characters, measured from the laid-out text. */
+  function xAt(n) {
+    const node = textEl.firstChild;
+    if (!node || n === 0) return 0;
+    range.setStart(node, 0);
+    range.setEnd(node, n);
+    return range.getBoundingClientRect().right - line.getBoundingClientRect().left;
+  }
+
+  /* Editors hold the caret solid while typing and only blink once idle. */
+  function blink(t, lastKey) {
+    const idle = t - lastKey - 0.5;
+    if (idle < 0) return 1;
+    const p = idle % 1.06;
+    return p < 0.53 ? 1 - smooth(p, 0.45, 0.53) : smooth(p, 0.98, 1.06);
+  }
+
+  function draw(t) {
+    let text = '', lastKey = 0;
+    for (const k of keys) if (k.t <= t) { text = k.text; lastKey = k.t; }
+    if (textEl.textContent !== text) textEl.textContent = text;
+
+    const end = xAt(text.length);
+    let caretX = end;
+    // Selection: grows leftward over the last word, removed by the next keystroke.
+    const selecting = t >= SELECT && text === FIRST;
+    if (selecting) {
+      const left = xAt(WORD_START);
+      const p = outQuint((t - SELECT) / SELECT_DUR);
+      caretX = end + (left - end) * p;
+      sel.style.left = caretX + 'px';
+      sel.style.width = Math.max(0, end - caretX + 4) + 'px';
+      sel.style.opacity = 1;
+      lastKey = Math.max(lastKey, SELECT);
+    } else {
+      sel.style.opacity = 0;
+    }
+    caret.style.transform = `translateX(${caretX}px)`;
+    caret.style.opacity = (smooth(t, 0.1, 0.3) * blink(t, lastKey)).toFixed(3);
+
+    // Label in, then the whole block lifts away on exit.
+    const exit = inQuad((t - EXIT) / 0.5);
+    label.style.opacity = (smooth(t, 0.05, 0.4) * (1 - exit)).toFixed(3);
+    block.style.opacity = (1 - smooth(t, EXIT, EXIT + 0.5)).toFixed(3);
+    block.style.filter = `blur(${(exit * 8).toFixed(2)}px)`;
+    block.style.transform = `translateY(calc(-50% - ${(exit * 16).toFixed(2)}px))`;
+  }
+
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    // The typing clip is 1.1s, so the prompt is covered by two bursts back to back.
+    { t: keys[0].t, event: 'type', clip: 'pitch-type-burst', dur: 1.05, gainDb: 3, label: 'prompt typed' },
+    { t: keys[0].t + 1.05, event: 'type', clip: 'pitch-type-burst', dur: Math.max(0.2, Math.min(1.05, typedAt - keys[0].t - 0.95)), gainDb: 3, label: 'prompt typed (cont.)' },
+    { t: SELECT, event: 'select', clip: 'pitch-toggle', label: 'word selected' },
+    { t: keys[FIRST.length].t, event: 'type', clip: 'pitch-type-burst', dur: Math.min(1.05, keys[keys.length - 1].t - keys[FIRST.length].t + 0.1), gainDb: 3, label: 'word retyped' },
+    { t: EXIT + 0.15, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

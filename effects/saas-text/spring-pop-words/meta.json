@@ -1,0 +1,29 @@
+{
+  "name": "Spring Pop Words",
+  "family": "SaaS Text",
+  "seconds": 4.5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Three short words spring up from 45% scale, untilting with one ~12% overshoot and a tiny second swing.",
+  "move": "Three short words spring up from 45% scale, untilting with one ~12% overshoot and a tiny second swing.",
+  "moves": [
+    "spring",
+    "pop",
+    "overshoot",
+    "bounce",
+    "words",
+    "playful"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "how": "A custom ease 1 - e^(-7t)·cos(10.5t), normalised to end exactly at 1, drives scale 0.45→1, rotation -7→0 and y 40→0 over 1.2s, stagger 0.22. Opacity resolves in 0.25s. Exit: scale 0.82, blur and fade.",
+  "adapt": "Best for 2–4 short words. Raise the decay (7) for less bounce; raise the frequency (10.5) for a snappier wobble. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Pop / bounce in by word\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

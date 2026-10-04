@@ -1,0 +1,40 @@
+{
+ "duration": 6.2,
+ "cues": [
+  {
+   "t": 0.55,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 1.05,
+   "gainDb": 3,
+   "label": "prompt typed"
+  },
+  {
+   "t": 1.6,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 0.8101219379417604,
+   "gainDb": 3,
+   "label": "prompt typed (cont.)"
+  },
+  {
+   "t": 3.1601219379417604,
+   "event": "select",
+   "clip": "pitch-toggle",
+   "label": "word selected"
+  },
+  {
+   "t": 3.830121937941761,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 0.4373453658632934,
+   "gainDb": 3,
+   "label": "word retyped"
+  },
+  {
+   "t": 5.5,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

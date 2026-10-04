@@ -1,0 +1,30 @@
+{
+  "name": "Gradient Wipe Reveal",
+  "family": "SaaS Text",
+  "seconds": 4.8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Two lines are revealed left to right by a feathered matte while drifting in; the matte keeps travelling to wipe them off.",
+  "move": "Two lines are revealed left to right by a feathered matte while drifting in; the matte keeps travelling to wipe them off.",
+  "moves": [
+    "wipe",
+    "linear-wipe",
+    "feather",
+    "mask",
+    "reveal",
+    "editorial"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "A CSS mask-image linear gradient with two edges driven by custom properties: --in (leading edge) and --out (trailing edge), each with a 14% feather. --in runs -20%→120% over 1.3s with cubic-bezier(0.6,0,0.2,1) and x -28→0; exit runs --out the same way with power2.in.",
+  "adapt": "Each masked element needs width:max-content so percentages are relative to the text, not the stage. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Linear Wipe with feather\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

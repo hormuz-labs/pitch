@@ -1,0 +1,48 @@
+{
+ "duration": 5.4,
+ "cues": [
+  {
+   "t": 0.38999999999999996,
+   "event": "impact",
+   "clip": "pitch-impact-slam",
+   "label": "slam 1"
+  },
+  {
+   "t": 0.8400000000000001,
+   "event": "impact",
+   "clip": "pitch-impact-slam",
+   "label": "slam 2"
+  },
+  {
+   "t": 1.29,
+   "event": "impact",
+   "clip": "pitch-impact-slam",
+   "label": "slam 3"
+  },
+  {
+   "t": 1.74,
+   "event": "impact",
+   "clip": "pitch-impact-slam",
+   "label": "slam 4"
+  },
+  {
+   "t": 2.3,
+   "event": "riser",
+   "clip": "pitch-riser-digital",
+   "dur": 0.5,
+   "label": "into the line"
+  },
+  {
+   "t": 2.755,
+   "event": "subdrop",
+   "clip": "gakuyen-analog-synth-hit-deep",
+   "label": "line lands"
+  },
+  {
+   "t": 4.8500000000000005,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-deep-2",
+   "label": "push through"
+  }
+ ]
+}

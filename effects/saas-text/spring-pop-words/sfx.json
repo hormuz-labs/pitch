@@ -1,0 +1,28 @@
+{
+ "duration": 4.5,
+ "cues": [
+  {
+   "t": 0.36,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "Fast."
+  },
+  {
+   "t": 0.58,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "Simple."
+  },
+  {
+   "t": 0.8,
+   "event": "glitch",
+   "clip": "pitch-glitch-chirp",
+   "label": "Yours."
+  },
+  {
+   "t": 3.68,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

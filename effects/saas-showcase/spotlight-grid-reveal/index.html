@@ -1,0 +1,121 @@
+<!doctype html><meta charset="utf-8">
+<title>Spotlight Grid Reveal</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:var(--bg)}
+  /* Two copies of one scene: a near-invisible base and a lit copy masked to a
+     soft circle at the cursor. Moving and growing the circle is the reveal. */
+  .layer{position:absolute;inset:0}
+  .grid{position:absolute;inset:0;background-size:64px 64px;background-position:32px 40px}
+  .base .grid{background-image:linear-gradient(color-mix(in srgb,var(--ink) 4%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--ink) 4%,transparent) 1px,transparent 1px)}
+  .lit .grid{background-image:linear-gradient(color-mix(in srgb,var(--accent) 32%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--accent) 32%,transparent) 1px,transparent 1px)}
+  .lit{--x:640px;--y:360px;--r:0px;
+    -webkit-mask-image:radial-gradient(circle var(--r) at var(--x) var(--y),#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);
+    mask-image:radial-gradient(circle var(--r) at var(--x) var(--y),#000 0%,rgba(0,0,0,.65) 45%,transparent 100%)}
+  h1{position:absolute;left:0;right:0;top:206px;text-align:center;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:96px;line-height:1.04;letter-spacing:-.05em}
+  .base h1{color:color-mix(in srgb,var(--ink) 4%,var(--bg))}
+  .lit h1{background:linear-gradient(180deg,var(--ink) 30%,var(--accent-2) 120%);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.15em}
+  .tag{position:absolute;font-size:15px;font-weight:500;padding:8px 14px;border-radius:999px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .base .tag{color:color-mix(in srgb,var(--ink) 7%,var(--bg));border:1px solid color-mix(in srgb,var(--ink) 5%,var(--bg))}
+  .lit .tag{color:var(--ink);border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+  .tag i{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .lit .tag i{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .halo{position:absolute;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 18%,transparent),transparent);pointer-events:none;will-change:transform,opacity}
+  .cursor{position:absolute;left:0;top:0;width:26px;height:26px;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 60%,transparent));will-change:transform,opacity}
+  .after{position:absolute;left:0;right:0;top:440px;display:flex;flex-direction:column;align-items:center;gap:26px}
+  .after p{font-size:23px;color:var(--muted)}
+  .after .cta{display:flex;gap:12px}
+  .after .cta span{height:48px;padding:0 22px;border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:500}
+  .after .cta .p{background:var(--ink);color:var(--bg)}
+  .after .cta .s{color:var(--ink);border:1px solid color-mix(in srgb,var(--ink) 16%,transparent)}
+  .after > *{opacity:0;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="layer base"></div>
+  <div class="layer lit"></div>
+  <div class="halo"></div>
+  <div class="after"><p>Observability for every request, trace and deploy.</p><div class="cta"><span class="p">Start for free</span><span class="s">Book a demo</span></div></div>
+  <svg class="cursor" viewBox="0 0 28 28"><path d="M5 3.5v19.2l5.1-4.7 3.3 7.4 3.4-1.5-3.3-7.2h6.9z" style="fill:var(--ink);stroke:var(--bg)" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 96px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 15px "Atlas Grotesk"'));
+  const D = 6.4;
+  const SCENE = `<div class="grid"></div><h1>See everything.<br>Miss nothing.</h1>
+    <span class="tag" style="left:150px;top:150px"><i></i>Traces</span>
+    <span class="tag" style="left:1010px;top:170px"><i></i>Realtime alerts</span>
+    <span class="tag" style="left:190px;top:470px"><i></i>Logs</span>
+    <span class="tag" style="left:960px;top:500px"><i></i>p99 latency</span>
+    <span class="tag" style="left:560px;top:620px"><i></i>Error budgets</span>`;
+  document.querySelector('.base').innerHTML = SCENE;
+  document.querySelector('.lit').innerHTML = SCENE;
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  const inOutCubic = (p) => { p = clamp(p); return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  const inOutSine = (p) => -(Math.cos(Math.PI * clamp(p)) - 1) / 2;
+
+  /* The flashlight's route: a Catmull-Rom curve through these points, walked
+     with an in-out ease so it starts and stops like a hand. */
+  const PTS = [[120, 700], [250, 470], [330, 240], [640, 250], [990, 300], [1010, 520], [640, 330]];
+  function route(u) {
+    const n = PTS.length - 1, f = Math.min(n - 1e-9, Math.max(0, u * n)), i = Math.floor(f), s = f - i;
+    const p0 = PTS[Math.max(0, i - 1)], p1 = PTS[i], p2 = PTS[i + 1], p3 = PTS[Math.min(n, i + 2)];
+    const cr = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * s + (2 * a - 5 * b + 4 * c - d) * s * s + (-a + 3 * b - 3 * c + d) * s * s * s);
+    return [cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1])];
+  }
+
+  const lit = document.querySelector('.lit'), halo = document.querySelector('.halo'), cursor = document.querySelector('.cursor');
+  const after = [...document.querySelectorAll('.after > *')];
+
+  function draw(t) {
+    const [x, y] = route(inOutSine((t - 0.35) / 3.0));
+    // Lights up: the circle opens to fill the frame and drifts to centre.
+    const up = inOutCubic((t - 3.45) / 1.05);
+    const r = 210 * smooth(t, 0.3, 0.9) + up * 1500;
+    const cx = x + (640 - x) * up, cy = y + (330 - y) * up;
+    lit.style.setProperty('--x', cx.toFixed(1) + 'px');
+    lit.style.setProperty('--y', cy.toFixed(1) + 'px');
+    lit.style.setProperty('--r', r.toFixed(1) + 'px');
+    halo.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+    halo.style.opacity = (smooth(t, 0.3, 0.9) * (1 - up)).toFixed(3);
+    cursor.style.transform = `translate(${(x - 4).toFixed(1)}px,${(y - 3).toFixed(1)}px)`;
+    cursor.style.opacity = (smooth(t, 0.35, 0.7) * (1 - smooth(t, 3.4, 3.8))).toFixed(3);
+    after.forEach((el, i) => {
+      const p = smooth(t, 4.05 + i * 0.15, 4.75 + i * 0.15);
+      el.style.opacity = p.toFixed(3);
+      el.style.transform = `translateY(${((1 - p) * 14).toFixed(2)}px)`;
+    });
+    // Exit: the lit copy fades back to the dark base the shot opened on.
+    const o = clamp((t - 5.45) / 0.75);
+    const out = o * o * o * (o * (o * 6 - 15) + 10);   // smootherstep: zero speed and acceleration at both ends
+    lit.style.opacity = (1 - out).toFixed(3);
+    after.forEach((el) => { el.style.opacity = (parseFloat(el.style.opacity) * (1 - out)).toFixed(3); });
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.6, event: 'whoosh_deep', label: 'flashlight on' },
+    { t: 3.6, event: 'riser', clip: 'pitch-riser-digital', dur: 0.85, label: 'build to lights up' },
+    { t: 3.98, event: 'whoosh_deep', clip: 'pitch-whoosh-sweep', label: 'lights come up' },
+    { t: 4.2, event: 'glitch', clip: 'pitch-glitch-pop', label: 'CTA' },
+    { t: 5.85, event: 'whoosh_deep', label: 'lights off' },
+  ]);
+</script>

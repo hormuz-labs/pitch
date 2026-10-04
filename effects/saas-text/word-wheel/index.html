@@ -1,0 +1,96 @@
+<!doctype html><meta charset="utf-8">
+<title>Word Wheel</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#f3f2ee;--surface:#ffffff;--ink:#141414;--muted:#77756f;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 75% 65% at 50% 45%,var(--surface) 0%,var(--bg) 75%)}
+  .row{position:absolute;top:50%;left:0;display:flex;align-items:center;gap:.28em;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:92px;letter-spacing:-.045em;line-height:1.1;color:var(--ink);will-change:transform,opacity,filter}
+  /* A drum of words: each sits on a cylinder and turns past the reading line.
+     The vertical mask fades the far side of the drum into the page. */
+  .drum{position:relative;height:5em;perspective:900px;
+    -webkit-mask-image:linear-gradient(transparent 0%,#000 32%,#000 68%,transparent 100%);mask-image:linear-gradient(transparent 0%,#000 32%,#000 68%,transparent 100%)}
+  .drum span{position:absolute;left:0;top:50%;height:1.1em;margin-top:-.55em;white-space:nowrap;backface-visibility:hidden;transform-origin:0 50%;will-change:transform,opacity,color}
+</style>
+<div class="stage">
+  <div class="row"><span class="static">Built for</span><div class="drum"><span>designers.</span><span>engineers.</span><span>marketers.</span><span>founders.</span><span>everyone.</span></div></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const fontsReady = document.fonts.load('500 92px "Sharp Grotesk"');
+  const D = 7.1, STEP_DEG = 26, HOLD = 0.5, MOVE = 0.78;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+  }
+  // Each turn is a back in-out — a small wind-up, a quick turn and a soft
+  // overshoot — so the drum feels weighted.
+  /* Back in-out with a wind-up and overshoot that both settle to rest — the
+     true function, since the Flow "back" bezier is still moving on its last frame. */
+  const backInOut = (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const c2 = 1.1 * 1.525;
+    return x < 0.5 ? (Math.pow(2 * x, 2) * ((c2 + 1) * 2 * x - c2)) / 2 : (Math.pow(2 * x - 2, 2) * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;
+  };
+  const flowQuintOut = bezier(0.22, 1, 0.36, 1), flowCubicIn = bezier(0.4, 0, 0.68, 0.06);
+
+  const row = document.querySelector('.row');
+  const drum = document.querySelector('.drum');
+  const items = [...drum.querySelectorAll('span')];
+  const N = items.length;
+  let R = 0;
+  function build() {
+    const em = parseFloat(getComputedStyle(row).fontSize);
+    R = em * 1.15 / (2 * Math.sin((STEP_DEG / 2) * Math.PI / 180));   // neighbours sit one line apart
+    drum.style.width = Math.max(...items.map((s) => s.getBoundingClientRect().width)) + 'px';
+    // Centre the whole row on the stage using the widest word.
+    row.style.left = ((1280 - row.getBoundingClientRect().width) / 2) + 'px';
+  }
+  fx.wait(fontsReady.then(build));
+
+  /* Drum position (in items) as a function of time: hold, turn, hold… */
+  function position(t) {
+    const t0 = 1.0;
+    if (t < t0) return 0;
+    const k = Math.floor((t - t0) / (HOLD + MOVE));
+    if (k >= N - 1) return N - 1;
+    const f = (t - t0) - k * (HOLD + MOVE);
+    return k + (f < HOLD ? 0 : backInOut((f - HOLD) / MOVE));
+  }
+
+  function draw(t) {
+    const pos = position(t);
+    items.forEach((s, i) => {
+      const rel = i - pos, ang = rel * STEP_DEG * Math.PI / 180;
+      const vis = Math.abs(rel) < 3.2;
+      const y = R * Math.sin(ang), z = R * (Math.cos(ang) - 1);
+      s.style.transform = `translate3d(0,${y.toFixed(2)}px,${z.toFixed(2)}px) rotateX(${(-rel * STEP_DEG).toFixed(3)}deg)`;
+      s.style.opacity = vis ? Math.pow(Math.max(0, Math.cos(ang)), 2).toFixed(3) : 0;
+      // The word on the reading line takes the accent; neighbours stay muted.
+      const focus = clamp(1 - Math.abs(rel));
+      s.style.color = `color-mix(in srgb,var(--accent) ${(focus * 100).toFixed(1)}%,var(--muted))`;
+    });
+    const enter = flowQuintOut(clamp((t - 0.15) / 0.9));
+    const exit = flowCubicIn(clamp((t - 6.45) / 0.5));
+    // Opacity eases on a smoothstep at both ends; motion keeps its own curve.
+    row.style.opacity = (smooth(t, 0.15, 0.85) * (1 - smooth(t, 6.45, 6.95))).toFixed(3);
+    row.style.transform = `translateY(calc(-50% + ${((1 - enter) * 22 - exit * 16).toFixed(2)}px))`;
+    row.style.filter = `blur(${((1 - enter) * 10 + exit * 10).toFixed(2)}px)`;
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.4, event: 'whoosh_deep', label: 'line in' },
+    ...[0, 1, 2, 3].map((k) => ({ t: 1.0 + k * (HOLD + MOVE) + HOLD + MOVE * 0.55, event: 'whoosh_deep', label: 'drum turns' })),
+    { t: 6.6, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

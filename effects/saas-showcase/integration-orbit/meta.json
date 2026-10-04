@@ -1,0 +1,30 @@
+{
+  "name": "Integration Orbit",
+  "family": "SaaS Showcase",
+  "seconds": 6.6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Integration icons orbit a glowing hub on two tilted rings with depth-scaled size and correct front/back layering; data pulses travel into the hub, which ripples on each arrival.",
+  "move": "Integration icons orbit a glowing hub on two tilted rings with depth-scaled size and correct front/back layering; data pulses travel into the hub, which ripples on each arrival.",
+  "moves": [
+    "orbit",
+    "integrations",
+    "hub",
+    "network",
+    "data-flow",
+    "pseudo-3d"
+  ],
+  "libs": [
+    "DOM",
+    "SVG"
+  ],
+  "how": "Deterministic draw(t). Nodes ride rotated ellipses; sin(θ) is depth, driving scale, brightness and z-index (front nodes draw over the hub, back ones under). Pulses are SVG lines with a glowing dot on an in-out cubic; ripples are scaling rounded squares.",
+  "adapt": "Swap the generic glyphs for your integration marks; adjust ORBITS radii, tilt and speed. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before sampling or measuring.",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

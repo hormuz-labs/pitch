@@ -1,0 +1,29 @@
+{
+  "name": "Decoder Scramble",
+  "family": "SaaS Text",
+  "seconds": 5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A headline appears as cycling glyphs that lock to the true letters left to right, each flashing the accent then cooling to ink; it scrambles away the same way.",
+  "move": "A headline appears as cycling glyphs that lock to the true letters left to right, each flashing the accent then cooling to ink; it scrambles away the same way.",
+  "moves": [
+    "scramble",
+    "decode",
+    "glyphs",
+    "cipher",
+    "security",
+    "reveal"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic seek(t). Every letter box is fixed to its final glyph width after the font loads, and stand-in glyphs come from a narrow, medium or wide pool matched to that width, so the line never reflows. Glyphs change at 15Hz from an integer hash of (index, tick). Lock times stagger 0.06s per letter with hashed jitter; the locked letter crossfades from accent to ink over 0.55s.",
+  "adapt": "Any single-line headline. The accent RGB, lock stagger and glyph pools are constants at the top of the script. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is a pure draw(t) inline in index.html. Mount the markup in the shot, call draw from the film's frame hook (or a GSAP onUpdate with the shot-local time), and keep the font-load wait before measuring.",
+  "caveats": [
+    "Original implementation of the After Effects \"Decoder Fade In\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

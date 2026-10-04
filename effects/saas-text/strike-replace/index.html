@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8">
+<title>Strike and Replace</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#f3f2ee;--surface:#ffffff;--ink:#141414;--muted:#77756f;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff;--positive:#22a06b;--negative:#e5484d}
+  .stage{background:radial-gradient(ellipse 75% 65% at 50% 45%,var(--surface) 0%,var(--bg) 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .row{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:104px;line-height:1.12;letter-spacing:-.045em;white-space:nowrap;text-align:center}
+  .old{position:relative;display:inline-block;color:var(--ink);will-change:transform,opacity}
+  .old .strike{position:absolute;left:-.06em;right:-.06em;top:54%;height:.075em;margin-top:-.0375em;background:var(--negative);border-radius:.04em;transform-origin:0 50%;transform:scaleX(0)}
+  .new{color:var(--positive)}
+  .w{display:inline-block;will-change:transform,filter,opacity}
+</style>
+<div class="stage">
+  <div class="row"><span class="old"><span class="w">Manual</span> <span class="w">reporting.</span><span class="strike"></span></span></div>
+  <div class="row new"><span class="w">Automated</span> <span class="w">insights.</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('drawInOut', '0.65,0,0.35,1');
+  fx.wait(document.fonts.load('500 104px "Sharp Grotesk"'));
+
+  const oldWords = document.querySelectorAll('.old .w');
+  const newWords = document.querySelectorAll('.new .w');
+  const tl = fx.timeline({ duration: 5.6 });
+
+  tl.fromTo(oldWords, { y: 24, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 1.0, stagger: 0.08, ease: 'softOut' }, 0.25)
+  // The strike draws through the old line like a pen stroke...
+    .fromTo('.strike', { scaleX: 0 }, { scaleX: 1, duration: 0.65, ease: 'drawInOut' }, 1.3)
+  // ...and the struck line steps back while the replacement rises in below it.
+    .to('.old', { opacity: 0.35, scale: 0.94, duration: 0.8, ease: 'power2.inOut' }, 1.95)
+    .fromTo(newWords, { y: 30, filter: 'blur(12px)' }, { y: 0, filter: 'blur(0px)', duration: 1.05, stagger: 0.09, ease: 'textOut' }, 2.0)
+    .fromTo(newWords, { opacity: 0 }, { opacity: 1, duration: 0.5, stagger: 0.09, ease: 'power1.out' }, 2.0)
+  // Exit: both rows lift and dissolve.
+    .to('.old', { y: -14, opacity: 0, filter: 'blur(8px)', duration: 0.5, ease: 'power2.inOut' }, 4.5)
+    .to(newWords, { y: -14, opacity: 0, filter: 'blur(10px)', duration: 0.5, stagger: 0.05, ease: 'power2.inOut' }, 4.55);
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.45, event: 'whoosh_deep', label: 'old line' },
+    { t: 1.62, event: 'whoosh_deep', clip: 'pitch-whoosh-deep-3', label: 'strike drawn' },
+    { t: 2.12, event: 'success', clip: 'pitch-success', label: 'new line' },
+    { t: 4.68, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

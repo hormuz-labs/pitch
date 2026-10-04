@@ -1,0 +1,30 @@
+{
+  "name": "Inline Media Pill",
+  "family": "SaaS Text",
+  "seconds": 6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A three-line headline rises in, then rounded media pills open inside the lines (an avatar stack, a gradient visual, an icon), parting the words on either side with a sprung overshoot.",
+  "move": "A three-line headline rises in, then rounded media pills open inside the lines (an avatar stack, a gradient visual, an icon), parting the words on either side with a sprung overshoot.",
+  "moves": [
+    "inline-image",
+    "pill",
+    "headline",
+    "avatars",
+    "reflow",
+    "website-hero"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Lines are authored as nowrap flex rows so a growing pill only pushes words sideways, never re-wraps them. Each pill tweens width and left margin from 0 together on a damped-spring ease (zero velocity at both ends, ~10% overshoot); contents spring in after.",
+  "adapt": "Edit words and pill contents; W sets each pill's open width in em. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves and inline helper eases, scope selectors to the shot, rebuild the timeline; state painted in onUpdate stays a function of tl.time().",
+  "caveats": [
+    "Original implementation of the \"Inline media in headline\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

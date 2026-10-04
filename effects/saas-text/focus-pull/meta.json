@@ -1,0 +1,30 @@
+{
+  "name": "Focus Pull",
+  "family": "SaaS Text",
+  "seconds": 4.8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "The headline racks into focus from 118% scale and heavy blur, holds with a slow push, and drifts out of focus on exit.",
+  "move": "The headline racks into focus from 118% scale and heavy blur, holds with a slow push, and drifts out of focus on exit.",
+  "moves": [
+    "focus",
+    "rack-focus",
+    "blur",
+    "scale",
+    "cinematic",
+    "push-in"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "scale 1.18→1 and blur 26→0 over 1.7s with cubic-bezier(0.16,1,0.3,1); opacity in 0.8s. A 2s sine.inOut push to 1.035 keeps the hold alive. Exit: scale 0.97, blur 18px, fade, power2.in.",
+  "adapt": "Works with any one-line statement; keep the hold push under ~4%. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Lens blur rack focus\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

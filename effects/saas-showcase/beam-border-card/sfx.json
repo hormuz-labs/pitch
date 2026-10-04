@@ -1,0 +1,23 @@
+{
+ "duration": 5.4,
+ "cues": [
+  {
+   "t": 0.35,
+   "event": "whoosh_deep",
+   "label": "card in"
+  },
+  {
+   "t": 0.62,
+   "event": "chime",
+   "clip": "pitch-shimmer",
+   "dur": 1.2,
+   "targetLufs": -22,
+   "label": "beam ignites"
+  },
+  {
+   "t": 4.75,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

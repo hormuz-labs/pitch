@@ -1,0 +1,29 @@
+{
+  "name": "Strike and Replace",
+  "family": "SaaS Text",
+  "seconds": 5.6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "\"Manual reporting.\" is struck through by a drawn red line and steps back; \"Automated insights.\" rises in below in green.",
+  "move": "\"Manual reporting.\" is struck through by a drawn red line and steps back; \"Automated insights.\" rises in below in green.",
+  "moves": [
+    "strikethrough",
+    "before-after",
+    "replace",
+    "contrast",
+    "problem-solution"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "The strike is an absolutely positioned bar at 54% of the line, scaleX 0→1 from the left over 0.65s with cubic-bezier(0.65,0,0.35,1). The old line then dims to 35% and scales to 0.94 while the new words blur-rise with stagger 0.09.",
+  "adapt": "Swap the old and new phrases; colours are --strike and --accent. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Strikethrough reveal\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

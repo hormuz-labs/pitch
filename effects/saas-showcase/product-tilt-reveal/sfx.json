@@ -1,0 +1,41 @@
+{
+ "duration": 6.4,
+ "cues": [
+  {
+   "t": 0.35,
+   "event": "whoosh_deep",
+   "label": "headline"
+  },
+  {
+   "t": 1.15,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-sweep",
+   "label": "window rises"
+  },
+  {
+   "t": 1.6,
+   "event": "chime",
+   "clip": "pitch-shimmer",
+   "dur": 1,
+   "targetLufs": -22,
+   "label": "edge catches light"
+  },
+  {
+   "t": 3.25,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-deep-3",
+   "label": "sheen"
+  },
+  {
+   "t": 3.85,
+   "event": "success",
+   "clip": "pitch-success",
+   "label": "issue completes"
+  },
+  {
+   "t": 5.8,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

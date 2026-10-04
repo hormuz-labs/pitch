@@ -1,0 +1,51 @@
+{
+ "duration": 7.2,
+ "cues": [
+  {
+   "t": 0.75,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-deep-2",
+   "label": "cursor swoops in"
+  },
+  {
+   "t": 1.72,
+   "event": "tick",
+   "clip": "pitch-hover",
+   "label": "hovers tab"
+  },
+  {
+   "t": 2.62,
+   "event": "whoosh_deep",
+   "label": "to the button"
+  },
+  {
+   "t": 3.2,
+   "event": "click",
+   "clip": "pitch-click-soft",
+   "label": "click"
+  },
+  {
+   "t": 3.5,
+   "event": "success",
+   "clip": "pitch-success",
+   "label": "upgraded"
+  },
+  {
+   "t": 4.25,
+   "event": "whoosh_deep",
+   "label": "to the chart"
+  },
+  {
+   "t": 4.62,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "tooltip"
+  },
+  {
+   "t": 6.25,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-sweep",
+   "label": "flies off"
+  }
+ ]
+}

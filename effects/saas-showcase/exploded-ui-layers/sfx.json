@@ -1,0 +1,27 @@
+{
+ "duration": 6.8,
+ "cues": [
+  {
+   "t": 1.4500000000000002,
+   "event": "whoosh_deep",
+   "clip": "pitch-layer-lift",
+   "label": "layers lift"
+  },
+  {
+   "t": 4.8,
+   "event": "whoosh_deep",
+   "label": "camera returns"
+  },
+  {
+   "t": 5.2,
+   "event": "glitch",
+   "clip": "pitch-glitch-lock",
+   "label": "layers lock"
+  },
+  {
+   "t": 6.25,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

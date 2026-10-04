@@ -1,0 +1,29 @@
+{
+  "name": "Step Progress",
+  "family": "SaaS Showcase",
+  "seconds": 7,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A four-step onboarding stepper: each active step pulses, its label brightens, the node fills with a sprung check, the rail fills to the next step, and a preview panel hands over to each step's view; the last step bursts.",
+  "move": "A four-step onboarding stepper: each active step pulses, its label brightens, the node fills with a sprung check, the rail fills to the next step, and a preview panel hands over to each step's view; the last step bursts.",
+  "moves": [
+    "stepper",
+    "onboarding",
+    "progress",
+    "checklist",
+    "steps",
+    "ui"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). ACT/DONE times drive colour mixes (Flow cubic), node fills and checks (damped spring), rails (scaleY, Flow cubic) and a live pulse ring. Panel views hand over in sequence (out, then in) so two text blocks never overlap. Eight-stroke burst on completion.",
+  "adapt": "Edit STEPS (label, sub, icon, panel title/copy) and ACT/DONE timing. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Stepper\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

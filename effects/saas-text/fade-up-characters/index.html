@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8">
+<title>Fade Up Characters</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#f3f2ee;--surface:#ffffff;--ink:#141414;--muted:#77756f;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 75% 65% at 50% 45%,var(--surface) 0%,var(--bg) 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px}
+  .pill{font-size:20px;font-weight:500;color:var(--accent);padding:9px 18px;border-radius:999px;background:color-mix(in srgb,var(--accent) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 22%,var(--surface));letter-spacing:-.005em}
+  .title{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:116px;line-height:1.05;letter-spacing:-.05em;color:var(--ink);text-align:center}
+  .w{display:inline-block;white-space:nowrap}
+  .c{display:inline-block;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="pill">Introducing Flow 2.0</div>
+  <h1 class="title">Designed for momentum.</h1>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  fx.wait(document.fonts.load('500 116px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 20px "Atlas Grotesk"'));
+
+  /* Split text into word spans holding character spans; words stay unbreakable. */
+  function splitChars(el) {
+    const parts = el.textContent.trim().split(/\s+/);
+    const chars = [];
+    el.textContent = '';
+    parts.forEach((part, i) => {
+      if (i) el.append(' ');
+      const w = document.createElement('span');
+      w.className = 'w';
+      for (const ch of part) {
+        const c = document.createElement('span');
+        c.className = 'c';
+        c.textContent = ch;
+        w.append(c);
+        chars.push(c);
+      }
+      el.append(w);
+    });
+    return chars;
+  }
+
+  const chars = splitChars(document.querySelector('.title'));
+  const tl = fx.timeline({ duration: 4.5 });
+
+  tl.fromTo('.pill', { y: 14, opacity: 0, scale: 0.96 }, { y: 0, opacity: 1, scale: 1, duration: 0.8, ease: 'softOut' }, 0.2)
+  // Enter: AE "Fade Up Characters" — each letter rises 70% of its height and fades on.
+    .fromTo(chars, { yPercent: 70 }, { yPercent: 0, duration: 1.0, stagger: 0.028, ease: 'textOut' }, 0.4)
+    .fromTo(chars, { opacity: 0 }, { opacity: 1, duration: 0.45, stagger: 0.028, ease: 'power1.out' }, 0.4)
+  // Exit: letters keep travelling up and fade, same left-to-right order.
+    .to(chars, { yPercent: -55, opacity: 0, duration: 0.5, stagger: 0.016, ease: 'power2.inOut' }, 3.3)
+    .to('.pill', { y: -10, opacity: 0, duration: 0.45, ease: 'power2.inOut' }, 3.25);
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.33, event: 'glitch', clip: 'pitch-glitch-pop', label: 'pill' },
+    { t: 0.62, event: 'whoosh_deep', label: 'letters rise' },
+    { t: 3.45, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

@@ -1,0 +1,15 @@
+{
+ "duration": 4.5,
+ "cues": [
+  {
+   "t": 0.5,
+   "event": "whoosh_deep",
+   "label": "headline rises"
+  },
+  {
+   "t": 3.55,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

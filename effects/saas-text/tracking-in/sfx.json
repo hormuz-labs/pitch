@@ -1,0 +1,15 @@
+{
+ "duration": 4.5,
+ "cues": [
+  {
+   "t": 0.6,
+   "event": "whoosh_deep",
+   "label": "letters converge"
+  },
+  {
+   "t": 3.6,
+   "event": "whoosh_deep",
+   "label": "tracks out"
+  }
+ ]
+}

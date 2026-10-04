@@ -1,0 +1,33 @@
+{
+ "duration": 6.8,
+ "cues": [
+  {
+   "t": 1.72,
+   "event": "click",
+   "clip": "pitch-click-soft",
+   "label": "grab"
+  },
+  {
+   "t": 2.5,
+   "event": "whoosh_deep",
+   "label": "drag across"
+  },
+  {
+   "t": 3.17,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "drop"
+  },
+  {
+   "t": 3.46,
+   "event": "success",
+   "clip": "pitch-success",
+   "label": "status done"
+  },
+  {
+   "t": 6.2,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

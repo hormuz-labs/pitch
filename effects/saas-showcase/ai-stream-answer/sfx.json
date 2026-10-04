@@ -1,0 +1,63 @@
+{
+ "duration": 8,
+ "cues": [
+  {
+   "t": 0.33,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "question"
+  },
+  {
+   "t": 1.1,
+   "event": "data",
+   "clip": "pitch-data-stream",
+   "align": "file",
+   "dur": 0.95,
+   "label": "thinking"
+  },
+  {
+   "t": 2.15,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 1.05,
+   "gainDb": 1,
+   "label": "answer streams"
+  },
+  {
+   "t": 3.2,
+   "event": "type",
+   "clip": "pitch-type-burst",
+   "dur": 0.8511652019433686,
+   "gainDb": 1,
+   "label": "answer streams (cont.)"
+  },
+  {
+   "t": 4.351165201943369,
+   "event": "whoosh_deep",
+   "label": "chart card"
+  },
+  {
+   "t": 4.471165201943369,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "bars grow"
+  },
+  {
+   "t": 4.741165201943369,
+   "event": "glitch",
+   "clip": "pitch-glitch-tick",
+   "label": "bars grow"
+  },
+  {
+   "t": 4.971165201943369,
+   "event": "glitch",
+   "clip": "pitch-glitch-blip",
+   "label": "sources"
+  },
+  {
+   "t": 7.4,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

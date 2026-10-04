@@ -1,0 +1,29 @@
+{
+  "name": "Marquee Bands",
+  "family": "SaaS Text",
+  "seconds": 6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Two crossing tape bands — accent and ink — wipe on and scroll feature words in opposite directions, alternating filled and outlined type, then wipe off.",
+  "move": "Two crossing tape bands — accent and ink — wipe on and scroll feature words in opposite directions, alternating filled and outlined type, then wipe off.",
+  "moves": [
+    "marquee",
+    "ticker",
+    "tape",
+    "bands",
+    "scrolling-text",
+    "outline"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). Each strip repeats one measured item set four times; its x is speed×time wrapped at one set width, so the scroll is seamless and seekable. Tape wipes are clip-path insets on Flow expo in-out, and the wipe adds a short burst of travel so bands arrive already moving.",
+  "adapt": "Edit WORDS per band and speeds; band tilt is in the CSS. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Marquee\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

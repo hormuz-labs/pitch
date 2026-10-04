@@ -1,0 +1,119 @@
+<!doctype html><meta charset="utf-8">
+<title>Beam Border Card</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:var(--bg)}
+  .dots{position:absolute;inset:0;background-image:radial-gradient(color-mix(in srgb,var(--ink) 14%,transparent) 1px,transparent 1.4px);background-size:26px 26px;
+    -webkit-mask-image:radial-gradient(ellipse 50% 55% at 50% 50%,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse 50% 55% at 50% 50%,#000 20%,transparent 75%)}
+  .card{position:absolute;left:50%;top:50%;width:620px;height:360px;margin:-180px 0 0 -310px;border-radius:22px;background:linear-gradient(180deg,var(--surface),var(--panel));
+    border:1px solid var(--line);box-shadow:0 40px 100px -30px rgba(0,0,0,.9);will-change:transform,opacity,filter}
+  .spot{position:absolute;inset:0;border-radius:22px;pointer-events:none}
+  .beam{position:absolute;left:-1px;top:-1px;width:622px;height:362px;overflow:visible;pointer-events:none}
+  .in{position:absolute;inset:0;padding:38px 42px;display:flex;flex-direction:column}
+  .icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 10px 30px -6px color-mix(in srgb,var(--accent) 60%,transparent),inset 0 1px 0 rgba(255,255,255,.3)}
+  .icon svg{width:26px;height:26px;color:var(--on-accent)}
+  .kick{margin-top:26px;font-size:13px;font-weight:500;letter-spacing:.14em;color:var(--accent)}
+  .title{margin-top:10px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:40px;letter-spacing:-.04em;color:var(--ink)}
+  .copy{margin-top:10px;font-size:18px;line-height:1.5;color:var(--text);max-width:470px}
+  .stats{margin-top:auto;display:flex;gap:30px;font-size:14px;color:var(--muted)}
+  .stats b{display:block;font-weight:500;font-size:20px;color:var(--ink);letter-spacing:-.02em;margin-bottom:2px}
+  .in > *{will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="dots"></div>
+  <div class="card">
+    <div class="spot"></div>
+    <div class="in">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.6-3 8.1-7 9.5-4-1.4-7-4.9-7-9.5V6z"/><path d="M9 12l2 2 4-4.5"/></svg></div>
+      <div class="kick">DEPLOYMENTS</div>
+      <div class="title">Ship with confidence</div>
+      <div class="copy">Every release is checked, signed and reversible in a single click.</div>
+      <div class="stats"><span><b>99.99%</b>uptime</span><span><b>&lt; 50 ms</b>p95 latency</span><span><b>SOC 2</b>Type II</span></div>
+    </div>
+    <svg class="beam" viewBox="0 0 622 362">
+      <defs>
+        <linearGradient id="hue" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="622" y2="362">
+          <stop offset="0" style="stop-color:var(--accent)"/><stop offset=".5" style="stop-color:var(--accent-2)"/><stop offset="1" style="stop-color:var(--accent)"/>
+        </linearGradient>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="8"/></filter>
+      </defs>
+      <!-- One rounded-rect path, three dashes along it: a long faint tail, a
+           blurred glow and a bright head. Dash offsets place them, so the beam
+           moves at constant speed along straight edges and corners alike. -->
+      <rect class="tail" x="1" y="1" width="620" height="360" rx="22" fill="none" stroke="url(#hue)" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+      <rect class="glow" x="1" y="1" width="620" height="360" rx="22" fill="none" stroke="url(#hue)" stroke-width="10" stroke-linecap="round" filter="url(#glow)"/>
+      <rect class="head" x="1" y="1" width="620" height="360" rx="22" fill="none" style="stroke:color-mix(in srgb,var(--accent-2) 35%,#fff)" stroke-width="2.6" stroke-linecap="round"/>
+    </svg>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  fx.wait(document.fonts.load('500 40px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 18px "Atlas Grotesk"'));
+
+  const head = document.querySelector('.beam .head');
+  const glow = document.querySelector('.beam .glow');
+  const tail = document.querySelector('.beam .tail');
+  const spot = document.querySelector('.spot');
+  const P = head.getTotalLength();
+  const HEAD = 80, GLOW = 150, TAIL = 420;
+  const beam = { s: 0, a: 0 };
+
+  /* Place a dash of length len ending at distance s along the perimeter. */
+  function dash(el, len, s) {
+    el.setAttribute('stroke-dasharray', `${len} ${P - len}`);
+    el.setAttribute('stroke-dashoffset', (-(s - len)).toFixed(2));
+  }
+  function paint() {
+    const s = ((beam.s % P) + P) % P;
+    dash(head, HEAD, s);
+    dash(glow, GLOW, s);
+    dash(tail, TAIL, s);
+    head.style.opacity = beam.a;
+    glow.style.opacity = beam.a * 0.9;
+    tail.style.opacity = beam.a * 0.6;
+    // The card surface catches the beam: a soft light pooled at its head.
+    const p = head.getPointAtLength((s - HEAD * 0.3 + P) % P);
+    spot.style.background = `radial-gradient(260px circle at ${p.x.toFixed(1)}px ${p.y.toFixed(1)}px, color-mix(in srgb,var(--accent) ${(22 * beam.a).toFixed(1)}%,transparent), transparent 70%)`;
+  }
+
+  const tl = fx.timeline({ duration: 5.4, onUpdate: paint });
+  tl.fromTo('.card', { opacity: 0, scale: 0.95, y: 16, filter: 'blur(10px)' }, { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', duration: 0.9, ease: 'softOut' }, 0.15)
+    .fromTo('.dots', { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power1.out' }, 0)
+    .fromTo('.in > *', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.07, ease: 'softOut' }, 0.45)
+  // The beam: 1.75 laps, easing up to speed and back down, fading at both ends.
+    .fromTo(beam, { s: 0 }, { s: P * 1.75, duration: 3.9, ease: 'power1.inOut' }, 0.5)
+    .fromTo(beam, { a: 0 }, { a: 1, duration: 0.5, ease: 'power1.out' }, 0.5)
+    .to(beam, { a: 0, duration: 0.5, ease: 'power1.in' }, 3.9)
+    .to('.card', { opacity: 0, scale: 0.97, filter: 'blur(8px)', duration: 0.55, ease: 'power2.inOut' }, 4.55)
+    .to('.dots', { opacity: 0, duration: 0.6, ease: 'power2.inOut' }, 4.6);
+  paint();
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.35, event: 'whoosh_deep', label: 'card in' },
+    { t: 0.62, event: 'chime', clip: 'pitch-shimmer', dur: 1.2, targetLufs: -22, label: 'beam ignites' },
+    { t: 4.75, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

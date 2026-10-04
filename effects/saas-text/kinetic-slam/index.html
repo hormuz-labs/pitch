@@ -1,0 +1,111 @@
+<!doctype html><meta charset="utf-8">
+<title>Kinetic Slam</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. */
+  :root{--bg:#0c0c0d;--surface:#161618;--ink:#f3f2ee;--muted:#8d8b85;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:var(--bg)}
+  .flash{position:absolute;inset:0;background:radial-gradient(ellipse 55% 60% at 50% 50%,color-mix(in srgb,var(--accent) 70%,transparent),transparent 72%);opacity:0}
+  .cam{position:absolute;inset:0;will-change:transform}
+  .solo{position:absolute;left:0;right:0;top:50%;text-align:center;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:230px;line-height:1;letter-spacing:-.06em;color:var(--ink);opacity:0;will-change:transform,opacity,filter}
+  .final{position:absolute;left:0;right:0;top:50%;transform-origin:50% 0;display:flex;justify-content:center;gap:.24em;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:98px;line-height:1;letter-spacing:-.05em;color:var(--ink);will-change:transform,opacity,filter}
+  .final span{display:inline-block;opacity:0;will-change:transform,opacity,filter}
+  .final .hot{color:var(--accent)}
+</style>
+<div class="stage">
+  <div class="flash"></div>
+  <div class="cam">
+    <div class="solo">Ship.</div><div class="solo">Faster.</div><div class="solo">Than</div><div class="solo">ever.</div>
+    <div class="final"><span>Ship</span><span>faster</span><span>than</span><span class="hot">ever.</span></div>
+  </div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 230px "Sharp Grotesk"'));
+  const D = 5.4;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+  }
+  const flowExpoOut = bezier(0.14, 1, 0.34, 1), flowCubicIn = bezier(0.4, 0, 0.68, 0.06), flowExpoIn = bezier(0.66, 0, 0.86, 0);
+
+  const solos = [...document.querySelectorAll('.solo')];
+  const finals = [...document.querySelectorAll('.final span')];
+  const cam = document.querySelector('.cam'), flash = document.querySelector('.flash');
+  const finalLine = document.querySelector('.final');
+  const BEATS = [0.35, 0.8, 1.25, 1.7];            // one word per beat
+  const FINAL = 2.3, FSTAG = 0.09;                 // the line assembles
+  const EXIT = 4.65;
+  // Every impact, in time order, with its strength.
+  const HITS = [...BEATS.map((t) => [t, 1]), ...finals.map((_, i) => [FINAL + i * FSTAG, i === finals.length - 1 ? 1.2 : 0.45])];
+
+  /* One slam: the word drops in from 2.3× scale through a heavy blur and lands
+     on a Flow expo-out in 0.32s. */
+  function slam(el, t0, from = 2.3, base = 'translateY(-50%)') {
+    const p = clamp((t0) / 0.32), e = flowExpoOut(p);
+    el.style.opacity = t0 < 0 ? 0 : Math.min(1, p * 3).toFixed(3);
+    el.style.transform = `${base} scale(${(from + (1 - from) * e).toFixed(4)})`;
+    el.style.filter = `blur(${((1 - e) * 18).toFixed(2)}px)`;
+  }
+
+  function draw(t) {
+    // Solo words: each slams in, then is knocked back as the next arrives.
+    solos.forEach((el, i) => {
+      const t0 = t - BEATS[i];
+      const next = i < solos.length - 1 ? BEATS[i + 1] : FINAL;
+      if (t0 < 0 || t >= next + 0.12) { el.style.opacity = 0; return; }
+      slam(el, t0);
+      if (t >= next - 0.02) {
+        const k = clamp((t - next + 0.02) / 0.14);
+        el.style.opacity = (1 - k).toFixed(3);
+        el.style.transform = `translateY(-50%) scale(${(1 - 0.12 * k).toFixed(4)})`;
+        el.style.filter = `blur(${(k * 10).toFixed(2)}px)`;
+      }
+    });
+    // Final line: words slam in left to right.
+    finals.forEach((el, i) => {
+      const t0 = t - (FINAL + i * FSTAG);
+      if (t0 < 0) { el.style.opacity = 0; return; }
+      slam(el, t0, 1.9, 'translateY(-50%)');
+    });
+    // Exit: the whole line pushes toward camera as one, so words never collide.
+    const exit = flowExpoIn(clamp((t - EXIT) / 0.45));
+    const fade = clamp((t - EXIT) / 0.45);
+    finalLine.style.opacity = (1 - fade * fade * (3 - 2 * fade)).toFixed(3);
+    finalLine.style.transform = `scale(${(1 + exit * 0.35).toFixed(4)})`;
+    finalLine.style.filter = exit > 0 ? `blur(${(exit * 16).toFixed(2)}px)` : 'none';
+    // Camera shake: each impact adds a damped, seeded jolt; jolts sum.
+    let x = 0, y = 0, r = 0;
+    HITS.forEach(([h, s], k) => {
+      const d = t - h - 0.06;
+      if (d < 0 || d > 0.6) return;
+      const env = s * Math.exp(-d * 11);
+      x += env * 14 * Math.sin(d * 62 + k * 1.7);
+      y += env * 10 * Math.sin(d * 55 + k * 2.9 + 1);
+      r += env * 0.6 * Math.sin(d * 48 + k);
+    });
+    cam.style.transform = `translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${r.toFixed(3)}deg)`;
+    // A soft accent bloom on the final word's impact: two-frame attack, quick
+    // decay — a flash that is felt rather than a hard cut.
+    const fl = t - (FINAL + (finals.length - 1) * FSTAG) - 0.03;
+    const attack = clamp(fl / 0.1);
+    flash.style.opacity = fl > 0 && fl < 0.9 ? (0.42 * attack * attack * (3 - 2 * attack) * Math.exp(-Math.max(0, fl - 0.1) * 5)).toFixed(3) : 0;
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    ...BEATS.map((b, i) => ({ t: b + 0.04, event: 'impact', clip: 'pitch-impact-slam', label: 'slam ' + (i + 1) })),
+    { t: FINAL, event: 'riser', clip: 'pitch-riser-digital', dur: 0.5, label: 'into the line' },
+    // This sub-drop swells in and crests 145ms after its measured hit, so it is
+    // cued 0.145s later to put the crest on the line landing.
+    { t: FINAL + 3 * FSTAG + 0.04 + 0.145, event: 'subdrop', clip: 'gakuyen-analog-synth-hit-deep', label: 'line lands' },
+    { t: EXIT + 0.2, event: 'whoosh_deep', clip: 'pitch-whoosh-deep-2', label: 'push through' },
+  ]);
+</script>

@@ -1,0 +1,29 @@
+{
+  "name": "Blur Rise Words",
+  "family": "SaaS Text",
+  "seconds": 4.5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Headline words rise 28px out of a 14px blur, staggered; the subline follows; words exit upward into blur.",
+  "move": "Headline words rise 28px out of a 14px blur, staggered; the subline follows; words exit upward into blur.",
+  "moves": [
+    "blur-in",
+    "word-stagger",
+    "rise",
+    "headline",
+    "fade"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Words split into inline-block spans with real spaces between. fromTo y 28→0 and blur(14px)→blur(0) over 1.1s, stagger 0.075, ease cubic-bezier(0.22,1,0.36,1); opacity runs as a separate, shorter 0.55s power1.out tween so no word ghosts while it settles. Subline repeats at smaller values from 0.95s. Exit at 3.35s: y -18, blur 10px, opacity 0, power2.in, stagger 0.035.",
+  "adapt": "Swap headline and subline strings; the stagger scales with word count. Keep opacity shorter than motion. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Blur In by word\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

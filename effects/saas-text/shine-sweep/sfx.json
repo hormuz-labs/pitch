@@ -1,0 +1,29 @@
+{
+ "duration": 4.6,
+ "cues": [
+  {
+   "t": 0.3,
+   "event": "glitch",
+   "clip": "pitch-glitch-pop",
+   "label": "pill"
+  },
+  {
+   "t": 0.5,
+   "event": "whoosh_deep",
+   "label": "title rises"
+  },
+  {
+   "t": 1.9,
+   "event": "chime",
+   "clip": "pitch-shimmer",
+   "dur": 1.2,
+   "targetLufs": -22,
+   "label": "shine crosses"
+  },
+  {
+   "t": 3.75,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

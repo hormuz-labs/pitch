@@ -1,0 +1,21 @@
+{
+ "duration": 5,
+ "cues": [
+  {
+   "t": 0.48,
+   "event": "whoosh_deep",
+   "label": "words rise"
+  },
+  {
+   "t": 1.6,
+   "event": "glitch",
+   "clip": "pitch-glitch-stutter",
+   "label": "marker down"
+  },
+  {
+   "t": 4.1,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

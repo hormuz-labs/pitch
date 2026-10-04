@@ -1,0 +1,32 @@
+{
+  "name": "Chart Scrub",
+  "family": "SaaS Showcase",
+  "seconds": 7.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A revenue card draws its area chart with a glowing tip while the headline counts up, then a hairline scrubs the curve with a live tooltip and the headline value tracking every point.",
+  "move": "A revenue card draws its area chart with a glowing tip while the headline counts up, then a hairline scrubs the curve with a live tooltip and the headline value tracking every point.",
+  "moves": [
+    "chart",
+    "line-chart",
+    "area",
+    "scrub",
+    "tooltip",
+    "analytics",
+    "dashboard"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase",
+    "SVG"
+  ],
+  "how": "Monotone cubic path (no overshoot). Draw-on drives stroke-dashoffset, the area clip width and a glow dot from one progress value. Scrub x maps to y by binary search over a dense path sample; value is read back from y. Header number and month follow the scrub.",
+  "adapt": "Replace DATA, MONTHS and MIN/MAX; formatting is in money(). Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

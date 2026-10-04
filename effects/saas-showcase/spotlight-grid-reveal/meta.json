@@ -1,0 +1,30 @@
+{
+  "name": "Spotlight Grid Reveal",
+  "family": "SaaS Showcase",
+  "seconds": 6.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A flashlight cursor wanders a dark page, revealing a glowing grid, feature tags and the headline under a soft circle, then the light opens to fill the frame and the CTA appears.",
+  "move": "A flashlight cursor wanders a dark page, revealing a glowing grid, feature tags and the headline under a soft circle, then the light opens to fill the frame and the CTA appears.",
+  "moves": [
+    "spotlight",
+    "flashlight",
+    "reveal",
+    "grid",
+    "mask",
+    "hero",
+    "cursor"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Two copies of one scene: a near-black base and a lit copy masked by radial-gradient(circle var(--r) at var(--x) var(--y)). The cursor walks a Catmull-Rom route with an in-out sine; then --r grows to 1500px with an in-out cubic while the centre drifts to frame centre.",
+  "adapt": "Edit SCENE (headline and tag positions) and the PTS route. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before sampling or measuring.",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

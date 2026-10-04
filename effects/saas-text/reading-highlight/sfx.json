@@ -1,0 +1,23 @@
+{
+ "duration": 6.4,
+ "cues": [
+  {
+   "t": 0.3,
+   "event": "whoosh_deep",
+   "label": "paragraph in"
+  },
+  {
+   "t": 4.35,
+   "event": "chime",
+   "clip": "pitch-shimmer",
+   "dur": 0.9,
+   "targetLufs": -22,
+   "label": "last words light"
+  },
+  {
+   "t": 5.7,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

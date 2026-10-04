@@ -1,0 +1,187 @@
+<!doctype html><meta charset="utf-8">
+<title>Kanban Drag</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#f3f2ee; --surface:#ffffff; --ink:#141414; --muted:#77756f;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 10%,transparent);
+    --text:color-mix(in srgb,var(--ink) 78%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 5%,var(--surface));
+    --panel:color-mix(in srgb,var(--ink) 4%,var(--bg));
+  }
+  .stage{background:var(--bg)}
+  .title{position:absolute;left:76px;top:44px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:30px;letter-spacing:-.03em;color:var(--ink);display:flex;align-items:center;gap:14px}
+  .title small{font-family:"Atlas Grotesk",sans-serif;font-size:15px;font-weight:400;color:var(--muted);letter-spacing:0}
+  .board{position:absolute;left:76px;top:116px;width:1128px;height:600px}
+  .colbg{position:absolute;top:0;width:360px;height:560px;border-radius:18px;background:var(--panel);will-change:opacity,transform}
+  .colhd{position:absolute;top:16px;height:28px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;color:var(--ink);will-change:opacity}
+  .colhd i{width:10px;height:10px;border-radius:50%}
+  .cnt{position:relative;width:24px;height:22px;border-radius:7px;background:color-mix(in srgb,var(--ink) 9%,var(--bg));color:var(--text);font-size:13px;overflow:hidden}
+  .cnt b{position:absolute;inset:0;display:grid;place-items:center;font-weight:500}
+  .card{position:absolute;left:0;top:0;width:336px;height:96px;border-radius:14px;background:var(--surface);border:1px solid var(--line);padding:14px 16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);will-change:transform,opacity}
+  .card .tt{font-size:16px;font-weight:500;color:var(--ink);white-space:nowrap}
+  .card .meta{position:absolute;left:16px;right:16px;bottom:13px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .tag{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px}
+  .av{width:22px;height:22px;border-radius:50%;margin-left:auto}
+  .st{position:relative;height:22px;width:98px;font-size:12.5px;font-weight:500}
+  .st span{position:absolute;right:0;top:0;height:22px;display:flex;align-items:center;gap:6px;padding:0 9px;border-radius:999px;white-space:nowrap}
+  .st .a{background:color-mix(in srgb,var(--accent-2) 22%,var(--surface));color:color-mix(in srgb,var(--accent-2) 55%,var(--ink))}
+  .st .b{background:color-mix(in srgb,var(--positive) 16%,var(--surface));color:color-mix(in srgb,var(--positive) 75%,var(--ink));opacity:0}
+  .st svg{width:12px;height:12px}
+  .ph{position:absolute;width:336px;height:96px;border-radius:14px;border:2px dashed color-mix(in srgb,var(--accent) 45%,var(--surface));background:color-mix(in srgb,var(--accent) 5%,transparent);opacity:0}
+  .cursor{position:absolute;left:0;top:0;transform:translate(1300px,800px);width:28px;height:28px;z-index:30;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25));will-change:transform}
+</style>
+<div class="stage">
+  <div class="title">Product roadmap <small>Sprint 24 · Oct 7 – Oct 18</small></div>
+  <div class="board"></div>
+  <svg class="cursor" viewBox="0 0 28 28"><path d="M5 3.5v19.2l5.1-4.7 3.3 7.4 3.4-1.5-3.3-7.2h6.9z" style="fill:var(--ink);stroke:var(--surface)" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('slide', '0.65,0,0.35,1');
+  CustomEase.create('travel', '0.45,0,0.25,1');
+  fx.wait(document.fonts.load('500 16px "Atlas Grotesk"'));
+  fx.wait(document.fonts.load('500 30px "Sharp Grotesk"'));
+
+  const D = 6.8, COLX = [0, 384, 768], TOP = 58, PITCH = 108;
+  const PRESS = 1.72, PICK = 1.84, DROP = 3.12;
+  // Tag tints: a palette token as a soft fill with a darkened label.
+  const tint = (v) => [`color-mix(in srgb,var(${v}) 15%,var(--surface))`, `color-mix(in srgb,var(${v}) 70%,var(--ink))`];
+  const TAGS = { Design: tint('--accent'), Backend: tint('--muted'), Research: tint('--accent-2'), Growth: tint('--positive'), Security: tint('--negative') };
+  const COLS = [
+    ['Todo', 'var(--faint)', [['Write Q4 launch brief', 'Design', 'PRJ-131'], ['Audit billing webhooks', 'Backend', 'PRJ-128'], ['Interview five customers', 'Research', 'PRJ-125']]],
+    ['In progress', 'var(--accent-2)', [['Redesign onboarding flow', 'Design', 'PRJ-112'], ['Migrate auth to passkeys', 'Backend', 'PRJ-117'], ['Usage-based pricing page', 'Growth', 'PRJ-119']]],
+    ['Done', 'var(--positive)', [['Ship dark mode', 'Design', 'PRJ-104'], ['SOC 2 evidence export', 'Security', 'PRJ-109']]],
+  ];
+  const AV = ['linear-gradient(135deg,var(--accent-2),var(--accent))', 'linear-gradient(135deg,color-mix(in srgb,var(--ink) 55%,var(--bg)),var(--ink))', 'linear-gradient(135deg,var(--accent-2),var(--positive))', 'linear-gradient(135deg,var(--positive),color-mix(in srgb,var(--positive) 50%,var(--ink)))'];
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  const board = document.querySelector('.board');
+  const cols = [], cards = [];
+  COLS.forEach(([name, color, items], c) => {
+    const bg = document.createElement('div');
+    bg.className = 'colbg';
+    bg.style.left = COLX[c] + 'px';
+    const hd = document.createElement('div');
+    hd.className = 'colhd';
+    hd.style.left = COLX[c] + 16 + 'px';
+    hd.innerHTML = `<i style="background:${color}"></i>${name}<span class="cnt"><b class="n0">${items.length}</b><b class="n1">${["", 2, 3][c]}</b></span>`;
+    board.append(bg, hd);
+    cols.push({ bg, hd });
+    items.forEach(([tt, tag, id], i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      const [tbg, tfg] = TAGS[tag];
+      const status = c === 1
+        ? `<span class="st"><span class="a">● In progress</span><span class="b">${CHECK}Done</span></span>`
+        : '';
+      el.innerHTML = `<div class="tt">${tt}</div><div class="meta"><span class="tag" style="background:${tbg};color:${tfg}">${tag}</span>${id}${status}<span class="av" style="background:${AV[(c + i) % 4]}"></span></div>`;
+      board.append(el);
+      cards.push({ el, c, i, x: COLX[c] + 12, y: TOP + i * PITCH });
+      gsap.set(el, { x: COLX[c] + 12, y: TOP + i * PITCH });
+    });
+  });
+  gsap.set('.n1', { yPercent: 100 });
+  const ph = document.createElement('div');
+  ph.className = 'ph';
+  board.append(ph);
+  gsap.set(ph, { x: COLX[2] + 12, y: TOP });
+
+  const drag = cards.find((k) => k.c === 1 && k.i === 0);
+  drag.el.style.zIndex = 10;
+  const B = { x: 76, y: 116 };                          // board origin on the stage
+  const GRAB = [150, 46];                               // where the cursor holds the card
+  const home = [drag.x, drag.y], slot = [COLX[2] + 12, TOP];
+  const pick = [B.x + home[0] + GRAB[0], B.y + home[1] + GRAB[1]];
+  const drop = [B.x + slot[0] + GRAB[0] + 10, B.y + slot[1] + GRAB[1] + 8];
+  const travel = CustomEase.get('travel');
+  const MOVES = [
+    { t0: 0, t1: 0.01, from: [1180, 780], to: [1180, 780], bend: 0 },
+    { t0: 0.95, t1: 1.66, from: [1180, 780], to: pick, bend: 70 },
+    { t0: PICK + 0.06, t1: DROP, from: pick, to: drop, bend: -38 },
+    { t0: 3.6, t1: 4.5, from: drop, to: [1260, 790], bend: 50 },
+  ];
+  function cursorAt(t) {
+    let m = MOVES[0];
+    for (const s of MOVES) if (t >= s.t0) m = s;
+    const p = travel(gsap.utils.clamp(0, 1, (t - m.t0) / (m.t1 - m.t0)));
+    const dx = m.to[0] - m.from[0], dy = m.to[1] - m.from[1];
+    const len = Math.hypot(dx, dy) || 1, bow = Math.sin(Math.PI * p) * m.bend;
+    return [m.from[0] + dx * p - (dy / len) * bow, m.from[1] + dy * p + (dx / len) * bow];
+  }
+  const clamp = gsap.utils.clamp(0, 1);
+  const outCubic = (p) => 1 - Math.pow(1 - clamp(p), 3);
+  const spring = (p) => { p = clamp(p); return p >= 1 ? 1 : 1 - Math.exp(-6.5 * p) * Math.cos(9 * p); };
+
+  const cursor = document.querySelector('.cursor');
+  /* The dragged card follows the cursor; tilt comes from horizontal velocity,
+     so it leans into the motion and straightens as it slows. */
+  function paint() {
+    const t = tl.time();
+    const [cx, cy] = cursorAt(t);
+    cursor.style.transform = `translate(${(cx - 5).toFixed(2)}px,${(cy - 3).toFixed(2)}px) scale(${t >= PRESS && t < DROP + 0.05 ? 0.9 : 1})`;
+    const lift = outCubic((t - PICK) / 0.22) * (1 - outCubic((t - DROP) / 0.4));
+    const press = t >= PRESS && t < PICK ? 0.02 * clamp((t - PRESS) / 0.06) : 0;
+    let x, y, rot = 0;
+    if (t < PICK) { x = home[0]; y = home[1]; }
+    else if (t < DROP) {
+      x = cx - B.x - GRAB[0]; y = cy - B.y - GRAB[1];
+      const [px] = cursorAt(t - 1 / 30);
+      rot = gsap.utils.clamp(-7, 7, (cx - px) * 0.32) + 1.5 * lift;
+    } else {
+      const s = spring((t - DROP) / 0.6);
+      const [dx0, dy0] = [drop[0] - B.x - GRAB[0], drop[1] - B.y - GRAB[1]];
+      x = dx0 + (slot[0] - dx0) * s; y = dy0 + (slot[1] - dy0) * s;
+      rot = 1.5 * (1 - s);
+    }
+    const sc = 1 + 0.045 * lift - press;
+    drag.el.style.transform = `translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${sc.toFixed(4)})`;
+    drag.el.style.boxShadow = `0 ${(1 + 26 * lift).toFixed(1)}px ${(2 + 48 * lift).toFixed(1)}px rgba(0,0,0,${(0.05 + 0.17 * lift).toFixed(3)})`;
+  }
+
+  const tl = fx.timeline({ duration: D, onUpdate: paint });
+  const others = (c, from) => cards.filter((k) => k.c === c && k.i >= from && k !== drag).map((k) => k.el);
+  tl.fromTo('.title', { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'softOut' }, 0.1)
+    .fromTo('.colbg', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.08, ease: 'softOut' }, 0.15)
+    .fromTo('.colhd', { opacity: 0 }, { opacity: 1, duration: 0.6, stagger: 0.08, ease: 'power1.out' }, 0.35)
+    .fromTo(cards.map((k) => k.el), { opacity: 0 }, { opacity: 1, duration: 0.6, stagger: 0.045, ease: 'power1.out' }, 0.4)
+  // The source column closes the gap once the card has left it…
+    .to(others(1, 1), { y: `-=${PITCH}`, duration: 0.5, stagger: 0.04, ease: 'slide' }, 2.12)
+    .to(cols[1].hd.querySelector('.n0'), { yPercent: -100, duration: 0.4, ease: 'slide' }, 2.2)
+    .fromTo(cols[1].hd.querySelector('.n1'), { yPercent: 100 }, { yPercent: 0, duration: 0.4, ease: 'slide' }, 2.2)
+  // …and the destination opens one under the approaching card.
+    .to(others(2, 0), { y: `+=${PITCH}`, duration: 0.5, stagger: 0.04, ease: 'slide' }, 2.5)
+    .fromTo(ph, { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out' }, 2.62)
+    .to(ph, { opacity: 0, duration: 0.2, ease: 'power2.inOut' }, DROP + 0.05)
+    .to(cols[2].hd.querySelector('.n0'), { yPercent: -100, duration: 0.4, ease: 'slide' }, DROP + 0.05)
+    .fromTo(cols[2].hd.querySelector('.n1'), { yPercent: 100 }, { yPercent: 0, duration: 0.4, ease: 'slide' }, DROP + 0.05)
+  // On landing the status flips to Done.
+    .to(drag.el.querySelector('.st .a'), { opacity: 0, y: -6, duration: 0.25, ease: 'power2.inOut' }, DROP + 0.2)
+    .fromTo(drag.el.querySelector('.st .b'), { opacity: 0, y: 6, scale: 0.8 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'back.out(2.4)' }, DROP + 0.32)
+    .to(['.title', '.colbg', '.colhd', ...cards.map((k) => k.el)], { opacity: 0, duration: 0.55, ease: 'power2.inOut' }, 6.05);
+  paint();   // a seek to 0 fires no update, so place the cursor now
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: PRESS, event: 'click', clip: 'pitch-click-soft', label: 'grab' },
+    { t: 2.5, event: 'whoosh_deep', label: 'drag across' },
+    { t: DROP + 0.05, event: 'glitch', clip: 'pitch-glitch-blip', label: 'drop' },
+    { t: DROP + 0.34, event: 'success', clip: 'pitch-success', label: 'status done' },
+    { t: 6.2, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

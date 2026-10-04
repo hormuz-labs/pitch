@@ -1,0 +1,156 @@
+<!doctype html><meta charset="utf-8">
+<title>Shape Wipe Transition</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Scene A uses the light pair, scene B the dark pair. */
+  :root{
+    --light-bg:#f3f2ee; --light-surface:#ffffff; --light-ink:#141414; --light-muted:#77756f;
+    --dark-bg:#0c0c0d; --dark-surface:#161618; --dark-ink:#f3f2ee; --dark-muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff;
+  }
+  .stage{background:var(--light-bg)}
+  .scene{position:absolute;inset:0;overflow:hidden}
+  .content{position:absolute;inset:0}   /* no will-change: a cached layer would re-raster (visibly sharpen) once its scale settles */
+  /* Scene A: the old way — a cluttered stack of tools. */
+  .a{background:var(--light-bg)}
+  .a h2{position:absolute;left:110px;top:120px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;line-height:1.05;letter-spacing:-.045em;color:var(--light-ink)}
+  .a p{position:absolute;left:110px;top:282px;width:440px;font-size:21px;line-height:1.5;color:var(--light-muted)}
+  .a .btn{position:absolute;left:110px;top:400px;height:56px;padding:0 26px;border-radius:14px;display:flex;align-items:center;gap:10px;font-size:18px;font-weight:500;color:var(--on-accent);background:var(--accent);box-shadow:0 12px 30px -10px color-mix(in srgb,var(--accent) 70%,transparent)}
+  .tile{position:absolute;width:250px;height:150px;border-radius:16px;background:var(--light-surface);border:1px solid color-mix(in srgb,var(--light-ink) 9%,transparent);box-shadow:0 18px 40px -20px rgba(0,0,0,.25);padding:18px}
+  .tile b{display:block;width:60%;height:12px;border-radius:6px;background:color-mix(in srgb,var(--light-ink) 12%,var(--light-surface))}
+  .tile i{display:block;margin-top:12px;height:8px;border-radius:4px;background:color-mix(in srgb,var(--light-ink) 7%,var(--light-surface))}
+  /* Scene B: the new way — one calm, dark workspace. */
+  .b{background:radial-gradient(ellipse 70% 60% at 50% 45%,color-mix(in srgb,var(--accent) 12%,var(--dark-bg)) 0%,var(--dark-bg) 70%)}
+  .b h2{position:absolute;left:0;right:0;top:220px;text-align:center;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:96px;letter-spacing:-.05em;color:var(--dark-ink)}
+  .b h2 span{display:inline-block}
+  .chips{position:absolute;left:0;right:0;top:370px;display:flex;justify-content:center;gap:14px}
+  .chip{padding:10px 18px;border-radius:999px;font-size:18px;color:var(--dark-ink);border:1px solid color-mix(in srgb,var(--dark-ink) 16%,transparent);background:color-mix(in srgb,var(--dark-ink) 5%,transparent)}
+  .close{position:absolute;right:56px;top:48px;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--dark-ink) 18%,transparent);color:var(--dark-ink)}
+  .close svg{width:18px;height:18px}
+  /* The wipe: an accent disc leads, the next scene follows 70ms behind it
+     inside a second disc, so a band of accent rides the edge. */
+  .lead{position:absolute;inset:0;background:var(--accent)}
+</style>
+<div class="stage">
+  <div class="scene a"><div class="content">
+    <h2>Six tools.<br>Zero clarity.</h2>
+    <p>Updates scattered across docs, chats and spreadsheets nobody trusts.</p>
+    <div class="btn">See the new way <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="tile" style="left:660px;top:110px;transform:rotate(-6deg)"><b></b><i></i><i style="width:70%"></i></div>
+    <div class="tile" style="left:900px;top:170px;transform:rotate(5deg)"><b></b><i></i><i style="width:55%"></i></div>
+    <div class="tile" style="left:720px;top:330px;transform:rotate(3deg)"><b></b><i></i><i style="width:80%"></i></div>
+    <div class="tile" style="left:960px;top:400px;transform:rotate(-4deg)"><b></b><i></i><i style="width:60%"></i></div>
+  </div></div>
+  <div class="lead"></div>
+  <div class="scene b"><div class="content">
+    <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    <h2><span>One</span> <span>calm</span> <span>workspace.</span></h2>
+    <div class="chips"><span class="chip">Docs</span><span class="chip">Tasks</span><span class="chip">Chat</span><span class="chip">Dashboards</span></div>
+  </div></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 96px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 18px "Atlas Grotesk"'));
+  const D = 6.2;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const soft = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+  }
+  // Flow curves: the wipe uses Flow quart in-out — it gathers, rushes across
+  // and lands softly, with a top speed low enough not to strobe at 30fps.
+  const flowQuart = bezier(0.76, 0, 0.24, 1), flowQuintOut = bezier(0.22, 1, 0.36, 1);
+  /* A damped spring as an ease: starts from rest, overshoots ~10% once and
+     settles to rest. Zero velocity at both ends, which a bezier back-out
+     (still moving on its last frame) cannot give. */
+  const softSpring = (p) => {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    const s = (x) => 1 - Math.exp(-8 * x) * (Math.cos(11 * x) + (8 / 11) * Math.sin(11 * x));
+    return s(p) / s(1);
+  };
+
+
+  const A = document.querySelector('.a'), B = document.querySelector('.b'), lead = document.querySelector('.lead');
+  const aC = A.querySelector('.content'), bC = B.querySelector('.content');
+  const btn = A.querySelector('.btn');
+  const words = [...B.querySelectorAll('h2 span')], chips = [...B.querySelectorAll('.chip')];
+  const aIn = [...A.querySelectorAll('h2, p, .btn, .tile')];
+  const R = Math.hypot(1280, 720);            // a disc this big covers the frame from anywhere
+  const GO = 1.6, BACK = 4.4, WIPE = 1.1, LAG = 0.08;
+  const FROM = [240, 428], CLOSE_AT = [1200, 72];
+
+  /* Disc radius for a wipe that starts at t0, delayed by lag. */
+  const disc = (t, t0, lag) => R * flowQuart(clamp((t - t0 - lag) / WIPE));
+
+  function draw(t) {
+    // Scene A entrance.
+    aIn.forEach((el, i) => {
+      const p = flowQuintOut(clamp((t - 0.1 - i * 0.06) / 0.8));
+      el.style.opacity = soft(t, 0.1 + i * 0.06, 0.7 + i * 0.06).toFixed(3);
+      el.style.translate = `0 ${((1 - p) * 20).toFixed(2)}px`;
+    });
+    const press = t >= GO - 0.15 && t < GO + 0.1 ? Math.sin(clamp((t - GO + 0.15) / 0.25) * Math.PI) : 0;
+    btn.style.scale = (1 - press * 0.05).toFixed(4);
+
+    // Forward wipe from the button: lead disc, then scene B.
+    const fwdLead = disc(t, GO, 0), fwdB = disc(t, GO, LAG);
+    // Return wipe from the close button collapses B back to A the same way.
+    const backB = disc(t, BACK, 0), backLead = disc(t, BACK, LAG);
+    const returning = t >= BACK;
+    if (!returning) {
+      lead.style.clipPath = `circle(${fwdLead.toFixed(1)}px at ${FROM[0]}px ${FROM[1]}px)`;
+      B.style.clipPath = `circle(${fwdB.toFixed(1)}px at ${FROM[0]}px ${FROM[1]}px)`;
+      lead.style.visibility = fwdLead > 0 ? 'visible' : 'hidden';
+      B.style.visibility = fwdB > 0 ? 'visible' : 'hidden';
+    } else {
+      // Inverse: holes open in B (and the lead) from the close button, revealing A.
+      B.style.clipPath = `circle(${(R * 1.2).toFixed(1)}px at ${CLOSE_AT[0]}px ${CLOSE_AT[1]}px)`;
+      B.style.maskImage = B.style.webkitMaskImage = `radial-gradient(circle ${backB.toFixed(1)}px at ${CLOSE_AT[0]}px ${CLOSE_AT[1]}px, transparent 99.5%, #000 100%)`;
+      lead.style.clipPath = 'none';
+      lead.style.maskImage = lead.style.webkitMaskImage = `radial-gradient(circle ${backLead.toFixed(1)}px at ${CLOSE_AT[0]}px ${CLOSE_AT[1]}px, transparent 99.5%, #000 100%)`;
+      B.style.visibility = backB >= R ? 'hidden' : 'visible';
+      lead.style.visibility = backLead >= R ? 'hidden' : 'visible';
+    }
+    if (!returning) { B.style.maskImage = B.style.webkitMaskImage = 'none'; lead.style.maskImage = lead.style.webkitMaskImage = 'none'; }
+
+    // Parallax: the outgoing scene sinks slightly, the incoming one settles in.
+    const f = flowQuart(clamp((t - GO) / WIPE)), r = flowQuart(clamp((t - BACK) / WIPE));
+    aC.style.transform = `scale(${(1 - 0.05 * f + 0.05 * r).toFixed(4)})`;
+    bC.style.transform = `scale(${(1.08 - 0.08 * f + 0.05 * r).toFixed(4)})`;
+    // Scene B copy lands once the wipe has passed.
+    words.forEach((w, i) => {
+      const p = flowQuintOut(clamp((t - GO - 0.45 - i * 0.08) / 0.9));
+      w.style.opacity = soft(t, GO + 0.45 + i * 0.08, GO + 1.05 + i * 0.08).toFixed(3);
+      w.style.transform = `translateY(${((1 - p) * 30).toFixed(2)}px)`;
+      w.style.filter = `blur(${((1 - p) * 10).toFixed(2)}px)`;
+    });
+    chips.forEach((c, i) => {
+      const p = softSpring(clamp((t - GO - 0.85 - i * 0.07) / 0.7));
+      c.style.opacity = clamp((t - GO - 0.85 - i * 0.07) / 0.2).toFixed(3);
+      c.style.transform = `translateY(${((1 - p) * 16).toFixed(2)}px) scale(${(0.9 + 0.1 * p).toFixed(4)})`;
+    });
+    const cp = t >= BACK - 0.15 && t < BACK + 0.1 ? Math.sin(clamp((t - BACK + 0.15) / 0.25) * Math.PI) : 0;
+    B.querySelector('.close').style.scale = (1 - cp * 0.1).toFixed(4);
+    // Scene A copy fades out at the very end so the loop closes on an empty frame.
+    const out = soft(t, 5.7, 6.15);
+    aC.style.opacity = (1 - out).toFixed(3);
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: GO - 0.05, event: 'click', clip: 'pitch-click-soft', label: 'button' },
+    { t: GO + WIPE / 2, event: 'whoosh_deep', clip: 'pitch-whoosh-deep-2', label: 'wipe in' },
+    { t: GO + 0.95, event: 'glitch', clip: 'pitch-glitch-pop', label: 'chips' },
+    { t: BACK - 0.05, event: 'click', clip: 'pitch-click-soft', label: 'close' },
+    { t: BACK + WIPE / 2, event: 'whoosh_deep', clip: 'pitch-whoosh-glitch', label: 'wipe back' },
+  ]);
+</script>

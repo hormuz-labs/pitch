@@ -1,0 +1,30 @@
+{
+  "name": "Word Rotator",
+  "family": "SaaS Text",
+  "seconds": 6.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "\"Built for ___\" rolls its gradient word through four options; the slot width eases between word widths so the centred line reflows smoothly.",
+  "move": "\"Built for ___\" rolls its gradient word through four options; the slot width eases between word widths so the centred line reflows smoothly.",
+  "moves": [
+    "rotator",
+    "rolling-words",
+    "swap",
+    "hero",
+    "gradient-text",
+    "cycle"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Words are stacked absolutely in a slot clipped vertically by clip-path (sides left open so overhangs never crop). After the font loads each word is measured; every swap moves the outgoing word yPercent 0→-100 and the incoming 100→0 and tweens the slot width, all with cubic-bezier(0.76,0,0.24,1) over 0.75s. Opacity crossfades inside the swap.",
+  "adapt": "Edit the .word spans; any count works (swaps every 1.25s). Keep the gradient or replace with a solid accent. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"Rolling text swap\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

@@ -1,0 +1,136 @@
+<!doctype html><meta charset="utf-8">
+<title>Number Roll</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#f3f2ee;--surface:#ffffff;--ink:#141414;--muted:#77756f;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 75% 65% at 50% 45%,var(--surface) 0%,var(--bg) 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  .block{display:flex;flex-direction:column;align-items:center;gap:18px;will-change:transform,opacity,filter}
+  .num{display:flex;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:176px;line-height:1.1;letter-spacing:-.04em;color:var(--ink);font-variant-numeric:tabular-nums}
+  /* One column per digit: a clipped window onto a stack of 0–9 repeated, with
+     the top and bottom edges feathered so rolling digits fade at the rim. */
+  .col{position:relative;height:1.1em;overflow:hidden;text-align:center;
+    -webkit-mask-image:linear-gradient(transparent 0,#000 12%,#000 88%,transparent 100%);mask-image:linear-gradient(transparent 0,#000 12%,#000 88%,transparent 100%)}
+  .stack{display:flex;flex-direction:column}
+  .stack span{display:block;height:1.1em}
+  .sep{display:block}
+  .plus{color:var(--accent)}
+  .label{font-size:30px;color:var(--muted);letter-spacing:-.01em}
+</style>
+<div class="stage">
+  <div class="block">
+    <div class="num" data-value="12,480"><span class="plus">+</span></div>
+    <p class="label">teams onboarded this quarter</p>
+  </div>
+</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="filters"></defs></svg>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5;
+  fx.wait(document.fonts.load('500 176px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 30px "Atlas Grotesk"'));
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  const inQuad = (p) => clamp(p) * clamp(p);
+
+  /* cubic-bezier(x1,y1,x2,y2) as an ease, solved by bisection on x. */
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; }
+      return B(y1, y2, (lo + hi) / 2);
+    };
+  }
+  const rollEase = bezier(0.16, 1, 0.3, 1);   // ease-out expo-ish: fast spin, long mechanical settle
+
+  const num = document.querySelector('.num');
+  const plus = num.querySelector('.plus');
+  const defs = document.getElementById('filters');
+  const NS = 'http://www.w3.org/2000/svg';
+  const value = num.dataset.value;
+  const digitCount = value.replace(/\D/g, '').length;
+  const cols = [];
+  let di = 0;
+  for (const ch of value) {
+    if (!/\d/.test(ch)) {
+      const s = document.createElement('span');
+      s.className = 'sep';
+      s.textContent = ch;
+      num.insertBefore(s, plus);
+      continue;
+    }
+    const col = document.createElement('span');
+    col.className = 'col';
+    const stack = document.createElement('span');
+    stack.className = 'stack';
+    for (let k = 0; k < 30; k++) {
+      const s = document.createElement('span');
+      s.textContent = k % 10;
+      stack.append(s);
+    }
+    col.append(stack);
+    num.insertBefore(col, plus);
+    // Lower-order digits travel further, like a real odometer.
+    const laps = 1 + (di >= digitCount - 2 ? 1 : 0);
+    const filter = document.createElementNS(NS, 'filter');
+    filter.id = 'mb' + di;
+    filter.setAttribute('x', '-10%'); filter.setAttribute('y', '-10%');
+    filter.setAttribute('width', '120%'); filter.setAttribute('height', '120%');
+    const blur = document.createElementNS(NS, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '0 0');
+    filter.append(blur);
+    defs.append(filter);
+    cols.push({ col, stack, blur, id: filter.id, target: +ch + 10 * laps, start: 0.5 + di * 0.07 });
+    di++;
+  }
+
+  const block = document.querySelector('.block');
+  const label = document.querySelector('.label');
+  const ROLL = 2.1, FPS = 30;
+
+  function draw(t) {
+    const line = cols[0].col.getBoundingClientRect().height;   // one digit step in px
+    for (const c of cols) {
+      const pos = (time) => c.target * rollEase((time - c.start) / ROLL);
+      const y = pos(t);
+      // Motion blur from velocity: a vertical Gaussian sized to ~22% of the
+      // distance travelled in one frame, off entirely once the digit is at rest.
+      const perFrame = Math.abs(pos(t + 1 / FPS / 2) - pos(t - 1 / FPS / 2)) * line;
+      const sd = Math.min(9, perFrame * 0.22);
+      c.stack.style.transform = `translateY(${(-y * line).toFixed(2)}px)`;
+      if (sd > 0.15) {
+        c.blur.setAttribute('stdDeviation', `0 ${sd.toFixed(2)}`);
+        c.stack.style.filter = `url(#${c.id})`;
+      } else {
+        c.stack.style.filter = 'none';
+      }
+    }
+    const enter = smooth(t, 0.15, 0.75);
+    const exit = inQuad((t - 4.2) / 0.5);
+    // Opacity eases on a smoothstep at both ends; motion keeps its own curve.
+    block.style.opacity = (enter * (1 - smooth(t, 4.2, 4.7))).toFixed(3);
+    block.style.transform = `translateY(${((1 - enter) * 22 - exit * 16).toFixed(2)}px)`;
+    block.style.filter = `blur(${((1 - enter) * 8 + exit * 10).toFixed(2)}px)`;
+    const lab = smooth(t, 1.2, 1.8);
+    label.style.opacity = lab.toFixed(3);
+    label.style.transform = `translateY(${((1 - lab) * 12).toFixed(2)}px)`;
+  }
+
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.52, event: 'data', clip: 'pitch-odometer-roll', align: 'file', dur: 1.6, targetLufs: -29, label: 'digits roll' },
+    { t: 2.4, event: 'glitch', clip: 'pitch-glitch-lock', label: 'figure settles' },
+    { t: 4.35, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

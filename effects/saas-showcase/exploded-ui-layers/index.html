@@ -1,0 +1,114 @@
+<!doctype html><meta charset="utf-8">
+<title>Exploded UI Layers</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b;
+    --line:color-mix(in srgb,var(--ink) 10%,transparent);
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+  }
+  .stage{background:radial-gradient(ellipse 70% 60% at 50% 50%,color-mix(in srgb,var(--accent) 8%,var(--bg)) 0%,var(--bg) 70%);perspective:2000px;perspective-origin:50% 40%}
+  /* The world holds four layer planes. Flat, they composite into one product
+     screen; exploded, they separate along Z under an isometric camera. */
+  .world{position:absolute;left:50%;top:50%;width:880px;height:520px;margin:-260px 0 0 -440px;transform-style:preserve-3d;will-change:transform}
+  .layer{position:absolute;inset:0;border-radius:22px;transform-style:preserve-3d}
+  .frame{position:absolute;inset:0;border-radius:22px;border:1.5px dashed color-mix(in srgb,var(--accent) 55%,transparent);opacity:0}
+  .tag{position:absolute;right:-6px;top:18px;transform:translateX(100%);display:flex;align-items:center;gap:12px;font-size:26px;font-weight:500;color:var(--ink);white-space:nowrap;opacity:0}
+  .tag i{width:46px;height:1.5px;background:color-mix(in srgb,var(--accent) 70%,transparent)}
+  .tag b{font-weight:500;padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--line)}
+  /* L0: base surface */
+  .l0 .base{position:absolute;inset:0;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:0 50px 120px -30px rgba(0,0,0,.85)}
+  .l0 .side{position:absolute;left:0;top:0;bottom:0;width:180px;border-right:1px solid var(--line);padding:22px 18px;display:flex;flex-direction:column;gap:12px}
+  .bar{height:10px;border-radius:5px;background:var(--raise)}
+  /* L1: data — grid and chart */
+  .grid{position:absolute;left:210px;top:150px;width:640px;height:330px;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 66px}
+  .l1 svg{position:absolute;left:210px;top:150px;width:640px;height:330px;overflow:visible}
+  /* L2: interface — cards and header */
+  .hdr{position:absolute;left:210px;top:28px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:30px;letter-spacing:-.03em;color:var(--ink)}
+  .kpis{position:absolute;left:210px;top:76px;display:flex;gap:14px}
+  .kpi{width:200px;height:58px;border-radius:12px;background:var(--raise);border:1px solid var(--line);padding:10px 14px;font-size:13px;color:var(--muted)}
+  .kpi b{display:block;font-size:19px;font-weight:500;color:var(--ink);margin-top:2px}
+  /* L3: insights — a floating tooltip and alert */
+  .tip{position:absolute;left:640px;top:190px;padding:10px 14px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:15px;font-weight:500;box-shadow:0 16px 40px -10px rgba(0,0,0,.6)}
+  .tip small{display:block;font-size:12px;font-weight:400;opacity:.65}
+  .alert{position:absolute;left:250px;top:400px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--accent) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);font-size:14px;color:var(--ink)}
+  .alert i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+</style>
+<div class="stage">
+  <div class="world">
+    <div class="layer l0"><div class="base"><div class="side"><div class="bar" style="width:60%;background:var(--accent)"></div><div class="bar" style="width:80%"></div><div class="bar" style="width:65%"></div><div class="bar" style="width:75%"></div><div class="bar" style="width:50%"></div></div></div><div class="tag"><i></i><b>Workspace</b></div></div>
+    <div class="layer l1"><div class="frame"></div><div class="grid"></div>
+      <svg viewBox="0 0 640 330"><defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.3"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>
+        <path d="M0,260 C60,250 90,210 150,215 S240,170 300,160 S400,120 450,110 S560,60 640,40 L640,330 L0,330Z" fill="url(#ar)"/>
+        <path d="M0,260 C60,250 90,210 150,215 S240,170 300,160 S400,120 450,110 S560,60 640,40" fill="none" style="stroke:var(--accent)" stroke-width="3.5" stroke-linecap="round"/></svg>
+      <div class="tag"><i></i><b>Data</b></div></div>
+    <div class="layer l2"><div class="frame"></div><div class="hdr">Revenue</div>
+      <div class="kpis"><div class="kpi">MRR<b>$184,920</b></div><div class="kpi">Net retention<b>118%</b></div><div class="kpi">Churn<b>1.9%</b></div></div>
+      <div class="tag"><i></i><b>Interface</b></div></div>
+    <div class="layer l3"><div class="frame"></div><div class="tip"><small>Oct 18</small>$2,140 today</div><div class="alert"><i></i>Expansion revenue up 22%</div><div class="tag"><i></i><b>Insights</b></div></div>
+  </div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 30px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 20px "Atlas Grotesk"'));
+  const D = 6.8;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+  }
+  // Flow quart in-out for camera moves; a damped spring for layer separation.
+  const flowQuart = bezier(0.76, 0, 0.24, 1);
+  const softSpring = (p) => {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    const s = (x) => 1 - Math.exp(-8 * x) * (Math.cos(11 * x) + (8 / 11) * Math.sin(11 * x));
+    return s(p) / s(1);
+  };
+
+  const world = document.querySelector('.world');
+  const layers = [...document.querySelectorAll('.layer')];
+  const OPEN = 0.9, CLOSE = 4.2, GAP = 135;
+
+  function draw(t) {
+    // Camera: flat → isometric (tilt back, turn) → slow drift → flat.
+    const open = flowQuart(clamp((t - OPEN) / 1.3)), close = flowQuart(clamp((t - CLOSE) / 1.2));
+    const iso = open * (1 - close);
+    const drift = Math.sin(clamp((t - OPEN - 1.3) / (CLOSE - OPEN - 1.3)) * Math.PI) * iso;
+    const enter = smooth(t, 0.05, 0.7), exit = smooth(t, 6.05, 6.6);
+    world.style.opacity = (enter * (1 - exit)).toFixed(3);
+    world.style.transform = `translateY(${(iso * 40 + (1 - enter) * 20).toFixed(2)}px) rotateX(${(iso * 50).toFixed(3)}deg) rotateZ(${(-iso * 28 + drift * 9).toFixed(3)}deg) scale(${(1 - iso * 0.1 - exit * 0.04).toFixed(4)})`;
+    // Layers separate on a spring (staggered upward) and fall back together.
+    layers.forEach((l, i) => {
+      const up = softSpring(clamp((t - OPEN - 0.25 - i * 0.09) / 1.1));
+      const down = flowQuart(clamp((t - CLOSE + 0.05 - (3 - i) * 0.06) / 1.0));
+      // A permanent 1.5px step per layer keeps the stacking order defined when
+      // the layers are coplanar; without it they z-fight and blink.
+      const z = i * 1.5 + i * GAP * up * (1 - down) + Math.sin((t - OPEN) * 1.6 + i) * 6 * iso;
+      l.style.transform = `translateZ(${z.toFixed(2)}px)`;
+      const lab = smooth(t, OPEN + 0.9 + i * 0.12, OPEN + 1.3 + i * 0.12) * (1 - smooth(t, CLOSE - 0.3, CLOSE + 0.1));
+      l.querySelector('.tag').style.opacity = lab.toFixed(3);
+      l.querySelector('.tag').style.translate = `${((1 - lab) * -12).toFixed(2)}px 0`;
+      const fr = l.querySelector('.frame');
+      if (fr) fr.style.opacity = (iso * 0.9).toFixed(3);
+    });
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: OPEN + 0.55, event: 'whoosh_deep', clip: 'pitch-layer-lift', label: 'layers lift' },
+    { t: CLOSE + 0.6, event: 'whoosh_deep', label: 'camera returns' },
+    { t: CLOSE + 1.0, event: 'glitch', clip: 'pitch-glitch-lock', label: 'layers lock' },
+    { t: 6.25, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

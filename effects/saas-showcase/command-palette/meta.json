@@ -1,0 +1,31 @@
+{
+  "name": "Command Palette",
+  "family": "SaaS Showcase",
+  "seconds": 6.6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "⌘K keycaps press, the app blurs back and a command palette drops in; typing filters the list as misses collapse under a fixed highlight, the selection glides down and up, Enter closes it and a confirmation toast springs up.",
+  "move": "⌘K keycaps press, the app blurs back and a command palette drops in; typing filters the list as misses collapse under a fixed highlight, the selection glides down and up, Enter closes it and a confirmation toast springs up.",
+  "moves": [
+    "command-palette",
+    "cmd-k",
+    "search",
+    "filter",
+    "keyboard",
+    "toast",
+    "ui"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "GSAP timeline; the query text, placeholder and caret blink are painted from tl.time() in a timeline onUpdate. Misses collapse via height tweens (cubic-bezier(0.65,0,0.35,1)), so hits reflow up under a highlight that does not move. Arrow/enter keys flash their footer keycaps. App layer filter blur(7px) brightness(.7) plus a veil and an accent bloom behind the palette.",
+  "adapt": "Rename items and the query; mark matches with .item.hit / .item.miss and wrap matched characters in .m. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

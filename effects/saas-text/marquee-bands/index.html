@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<title>Marquee Bands</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. */
+  :root{--bg:#0c0c0d;--surface:#161618;--ink:#f3f2ee;--muted:#8d8b85;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:var(--bg)}
+  /* Two crossing tape bands. Each band clips a strip of repeated items; the
+     strip's x is a pure function of time, wrapped at one item-set width, so
+     the motion is seamless and seekable. */
+  .band{position:absolute;left:-120px;right:-120px;height:132px;top:50%;margin-top:-66px;overflow:hidden;display:flex;align-items:center;will-change:transform,clip-path}
+  .b1{background:var(--accent);color:var(--on-accent);transform:rotate(-7deg);z-index:2;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+  .b2{background:var(--ink);color:var(--bg);transform:rotate(5deg);z-index:1}
+  .strip{display:flex;white-space:nowrap;will-change:transform}
+  .set{display:flex;align-items:center}
+  .item{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:74px;letter-spacing:-.04em;padding:0 .3em}
+  .item.o{color:transparent;-webkit-text-stroke:2px currentColor}
+  .b1 .item.o{-webkit-text-stroke-color:var(--on-accent)}
+  .b2 .item.o{-webkit-text-stroke-color:var(--bg)}
+  .star{width:40px;height:40px;flex:none}
+</style>
+<div class="stage">
+  <div class="band b2"><div class="strip"></div></div>
+  <div class="band b1"><div class="strip"></div></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const fontsReady = document.fonts.load('500 74px "Sharp Grotesk"');
+  const D = 6;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  function bezier(x1, y1, x2, y2) {
+    const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let lo = 0, hi = 1; for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; } return B(y1, y2, (lo + hi) / 2); };
+  }
+  const flowExpo = bezier(0.9, 0, 0.1, 1);   // Flow expo in-out for the tape wipes
+  const STAR = '<svg class="star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg>';
+  const WORDS = [['Analytics', 'Automations', 'Integrations', 'Workflows'], ['Realtime', 'Secure', 'Collaborative', 'Fast']];
+  const bands = [...document.querySelectorAll('.band')].reverse();   // b1 first
+  const state = [];
+
+  function build() {
+    bands.forEach((band, b) => {
+      const strip = band.querySelector('.strip');
+      const one = WORDS[b].map((w, i) => `<span class="item${i % 2 ? ' o' : ''}">${w}</span>${STAR}`).join('');
+      strip.innerHTML = `<div class="set">${one}</div>`.repeat(4);
+      state.push({ band, strip, width: strip.firstElementChild.getBoundingClientRect().width, dir: b ? 1 : -1, speed: b ? 120 : 150 });
+    });
+  }
+  fx.wait(fontsReady.then(build));
+
+  function draw(t) {
+    state.forEach((s, b) => {
+      // Travel is speed × time, plus a burst that eases in on the wipe so the
+      // band arrives already moving; wrapped at one set width (seamless).
+      const travel = s.speed * t + 220 * flowExpo(clamp((t - 0.1 - b * 0.12) / 0.9));
+      const x = s.dir < 0 ? -(travel % s.width) : -s.width + (travel % s.width);
+      s.strip.style.transform = `translateX(${x.toFixed(2)}px)`;
+      // Tape wipes on from the left and off to the right (clip-path inset).
+      const on = flowExpo(clamp((t - 0.1 - b * 0.12) / 0.9));
+      const off = flowExpo(clamp((t - 4.85 - b * 0.12) / 0.9));
+      s.band.style.clipPath = `inset(0 ${((1 - on) * 100).toFixed(3)}% 0 ${(off * 100).toFixed(3)}%)`;
+    });
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.48, event: 'whoosh_deep', label: 'tape one' },
+    { t: 0.62, event: 'whoosh_deep', label: 'tape two' },
+    { t: 5.3, event: 'whoosh_deep', label: 'tapes off' },
+  ]);
+</script>

@@ -1,0 +1,31 @@
+{
+  "name": "3D Cursor Flythrough",
+  "family": "SaaS Showcase",
+  "seconds": 7.2,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A glossy 3D pointer swoops in from close to the camera, banks into its turns, hovers a nav tab, clicks Upgrade (the button turns green), hovers a chart point for a tooltip, then flies off — with real motion blur and a height-aware shadow.",
+  "move": "A glossy 3D pointer swoops in from close to the camera, banks into its turns, hovers a nav tab, clicks Upgrade (the button turns green), hovers a chart point for a tooltip, then flies off — with real motion blur and a height-aware shadow.",
+  "moves": [
+    "3d-cursor",
+    "pointer",
+    "flythrough",
+    "click",
+    "hover",
+    "three.js",
+    "motion-blur"
+  ],
+  "libs": [
+    "three.js",
+    "DOM"
+  ],
+  "how": "three.js perspective camera matched to stage pixels at z=0, so the pointer tip projects exactly onto DOM targets measured after fonts load. The pointer is a rounded, beveled extrusion with clearcoat over a generated studio environment. Legs are eased arcs that rise off the page; banking and lean come from velocity. Fast frames average up to 10 sub-frame renders (motion blur). A DOM shadow grows and softens with height.",
+  "adapt": "Re-target LEGS to your UI's elements; --cursor and --cursor-rim colour the pointer. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"3D cursor\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

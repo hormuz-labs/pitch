@@ -1,0 +1,30 @@
+{
+  "name": "Kanban Drag",
+  "family": "SaaS Showcase",
+  "seconds": 6.8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A cursor picks up a card, which lifts and leans into the drag; the source column closes its gap, the destination opens one with a dashed placeholder, the card springs into place and its status flips to Done.",
+  "move": "A cursor picks up a card, which lifts and leans into the drag; the source column closes its gap, the destination opens one with a dashed placeholder, the card springs into place and its status flips to Done.",
+  "moves": [
+    "kanban",
+    "drag-and-drop",
+    "board",
+    "cursor",
+    "reorder",
+    "project-management"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "All cards are absolutely positioned. The dragged card follows the cursor path; its tilt is the cursor’s horizontal velocity (clamped ±7°) plus a lift lean, and lift drives scale and shadow. Drop settles with a damped spring. Column gaps are relative y tweens; counts roll.",
+  "adapt": "Edit COLS (title, tag, id). The dragged card is column 1, index 0; change drag/slot to move another. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

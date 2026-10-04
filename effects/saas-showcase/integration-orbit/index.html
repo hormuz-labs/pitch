@@ -1,0 +1,181 @@
+<!doctype html><meta charset="utf-8">
+<title>Integration Orbit</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:radial-gradient(ellipse 55% 50% at 50% 40%,color-mix(in srgb,var(--accent) 9%,var(--bg)) 0%,var(--bg) 72%)}
+  svg.orbits,svg.pulses{position:absolute;inset:0;width:1280px;height:720px;overflow:visible}
+  svg.orbits{z-index:1}
+  svg.pulses{z-index:3}
+  .node{position:absolute;left:0;top:0;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 30%,var(--raise),var(--panel));border:1px solid color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:0 10px 30px -8px rgba(0,0,0,.8),inset 0 1px 0 color-mix(in srgb,var(--ink) 8%,transparent);will-change:transform,opacity}
+  .node svg{width:29px;height:29px}
+  .hub{position:absolute;left:640px;top:290px;width:128px;height:128px;margin:-64px 0 0 -64px;border-radius:34px;z-index:4;display:grid;place-items:center;
+    background:linear-gradient(145deg,var(--accent-2) -10%,var(--accent) 60%);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 30px 80px -10px color-mix(in srgb,var(--accent) 70%,transparent),0 0 120px color-mix(in srgb,var(--accent) 35%,transparent);will-change:transform,opacity}
+  .hub svg{width:58px;height:58px;color:var(--on-accent)}
+  .ripple{position:absolute;left:640px;top:290px;width:128px;height:128px;margin:-64px 0 0 -64px;border-radius:38px;border:2px solid color-mix(in srgb,var(--accent) 80%,transparent);z-index:3;opacity:0}
+  .copy{position:absolute;left:0;right:0;top:548px;text-align:center;z-index:6}
+  .copy h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:52px;letter-spacing:-.04em;color:var(--ink)}
+  .copy p{margin-top:12px;font-size:21px;color:var(--muted)}
+  .copy h1,.copy p{opacity:0}
+</style>
+<div class="stage">
+  <svg class="orbits" viewBox="0 0 1280 720"><ellipse class="o1" fill="none" style="stroke:color-mix(in srgb,var(--ink) 13%,transparent)" stroke-width="1.2"/><ellipse class="o2" fill="none" style="stroke:color-mix(in srgb,var(--ink) 10%,transparent)" stroke-width="1.2" stroke-dasharray="3 7"/></svg>
+  <svg class="pulses" viewBox="0 0 1280 720"><defs><filter id="g" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="4"/></filter></defs></svg>
+  <div class="hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H12L11 22l8.5-11.5H12z"/></svg></div>
+  <div class="copy"><h1>Connects to everything you use.</h1><p>Two clicks to sync your stack. No glue code.</p></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  fx.wait(document.fonts.load('500 52px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 21px "Atlas Grotesk"'));
+  const D = 6.6, CX = 640, CY = 290;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  const outQuint = (p) => 1 - Math.pow(1 - clamp(p), 5);
+  const inOutCubic = (p) => { p = clamp(p); return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  const backOut = (p) => { p = clamp(p); const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+
+  // Two tilted orbits; each node is placed on one by angle.
+  const ORBITS = [
+    { rx: 300, ry: 96, tilt: -10 * Math.PI / 180, speed: 0.32, el: document.querySelector('.o1') },
+    { rx: 480, ry: 156, tilt: 7 * Math.PI / 180, speed: -0.2, el: document.querySelector('.o2') },
+  ];
+  ORBITS.forEach((o) => {
+    o.el.setAttribute('cx', CX); o.el.setAttribute('cy', CY); o.el.setAttribute('rx', o.rx); o.el.setAttribute('ry', o.ry);
+    o.el.setAttribute('transform', `rotate(${o.tilt * 180 / Math.PI} ${CX} ${CY})`);
+    o.len = Math.PI * (3 * (o.rx + o.ry) - Math.sqrt((3 * o.rx + o.ry) * (o.rx + 3 * o.ry)));
+  });
+
+  // Generic tool glyphs, tinted.
+  const G = {
+    mail: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+    db: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    cal: '<path d="M4 6h16v14H4zM4 10h16M9 3v5M15 3v5"/>',
+    code: '<path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/>',
+    cloud: '<path d="M7 18a4 4 0 01-.5-8 6 6 0 0111.5 1.5A3.5 3.5 0 0117.5 18z"/>',
+    card: '<path d="M3 6h18v12H3zM3 10h18"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+    bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4zM10 21h4"/>',
+    folder: '<path d="M3 6h7l2 2h9v11H3z"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.6 3.2-5.5 6-5.5s5.2 1.9 6 5.5M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .8 3 2.7 3.4 5.5"/>',
+  };
+  const NODES = [
+    // Icon tints come from the palette, alternating so neighbours differ.
+    ['mail', 'var(--accent)', 0], ['chat', 'var(--ink)', 0], ['db', 'var(--accent-2)', 0], ['chart', 'var(--positive)', 0], ['cal', 'var(--ink)', 0],
+    ['code', 'var(--ink)', 1], ['cloud', 'var(--accent-2)', 1], ['card', 'var(--accent)', 1], ['globe', 'var(--positive)', 1], ['bell', 'var(--accent)', 1], ['folder', 'var(--accent-2)', 1], ['users', 'var(--ink)', 1],
+  ];
+  const stage = document.querySelector('.stage');
+  const counts = [0, 0];
+  NODES.forEach((n) => counts[n[2]]++);
+  const idx = [0, 0];
+  const nodes = NODES.map(([g, c, o], i) => {
+    const el = document.createElement('div');
+    el.className = 'node';
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" style="stroke:${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${G[g]}</svg>`;
+    stage.append(el);
+    const k = idx[o]++;
+    return { el, o: ORBITS[o], base: (k / counts[o]) * Math.PI * 2 + (o ? 0.4 : 0), delay: 0.55 + i * 0.07 };
+  });
+
+  function pos(n, t) {
+    const o = n.o, th = n.base + o.speed * t;
+    const x0 = o.rx * Math.cos(th), y0 = o.ry * Math.sin(th);
+    return { x: CX + x0 * Math.cos(o.tilt) - y0 * Math.sin(o.tilt), y: CY + x0 * Math.sin(o.tilt) + y0 * Math.cos(o.tilt), depth: Math.sin(th) };
+  }
+
+  // Data pulses: each travels from a node into the hub; the hub ripples on arrival.
+  const NS = 'http://www.w3.org/2000/svg';
+  const psvg = document.querySelector('.pulses');
+  const pulses = [];
+  for (let j = 0; j < 6; j++) {
+    const line = document.createElementNS(NS, 'line');
+    line.style.stroke = 'color-mix(in srgb,var(--accent) 55%,transparent)';
+    line.setAttribute('stroke-width', '1.2');
+    const glow = document.createElementNS(NS, 'circle');
+    glow.setAttribute('r', '7'); glow.style.fill = 'var(--accent)'; glow.setAttribute('filter', 'url(#g)');
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('r', '3'); dot.style.fill = 'color-mix(in srgb,var(--accent-2) 30%,#fff)';
+    psvg.append(line, glow, dot);
+    const ripple = document.createElement('div');
+    ripple.className = 'ripple';
+    stage.append(ripple);
+    pulses.push({ line, glow, dot, ripple, node: nodes[(j * 5 + 2) % nodes.length], at: 1.7 + j * 0.55 });
+  }
+  const hub = document.querySelector('.hub');
+  const h1 = document.querySelector('.copy h1'), sub = document.querySelector('.copy p');
+
+  function draw(t) {
+    const exit = smooth(t, 5.6, 6.2);
+    // Orbits draw on.
+    ORBITS.forEach((o, i) => {
+      const p = inOutCubic((t - 0.15 - i * 0.15) / 1.1);
+      if (i === 0) { o.el.setAttribute('stroke-dasharray', `${o.len}`); o.el.setAttribute('stroke-dashoffset', (o.len * (1 - p)).toFixed(1)); }
+      else o.el.style.opacity = p;
+      o.el.parentNode.style.opacity = 1 - exit;
+    });
+    // Hub.
+    const hp = backOut((t - 0.25) / 0.8);
+    hub.style.opacity = smooth(t, 0.25, 0.6) * (1 - exit);
+    hub.style.transform = `scale(${(hp * (1 - exit * 0.15)).toFixed(4)})`;
+    // Nodes: depth sets scale, brightness and which side of the hub they draw on.
+    for (const n of nodes) {
+      const p = pos(n, t);
+      const k = (p.depth + 1) / 2;
+      const pop = backOut((t - n.delay) / 0.7);
+      const s = (0.78 + 0.26 * k) * pop * (1 - exit * 0.3);
+      n.el.style.transform = `translate(${p.x.toFixed(2)}px,${p.y.toFixed(2)}px) scale(${s.toFixed(4)})`;
+      n.el.style.opacity = (smooth(t, n.delay, n.delay + 0.35) * (0.7 + 0.3 * k) * (1 - exit)).toFixed(3);
+      n.el.style.zIndex = p.depth > 0 ? 5 : 2;
+      n.el.style.filter = `brightness(${(0.8 + 0.25 * k).toFixed(3)})`;
+    }
+    for (const pu of pulses) {
+      const q = (t - pu.at) / 0.75;
+      const live = q > 0 && q < 1;
+      const fade = 1 - exit;
+      const p = pos(pu.node, t);
+      const f = inOutCubic(q);
+      const x = p.x + (CX - p.x) * f, y = p.y + (CY - p.y) * f;
+      const env = Math.sin(Math.PI * clamp(q));
+      pu.line.setAttribute('x1', p.x); pu.line.setAttribute('y1', p.y); pu.line.setAttribute('x2', CX); pu.line.setAttribute('y2', CY);
+      pu.line.style.opacity = live ? (env * 0.7 * fade).toFixed(3) : 0;
+      for (const c of [pu.glow, pu.dot]) { c.setAttribute('cx', x.toFixed(2)); c.setAttribute('cy', y.toFixed(2)); c.style.opacity = live ? (Math.min(1, env * 2) * fade).toFixed(3) : 0; }
+      const r = (t - pu.at - 0.72) / 0.7;
+      pu.ripple.style.opacity = r > 0 && r < 1 ? ((1 - r) * (1 - r) * 0.55).toFixed(3) : 0;
+      pu.ripple.style.transform = `scale(${(1 + outQuint(r) * 0.6).toFixed(4)})`;
+    }
+    const c1 = smooth(t, 1.1, 1.8), c2 = smooth(t, 1.35, 2.05);
+    h1.style.opacity = (c1 * (1 - exit)).toFixed(3);
+    h1.style.transform = `translateY(${((1 - c1) * 16 - exit * 10).toFixed(2)}px)`;
+    h1.style.filter = `blur(${((1 - c1) * 8 + exit * 6).toFixed(2)}px)`;
+    sub.style.opacity = (c2 * (1 - exit)).toFixed(3);
+    sub.style.transform = `translateY(${((1 - c2) * 10).toFixed(2)}px)`;
+  }
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.4, event: 'glitch', clip: 'pitch-glitch-stutter', label: 'hub' },
+    { t: 0.62, event: 'glitch', clip: 'pitch-glitch-pop', label: 'nodes' },
+    { t: 0.95, event: 'glitch', clip: 'pitch-glitch-blip', label: 'nodes' },
+    { t: 1.4, event: 'whoosh_deep', label: 'headline' },
+    ...pulses.map((p) => ({ t: p.at + 0.74, event: 'notify', clip: 'pitch-net-ping', label: 'pulse lands' })),
+    { t: 5.8, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

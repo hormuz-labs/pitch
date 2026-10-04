@@ -1,0 +1,29 @@
+{
+  "name": "Shape Wipe Transition",
+  "family": "SaaS Showcase",
+  "seconds": 6.2,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "From a button, an accent disc floods the frame with the next scene riding 80ms behind it; the dark scene's headline and chips land, then a close button wipes it back the same way. Both scenes counter-scale for parallax.",
+  "move": "From a button, an accent disc floods the frame with the next scene riding 80ms behind it; the dark scene's headline and chips land, then a close button wipes it back the same way. Both scenes counter-scale for parallax.",
+  "moves": [
+    "transition",
+    "circle-wipe",
+    "shape-layer",
+    "scene-change",
+    "before-after",
+    "parallax"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic draw(t). Forward: clip-path circles from the button (accent lead, then scene B). Return: radial-gradient masks open holes from the close button. Radii follow Flow quart in-out over 1.1s (chosen for a lower top speed than expo so the edge does not strobe). Outgoing scene scales to 0.95, incoming settles from 1.08.",
+  "adapt": "Swap scene A/B content; FROM and CLOSE_AT are the wipe origins. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before measuring.",
+  "caveats": [
+    "Original implementation of the \"Shape-layer transition\" motion-design idea; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "light"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Number Roll",
+  "family": "SaaS Text",
+  "seconds": 5,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A metric rolls up like an odometer: each digit column spins to its value, lower digits travelling further, with velocity-based vertical motion blur.",
+  "move": "A metric rolls up like an odometer: each digit column spins to its value, lower digits travelling further, with velocity-based vertical motion blur.",
+  "moves": [
+    "counter",
+    "odometer",
+    "number",
+    "metric",
+    "rolling-digits",
+    "motion-blur"
+  ],
+  "libs": [
+    "DOM",
+    "SVG filter"
+  ],
+  "how": "Deterministic seek(t). Each digit column is a clipped window on a 0–9×3 stack with feathered top and bottom. Position follows cubic-bezier(0.16,1,0.3,1) over 2.1s, staggered 0.07s; the two lowest digits do an extra lap. A per-column SVG feGaussianBlur with stdDeviation \"0 y\" is sized from the per-frame travel and switched off at rest so the settled digits are crisp.",
+  "adapt": "Set data-value on .num (digits and separators). The suffix (+) and label are plain DOM. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is a pure draw(t) inline in index.html. Mount the markup in the shot, call draw from the film's frame hook (or a GSAP onUpdate with the shot-local time), and keep the font-load wait before measuring.",
+  "caveats": [
+    "Original implementation of the After Effects \"Odometer / slot counter\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}

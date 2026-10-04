@@ -1,0 +1,216 @@
+<!doctype html><meta charset="utf-8">
+<title>Pricing Toggle</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#f3f2ee; --surface:#ffffff; --ink:#141414; --muted:#77756f;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 10%,transparent);
+    --text:color-mix(in srgb,var(--ink) 78%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 5%,var(--surface));
+    --panel:color-mix(in srgb,var(--ink) 4%,var(--bg));
+  }
+  .stage{background:radial-gradient(ellipse 70% 60% at 50% 0%,var(--surface) 0%,var(--bg) 70%)}
+  .head{position:absolute;left:0;right:0;top:46px;text-align:center}
+  .head h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:46px;letter-spacing:-.04em;color:var(--ink)}
+  .tgl{position:absolute;left:50%;top:124px;transform:translateX(-50%);display:flex;align-items:center;gap:14px}
+  .pill{position:relative;display:flex;padding:4px;border-radius:999px;background:color-mix(in srgb,var(--ink) 7%,var(--bg));border:1px solid var(--line)}
+  .pill span{position:relative;z-index:1;width:116px;height:38px;display:grid;place-items:center;font-size:16px;font-weight:500;color:var(--muted)}
+  .pill span.on{color:var(--ink)}
+  .thumb{position:absolute;left:4px;top:4px;width:116px;height:38px;border-radius:999px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.08)}
+  .save{font-size:14px;font-weight:500;color:color-mix(in srgb,var(--positive) 75%,var(--ink));background:color-mix(in srgb,var(--positive) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--positive) 30%,var(--surface));padding:6px 11px;border-radius:999px;opacity:0}
+  .cards{position:absolute;left:50%;top:206px;display:flex;gap:22px;transform:translateX(-50%);align-items:flex-start}
+  .card{position:relative;width:332px;border-radius:22px;background:var(--surface);border:1px solid var(--line);padding:28px 28px 26px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 20px 40px -24px rgba(0,0,0,.18);will-change:transform,opacity}
+  .card.pro{background:var(--ink);border-color:var(--ink);color:var(--bg);margin-top:-14px;box-shadow:0 30px 70px -20px color-mix(in srgb,var(--accent) 40%,transparent)}
+  .card .name{font-size:18px;font-weight:500;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+  .card.pro .name{color:var(--bg)}
+  .pop{font-size:12px;font-weight:500;color:color-mix(in srgb,var(--accent) 55%,var(--bg));background:color-mix(in srgb,var(--accent) 22%,transparent);padding:4px 10px;border-radius:999px}
+  .card .desc{margin-top:6px;font-size:15px;color:var(--muted)}
+  .price{margin-top:22px;display:flex;align-items:flex-end;gap:4px;height:64px}
+  .amt{display:flex;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:58px;line-height:64px;letter-spacing:-.03em;color:var(--ink)}
+  .card.pro .amt{color:var(--bg)}
+  .amt .cur{font-size:30px;line-height:44px;margin-right:2px}
+  /* A digit is a clipped window onto a 0–9 stack; rolling is a yPercent move. */
+  .col{height:64px;overflow:hidden;text-align:center}
+  .col .stk{display:flex;flex-direction:column;will-change:transform,filter}
+  .col .stk i{font-style:normal;height:64px}
+  .per{font-size:16px;color:var(--muted);margin-bottom:10px}
+  .bill{position:relative;height:20px;margin-top:4px;font-size:14px;color:var(--muted)}
+  .bill span{position:absolute;left:0;top:0;white-space:nowrap}
+  .feat{margin-top:20px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:11px;font-size:15px;color:var(--text)}
+  .card.pro .feat{border-color:color-mix(in srgb,var(--bg) 12%,transparent);color:color-mix(in srgb,var(--bg) 62%,var(--ink))}
+  .feat span{display:flex;align-items:center;gap:10px}
+  .feat svg{width:16px;height:16px;color:var(--accent);flex:none}
+  .card.pro .feat svg{color:var(--accent)}
+  .btn{margin-top:24px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:500;border:1px solid var(--line);color:var(--ink)}
+  .card.pro .btn{--glow:70;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));border:0;color:var(--on-accent);box-shadow:0 8px 24px -6px color-mix(in srgb,var(--accent) calc(var(--glow) * 1%),transparent),inset 0 1px 0 rgba(255,255,255,.25)}
+  .cursor{position:absolute;left:1300px;top:800px;width:28px;height:28px;z-index:20;will-change:transform;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25))}
+  .ring{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 60%,transparent);z-index:19;opacity:0}
+</style>
+<div class="stage">
+  <div class="head"><h1>Simple, transparent pricing</h1></div>
+  <div class="tgl"><div class="pill"><div class="thumb"></div><span class="m on">Monthly</span><span class="y">Yearly</span></div><span class="save">Save 20%</span></div>
+  <div class="cards">
+    <div class="card" data-from="24" data-to="19"><div class="name">Starter</div><div class="desc">For individuals getting going.</div>
+      <div class="price"><div class="amt"><span class="cur">$</span></div><span class="per">/mo</span></div>
+      <div class="bill"><span class="b1">Billed monthly</span><span class="b2">$228 billed yearly</span></div>
+      <div class="feat"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>3 projects</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Basic analytics</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Community support</span></div>
+      <div class="btn">Start free</div></div>
+    <div class="card pro" data-from="64" data-to="51"><div class="name">Pro <span class="pop">Most popular</span></div><div class="desc" style="color:color-mix(in srgb,var(--bg) 62%,var(--ink))">For teams shipping every week.</div>
+      <div class="price"><div class="amt"><span class="cur">$</span></div><span class="per">/mo</span></div>
+      <div class="bill"><span class="b1">Billed monthly</span><span class="b2">$612 billed yearly</span></div>
+      <div class="feat"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Unlimited projects</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Advanced analytics</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Priority support</span></div>
+      <div class="btn">Get started</div></div>
+    <div class="card" data-from="129" data-to="103"><div class="name">Business</div><div class="desc">For organisations at scale.</div>
+      <div class="price"><div class="amt"><span class="cur">$</span></div><span class="per">/mo</span></div>
+      <div class="bill"><span class="b1">Billed monthly</span><span class="b2">$1,236 billed yearly</span></div>
+      <div class="feat"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>SSO and SCIM</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Audit logs</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Dedicated success manager</span></div>
+      <div class="btn">Contact sales</div></div>
+  </div>
+  <div class="ring"></div>
+  <svg class="cursor" viewBox="0 0 28 28"><path d="M5 3.5v19.2l5.1-4.7 3.3 7.4 3.4-1.5-3.3-7.2h6.9z" style="fill:var(--ink);stroke:var(--surface)" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('textOut', '0.22,1,0.36,1');
+  CustomEase.create('roll', '0.65,0,0.35,1');
+  CustomEase.create('travel', '0.45,0,0.2,1');        // cursor travel: gentle start, decisive arrival
+  /* Palette expressions → plain rgba() strings that GSAP and canvas can use. */
+  const paletteProbe = document.createElement('i');
+  document.body.append(paletteProbe);
+  const paletteCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  function css(expr) {
+    paletteProbe.style.color = expr;
+    paletteCtx.clearRect(0, 0, 1, 1);
+    paletteCtx.fillStyle = getComputedStyle(paletteProbe).color;
+    paletteCtx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = paletteCtx.getImageData(0, 0, 1, 1).data;
+    return `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`;
+  }
+  const fontsReady = Promise.all([
+    document.fonts.load('500 58px "Sharp Grotesk"'),
+    document.fonts.load('500 16px "Atlas Grotesk"'),
+  ]);
+  /* A damped spring as an ease: starts from rest, overshoots ~10% once and
+     settles to rest. Zero velocity at both ends, which a bezier back-out
+     (still moving on its last frame) cannot give. */
+  const softSpring = (p) => {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    const s = (x) => 1 - Math.exp(-8 * x) * (Math.cos(11 * x) + (8 / 11) * Math.sin(11 * x));
+    return s(p) / s(1);
+  };
+  const D = 6.8, CLICK = 2.05;
+  let tl;
+
+  /* Cursor path: eased segments that bow sideways, like a hand-held mouse. */
+  const cursor = document.querySelector('.cursor');
+  let moves = [];
+  const moveEase = CustomEase.get('travel');
+  function cursorAt(t) {
+    let m = moves[0];
+    for (const s of moves) if (t >= s.t0) m = s;
+    const p = moveEase(gsap.utils.clamp(0, 1, (t - m.t0) / (m.t1 - m.t0)));
+    const dx = m.to[0] - m.from[0], dy = m.to[1] - m.from[1];
+    const len = Math.hypot(dx, dy) || 1, bow = Math.sin(Math.PI * p) * m.bend;
+    return [m.from[0] + dx * p - (dy / len) * bow, m.from[1] + dy * p + (dx / len) * bow];
+  }
+
+  function build() {
+    const center = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+    // Price digits: one rolling column per digit, sized to the widest numeral.
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;font:500 58px "Sharp Grotesk";letter-spacing:-.03em';
+    document.body.append(probe);
+    let wide = 0;
+    for (let d = 0; d < 10; d++) { probe.textContent = d; wide = Math.max(wide, probe.getBoundingClientRect().width); }
+    probe.remove();
+    const rolls = [];
+    document.querySelectorAll('.card').forEach((card, ci) => {
+      const from = card.dataset.from, to = card.dataset.to;
+      const amt = card.querySelector('.amt');
+      [...from].forEach((ch, i) => {
+        const col = document.createElement('span');
+        col.className = 'col';
+        col.style.width = wide + 'px';
+        const stk = document.createElement('span');
+        stk.className = 'stk';
+        stk.innerHTML = [...Array(10).keys()].map((d) => `<i>${d}</i>`).join('');
+        col.append(stk);
+        amt.append(col);
+        gsap.set(stk, { yPercent: -10 * +ch });
+        if (ch !== to[i]) rolls.push({ stk, to: +to[i], at: CLICK + 0.12 + ci * 0.07 + i * 0.05 });
+      });
+    });
+
+    gsap.set('.b2', { opacity: 0, y: 8 });
+    const yearly = center(document.querySelector('.pill .y'));
+    const proBtn = center(document.querySelector('.card.pro .btn'));
+    moves = [
+      { t0: 0, t1: 0.01, from: [1180, 760], to: [1180, 760], bend: 0 },
+      { t0: 1.05, t1: 1.95, from: [1180, 760], to: [yearly[0] + 10, yearly[1] + 4], bend: 60 },
+      { t0: 2.75, t1: 3.55, from: [yearly[0] + 10, yearly[1] + 4], to: [proBtn[0] + 30, proBtn[1] + 6], bend: -50 },
+      { t0: 4.6, t1: 5.5, from: [proBtn[0] + 30, proBtn[1] + 6], to: [1240, 800], bend: 40 },
+    ];
+
+    tl.fromTo('.head h1', { y: 18, opacity: 0, filter: 'blur(8px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'softOut' }, 0.1)
+      .fromTo('.tgl', { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'softOut' }, 0.3)
+      .fromTo('.card', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 1.0, stagger: 0.09, ease: 'softOut' }, 0.4)
+    // Click: press, ripple, thumb springs across, labels trade weight.
+      .to(cursor, { scale: 0.86, duration: 0.08, ease: 'power2.out', transformOrigin: '20% 15%' }, CLICK)
+      .to(cursor, { scale: 1, duration: 0.25, ease: 'power2.out' }, CLICK + 0.1)
+      .fromTo('.ring', { opacity: 0.9, scale: 0.4 }, { opacity: 0, scale: 1.4, duration: 0.6, ease: 'power2.out', immediateRender: false }, CLICK + 0.02)
+      .to('.thumb', { x: 116, duration: 0.65, ease: softSpring }, CLICK + 0.04)
+      .to('.pill .m', { color: css('var(--muted)'), duration: 0.25 }, CLICK + 0.1)
+      .to('.pill .y', { color: css('var(--ink)'), duration: 0.25 }, CLICK + 0.1)
+      .fromTo('.save', { opacity: 0, scale: 0.6, x: -10 }, { opacity: 1, scale: 1, x: 0, duration: 0.6, ease: 'back.out(2.2)' }, CLICK + 0.2)
+      .to('.b1', { opacity: 0, y: -8, duration: 0.3, ease: 'power2.inOut' }, CLICK + 0.15)
+      .to('.b2', { opacity: 1, y: 0, duration: 0.45, ease: 'textOut' }, CLICK + 0.38);
+    // Prices roll digit by digit, blurring slightly at speed.
+    for (const r of rolls) {
+      tl.to(r.stk, { yPercent: -10 * r.to, duration: 0.75, ease: 'roll' }, r.at)
+        .to(r.stk, { filter: 'blur(2.5px)', duration: 0.3, ease: 'power1.in', yoyo: true, repeat: 1 }, r.at + 0.08);
+    }
+    // Hover the Pro button, then leave.
+    tl.to('.card.pro .btn', { scale: 1.03, '--glow': 95, duration: 0.35, ease: 'power2.out' }, 3.45)
+      .to('.card.pro .btn', { scale: 1, '--glow': 70, duration: 0.4, ease: 'power2.out' }, 4.7)
+      .to('.card', { y: 24, opacity: 0, duration: 0.5, stagger: 0.06, ease: 'power2.inOut' }, 5.9)
+      .to('.head h1, .tgl', { y: -10, opacity: 0, duration: 0.45, stagger: 0.05, ease: 'power2.inOut' }, 5.95);
+    paint();   // a seek to 0 fires no update, so place the cursor now
+  }
+
+  const ring = document.querySelector('.ring');
+  function paint() {
+    if (!moves.length) return;
+    const [x, y] = cursorAt(tl.time());
+    cursor.style.left = (x - 5) + 'px';
+    cursor.style.top = (y - 3) + 'px';
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+  }
+  fx.wait(fontsReady.then(build));
+  tl = fx.timeline({ duration: D, onUpdate: paint });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.6, event: 'whoosh_deep', label: 'cards rise' },
+    { t: CLICK, event: 'click', clip: 'pitch-click-soft', label: 'yearly' },
+    { t: CLICK + 0.1, event: 'select', clip: 'pitch-toggle', label: 'toggle' },
+    { t: CLICK + 0.2, event: 'data', clip: 'pitch-odometer-roll', align: 'file', dur: 0.8, targetLufs: -29, label: 'prices roll' },
+    { t: CLICK + 0.35, event: 'glitch', clip: 'pitch-glitch-pop', label: 'save badge' },
+    { t: 3.48, event: 'tick', clip: 'pitch-hover', label: 'hover' },
+    { t: 6.05, event: 'whoosh_deep', label: 'exit' },
+  ]);
+</script>

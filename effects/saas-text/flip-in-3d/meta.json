@@ -1,0 +1,30 @@
+{
+  "name": "3D Flip In",
+  "family": "SaaS Text",
+  "seconds": 4.6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Letters stand up from their baselines in perspective, a soft staggered wave; they tip back over the top on exit.",
+  "move": "Letters stand up from their baselines in perspective, a soft staggered wave; they tip back over the top on exit.",
+  "moves": [
+    "3d",
+    "flip",
+    "rotate-x",
+    "characters",
+    "perspective",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Characters get transformPerspective 700 and a bottom-centre origin; rotationX -95→0 and yPercent 18→0 over 1.15s, stagger 0.03, cubic-bezier(0.16,1,0.3,1); opacity 0.4s. Exit switches the origin to top-centre and rotates to +95 with power2.in. An accent span keeps its colour per word.",
+  "adapt": "Mark the accent words with a [data-accent] span in the title. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"3D Flip In Rotate X\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

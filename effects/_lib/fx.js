@@ -55,10 +55,63 @@
     } catch (e) {}
   }
 
+  /* Sound: cues in the film cue-sheet format ({ t, event, dur?, label?, clip? },
+     see .pi/scripts/launch-video/sfx.mjs). The renderer builds them into the
+     render and writes sfx.m4a beside the page; a preview plays that file in
+     sync with the loop once the viewer clicks (browsers block autoplay sound). */
+  let sfxCues = [];
+  fx.sfx = function (cues) {
+    sfxCues = cues || [];
+    if (window.__fx) window.__fx.sfx = sfxCues;
+  };
+
+  function previewSound(api) {
+    if (RENDER || !sfxCues.length) return null;
+    const audio = new Audio('sfx.m4a');
+    audio.preload = 'auto';
+    // Sound is on by default, standalone or embedded (the review app's preview).
+    // Only the gallery grid (?grid) starts silent: there a card plays while the
+    // pointer is over it, so a screen of live cards is never a wall of noise.
+    let on = !params.has('grid'), blocked = false;
+    // Shown only while the browser is blocking sound on a standalone page.
+    const chip = document.createElement('div');
+    chip.textContent = '\u{1F50A} click for sound';
+    chip.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99999;font:500 12px/1 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.6);padding:7px 10px;border-radius:999px;pointer-events:none';
+    const start = () => {
+      if (!on) return;
+      blocked = false;
+      audio.currentTime = api.now;
+      // Browsers refuse audible autoplay until the page has been interacted
+      // with; if refused, the first gesture below starts it.
+      audio.play().then(() => chip.remove()).catch(() => {
+        blocked = true;
+        if (!chip.isConnected) document.body.append(chip);
+      });
+    };
+    for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (on && (audio.paused || blocked)) start(); });
+    addEventListener('message', (e) => {
+      if (!e.data || typeof e.data.fxSound !== 'boolean') return;
+      on = e.data.fxSound;
+      if (!on) audio.pause();
+      else if (audio.paused || blocked) start();   // already playing: leave it in sync
+    });
+    // Read-only state, for checking sound in a browser (and in tests).
+    api.sound = () => ({ on, blocked, paused: audio.paused, time: audio.currentTime });
+    return {
+      // Re-lock to the picture whenever the loop wraps or playback drifts.
+      sync(t, wrapped) {
+        if (!on || blocked) return;
+        if (wrapped || audio.paused || Math.abs(audio.currentTime - t) > 0.12) start();
+      },
+    };
+  }
+
   fx.register = function ({ duration, seek, fps = 30, loop = true }) {
     const api = {
       duration,
       fps,
+      sfx: sfxCues,
+      now: 0,
       ready: false,
       seek(t) {
         seek(t);
@@ -70,11 +123,16 @@
       api.ready = true;
       if (!RENDER) {
         api.seek(0);
-        let t0 = performance.now();
+        const sound = previewSound(api);
+        let t0 = performance.now(), last = 0;
         (function tick(now) {
           let t = (now - t0) / 1000;
-          if (loop) t = t % duration; else t = Math.min(t, duration);
+          const total = api.duration;
+          if (loop) t = t % total; else t = Math.min(t, total);
+          api.now = t;
           api.seek(t);
+          if (sound) sound.sync(t, t < last);
+          last = t;
           requestAnimationFrame(tick);
         })(t0);
       }

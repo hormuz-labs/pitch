@@ -1,0 +1,30 @@
+{
+  "name": "Particle Text Form",
+  "family": "SaaS Showcase",
+  "seconds": 6.2,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "Thousands of particles spiral in from a wide ring and assemble the headline in a left-to-right wave, resolve into crisp glowing gradient type, then scatter upward.",
+  "move": "Thousands of particles spiral in from a wide ring and assemble the headline in a left-to-right wave, resolve into crisp glowing gradient type, then scatter upward.",
+  "moves": [
+    "particles",
+    "text",
+    "assemble",
+    "canvas",
+    "generative",
+    "headline",
+    "wow"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "how": "The headline is rasterised offscreen and sampled every 3px into ~4k targets. Each particle eases in with ease-out quint while its offset rotates (a spiral), delayed by x position plus seeded scatter, drawn additively. Crisp fillText with a gradient and glow crossfades in once particles land, and back out before they disperse.",
+  "adapt": "Change TEXT and FONT; keep sample step ≥3px for performance. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time; wait for fonts before sampling or measuring.",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

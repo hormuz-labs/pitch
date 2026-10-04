@@ -1,0 +1,29 @@
+{
+  "name": "Exploded UI Layers",
+  "family": "SaaS Showcase",
+  "seconds": 6.8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A product screen splits into four floating layers — workspace, data, interface, insights — under an isometric camera that tilts and drifts, each layer labelled, then the stack collapses back into one flat screen.",
+  "move": "A product screen splits into four floating layers — workspace, data, interface, insights — under an isometric camera that tilts and drifts, each layer labelled, then the stack collapses back into one flat screen.",
+  "moves": [
+    "exploded-view",
+    "layers",
+    "isometric",
+    "3d",
+    "architecture",
+    "deconstruct"
+  ],
+  "libs": [
+    "DOM (CSS 3D)"
+  ],
+  "how": "Deterministic draw(t). A preserve-3d world holds four layer planes; the camera is rotateX/rotateZ on Flow quart in-out, layers separate along Z on a damped spring (staggered upward) and fall back in reverse order. A permanent 1.5px Z step per layer keeps coplanar layers from z-fighting.",
+  "adapt": "Swap the layer contents and tag names; GAP sets the separation. Placeholder copy is generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Pure draw(t): mount the markup in the shot and call draw from the film's frame hook with shot-local time. Sound: fx.sfx() cues in the film cue-sheet format; the render muxes them and sfx.json is the sheet to reuse in a film (offset by the shot start).",
+  "caveats": [
+    "Original implementation of a common SaaS launch-film move; no third-party preset, kit or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

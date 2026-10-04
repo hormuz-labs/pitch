@@ -1,0 +1,31 @@
+{
+  "name": "Product Tilt Reveal",
+  "family": "SaaS Showcase",
+  "seconds": 6.4,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A product window rises from a steep 64° lean-back to flat under a glowing bloom; its top edge catches light, a sheen crosses the glass and an issue completes during a slow push-in.",
+  "move": "A product window rises from a steep 64° lean-back to flat under a glowing bloom; its top edge catches light, a sheen crosses the glass and an issue completes during a slow push-in.",
+  "moves": [
+    "3d",
+    "perspective",
+    "hero",
+    "product-ui",
+    "tilt",
+    "glow",
+    "launch"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Window in a perspective(1100px) wrapper, origin at its bottom edge; rotationX 64→0, y 120→0, scale .94→1 over 2.6s with cubic-bezier(0.3,0.05,0.12,1) so the flatten is long and even. Bottom of the shot fades out with a mask-image. Progress ring fills by stroke-dashoffset, then fattens into a disc with a check.",
+  "adapt": "Replace the DOM product UI with your screens (keep the .persp/.win structure); a screenshot <img> works too. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

@@ -1,0 +1,30 @@
+{
+ "duration": 6.2,
+ "cues": [
+  {
+   "t": 0.35,
+   "event": "whoosh_deep",
+   "label": "line in"
+  },
+  {
+   "t": 1.9,
+   "event": "whoosh_deep",
+   "label": "cube turns"
+  },
+  {
+   "t": 3.1,
+   "event": "whoosh_deep",
+   "label": "cube turns"
+  },
+  {
+   "t": 4.3,
+   "event": "whoosh_deep",
+   "label": "cube turns"
+  },
+  {
+   "t": 5.65,
+   "event": "whoosh_deep",
+   "label": "exit"
+  }
+ ]
+}

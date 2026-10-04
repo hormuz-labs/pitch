@@ -1,0 +1,31 @@
+{
+  "name": "AI Stream Answer",
+  "family": "SaaS Showcase",
+  "seconds": 8,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A question bubble pops in, a \"Thinking\" label shimmers, then the answer streams token by token behind a glowing caret and finishes by building a bar chart and source chips.",
+  "move": "A question bubble pops in, a \"Thinking\" label shimmers, then the answer streams token by token behind a glowing caret and finishes by building a bar chart and source chips.",
+  "moves": [
+    "ai",
+    "streaming",
+    "tokens",
+    "chat",
+    "assistant",
+    "shimmer",
+    "chart"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "The answer is split into token spans laid out from the start (no reflow). Arrival times come from a seeded RNG (40–90ms with occasional chunk pauses); each token fades up from a 4px blur over 0.22s. The caret glides to each token on the same line and jumps on wraps. Thinking shimmer is a background-position sweep on clipped text. Bars scaleY from the base with cubic-bezier(0.16,1,0.3,1).",
+  "adapt": "Change the question, answer (bold runs stay bold) and chart values. Placeholder product names and copy are generic. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "Timeline-driven: register the page's CustomEase curves, scope selectors to the shot and rebuild the timeline; state painted in onUpdate must stay a function of tl.time().",
+  "caveats": [
+    "Original implementation; no third-party UI kit, product or brand assets.",
+    "Starts and ends on its opening frame so it loops; trim the exit when cutting to the next shot."
+  ],
+  "theme": "dark"
+}

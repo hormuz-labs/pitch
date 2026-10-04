@@ -1,0 +1,212 @@
+<!doctype html><meta charset="utf-8">
+<title>Command Palette</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Shadows stay black: they are darkness, not brand. */
+  :root{
+    --bg:#0c0c0d; --surface:#161618; --ink:#f3f2ee; --muted:#8d8b85;
+    --accent:#ff5a1f; --accent-2:#ffb347; --on-accent:#ffffff; --positive:#22a06b; --negative:#e5484d;
+    --line:color-mix(in srgb,var(--ink) 9%,transparent);
+    --text:color-mix(in srgb,var(--ink) 80%,var(--bg));
+    --faint:color-mix(in srgb,var(--ink) 40%,var(--bg));
+    --raise:color-mix(in srgb,var(--ink) 6%,var(--surface));
+    --panel:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  }
+  .stage{background:var(--bg)}
+  /* The app behind the palette: a quiet skeleton of a product, dimmed and
+     blurred when the palette opens. */
+  .app{position:absolute;inset:0;display:grid;grid-template-columns:232px 1fr;will-change:filter}
+  .side{border-right:1px solid var(--line);padding:22px 18px;display:flex;flex-direction:column;gap:12px;background:var(--panel)}
+  .side .logo{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));margin-bottom:14px}
+  .bar{height:10px;border-radius:5px;background:var(--raise)}
+  .main{padding:28px 36px;display:flex;flex-direction:column;gap:18px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{height:132px;border-radius:14px;border:1px solid var(--line);background:var(--panel);padding:18px;display:flex;flex-direction:column;gap:12px}
+  .rows{border-radius:14px;border:1px solid var(--line);background:var(--panel);padding:8px 18px}
+  .row{height:44px;display:flex;align-items:center;gap:14px;border-bottom:1px solid color-mix(in srgb,var(--ink) 4%,transparent)}
+  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--faint)}
+  .veil{position:absolute;inset:0;background:color-mix(in srgb,var(--bg) 55%,transparent);opacity:0}
+  .bloom{position:absolute;left:50%;top:330px;width:1100px;height:640px;margin:-320px 0 0 -550px;background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent) 7%,transparent) 55%,transparent);opacity:0;will-change:transform,opacity}
+
+  .palette{position:absolute;left:50%;top:104px;width:740px;margin-left:-370px;border-radius:18px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid color-mix(in srgb,var(--ink) 11%,transparent);
+    box-shadow:0 0 0 1px rgba(0,0,0,.4),0 30px 80px -10px rgba(0,0,0,.7),inset 0 1px 0 color-mix(in srgb,var(--ink) 6%,transparent);overflow:hidden;transform-origin:50% 0;will-change:transform,opacity}
+  .input{height:70px;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid var(--line);font-size:22px;color:var(--ink)}
+  .input svg{width:20px;height:20px;color:var(--muted);flex:none}
+  .query{position:relative;white-space:pre}
+  .ph{position:absolute;left:0;top:0;color:var(--faint);white-space:nowrap}
+  .caret{display:inline-block;width:2px;height:24px;background:var(--accent);vertical-align:-5px;margin-left:1px;border-radius:1px}
+  .list{position:relative;padding:8px}
+  .group{font-size:12.5px;font-weight:500;letter-spacing:.04em;color:var(--faint);padding:8px 14px 6px}
+  .items{position:relative}
+  .hl{position:absolute;left:0;right:0;top:0;height:52px;border-radius:10px;--hl:14;background:color-mix(in srgb,var(--accent) calc(var(--hl) * 1%),transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 32%,transparent)}
+  .item{position:relative;height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;font-size:18px;color:var(--text);overflow:hidden}
+  .item .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--raise);border:1px solid var(--line);flex:none}
+  .item .ic svg{width:15px;height:15px;color:var(--muted)}
+  .item .lb{flex:1;white-space:nowrap}
+  .item .m{color:var(--ink)}
+  .item .k{font-size:12.5px;color:var(--muted);padding:3px 8px;border-radius:6px;background:var(--raise);border:1px solid var(--line)}
+  .foot{height:44px;display:flex;align-items:center;gap:18px;padding:0 20px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+  .foot span{display:flex;align-items:center;gap:7px}
+  .foot b{font-weight:500;font-size:12px;color:var(--muted);min-width:22px;height:22px;padding:0 6px;display:grid;place-items:center;border-radius:6px;background:var(--raise);border:1px solid var(--line)}
+
+  .keys{position:absolute;left:50%;top:50%;display:flex;gap:14px;transform:translate(-50%,-50%)}
+  .key{width:84px;height:84px;border-radius:18px;display:grid;place-items:center;font-size:34px;font-weight:500;color:var(--ink);
+    --keydrop:6px;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 10%,var(--surface)),var(--surface));border:1px solid color-mix(in srgb,var(--ink) 13%,transparent);box-shadow:0 var(--keydrop) 0 color-mix(in srgb,var(--bg) 70%,#000),0 14px 30px rgba(0,0,0,.6),inset 0 1px 0 color-mix(in srgb,var(--ink) 8%,transparent);will-change:transform,opacity}
+
+  .toast{position:absolute;left:50%;bottom:64px;display:flex;align-items:center;gap:12px;padding:14px 22px 14px 16px;border-radius:14px;font-size:17px;color:var(--ink);
+    background:var(--surface);border:1px solid color-mix(in srgb,var(--ink) 11%,transparent);box-shadow:0 20px 50px -10px rgba(0,0,0,.7);transform:translateX(-50%);will-change:transform,opacity}
+  .toast .ok{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--positive)}
+  .toast .ok svg{width:14px;height:14px;color:var(--on-accent)}
+</style>
+<div class="stage">
+  <div class="app">
+    <div class="side"><div class="logo"></div><div class="bar" style="width:80%"></div><div class="bar" style="width:62%"></div><div class="bar" style="width:72%"></div><div class="bar" style="width:55%"></div><div class="bar" style="width:66%;margin-top:18px"></div><div class="bar" style="width:48%"></div></div>
+    <div class="main">
+      <div class="bar" style="width:220px;height:16px;background:var(--raise)"></div>
+      <div class="cards">
+        <div class="card"><div class="bar" style="width:40%"></div><div class="bar" style="width:60%;height:22px;background:var(--raise)"></div></div>
+        <div class="card"><div class="bar" style="width:52%"></div><div class="bar" style="width:44%;height:22px;background:var(--raise)"></div></div>
+        <div class="card"><div class="bar" style="width:36%"></div><div class="bar" style="width:58%;height:22px;background:var(--raise)"></div></div>
+      </div>
+      <div class="rows">
+        <div class="row"><div class="dot"></div><div class="bar" style="width:38%"></div></div>
+        <div class="row"><div class="dot"></div><div class="bar" style="width:52%"></div></div>
+        <div class="row"><div class="dot"></div><div class="bar" style="width:30%"></div></div>
+        <div class="row"><div class="dot"></div><div class="bar" style="width:46%"></div></div>
+        <div class="row" style="border:0"><div class="dot"></div><div class="bar" style="width:34%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="veil"></div>
+  <div class="bloom"></div>
+
+  <div class="keys"><div class="key k1">⌘</div><div class="key k2">K</div></div>
+
+  <div class="palette">
+    <div class="input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <div class="query"><span class="ph">Type a command or search…</span><span class="typed"></span><span class="caret"></span></div>
+    </div>
+    <div class="list">
+      <div class="group">SUGGESTIONS</div>
+      <div class="items">
+        <div class="hl"></div>
+        <div class="item miss"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="lb">Create new issue</span><span class="k">C</span></div>
+        <div class="item hit"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.6 3.2-5.5 6-5.5s5.2 1.9 6 5.5M18 8v6M15 11h6"/></svg></span><span class="lb"><span class="m">Inv</span>ite teammates</span><span class="k">I</span></div>
+        <div class="item miss"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lb">Open settings</span><span class="k">⌘ ,</span></div>
+        <div class="item hit"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5"/></svg></span><span class="lb">View <span class="m">inv</span>oices</span><span class="k">G V</span></div>
+        <div class="item miss"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg></span><span class="lb">Switch theme</span><span class="k">⌘ ⇧ L</span></div>
+        <div class="item miss"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h6a2 2 0 012 2v13a2 2 0 00-2-2H4zM20 5h-6a2 2 0 00-2 2v13a2 2 0 012-2h6z"/></svg></span><span class="lb">Search documentation</span><span class="k">?</span></div>
+      </div>
+    </div>
+    <div class="foot"><span><b class="kd">↓</b><b class="ku">↑</b>Navigate</span><span><b class="ke">↵</b>Select</span><span><b>esc</b>Close</span></div>
+  </div>
+
+  <div class="toast"><span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Invite link copied to clipboard</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // Entrances that fade and move in one tween start from rest: soft onset, long settle.
+  CustomEase.create('softOut', '0.2,0,0,1');
+  CustomEase.create('pop', '0.16,1,0.3,1');
+  CustomEase.create('glide', '0.65,0,0.35,1');
+  /* Palette expressions → plain rgba() strings that GSAP and canvas can use. */
+  const paletteProbe = document.createElement('i');
+  document.body.append(paletteProbe);
+  const paletteCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  function css(expr) {
+    paletteProbe.style.color = expr;
+    paletteCtx.clearRect(0, 0, 1, 1);
+    paletteCtx.fillStyle = getComputedStyle(paletteProbe).color;
+    paletteCtx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = paletteCtx.getImageData(0, 0, 1, 1).data;
+    return `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`;
+  }
+  fx.wait(document.fonts.load('400 20px "Atlas Grotesk"'));
+  fx.wait(document.fonts.load('500 34px "Atlas Grotesk"'));
+
+  const D = 6.6;
+  const QUERY = 'inv';
+  const KEYS = [1.55, 1.69, 1.82];            // keystroke times for the query
+  const OPEN = 0.95, CLOSE = 3.95;
+
+  const typed = document.querySelector('.typed');
+  const ph = document.querySelector('.ph');
+  const caret = document.querySelector('.caret');
+
+  /* Derived from time on every update: the typed query, the placeholder and
+     the input caret (solid while typing, soft blink when idle). */
+  function paint() {
+    const t = tl.time();
+    let n = 0, last = OPEN;
+    KEYS.forEach((k, i) => { if (t >= k) { n = i + 1; last = k; } });
+    typed.textContent = QUERY.slice(0, n);
+    ph.style.opacity = n ? 0 : 1;
+    const idle = t - last - 0.45;
+    const p = idle < 0 ? 0 : idle % 1;
+    const blink = idle < 0 ? 1 : p < 0.5 ? 1 - gsap.utils.clamp(0, 1, (p - 0.42) / 0.08) : gsap.utils.clamp(0, 1, (p - 0.92) / 0.08);
+    caret.style.opacity = t < CLOSE ? blink : 0;
+  }
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.72, event: 'click', clip: 'pitch-click-key', label: '⌘K pressed' },
+    { t: 1.02, event: 'whoosh_deep', label: 'palette opens' },
+    { t: KEYS[0], event: 'type', clip: 'pitch-type-burst', dur: KEYS[2] - KEYS[0] + 0.12, gainDb: 3, label: 'query typed' },
+    { t: 1.8, event: 'glitch', clip: 'pitch-glitch-stutter', label: 'list filters' },
+    { t: 2.7, event: 'glitch', clip: 'pitch-glitch-tick', label: 'arrow down' },
+    { t: 3.25, event: 'glitch', clip: 'pitch-glitch-tick', label: 'arrow up' },
+    { t: 3.7, event: 'click', clip: 'pitch-click-key', label: 'enter' },
+    { t: 4.32, event: 'notify', clip: 'pitch-toast', label: 'toast lands' },
+  ]);
+  const tl = fx.timeline({ duration: D, onUpdate: paint });
+  const KEY = { bg: css('var(--raise)'), fg: css('var(--muted)'), hitBg: css('color-mix(in srgb,var(--accent) 45%,var(--raise))'), hitFg: css('var(--ink)') };
+  const flash = (sel, at) => tl.fromTo(sel, { backgroundColor: KEY.bg, color: KEY.fg }, { backgroundColor: KEY.hitBg, color: KEY.hitFg, duration: 0.08, ease: 'none', immediateRender: false }, at)
+    .to(sel, { backgroundColor: KEY.bg, color: KEY.fg, duration: 0.3, ease: 'power1.out' }, at + 0.12);
+
+  // ⌘K: the keycaps arrive, press together, and hand off to the palette.
+  tl.fromTo('.key', { y: 18, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.06, ease: 'softOut' }, 0.15)
+    .to('.key', { y: 5, '--keydrop': '1px', duration: 0.09, ease: 'power2.in' }, 0.72)
+    .to('.key', { y: 0, '--keydrop': '6px', duration: 0.25, ease: 'power2.out' }, 0.83)
+    .to('.key', { opacity: 0, scale: 0.94, filter: 'blur(6px)', duration: 0.3, ease: 'power2.inOut' }, 0.9)
+
+  // The app recedes as the palette drops in from 96%.
+    .fromTo('.app', { filter: 'blur(0px) brightness(1)' }, { filter: 'blur(7px) brightness(0.7)', duration: 0.6, ease: 'power2.out' }, OPEN)
+    .fromTo('.veil', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, OPEN)
+    .fromTo('.bloom', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'softOut' }, OPEN)
+    .fromTo('.palette', { opacity: 0, scale: 0.96, y: -10 }, { opacity: 1, scale: 1, y: 0, duration: 0.55, ease: 'softOut' }, OPEN + 0.05)
+    .fromTo('.item', { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, stagger: 0.035, ease: 'softOut' }, OPEN + 0.15)
+
+  // Filter: misses collapse in place, so the hits slide up under a highlight
+  // that never moves — the list reflows, the selection stays put.
+    .to('.item.miss', { height: 0, opacity: 0, duration: 0.42, ease: 'glide', stagger: 0.02 }, 1.74)
+    .fromTo('.item .m', { color: css('var(--text)') }, { color: css('var(--accent)'), duration: 0.3, ease: 'power1.out' }, 1.86)
+
+  // Keyboard: down, up, enter — the highlight glides between rows.
+    .to('.hl', { y: 52, duration: 0.32, ease: 'glide' }, 2.7);
+  flash('.kd', 2.68);
+  tl.to('.hl', { y: 0, duration: 0.32, ease: 'glide' }, 3.25);
+  flash('.ku', 3.23);
+  flash('.ke', 3.68);
+  tl.to('.hl', { '--hl': 26, duration: 0.08 }, 3.7)
+    .to('.item.hit', { scale: 0.985, duration: 0.08, transformOrigin: '50% 50%' }, 3.7)
+    .to('.item.hit', { scale: 1, duration: 0.2 }, 3.78)
+
+  // Enter closes the palette and the app comes back into focus.
+    .to('.palette', { opacity: 0, scale: 0.97, y: -6, duration: 0.3, ease: 'power2.inOut' }, CLOSE)
+    .to('.bloom', { opacity: 0, scale: 0.9, duration: 0.5, ease: 'power2.inOut' }, CLOSE)
+    .to('.app', { filter: 'blur(0px) brightness(1)', duration: 0.6, ease: 'power2.out' }, CLOSE + 0.1)
+    .to('.veil', { opacity: 0, duration: 0.5, ease: 'power2.out' }, CLOSE + 0.1)
+
+  // Confirmation toast springs up from the bottom and leaves the same way.
+    .fromTo('.toast', { opacity: 0, y: 40, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'back.out(1.6)' }, CLOSE + 0.2)
+    .to('.toast', { opacity: 0, y: 24, scale: 0.97, duration: 0.35, ease: 'power2.inOut' }, 5.85);
+</script>

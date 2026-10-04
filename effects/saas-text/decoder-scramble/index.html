@@ -1,0 +1,126 @@
+<!doctype html><meta charset="utf-8">
+<title>Decoder Scramble</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  /* Palette — every colour in this effect derives from these tokens; change
+     them to re-brand it. Masks below use #000 only as alpha, not as a colour. */
+  :root{--bg:#0c0c0d;--surface:#161618;--ink:#f3f2ee;--muted:#8d8b85;--accent:#ff5a1f;--accent-2:#ffb347;--on-accent:#ffffff}
+  .stage{background:radial-gradient(ellipse 70% 60% at 50% 45%,color-mix(in srgb,var(--surface) 75%,var(--bg)) 0%,var(--bg) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px}
+  .title{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:112px;line-height:1.05;letter-spacing:-.04em;color:var(--ink);white-space:nowrap}
+  .w{display:inline-block;white-space:nowrap}
+  /* Every letter box is fixed at its final glyph's width, and scrambled glyphs
+     are centred inside it, so the line never reflows while it decodes. */
+  .c{display:inline-block;text-align:center;opacity:0}
+  .caption{font-size:20px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);opacity:0}
+</style>
+<div class="stage">
+  <h1 class="title">Security, decoded.</h1>
+  <p class="caption">Encrypted end to end</p>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5;
+  const fontsReady = Promise.all([
+    document.fonts.load('500 112px "Sharp Grotesk"'),
+    document.fonts.load('400 20px "Atlas Grotesk"'),
+  ]);
+
+  // Scramble glyphs are drawn from a pool matched to the letter box's width,
+  // so a stand-in never spills far into its neighbours.
+  const NARROW = '!|:;.,\'iIl1';
+  const MEDIUM = 'abcdeghknopqsuvxyz023456789#';
+  const WIDE = 'ABCDEHKNOPRSUXZ&%';
+  /* Palette tokens resolved to RGB for per-frame colour mixing. */
+  function rgb(css) {
+    const probe = document.createElement('i');
+    probe.style.color = css;
+    document.body.append(probe);
+    const c = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    c.fillStyle = getComputedStyle(probe).color;
+    c.fillRect(0, 0, 1, 1);
+    probe.remove();
+    return [...c.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+  }
+  const INK = rgb('var(--ink)'), ACCENT = rgb('var(--accent)'), MUTED = rgb('var(--muted)');
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (t, a, b) => { const p = clamp((t - a) / (b - a)); return p * p * (3 - 2 * p); };
+  const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * p)).join(',')})`;
+  const hash = (i, f) => {
+    let x = Math.imul(i + 17, 374761393) ^ Math.imul(f + 31, 668265263);
+    x = Math.imul(x ^ (x >>> 13), 1274126177);
+    return (x ^ (x >>> 16)) >>> 0;
+  };
+
+  let cells = [];
+  function build() {
+    const el = document.querySelector('.title');
+    const parts = el.textContent.trim().split(/\s+/);
+    el.textContent = '';
+    parts.forEach((part, i) => {
+      if (i) el.append(' ');
+      const w = document.createElement('span');
+      w.className = 'w';
+      for (const ch of part) {
+        const c = document.createElement('span');
+        c.className = 'c';
+        c.textContent = ch;
+        w.append(c);
+        cells.push({ el: c, ch });
+      }
+      el.append(w);
+    });
+    const em = parseFloat(getComputedStyle(el).fontSize);
+    for (const cell of cells) {
+      const width = cell.el.getBoundingClientRect().width;
+      cell.el.style.width = width + 'px';
+      cell.pool = width < 0.33 * em ? NARROW : width < 0.62 * em ? MEDIUM : WIDE;
+    }
+    const n = cells.length;
+    cells.forEach((cell, i) => {
+      cell.appear = 0.25 + i * 0.035;
+      cell.lock = 0.8 + i * 0.06 + (hash(i, 99) % 100) / 100 * 0.08;
+      cell.out = 3.85 + i * 0.028;
+    });
+  }
+  fx.wait(fontsReady.then(build));
+
+  const caption = document.querySelector('.caption');
+
+  function draw(t) {
+    const tick = Math.floor(t * 15);   // glyphs change 15 times a second, every other frame at 30fps
+    cells.forEach((cell, i) => {
+      let glyph, color, opacity;
+      if (t < cell.lock || t >= cell.out) {
+        const out = t >= cell.out;
+        glyph = cell.pool[hash(i, tick) % cell.pool.length];
+        color = `rgb(${MUTED.join(',')})`;
+        opacity = out ? 0.75 * (1 - smooth(t, cell.out + 0.18, cell.out + 0.3)) : 0.75 * smooth(t, cell.appear, cell.appear + 0.15);
+      } else {
+        // Locked: the true letter flashes the accent, then cools to ink.
+        glyph = cell.ch;
+        color = mix(ACCENT, INK, smooth(t, cell.lock + 0.05, cell.lock + 0.6));
+        opacity = 1;
+      }
+      if (cell.el.textContent !== glyph) cell.el.textContent = glyph;
+      cell.el.style.color = color;
+      cell.el.style.opacity = opacity.toFixed(3);
+    });
+    const cap = smooth(t, 1.6, 2.2) * (1 - smooth(t, 3.8, 4.2));
+    caption.style.opacity = cap.toFixed(3);
+    caption.style.transform = `translateY(${((1 - smooth(t, 1.6, 2.3)) * 10).toFixed(2)}px)`;
+  }
+
+  fx.register({ duration: D, seek: draw });
+
+  // Sound, on the same beats as the picture (film cue-sheet format; see fx.js).
+  // Pitch SaaS pack (ElevenLabs-generated): glitch accents, deep whooshes and
+  // crisp UI sounds; signature moments name their clip. Clips carry measured
+  // hit points, so each lands on its beat without hand-set leads.
+  fx.sfx([
+    { t: 0.3, event: 'glitch', clip: 'pitch-decode-scramble', align: 'file', dur: 1.5, label: 'glyphs scramble' },
+    { t: 1.95, event: 'glitch', clip: 'pitch-glitch-lock', label: 'last letter locks' },
+    { t: 3.88, event: 'glitch', clip: 'pitch-decode-scramble', align: 'file', dur: 0.75, label: 'scrambles away' },
+  ]);
+</script>

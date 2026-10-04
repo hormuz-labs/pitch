@@ -1,0 +1,30 @@
+{
+  "name": "Shine Sweep",
+  "family": "SaaS Text",
+  "seconds": 4.6,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A brushed-metal title rises through a mask and a bright highlight band glides across the letters.",
+  "move": "A brushed-metal title rises through a mask and a bright highlight band glides across the letters.",
+  "moves": [
+    "shine",
+    "light-sweep",
+    "metallic",
+    "gradient-text",
+    "glint",
+    "launch"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase"
+  ],
+  "how": "Two background layers clipped to text: a 250%-wide white band over a vertical metal gradient. Animating background-position of the band from 110% to -10% over 1.5s (power2.inOut) is the sweep. The title rises yPercent 105→0 with blur clearing.",
+  "adapt": "Change the gradient stops for a coloured metal; sweep angle is the 105deg in the band gradient. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is inline in index.html. GSAP pages: register the CustomEase curves, scope selectors to the shot element and rebuild the same timeline; the split helper is inline and dependency-free.",
+  "caveats": [
+    "Original implementation of the After Effects \"CC Light Sweep\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "dark"
+}

@@ -1,0 +1,24 @@
+{
+ "duration": 6.2,
+ "cues": [
+  {
+   "t": 2.95,
+   "event": "riser",
+   "clip": "pitch-particles",
+   "dur": 0.5,
+   "label": "particles gather"
+  },
+  {
+   "t": 3.0500000000000003,
+   "event": "impact",
+   "clip": "pitch-impact-slam",
+   "label": "headline resolves"
+  },
+  {
+   "t": 5.1,
+   "event": "whoosh_deep",
+   "clip": "pitch-whoosh-glitch",
+   "label": "particles scatter"
+  }
+ ]
+}

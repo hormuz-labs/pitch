@@ -1,0 +1,13 @@
+{
+ "duration": 6,
+ "fps": 30,
+ "frames": 180,
+ "w": 1280,
+ "h": 720,
+ "renderedAt": "2026-10-04T12:57:33.945Z",
+ "errors": [],
+ "sfx": {
+  "cues": 5,
+  "warnings": []
+ }
+}

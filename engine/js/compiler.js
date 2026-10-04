@@ -846,9 +846,11 @@
         case "swap": {
           if (!sel) break;
           const target = sel.classList.contains("word") ? sel : (sel.querySelector(".word") || sel);
+          // Sets and tos, never a fromTo: a fromTo paints its start state when
+          // it is built, which hid the old words from the shot's first frame.
           tl.to(target, { opacity: 0, y: -18, duration: 0.14, ease: "power3.in" }, at);
-          tl.set(target, { text: { value: b.text || "" } }, at + 0.14);
-          tl.fromTo(target, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: "power4.out" }, at + 0.15);
+          tl.set(target, { text: { value: b.text || "" }, y: 24 }, at + 0.14);
+          tl.to(target, { opacity: 1, y: 0, duration: 0.3, ease: "power4.out" }, at + 0.15);
           break;
         }
         case "pulse":
@@ -867,8 +869,12 @@
           const f = document.createElement("div");
           f.className = "beat-flash";
           f.style.background = b.color === "ink" ? "var(--ink)" : b.color === "bg" ? "var(--bg)" : b.color || "var(--accent)";
+          // Invisible until its moment: a fromTo paints its start state when it
+          // is built, which laid the flash over the whole shot before `at`.
+          f.style.opacity = "0";
           el.appendChild(f);
-          tl.fromTo(f, { opacity: 0.9 }, { opacity: 0, duration: 0.28, ease: "power2.out" }, at);
+          tl.set(f, { opacity: 0.9 }, at);
+          tl.to(f, { opacity: 0, duration: 0.28, ease: "power2.out" }, at);
           break;
         }
         case "hide":

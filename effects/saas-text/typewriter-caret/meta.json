@@ -1,0 +1,29 @@
+{
+  "name": "Typewriter Caret",
+  "family": "SaaS Text",
+  "seconds": 6.2,
+  "size": "1280x720",
+  "loop": true,
+  "fidelity": "original-study",
+  "description": "A prompt types with human cadence and an editor-style caret, the last word is selected, then retyped with a new word.",
+  "move": "A prompt types with human cadence and an editor-style caret, the last word is selected, then retyped with a new word.",
+  "moves": [
+    "typing",
+    "typewriter",
+    "caret",
+    "prompt",
+    "selection",
+    "ai"
+  ],
+  "libs": [
+    "DOM"
+  ],
+  "how": "Deterministic seek(t): keystroke times come from a seeded RNG (42–82ms per key, longer after spaces). The caret is positioned from a DOM Range measurement of the typed text, stays solid while typing and blinks with soft 80ms edges once idle for 0.5s. The selection grows leftward over the last word with an ease-out quint in 0.22s; the next keystroke replaces it. Exit: lift, blur and fade.",
+  "adapt": "Change FIRST, REPLACE and the selected word length. Long prompts need a smaller font or a wider stage; the line does not wrap. Placeholder copy is generic; replace it with the product's words. Colours come from the palette tokens at the top of the page (--bg, --surface, --ink, --muted, --accent, --accent-2); change those to re-brand it.",
+  "port": "All motion is a pure draw(t) inline in index.html. Mount the markup in the shot, call draw from the film's frame hook (or a GSAP onUpdate with the shot-local time), and keep the font-load wait before measuring.",
+  "caveats": [
+    "Original implementation of the After Effects \"Typewriter\" idea; no AE preset files, expressions or numbers are copied and fidelity to a specific AE render is not claimed.",
+    "Starts and ends on an empty stage so it loops cleanly; trim the exit when the next shot cuts in."
+  ],
+  "theme": "light"
+}
