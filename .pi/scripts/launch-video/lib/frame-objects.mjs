@@ -13,6 +13,9 @@
  *   small   — everything on screen fits in a sliver of the frame: a chip alone
  *             in white. The page's corner chrome (a small logo near an edge)
  *             does not count.
+ *   chrome  — the same small words at the frame's edges on shot after shot: a
+ *             website's header and footer ("AI PRODUCTION STUDIO" top right,
+ *             the URL bottom left) kept through a film. A logo alone is not.
  *
  * Glows, washes and blurred shapes are atmosphere, not boxes. Each measured
  * case came from a film the user had to correct (trypitch, 2026-10-04); on
@@ -139,6 +142,8 @@ export function measureFrameObjects(list = false) {
       u = u ? { x0: Math.min(u.x0, th.v.x0), y0: Math.min(u.y0, th.v.y0), x1: Math.max(u.x1, th.v.x1), y1: Math.max(u.y1, th.v.y1) } : { ...th.v };
     }
     const fill = u ? { share: +(((u.x1 - u.x0) * (u.y1 - u.y0)) / FRAME).toFixed(4), rect: box(u) } : { share: 0, rect: null };
+    const edge = things.filter((th) => th.kind === "words" && th.v.a <= FRAME * 0.015 && band(th.v) && th.text && !inPointer(th.el))
+      .map((th) => ({ shot: shotOf(th.el), text: th.text.slice(0, 60), rect: box(th.v) }));
 
     // mark — a logo or an icon with something over part of it
     const markLike = (el) => /logo|icon|brand|mark/i.test(`${classOf(el)} ${el.getAttribute("src") || ""} ${el.id} ${el.getAttribute("alt") || ""} ${classOf(el.parentElement || el)}`);
@@ -204,7 +209,7 @@ export function measureFrameObjects(list = false) {
       if (!content) empty.push({ shot: shotOf(el), el: name(el), share: +(v.a / FRAME).toFixed(4), rect: box(v) });
     }
 
-    const out = { marks, overlaps, empty, fill };
+    const out = { marks, overlaps, empty, fill, edge };
     if (list) {
       // Every thing on the frame, biggest first, numbered top to bottom for `look`.
       const keep = things
@@ -350,7 +355,26 @@ export function frameObjectFindings(samples, { only = [], step = 0.5, max = 8 } 
     } else flushLow();
   }
   flushLow();
-  const order = { mark: 0, empty: 1, overlap: 2, small: 3 };
+  // chrome — words at the edges in most of the film and across three shots or more
+  const edges = new Map();
+  for (const s of samples || []) for (const e of s.edge || []) {
+    const k = e.text.toLowerCase();
+    const g = edges.get(k) || { text: e.text, ts: new Set(), shots: new Set(), at: new Map() };
+    g.ts.add(s.t); g.shots.add(e.shot || s.shot); g.at.set(s.t, e.rect);
+    edges.set(k, g);
+  }
+  const probes = (samples || []).filter((s) => s.edge).length;
+  const kept = [...edges.values()].filter((g) => g.ts.size >= probes * 0.6 && g.shots.size >= 3);
+  if (kept.length) {
+    const times = [...kept[0].ts].sort((a, b) => a - b);
+    const at = times.reduce((best, t) => (kept.filter((g) => g.at.has(t)).length > kept.filter((g) => g.at.has(best)).length ? t : best), times[Math.floor(times.length / 2)]);
+    moments.push({
+      kind: "chrome", shot: "", from: times[0], to: times[times.length - 1] + step, at,
+      text: `the same words sit at the edges of shot after shot: ${kept.map((g) => `"${g.text}"`).join(", ")} — a page's header and footer, not a film's`,
+      outline: kept.filter((g) => g.at.has(at)).map((g) => ({ rect: g.at.get(at), label: g.text, tone: "mark" })),
+    });
+  }
+  const order = { mark: 0, chrome: 1, empty: 2, overlap: 3, small: 4 };
   return moments.sort((a, b) => order[a.kind] - order[b.kind] || a.from - b.from).slice(0, max);
 }
 

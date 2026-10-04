@@ -1707,7 +1707,7 @@
       tl.to(node, { opacity: 1, duration: 0.15 }, at);
     }
     tl.to(node, { x: to.x, duration: 0.7, ease: "power2.inOut" }, at);
-    tl.to(node, { y: to.y, duration: 0.7, ease: "power3.out" }, at);
+    tl.to(node, { y: to.y, duration: 0.7, ease: "sine.inOut" }, at); // starts from rest; the unlike eases bow the path
     tl.to(node, { scale: 0.82, duration: 0.09, ease: "power2.in" }, at + 0.82);
     tl.fromTo(node.querySelector(".ui-ripple"), { scale: 0, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.5, ease: "power2.out" }, at + 0.86);
     tl.to(node, { scale: 1, duration: 0.18, ease: "back.out(2)" }, at + 0.94);

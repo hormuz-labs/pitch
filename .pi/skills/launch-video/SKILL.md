@@ -16,8 +16,8 @@ to check your work.
 
 ## The order of work
 
-1. **Understand the product.** Explore it with `pitch motion inspect <url>` and
-   the links it returns (product-research when it is unfamiliar), then
+1. **Understand the product.** Explore it with `pitch motion inspect <url>`, the
+   links and pictures it returns (product-research when it is unfamiliar), then
    `pitch motion recon <canonical-url>` once for its colours, type, logo and
    fonts. If recon fails or finds next to nothing, ask the user for
    screenshots of the product, its logo and any brand colours or fonts, and

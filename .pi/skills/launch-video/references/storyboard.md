@@ -13,8 +13,8 @@ A few lines each:
 - **Length and frame** — approximate runtime, `SHOTS.format`.
 - **Brand** — the ground the film is set on (with the reason, if it is dark).
 - **Sound** — the voice and its character (music only if the user asked); the bed, its tempo and drop from `pitch motion beats`.
-- **Material** — uploads, screenshots, the site's own video frames, icons, and
-  reference notes (`references/reference-video.md`).
+- **Material** — uploads, screenshots, the site's own videos and images (the
+  sheet `inspect` draws), icons, reference notes (`references/reference-video.md`).
 
 When a consequential fact or file is missing and the site cannot give it, ask
 once (logo files, the real numbers, a product recording). Otherwise decide and
@@ -59,7 +59,7 @@ name the film they want; they can recognise it.
 
 - Each direction is a different idea from the mechanism, not the same idea in
   three palettes. Every one uses the brand's measured colours and type.
-- Give each one a still of its **opening frame**: a static page at the film's
+- Give each one a still of its **opening frame**: an HTML still at the film's
   size, `directions/<a|b|c>.html` (the stills land on the asset shelf), using the brand fonts and colours from
   recon, then capture them all in one call:
   `pitch motion screenshot --html directions/a.html --out directions/a.png --width 1920 --height 1080 && …`.

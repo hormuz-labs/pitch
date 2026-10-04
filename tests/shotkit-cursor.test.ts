@@ -92,6 +92,11 @@ describe.skipIf(!hasChromium)('the engine cursor in a custom shot', () => {
     expect(pressed.ripple).toBeLessThan(1)
   })
 
+  it('starts its travel from rest, so the eye can pick it up', async () => {
+    const [a, b] = [await pointer(0.5), await pointer(0.5 + 1 / 30)]
+    expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThan(4)
+  })
+
   it('names what is on the frame for pitch motion look', async () => {
     const out = await tools.look.run({ at: [1.25] }, ws)
     expect(out).toMatch(/1\.25s · #go \(clicker\) → look\/look-1\.jpg/)

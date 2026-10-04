@@ -734,7 +734,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'inspect',
     description:
-      'Explore a product URL in a browser without screenshots, font downloads or overwriting brand recon. Returns bounded readable text and real links (including docs/product pages), follows redirects and saves evidence under recon/pages/. Follow useful links autonomously until the selected workflow is understood; the page layout is not a video composition.',
+      "Explore a product URL in a browser without screenshots, font downloads or overwriting brand recon. Returns bounded readable text, real links (including docs/product pages) and the page's own videos and images on one numbered sheet (save them with --save), follows redirects and saves evidence under recon/pages/. Follow useful links autonomously until the selected workflow is understood; the page layout is not a video composition.",
     parameters: Type.Object({
       url: Type.String({
         description: 'Product, feature, documentation or other relevant HTTP(S) URL',
@@ -742,10 +742,17 @@ export default function motionCommands(): CommandSpec[] {
       max_chars: Type.Optional(
         Type.Integer({ minimum: 500, maximum: 12000, description: 'Text limit (default 5000)' }),
       ),
+      save: Type.Optional(
+        Type.String({
+          description:
+            'Numbers from the page\'s picture list to download into recon/media/ ("1,4" or "all")',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       const args = [`--url=${p.url}`]
       if (p.max_chars) args.push(`--max-chars=${p.max_chars}`)
+      if (p.save) args.push(`--save=${String(p.save).replace(/\s+/g, '')}`)
       try {
         return text(await hostAction(workspaceOf(ctx), 'launch_inspect', { args }))
       } catch (err) {

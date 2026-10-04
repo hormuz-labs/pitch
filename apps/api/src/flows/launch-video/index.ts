@@ -95,7 +95,7 @@ async function runSkillScript(
 }
 
 registerHostAction('launch_inspect', (ws, params, ctx) =>
-  runSkillScript('inspect.mjs', ws, scriptArgs(params), 90_000, ctx.signal),
+  runSkillScript('inspect.mjs', ws, scriptArgs(params), 300_000, ctx.signal),
 )
 
 registerHostAction(

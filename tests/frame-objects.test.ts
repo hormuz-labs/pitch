@@ -98,6 +98,13 @@ describe.skipIf(!hasChromium)('measureFrameObjects in the page', () => {
     expect(footage.fill.share).toBe(1)
   })
 
+  it('notes the small words at the frame edges, and not the headline', async () => {
+    const { edge } = await measure(`
+      <span class="abs kicker" style="left:1500px;top:40px;font-size:22px">AI PRODUCTION STUDIO</span>
+      <h1 class="abs" style="left:120px;top:300px;margin:0;font-size:120px">One sentence.</h1>`)
+    expect(edge).toEqual([expect.objectContaining({ shot: 'make', text: 'AI PRODUCTION STUDIO' })])
+  })
+
   it('numbers every thing on the frame for look, with what each holds', async () => {
     const { things } = await measure(
       `<div class="abs card" style="left:200px;top:100px;width:300px;height:200px;background:#eee"><p style="margin:20px">Brief</p></div>
@@ -163,6 +170,21 @@ describe('frameObjectFindings', () => {
     expect(lookLines(moments)).toEqual([
       '[1] 4.0–5.0s #make — img.logo has div.input over part of it',
       '[2] 4.0–6.0s #open — everything on screen fits in 1.0% of the frame',
+    ])
+  })
+
+  it("finds a website's header and footer kept through the film, and not one shot's label", () => {
+    const corner = (text: string) => ({ shot: '', text, rect: [1500, 40, 300, 30] })
+    const samples = [0, 1, 2, 3, 4, 5].map(t =>
+      at(t, {
+        shot: ['open', 'make', 'ship'][Math.floor(t / 2)],
+        edge: [corner('AI PRODUCTION STUDIO'), ...(t < 2 ? [corner('Step 1')] : [])],
+      }),
+    )
+    const moments = frameObjectFindings(samples, { step: 1 })
+    expect(moments.map(m => m.kind)).toEqual(['chrome'])
+    expect(lookLines(moments)).toEqual([
+      '[1] 0.0–6.0s — the same words sit at the edges of shot after shot: "AI PRODUCTION STUDIO" — a page\'s header and footer, not a film\'s',
     ])
   })
 
