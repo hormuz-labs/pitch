@@ -9,5 +9,5 @@ Paths are relative to the launch-video skill directory.
 | Add sound effects | `references/audio/sfx.md` |
 | Mix stems or change their levels | `references/audio/mix.md` |
 
-A music-only film needs no narration module. A level edit needs only mixing.
+A level edit needs only mixing.
 Reuse existing tracks, cues and successful checks; don't reload every reference.

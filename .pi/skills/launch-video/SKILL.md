@@ -32,10 +32,10 @@ to check your work.
 3. **Let the user choose a direction, then write the brief and storyboard**
    in `direction.md` and critique it before building anything
    (`references/storyboard.md`). The picture is cut to the sound, so the sound
-   comes first: the music, measured with `pitch motion beats`
-   (`references/audio/music.md`), and for a narrated film its read
-   (`references/audio/narration.md`). Each row is built from an effect in the
-   library (`references/effects.md`).
+   comes first. A film is narrated unless the user asks for music only: the
+   script and its read (`references/audio/narration.md`) over a bed measured
+   with `pitch motion beats` (`references/audio/music.md`). Each row is built
+   from an effect in the library (`references/effects.md`).
 4. **Build the shared pieces, then one scene at a time,** porting each row's
    effect and checking each scene before the next (`references/build.md`;
    `references/3d.md` when a scene has depth).
@@ -54,8 +54,8 @@ An edit loads only what that change needs and keeps the established direction.
    One movement leads; smaller ones start a little after it and overlap it.
    If you cannot say where the eye lands first, second and third, the shot is
    not designed yet.
-2. **Everything new lands on the music** (`references/audio/music.md`), or on
-   a narrated film's words.
+2. **Everything new lands on the word that names it,** or on the music
+   where no one speaks.
 3. **The content makes the transition, never the frame.** The stage stays;
    the old elements leave one by one, or one already on screen becomes the
    next thing (a pill opens into the card, a word travels into the headline).

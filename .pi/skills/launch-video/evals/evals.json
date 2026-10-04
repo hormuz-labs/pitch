@@ -30,6 +30,12 @@
       "prompt": "Make a 30-second launch film for our invoicing app. I uploaded uploads/reference.mp4 — I love how the shots flow into each other. Use the numbers from our site.",
       "expected_output": "Reads references/reference-video.md before planning: probes the upload, finds its cuts with pitch video analyze, takes an overview contact sheet and dense sheets around its transitions with pitch video frames, and records in direction.md what each key moment does and how it could serve this product, without copying its footage, layout or music. The storyboard carries purpose, exit and carry per row, and the signature moments are named in plain words. On-screen figures come only from facts.md built from the site; nothing invented. Critique checks frame one with --times 0 and the report separates measured items from what still needs a person.",
       "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Generate a motion design video for https://trypitch.co/, the most stunning one you can produce.",
+      "expected_output": "Narrated, because the brief does not ask for music only: the brief's Sound names the voice, the script is written to audio/vo.txt and recorded with pitch motion tts, then aligned and synced before shot timings, over a bed measured with pitch motion beats. Storyboard rows land on spoken words, each under a picture of what its line says with the key words arriving as spoken. The mix keeps the voice over the bed. No automatic export.",
+      "files": []
     }
   ]
 }

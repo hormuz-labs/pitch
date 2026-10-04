@@ -12,7 +12,7 @@ A few lines each:
 - **Then** — what they should do at the end.
 - **Length and frame** — approximate runtime, `SHOTS.format`.
 - **Brand** — the ground the film is set on (with the reason, if it is dark).
-- **Sound** — the bed, its tempo and drop from `pitch motion beats`; the voice, if any.
+- **Sound** — the voice and its character (music only if the user asked); the bed, its tempo and drop from `pitch motion beats`.
 - **Material** — uploads, screenshots, the site's own video frames, icons, and
   reference notes (`references/reference-video.md`).
 
@@ -80,10 +80,11 @@ One table:
 | t | on screen | effect | for | leaves by | carries into next |
 |---|---|---|---|---|---|
 
-- **t** — bars of the measured bed (`bar 5`, `bar 7.3`), or the narration's
-  words; these become the shots' `cue`s.
+- **t** — the spoken words the row lands on, or bars of the bed (`bar 5`,
+  `bar 7.3`) where no one speaks; these become the shots' `cue`s.
 - **on screen** — the complete visible state, and the order the eye takes
-  through it: what arrives first, what it leads to, what lands last.
+  through it: what arrives first, what it leads to, what lands last. Under a
+  line of narration, a picture of what it says, its key words arriving as spoken.
 - **for** — what the moment does for the viewer. A row without one goes.
 - **leaves by** — the join: becomes the next thing, makes room, leaves piece
   by piece, pushes in, cuts on a match.
@@ -97,10 +98,8 @@ shot is a new scene, and a bar of music is not a shot. A row lasts what it has t
 0.6s plus 0.3s per essential word, rounded to whole beats — counting every
 word visible in the state and each internal state of a busy shot.
 
-Read the column of layouts and text entrances top to bottom: neighbouring rows
-sharing either is one too many. Show screens cropped to what matters, never the site's
-crowded layout as the film's; familiar tools appear as their real marks
-(`pitch icons search`).
+Show screens cropped to what matters, never the site's crowded layout as the
+film's; familiar tools appear as their real marks (`pitch icons search`).
 
 ## Critique it before building
 
