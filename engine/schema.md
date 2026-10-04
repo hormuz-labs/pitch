@@ -293,7 +293,7 @@ captions: {
 | `words` | What to show, one entry per spoken word (a string or `{ text, fx, color, scale, font, weight, italic, case, at, rotate, dx, dy }` — `rotate` in degrees, `dx`/`dy` a nudge in em); default: the cue's own words. A different count maps proportionally. Mix type inside a phrase: a serif italic `{ text: "you", font: "Georgia, serif", italic: true, case: "none", weight: 400 }`, a heavy keyword, a small light connective `{ text: "to the", scale: 0.55, weight: 500 }`. |
 | `at`, `each` | Without narration: the first word's film time and the gap between words (0.22s). A word's own `at` overrides. |
 | `out`, `until`, `hold` | When the phrase clears: film seconds, or the onset of an `until` phrase; default the next phrase's first word or `hold` (0.35s) after its last word, whichever is first. |
-| `stack` | `word` (one word per line, the phrase grows downward — the default), `line` (words flow and wrap within the margins), `replace` (each word replaces the last in one spot). |
+| `stack` | `word` (one word per line, the phrase grows downward — the default), `line` (words flow and wrap within the margins; centred or right-aligned, what has been said stays centred or flush, the line gliding over as each word lands, and a `center` phrase lifts as each line begins), `replace` (each word replaces the last in one spot). |
 | `pos`, `x`, `y` | `top` (0.12), `upper` (0.24), `lower` (0.66): the phrase's top edge at that fraction of the height; `center` centres the finished phrase; `bottom` puts its last line at 0.84. Or `y` (fraction, top edge) and `x`. |
 | `align`, `margin` | `left` (default), `center`, `right`; side margin 0.09 of the width. |
 | `size`, `weight`, `leading`, `tracking`, `case`, `font`, `color`, `shadow` | Type. `size` < 2 is a fraction of the short side (0.115 ≈ 124px on 1080), else px. `case`: `upper` (default), `none`, `lower`, `title`. `shadow: false` for type on flat colour. |
@@ -303,7 +303,7 @@ captions: {
 | `box` | A backing behind the phrase (`true` = a soft dark pill, or a CSS colour) so it reads over light and dark pictures alike. |
 | `tier` | Phrases time and clear only against their own tier (default `"main"`), so a second tier can share the screen with the keywords. |
 | `exit` | `cut` (default) or `fade`. |
-| `fx` (word) | `accent` (brand accent), `big` (1.42×, tighter), `blur` (soft — say "muffled" and show it), `rgb` (chromatic fringe), `glitch` (tears for 0.34s, then holds), `shake`, `outline`, `strike`, `small`, `type` (characters arrive across the spoken word: "1" → "1." → "1.1"), `count` (a number counts up across the word). Several: `fx: ["big", "glitch"]`. |
+| `fx` (word) | `accent` (brand accent), `big` (1.42×, tighter), `blur` (soft — say "muffled" and show it), `rgb` (chromatic fringe), `glitch` (tears for 0.34s, then holds), `shake`, `outline`, `strike`, `small`, `type` (characters arrive across the spoken word: "1" → "1." → "1.1"), `count` (a number counts up across the word), `mark` (the keyword lands in a pill that sweeps in, holds it white-on-colour, then lifts away; `style.mark` sets the pill's colour, default the accent). Several: `fx: ["big", "glitch"]`. |
 
 **`subtitles`** — `captions.subtitles: true` or `{ words: 4, pos: 0.78, size: 0.036, build: false, box, color }`
 puts the whole read on screen as a small running line, a few words at a time,

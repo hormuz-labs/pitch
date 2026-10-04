@@ -88,7 +88,7 @@ One table:
 - **for** — what the moment does for the viewer. A row without one goes.
 - **leaves by** — the join: becomes the next thing, makes room, leaves piece
   by piece, pushes in, cuts on a match.
-- **effect** — the library effects the row is built from (`references/effects.md`).
+- **effect** — the ids (`family/slug`) of the library effects the row is built from (`references/effects.md`).
 - **carries into next** — the object or match that crosses, or "new chapter".
 
 Strong launch films change composition every 1.4–3.5s, and most of those

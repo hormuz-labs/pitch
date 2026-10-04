@@ -958,6 +958,10 @@
   }
   const jumpAmount = (v) => (v === true ? 0.6 : Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
   const CAP_ENTER = 0.14;
+  // How long a building line takes to re-centre on each new word, and the
+  // life of a `mark`: the pill sweeps in, holds the word, then lifts away.
+  const CAP_GLIDE = 0.4;
+  const MARK = { in: 0.22, out: 0.55, gone: 0.85 };
   function captionsWordsUrl(spec) {
     const c = spec.captions || {};
     if (typeof c.words === "string") return c.words;
@@ -992,7 +996,8 @@
     if (s.tier) el.dataset.tier = s.tier;
     el.style.fontSize = `${px(s.size, Math.round(base * 0.105))}px`;
     el.style.fontWeight = String(s.weight || 800);
-    el.style.lineHeight = String(s.leading || 0.92);
+    // Stacked capitals sit tight; a running line in mixed case needs room for its descenders.
+    el.style.lineHeight = String(s.leading || (stack === "line" && s.case === "none" ? 1.12 : 0.92));
     el.style.letterSpacing = s.tracking || "-0.01em";
     if (s.case !== "none") el.style.textTransform = s.case === "lower" ? "lowercase" : s.case === "title" ? "capitalize" : "uppercase";
     if (p.color) el.style.setProperty("--cap-color", p.color);
@@ -1029,7 +1034,7 @@
       const wr = Number.isFinite(w.rotate) ? w.rotate : jump ? (r() - 0.5) * 2 * 3.5 * jump : 0;
       const hop = jump && stack === "replace" ? { x: (r() - 0.5) * 2 * 0.2 * jump, y: (r() - 0.5) * 2 * 0.12 * jump } : null;
       return { el: node, text: String(w.text), fx, at: Number.isFinite(w.at) ? w.at : null, end: Number.isFinite(w.end) ? w.end : null,
-        enter: w.enter || enterDefault, rot: wr, dx: Number(w.dx) || 0, dy: Number(w.dy) || 0, hop, ox: 0, oy: 0 };
+        enter: w.enter || enterDefault, color: w.color || "", rot: wr, dx: Number(w.dx) || 0, dy: Number(w.dy) || 0, hop, ox: 0, oy: 0 };
     });
     layer.appendChild(el);
     return { el, spec: p, style: s, stack, align, margin, words, jump, slotAt, tier: s.tier || "main", start: null, out: null };
@@ -1043,6 +1048,7 @@
     layer.id = "captions";
     layer.style.setProperty("--cap-color", style.color || "#fff");
     if (style.font) layer.style.setProperty("--cap-font", style.font);
+    if (style.mark) layer.style.setProperty("--cap-mark", style.mark);
     layer.style.setProperty("--cap-shadow", style.shadow === false ? "none" : style.shadow || "0 0.03em 0.3em rgba(0,0,0,0.35)");
     const model = { layer, style, phrases: phrases.map((p, pi) => captionsPhrase(p, pi, style, layer)) };
     viewport.appendChild(layer);
@@ -1217,8 +1223,49 @@
         wd.ox = Math.round(Math.min(Math.max(wd.hop.x * W, W * 0.05 - x0), W * 0.95 - ww - x0));
         wd.oy = Math.round(Math.min(Math.max(wd.hop.y * H, H * 0.06 - y0), H * 0.8 - wh - y0));
       }
+      ph.glide = captionsGlide(ph);
     }
     if (wasAt != null) ctx.master.seek(wasAt, false);
+  }
+  // A centred or right-aligned line building as it is said. Unsaid words keep
+  // their laid-out space, so the said ones would sit off-centre; instead each
+  // line keeps what has been said centred (or flush right), and a centred or
+  // bottom-pinned phrase keeps its begun lines there too. glide[j][k] is word
+  // k's offset once word j has been said; captionsApply eases between them.
+  function captionsGlide(ph) {
+    const fy = ph.style.pos === "center" ? 0.5 : ph.style.pos === "bottom" ? 1 : 0;
+    const fx = ph.align === "center" ? 0.5 : ph.align === "right" ? 1 : 0;
+    if (ph.stack !== "line" || ph.style.box || (!fx && !fy) || ph.words.length < 2) return null;
+    const lines = [];
+    const lineOf = ph.words.map((w, k) => {
+      const top = w.el.offsetTop, right = w.el.offsetLeft + w.el.offsetWidth;
+      let L = lines.find((l) => Math.abs(l.top - top) < 2);
+      if (!L) lines.push((L = { top, bottom: 0, start: k, rights: [] }));
+      L.rights.push(right);
+      L.bottom = Math.max(L.bottom, top + w.el.offsetHeight);
+      return L;
+    });
+    const full = lines[lines.length - 1].bottom;
+    return ph.words.map((_, j) => {
+      // A line not yet begun sits where its first word will put it.
+      const dx = lines.map((L) => (L.rights[L.rights.length - 1] - L.rights[Math.max(0, Math.min(j - L.start, L.rights.length - 1))]) * fx);
+      const saidTo = lines.filter((L) => L.start <= j).pop().bottom;
+      return ph.words.map((__, k) => ({ x: dx[lines.indexOf(lineOf[k])], y: (full - saidTo) * fy }));
+    });
+  }
+  let glideEase = null;
+  function glideAt(ph, k, t) {
+    glideEase = glideEase || (window.gsap && gsap.parseEase("move")) || easeOut;
+    const g = ph.glide;
+    let x = g[0][k].x, y = g[0][k].y;
+    for (let j = 1; j < g.length; j++) {
+      const at = ph.words[j].at;
+      if (!(t > at)) continue;
+      const p = glideEase(Math.min(1, (t - at) / CAP_GLIDE));
+      x += (g[j][k].x - g[j - 1][k].x) * p;
+      y += (g[j][k].y - g[j - 1][k].y) * p;
+    }
+    return { x, y };
   }
   // Where a phrase's box sits, for its own style or a jump slot.
   function captionsBox(ph, slot) {
@@ -1265,6 +1312,10 @@
         const since = t - w.at;
         const k01 = easeOut(since / CAP_ENTER);
         let tf = "", op = 1, blur = null;
+        if (ph.glide) {
+          const g = glideAt(ph, k, t);
+          if (g.x || g.y) tf += `translate(${g.x.toFixed(2)}px, ${g.y.toFixed(2)}px) `;
+        }
         if (w.ox || w.oy) tf += `translate(${w.ox}px, ${w.oy}px) `;
         if (w.dx || w.dy) tf += `translate(${w.dx}em, ${w.dy}em) `;
         if (w.rot) tf += `rotate(${w.rot.toFixed(2)}deg) `;
@@ -1283,6 +1334,14 @@
         w.el.style.opacity = String(op);
         if (blur != null) w.el.style.filter = `blur(${blur.toFixed(2)}px)`;
         else if (w.enter === "blur") w.el.style.filter = "";
+        if (w.fx.includes("mark")) {
+          const on = Math.min(1, since / MARK.in) * (1 - Math.min(1, Math.max(0, (since - MARK.out) / (MARK.gone - MARK.out))));
+          const sweep = (glideEase || easeOut)(Math.min(1, since / MARK.in));
+          w.el.style.setProperty("--mark-s", (0.3 + 0.7 * sweep).toFixed(4));
+          w.el.style.setProperty("--mark-o", on.toFixed(4));
+          w.el.style.setProperty("--mark-b", `${((1 - sweep) * 0.12).toFixed(4)}em`);
+          w.el.style.color = on > 0.5 ? "var(--cap-mark-ink, #fff)" : w.color || "";
+        }
         const span = Math.max(0.15, (w.end ?? w.at + 0.3) - w.at);
         const prog = Math.min(1, since / span);
         if (w.fx.includes("type")) {

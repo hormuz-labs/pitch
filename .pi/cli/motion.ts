@@ -38,6 +38,7 @@ import { GSAP_PLUGINS, refreshShell, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
 import { hostAction } from '../lib/studio-host.ts'
 import { cachedValidation } from '../lib/validation-cache.ts'
+import { storyboardNote } from './effects.ts'
 import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
@@ -879,11 +880,12 @@ export default function motionCommands(): CommandSpec[] {
       if (p.page) a.push(relativeIn(ws, p.page))
       const linked = p.page ? [] : refreshShell(ws)
       const head = linked.length ? `${linked.join('\n')}\n` : ''
+      const note = storyboardNote(ws)
       try {
-        return text(head + (await runScript('cues.mjs', a, ws, 120_000)))
+        return text(head + (await runScript('cues.mjs', a, ws, 120_000)) + note)
       } catch (err: any) {
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
-        if (out) return { ...text(head + out), isError: true }
+        if (out) return { ...text(head + out + note), isError: true }
         throw err
       }
     },
@@ -1431,7 +1433,8 @@ export default function motionCommands(): CommandSpec[] {
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
           starter +
           '\nCustom shot types: one per file, js/shots/<type>.js (+ css/shots/<type>.css); pitch motion check links each new one.' +
-          '\nNext: replace the placeholder opener and add ONE shot at a time — save and pitch motion check after each, so the user is watching a film that runs.',
+          '\nNext: replace the placeholder opener and add ONE shot at a time — save and pitch motion check after each, so the user is watching a film that runs.' +
+          storyboardNote(ws),
       )
     },
   })

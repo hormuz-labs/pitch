@@ -100,6 +100,55 @@ export function loadEffects(root = EFFECTS_DIR): Effect[] {
   )
 }
 
+/**
+ * Storyboard rows (the direction.md table with an `effect` column) whose
+ * effect names nothing in the library. An invented name ("kinetic prompt
+ * input") in that column is the mark of a row that was never searched.
+ */
+export function unsourcedRows(
+  direction: string,
+  known: Set<string>,
+): { t: string; effect: string }[] {
+  const out: { t: string; effect: string }[] = []
+  let col: number | null = null // null: outside a table; -1: a table with no effect column
+  for (const line of direction.split('\n')) {
+    if (!line.trim().startsWith('|')) {
+      col = null
+      continue
+    }
+    const cells = line
+      .trim()
+      .replace(/^\||\|$/g, '')
+      .split('|')
+      .map(c => c.trim())
+    if (col === null) col = cells.findIndex(c => /^effects?$/i.test(c))
+    else if (col >= 0 && !cells.every(c => /^:?-+:?$/.test(c))) {
+      const cell = cells[col] ?? ''
+      const ids = cell.match(/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*/g) ?? []
+      if (!ids.some(id => known.has(id))) out.push({ t: cells[0] ?? '', effect: cell })
+    }
+  }
+  return out
+}
+
+/** The note `scaffold` and `check` add while storyboard rows name no library effect. */
+export function storyboardNote(ws: string, effects = loadEffects()): string {
+  let direction: string
+  try {
+    direction = readFileSync(join(ws, 'direction.md'), 'utf8')
+  } catch {
+    return ''
+  }
+  const rows = unsourcedRows(direction, new Set(effects.map(e => e.id)))
+  if (!rows.length) return ''
+  const clip = (s: string) => (s.length > 40 ? `${s.slice(0, 39)}…` : s)
+  const named = rows
+    .slice(0, 4)
+    .map(r => `${clip(r.t)} → ${clip(r.effect) || 'nothing'}`)
+    .join('; ')
+  return `\n⚠️ ${rows.length} storyboard row${rows.length > 1 ? 's' : ''} in direction.md name no effect from the library: ${named}${rows.length > 4 ? ` and ${rows.length - 4} more` : ''}. Search each row for what happens in it (pitch effects search "<the move>", every row's searches in one shell call), write the chosen ids (family/slug) in its effect column, and port them.`
+}
+
 const words = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
 // Words that say nothing about a move. As prefixes they matched nearly every

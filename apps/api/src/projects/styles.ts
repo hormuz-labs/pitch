@@ -39,7 +39,7 @@ export const STUDIO_STYLES: StudioStyle[] = [
     label: 'Explain my product',
     hint: 'A narrated story on your real screens: the problem, your product, the result',
     direction:
-      "Narrate a story from the viewer's problem, through the product, to what it gives them. The spoken words build on screen as they are said, the key ones given their own weight, colour or serif italic (`captions`), and under each line goes a picture of what it says. Show the product on its real screens, the camera pushing to what is being used.",
+      "Narrate a story from the viewer's problem, through the product, to what it gives them. The spoken words build on screen as they are said, the key ones given their own weight, colour, pill or serif italic (`captions`), and under each line goes a picture of what it says. Show the product on its real screens, the camera pushing to what is being used.",
   },
   {
     id: 'kinetic-type',

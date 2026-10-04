@@ -582,6 +582,8 @@ img.actor.mat-glass, img.actor.mat-neumorph { padding: 14px 18px; border-radius:
   font-family: var(--cap-font, var(--font)); text-shadow: var(--cap-shadow, none); }
 .cap-phrase.line { display: block; }
 .cap-phrase.line .cap-w { display: inline-block; margin-right: 0.24em; }
+.cap-phrase.line.align-center .cap-w { margin: 0 0.12em; }
+.cap-phrase.line.align-right .cap-w { margin: 0 0 0 0.24em; }
 .cap-phrase.align-center { align-items: center; text-align: center; }
 .cap-phrase.align-right { align-items: flex-end; text-align: right; }
 .cap-w { display: block; white-space: nowrap; visibility: hidden; will-change: transform, filter, opacity; }
@@ -592,6 +594,11 @@ img.actor.mat-glass, img.actor.mat-neumorph { padding: 14px 18px; border-radius:
 .cap-w.fx-outline { color: transparent; -webkit-text-stroke: 0.035em var(--cap-color, #fff); }
 .cap-w.fx-strike { text-decoration: line-through; text-decoration-thickness: 0.09em; }
 .cap-w.fx-small { font-size: 0.62em; }
+.cap-w.fx-mark { position: relative; }
+.cap-phrase.line .cap-w.fx-mark { margin: 0 0.3em 0 0.2em; }
+.cap-w.fx-mark::before { content: ""; position: absolute; inset: 0.02em -0.14em; z-index: -1; border-radius: 0.28em;
+  background: var(--cap-mark, var(--accent)); transform-origin: 0 50%; transform: scaleX(var(--mark-s, 1));
+  opacity: var(--mark-o, 0); filter: blur(var(--mark-b, 0)); }
 .cap-phrase.replace { display: grid; }
 .cap-phrase.replace .cap-w { grid-area: 1 / 1; justify-self: start; }
 .cap-phrase.replace.align-center .cap-w { justify-self: center; }

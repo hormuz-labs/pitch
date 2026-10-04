@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import effectCommands, { loadEffects, searchEffects, stem } from '../.pi/cli/effects.ts'
+import effectCommands, {
+  loadEffects,
+  searchEffects,
+  stem,
+  storyboardNote,
+  unsourcedRows,
+} from '../.pi/cli/effects.ts'
 import { EFFECTS_DIR, resolveIn, SHARED_ROOTS } from '../.pi/lib/paths.ts'
 import { collectCommands } from '../.pi/lib/testing.ts'
 
@@ -64,6 +70,37 @@ describe('pitch effects', () => {
     const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-ws-'))
     expect(resolveIn(ws, path.join(EFFECTS_DIR, 'text/text-scramble/index.html'))).toBeTruthy()
     expect(() => resolveIn(ws, path.join(EFFECTS_DIR, '_lib/fx.js'))).toThrow(/library code/)
+    fs.rmSync(ws, { recursive: true, force: true })
+  })
+
+  it('names the storyboard rows that were planned from nothing', () => {
+    const direction = `# Direction
+
+| Brand | value |
+|---|---|
+| ground | light |
+
+| t | on screen | effect | for |
+|---|---|---|---|
+| "Every day" | the line builds | \`launch-primitives/spoken-line-recentre\` + text/text-scramble | hook |
+| "Start" | a prompt pill | kinetic prompt input | the input |
+| bar 5 | the logo | | payoff |
+`
+    const known = new Set(['launch-primitives/spoken-line-recentre', 'text/text-scramble'])
+    expect(unsourcedRows(direction, known)).toEqual([
+      { t: '"Start"', effect: 'kinetic prompt input' },
+      { t: 'bar 5', effect: '' },
+    ])
+
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'storyboard-'))
+    expect(storyboardNote(ws)).toBe('')
+    fs.writeFileSync(path.join(ws, 'direction.md'), direction)
+    const note = storyboardNote(
+      ws,
+      [...known].map(id => ({ id }) as any),
+    )
+    expect(note).toContain('2 storyboard rows in direction.md name no effect from the library')
+    expect(note).toContain('"Start" → kinetic prompt input; bar 5 → nothing')
     fs.rmSync(ws, { recursive: true, force: true })
   })
 })
