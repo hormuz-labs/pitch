@@ -372,7 +372,9 @@ const headFamily = firstFamily(data.type.h1?.family || data.type.h2?.family || d
 const bodyFamily = firstFamily(data.type.body?.family || data.body.family);
 
 // ---- fonts: self-host the brand's own files ---------------------------------------
-const wanted = new Set([headFamily, bodyFamily].filter(Boolean).map((f) => f.toLowerCase()));
+// The h2/h3 faces too: a site set in the system font often carries its brand
+// in a web serif on the section headings (trypitch.co: Instrument Serif).
+const wanted = new Set([headFamily, bodyFamily, firstFamily(data.type.h2?.family), firstFamily(data.type.h3?.family)].filter(Boolean).map((f) => f.toLowerCase()));
 const fontFiles = [];
 const otherFontUrls = [];
 if (fontsDir) {
