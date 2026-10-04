@@ -1,0 +1,185 @@
+<!doctype html><meta charset="utf-8"><title>Grid Glow Labels</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+.stage{
+  --light-top:#fbf9fd; --light-low:#b3bdfd; --ink:#1d1d25;
+  --ground:#050508; --tile:rgba(22,22,30,.42); --label:#f3f3f8; --label-dim:#4c4c58;
+  --accent:#2b3cd6; --glow:48,68,235; --hot:240,242,255; --haze:30,46,190;
+  font-family:"Sharp Grotesk",Arial,sans-serif; background:var(--ground);
+}
+/* lead-in: the previous shot's caption, pushed into until the cut */
+.light{position:absolute;inset:0;background:radial-gradient(130% 55% at 60% 112%,#a9b5ff 0%,rgba(169,181,255,0) 70%),linear-gradient(180deg,var(--light-top) 0%,#f4f4fb 50%,#e3e6fd 72%,var(--light-low) 100%)}
+.light .cap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:960px 180px;font:400 70px/1 "Sharp Grotesk";letter-spacing:-.012em;color:var(--ink);white-space:nowrap}
+.dark{position:absolute;inset:0;visibility:hidden}
+.world{position:absolute;left:0;top:0;width:1px;height:1px;will-change:transform}
+.tiles{position:absolute;left:0;top:0;filter:blur(2px)}
+.tile{position:absolute;width:286px;height:286px;border-radius:30px;background:var(--tile);box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.tile.wide{width:602px}
+.tile.icon{background:rgba(22,22,32,.45)}
+.lit{position:absolute;inset:0;border-radius:30px;opacity:0}
+.hot,.hot2,.body,.halo{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;will-change:transform,opacity}
+.body{width:760px;height:760px;margin:-380px 0 0 -380px;background:radial-gradient(closest-side,rgba(var(--glow),.95) 0%,rgba(var(--glow),.72) 38%,rgba(var(--glow),.28) 70%,rgba(var(--glow),0) 100%)}
+.hot{width:470px;height:470px;margin:-235px 0 0 -235px;background:radial-gradient(closest-side,rgba(var(--hot),1) 0%,rgba(222,226,255,.95) 30%,rgba(150,162,248,.5) 62%,rgba(var(--glow),0) 100%)}
+.hot2{width:420px;height:420px;margin:-210px 0 0 -210px;mix-blend-mode:screen;background:radial-gradient(closest-side,rgba(var(--hot),.75) 0%,rgba(200,208,255,.5) 35%,rgba(120,136,245,.18) 70%,rgba(var(--glow),0) 100%)}
+.halo{width:760px;height:760px;margin:-380px 0 0 -380px;mix-blend-mode:screen;background:radial-gradient(closest-side,rgba(var(--glow),.42) 0%,rgba(var(--glow),.16) 55%,rgba(var(--glow),0) 100%)}
+.label{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:400 66px/1 "Sharp Grotesk";letter-spacing:-.01em;white-space:nowrap}
+.ico{position:absolute;left:0;top:0;width:120px;height:120px;margin:-60px 0 0 -60px;color:var(--label)}
+.ico svg,.pill-ico svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.haze{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background:linear-gradient(0deg,rgba(var(--haze),.55) 0%,rgba(var(--haze),.22) 14%,rgba(var(--haze),.06) 30%,rgba(var(--haze),0) 42%)}
+/* the next scene: a field of big pills */
+.pills{position:absolute;inset:0;visibility:hidden}
+.prow{position:absolute;left:0;top:0;height:300px;display:flex;align-items:center;gap:0;will-change:transform}
+.pill{position:relative;flex:none;height:300px;padding:0 176px;border:5px solid var(--accent);border-radius:150px;background:#050509;display:flex;align-items:center;
+  font:400 122px/1 "Sharp Grotesk";letter-spacing:-.015em;color:var(--label);white-space:nowrap;overflow:hidden}
+.pill span{position:relative}
+.pill .fill{position:absolute;inset:7px;border-radius:150px;opacity:0}
+.pill-ico{flex:none;width:440px;height:120px;display:flex;justify-content:center;color:var(--label)}
+.pill-ico svg{width:120px;height:120px}
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-person" viewBox="0 0 48 48"><circle cx="24" cy="15" r="7"/><path d="M10 41c0-8 6-13 14-13s14 5 14 13"/></symbol>
+  <symbol id="i-people" viewBox="0 0 48 48"><circle cx="18" cy="16" r="6.5"/><path d="M5 40c0-7.5 5.5-12 13-12s13 4.5 13 12"/><path d="M29 9.6a6.5 6.5 0 0 1 0 12.8"/><path d="M34 28.6c5 1.4 9 5.4 9 11.4"/></symbol>
+  <symbol id="i-building" viewBox="0 0 48 48"><path d="M15 41V9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v32"/><path d="M15 19H9a2 2 0 0 0-2 2v20h34V21a2 2 0 0 0-2-2h-6"/><path d="M20 13h8M20 19h8"/><path d="M20 41v-8a4 4 0 0 1 8 0v8"/></symbol>
+</svg>
+
+<div class="stage">
+  <div class="light"><div class="cap">Because inside every team</div></div>
+  <div class="dark">
+    <div class="world">
+      <div class="unders"></div>
+      <div class="tiles"></div>
+      <div class="overs"></div>
+    </div>
+    <div class="pills"></div>
+    <div class="haze"></div>
+  </div>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+/* Times are seconds from the start of the effect (reel 0:08.9 = 0).
+   0.00-0.53  lead-in: the previous shot's caption pushes in on an accelerating (exponential) zoom, then a hard cut
+   0.53-2.92  the grid: the camera carries the push across the cut (expoOut 1.10 -> 1.23), pans down while easing
+              back to 1.0, pans right, then accelerates left into a second hard cut
+   2.92-4.60  the pill field enters at the same leftward speed and settles (expoOut 1.6 s); one pill fills */
+const M = Motion, D = 4.6, CUT1 = .53, CUT2 = 2.92;
+const cubicInOut = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const $ = s => document.querySelector(s);
+const icon = id => `<svg><use href="#i-${id}"/></svg>`;
+
+/* World: a grid of 286 px tiles on a 316 px pitch (world px = screen px at zoom 1). */
+const P = 316, colX = k => 45 + P * k, rowY = r => 75 + P * r;
+const ROLES = [
+  { label: 'Design',  icon: 'person',   lc: [0, 0], wide: true,  ic: [2, 0], in: [.54, 1.0], labAt: .55, a: [-5, 160, .6, 2.9] },
+  { label: 'Sales',   icon: 'building', lc: [2, 1], wide: true,  ic: [4, 1], in: [2.05, 2.3], labAt: 2.12, a: [-40, 0, 2.05, 2.9] },
+  { label: 'Support', icon: 'people',   lc: [0, 2], wide: false, ic: [1, 2], in: [1.4, 1.7], labAt: 1.48, a: [80, 150, 1.5, 2.9] },
+];
+const taken = new Set();
+const tilesEl = $('.tiles'), unders = $('.unders'), overs = $('.overs');
+for (const R of ROLES) {
+  const [c, r] = R.lc, w = R.wide ? 2 : 1;
+  for (let k = 0; k < w; k++) taken.add(`${c + k},${r}`);
+  taken.add(`${R.ic[0]},${R.ic[1]}`);
+  R.cx = colX(R.ic[0]) + 143; R.cy = rowY(R.ic[1]) + 143;
+  R.lx = colX(c) + (w * P - 30) / 2; R.ly = rowY(r) + 143;
+  const lt = document.createElement('div'); lt.className = 'tile' + (R.wide ? ' wide' : '');
+  lt.style.left = colX(c) + 'px'; lt.style.top = rowY(r) + 'px'; tilesEl.appendChild(lt);
+  const it = document.createElement('div'); it.className = 'tile icon';
+  it.style.left = colX(R.ic[0]) + 'px'; it.style.top = rowY(R.ic[1]) + 'px';
+  it.innerHTML = '<div class="lit"></div>'; tilesEl.appendChild(it); R.lit = it.firstChild;
+  R.body = Object.assign(document.createElement('div'), { className: 'body' }); unders.appendChild(R.body);
+  R.hot = Object.assign(document.createElement('div'), { className: 'hot' }); unders.appendChild(R.hot);
+  R.halo = Object.assign(document.createElement('div'), { className: 'halo' }); overs.appendChild(R.halo);
+  R.hot2 = Object.assign(document.createElement('div'), { className: 'hot2' }); overs.appendChild(R.hot2);   // the same light, falling on the tile faces
+  R.lab = Object.assign(document.createElement('div'), { className: 'label', textContent: R.label });
+  R.lab.style.left = R.lx + 'px'; R.lab.style.top = R.ly + 'px'; overs.appendChild(R.lab);
+  R.ico = Object.assign(document.createElement('div'), { className: 'ico', innerHTML: icon(R.icon) });
+  R.ico.style.left = R.cx + 'px'; R.ico.style.top = R.cy + 'px'; overs.appendChild(R.ico);
+}
+for (let r = -2; r <= 4; r++) for (let c = -3; c <= 8; c++) {
+  if (taken.has(`${c},${r}`)) continue;
+  const d = document.createElement('div'); d.className = 'tile';
+  d.style.left = colX(c) + 'px'; d.style.top = rowY(r) + 'px'; tilesEl.appendChild(d);
+}
+
+/* Pill field: two rows, a line icon between pills; row 2 carries the pill that fills.
+   The rows run in opposite directions: row 2 carries the grid's leftward speed across the cut
+   ("Thinking" centre 1492 -> 972, quartOut 1.0 s); row 1 pops in two frames later moving right
+   ("Asking" centre 917 -> 1405, cubicOut 0.63 s). */
+const ROWS = [
+  { y: 45,  anchor: 2, at: 917, items: ['Thinking', 'people', 'Asking', 'building', 'Building', 'person', 'Sharing', 'people', 'Planning'] },
+  { y: 405, anchor: 2, at: 1492, items: ['Building', 'person', 'Thinking', 'people', 'Asking', 'building', 'Sharing', 'person', 'Writing'] },
+];
+for (const R of ROWS) {
+  R.el = Object.assign(document.createElement('div'), { className: 'prow' });
+  R.el.innerHTML = R.items.map((w, i) => i % 2 ? `<div class="pill-ico">${icon(w)}</div>` : `<div class="pill"><div class="fill"></div><span>${w}</span></div>`).join('');
+  $('.pills').appendChild(R.el);
+}
+const hiPill = ROWS[1].el.children[2], hiFill = hiPill.querySelector('.fill');
+
+/* Camera over the grid: world point at screen centre (x,y) and zoom. */
+function cam(t) {
+  const z = 1.10 + .13 * M.phase(t, CUT1, CUT1 + 1.0, 'expoOut') - .23 * M.phase(t, 1.12, 1.82, cubicInOut);
+  const pan1 = M.phase(t, 1.1, 1.85, cubicInOut);            // down, to Support
+  const pan2 = M.phase(t, 1.8, 2.7, 'move');                  // right and up, to Sales (peak speed ~1600 px/s at t 2.1)
+  const rush = t > 2.4 ? 1.3 * (Math.exp(10 * (t - 2.4)) - 1) : 0;   // accelerates left into the cut (x1.4 a frame, ~2350 px/s at the cut)
+  const x = 568 - 30 * pan1 + 450 * pan2 + rush;
+  const y = 196 + 45 * M.phase(t, .6, 1.15, 'smooth') + 478 * pan1 - 187 * pan2;
+  return { x, y, zoom: z };
+}
+
+function seek(t) {
+  const dark = t >= CUT1;
+  $('.light').style.visibility = dark ? 'hidden' : 'visible';
+  $('.dark').style.visibility = dark ? 'visible' : 'hidden';
+  if (!dark) {
+    // ln(zoom) grows exponentially: 1.03 creeping, then 1.11, 1.28, 1.7 into the cut
+    const z = Math.exp(.03 + .52 * Math.exp(8.8 * (t - CUT1)));
+    $('.light .cap').style.transform = `scale(${z})`;
+    return;
+  }
+  const grid = t < CUT2;
+  $('.world').style.visibility = grid ? 'visible' : 'hidden';
+  $('.pills').style.visibility = grid ? 'hidden' : 'visible';
+
+  if (grid) {
+    M.camera($('.world'), cam(t));
+    for (const R of ROLES) {
+      const g = M.phase(t, R.in[0], R.in[1], 'smooth');
+      const a = M.between(t, R.a[2], R.a[3], R.a[0], R.a[1], 'smooth') * Math.PI / 180;
+      const ux = Math.cos(a), uy = Math.sin(a);
+      const s = .7 + .3 * g;
+      M.set(R.body, { x: R.cx + 45 * ux, y: R.cy + 45 * uy, scale: s, opacity: g });
+      M.set(R.hot, { x: R.cx + 196 * ux, y: R.cy + 196 * uy, scale: s, opacity: .72 * g });
+      M.set(R.halo, { x: R.cx + 60 * ux, y: R.cy + 60 * uy, scale: s, opacity: g });
+      M.set(R.hot2, { x: R.cx + 196 * ux, y: R.cy + 196 * uy, scale: 1.1 * s, opacity: .7 * g });
+      // the icon tile: blue glass, lighter on the side facing the hot spot
+      const deg = a * 180 / Math.PI + 90;
+      R.lit.style.opacity = g;
+      R.lit.style.background = `linear-gradient(${deg}deg,rgba(34,52,205,.4) 0%,rgba(52,72,228,.42) 55%,rgba(160,172,250,.5) 100%)`;
+      // label: dim grey to white, out of a small blur
+      const l = M.phase(t, R.labAt, R.labAt + .2, 'smooth');
+      const c = Math.round(M.lerp(76, 243, l));
+      R.lab.style.opacity = M.clamp(l * 2.5);
+      R.lab.style.color = `rgb(${c},${c},${Math.min(255, c + 8)})`;
+      R.lab.style.filter = `blur(${4 * (1 - l)}px)`;
+    }
+  } else {
+    for (const R of ROWS) if (R.x0 == null) {      // place each row so its anchor pill's centre sits at R.at when it lands
+      const a = R.el.children[R.anchor]; R.x0 = R.at - (a.offsetLeft + a.offsetWidth / 2);
+    }
+    const x2 = -520 * M.phase(t, CUT2, CUT2 + 1.0, p => 1 - Math.pow(1 - p, 4));   // ~2100 px/s at the cut, settles
+    const x1 = 488 * M.phase(t, CUT2 + .067, CUT2 + .7, 'cubicOut');
+    ROWS[1].el.style.transform = `translate3d(${ROWS[1].x0 + x2}px,${ROWS[1].y}px,0)`;
+    ROWS[0].el.style.transform = `translate3d(${ROWS[0].x0 + x1}px,${ROWS[0].y}px,0)`;
+    ROWS[0].el.style.opacity = M.phase(t, CUT2 + .04, CUT2 + .07, 'linear');
+    const f = M.phase(t, 3.35, 3.95, 'move');
+    hiFill.style.opacity = M.phase(t, 3.35, 3.5, 'smooth');
+    hiFill.style.background = `linear-gradient(90deg,rgba(222,226,250,${f}) 0%,rgba(109,126,230,${.4 + .6 * f}) ${6 + 22 * f}%,#2b3ed4 ${18 + 32 * f}%,rgba(20,30,140,0) ${45 + 45 * f}%)`;
+  }
+}
+fx.register({ duration: D, loop: false, seek });
+</script>

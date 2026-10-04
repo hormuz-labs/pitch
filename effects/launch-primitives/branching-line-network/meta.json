@@ -1,0 +1,29 @@
+{
+  "name": "Branching Line Network",
+  "seconds": 5,
+  "move": "a blue line rushes in from the left out of merging curved branches on dark, the camera whips along it to a sentence, and the frame shrinks into a square card on blue",
+  "how": "One seek(t) over SVG + DOM. The line world (a straight line joined by two cubic S-branches) slides in from the left while its head draws on; both are fitted two-term decays off the reel (join: 3→323px, a=.6, τ=.07/.55s; head: 58→876px, a=.55, τ=.14/.7s), so it arrives at full speed and settles for ~2s with no overshoot. A tall soft blue light band sits behind it, tilting 32°→6° and widening as it brightens. At 2.15s the camera whips 860px right with cubic-bezier(.9,0,.25,1) over 1.15s (slow start, peak ~1/2 in, hard stop); the light band moves at 2.05x the camera, so it sweeps past like a nearer layer. The first word fades in at 2.79s already moving, the line rises 50px with cubicOut and the second (bold) word lands at 3.0s, centred when the pan stops. At 3.5s the frame is clipped by a square whose side collapses 1920→579px (two decays, τ=.05/.25s): it pinches the sides first (height stays full until the side is under 1080), the sentence shrinks to 0.7 a beat earlier and slower, and the second line ('gets' 3.53s, 'stuck.' 3.71s) builds inside the card. The light band shrinks with the frame so it ends as a faint edge on the card.",
+  "moves": [
+    "line-draw",
+    "branch-merge",
+    "camera-whip-pan",
+    "parallax-glow",
+    "word-build",
+    "frame-to-card",
+    "dark-to-color-join"
+  ],
+  "libs": [
+    "svg",
+    "motion"
+  ],
+  "adapt": "Swap --night/--line/--glow/--ground for the brand; the sentence is two lines (.l1 world-locked during the pan, .l2 built inside the card). Keep the ratios: ~2s of line settle, a 1.1s whip that starts slow, word one arriving during the whip's tail, the card collapse within 0.3s. More branches: add S-curves ending at the join (0,0); keep them left of x=-330 so the join reads first. The card size (579px) and its blue ground are the next scene's frame.",
+  "port": "Custom shot type js/shots/branching-line.js: build the stage markup inside el, then animate(el, s, D) returns a timeline that tweens a proxy {t:0} to {t:5} with ease 'none' over D (or place the whip start at a beat: PAN0 on s.beatTimes, the card on the next downbeat) and ShotKit.frameHook(el, () => seek(proxy.t)) draws the frame; selectors scoped to el. The sentence is narration: either the shot draws it (as here) and the film's captions skip that phrase, or set captions.phrases[n] with stack:'line', pos 'center', enter 'cut' and out at the card time, and let the shot carry only the line and the card. The card's ground is the next shot's ground, so the join is the clip itself: the next shot starts with its frame where the card settled.",
+  "caveats": [
+    "The reel's bold word is heavier than Sharp Grotesk 500; a 1.6px text stroke stands in for bold.",
+    "The light band is a radial gradient, not a filmed light; it reads right on dark grounds only.",
+    "In the reel the card keeps shrinking into the next scene; here it settles and holds."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

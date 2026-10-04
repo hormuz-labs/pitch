@@ -1,0 +1,262 @@
+<!doctype html><meta charset="utf-8"><title>Logo Tile Converge</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage {
+    --ground-top: #fbf9fc; --ground-mid: #f3f2f7; --ground-low: #e3e6fd; --ground-base: #bcc5fd;
+    --bloom: #8094fb;
+    --ink: #16161e; --ink-soft: #9a9aaa;
+    --accent: #2236c4; --accent-soft: #a9b2ee;
+    --tile: #f6f6fa; --tile-low: #ebebf3;
+    width: 1920px; height: 1080px; overflow: hidden;
+    font-family: "Sharp Grotesk", "Atlas Grotesk", sans-serif;
+    background: linear-gradient(180deg, var(--ground-top) 0%, var(--ground-mid) 46%, var(--ground-low) 76%, var(--ground-base) 100%);
+  }
+  .bloom { position: absolute; inset: 0; opacity: 0;
+    background:
+      radial-gradient(70% 60% at 82% 52%, rgba(255,255,255,.75) 0%, rgba(255,255,255,0) 70%),
+      linear-gradient(180deg, rgba(0,0,0,0) 34%, color-mix(in srgb, var(--bloom) 55%, transparent) 62%, var(--bloom) 100%); }
+  .scene { position: absolute; inset: 0; visibility: hidden; }
+  .plane { position: absolute; inset: 0; transform-origin: 960px 540px; will-change: transform, filter; }
+  .line { position: absolute; left: 0; right: 0; text-align: center; color: var(--ink); white-space: nowrap; }
+  .w { display: inline-block; opacity: 0; transform-origin: 50% 80%; }
+  .script { font-family: "Sorts Mill Goudy", serif; font-style: italic; color: var(--accent); letter-spacing: -.005em; }
+  .brandword { color: var(--accent); font-weight: 500; }
+
+  /* scene 1: the sentence ends on a script word */
+  .s1 .line { top: 498px; font-size: 68px; font-weight: 500; letter-spacing: -.015em; }
+  .s1 .script { font-size: 78px; }
+
+  /* scene 2: tile, mark, cables */
+  .s2 .copy { position: absolute; left: 0; right: 0; top: 160px; }
+  .s2 .line { position: relative; font-size: 58px; line-height: 74px; letter-spacing: -.01em; }
+  .cables { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .tile { position: absolute; left: 798px; top: 378px; width: 324px; height: 324px; border-radius: 40px; opacity: 0;
+    background: linear-gradient(180deg, var(--tile) 0%, var(--tile-low) 100%); overflow: hidden; }
+  .tile .band { position: absolute; left: -10px; right: -10px; top: 157px; height: 10px; background: var(--accent);
+    filter: blur(9px); opacity: 0; }
+  .tile svg { position: absolute; left: 47px; top: 47px; width: 230px; height: 230px; overflow: visible; }
+  .mark path { fill: none; stroke: var(--accent); stroke-width: 9.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* scene 3: CTA */
+  .s3 .line { top: 504px; font-size: 60px; font-weight: 500; letter-spacing: -.015em; }
+  .s3 .accentword { color: var(--accent); }
+
+  /* scene 4: wordmark */
+  .wordmark { position: absolute; left: 0; right: 0; top: 0; height: 1080px; display: flex; align-items: center; justify-content: center; }
+  .wm { position: relative; white-space: nowrap; font-weight: 500; font-size: 146px; letter-spacing: -.035em;
+    color: var(--accent); line-height: 1; transform: translate(-40px, 10px); }
+  .wm .ch { display: inline-block; opacity: 0; }
+  /* the mark's baseline (y=136 of 200) sits on the text baseline */
+  .wm svg { width: 270px; height: 270px; margin-left: -50px; vertical-align: -86px; overflow: visible; }
+  .wm .mark path { stroke-width: 8.5; }
+</style>
+
+<div class="stage">
+  <div class="bloom"></div>
+
+  <section class="scene s1"><div class="plane">
+    <div class="line"><span class="w">inside</span> <span class="w">your</span> <span class="w script">institution.</span></div>
+  </div></section>
+
+  <section class="scene s2">
+    <div class="plane tp">
+      <svg class="cables" viewBox="0 0 1920 1080"><defs></defs><g class="lines"></g></svg>
+      <div class="tile"><div class="band"></div>
+        <svg class="mark" viewBox="5 9 200 200">
+          <path d="M 30 136 C 58 126, 100 90, 110 60 C 116 40, 104 26, 93 38 C 82 52, 76 98, 70 136 C 66 162, 60 182, 52 188 C 44 194, 40 184, 48 172 C 58 158, 76 144, 92 136 C 102 130, 110 120, 117 108 C 117 120, 113 131, 110 140 C 120 118, 134 102, 146 106 C 156 110, 151 126, 148 136 C 145 145, 160 145, 180 128"/>
+        </svg>
+      </div>
+    </div>
+    <div class="plane xp"><div class="copy">
+      <div class="line"><span class="w brandword">fieldnote</span> <span class="w">is</span> <span class="w">the</span> <span class="w">infrastructure</span></div>
+      <div class="line"><span class="w">connecting</span> <span class="w">them.</span></div>
+    </div></div>
+  </section>
+
+  <section class="scene s3"><div class="plane">
+    <div class="line"><span class="w">Schedule</span> <span class="w">a</span> <span class="w accentword">discovery</span> <span class="w accentword">call</span> <span class="w">today.</span></div>
+  </div></section>
+
+  <section class="scene s4"><div class="plane wp"><div class="wordmark"><div class="wm">
+    <span class="ch">f</span><span class="ch">i</span><span class="ch">e</span><span class="ch">l</span><span class="ch">d</span><span class="ch">n</span><span class="ch">o</span><span class="ch">t</span><span class="ch">e</span>
+    <svg class="mark" viewBox="0 0 200 200">
+      <path d="M 30 136 C 58 126, 100 90, 110 60 C 116 40, 104 26, 93 38 C 82 52, 76 98, 70 136 C 66 162, 60 182, 52 188 C 44 194, 40 184, 48 172 C 58 158, 76 144, 92 136 C 102 130, 110 120, 117 108 C 117 120, 113 131, 110 140 C 120 118, 134 102, 146 106 C 156 110, 151 126, 148 136 C 145 145, 160 145, 180 128"/>
+    </svg>
+  </div></div></div></section>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const M = Motion, { phase, between, clamp, lerp } = M;
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const stage = $('.stage');
+  const css = getComputedStyle(stage);
+  const rgb = name => {           // custom property → [r,g,b] so word colours can be mixed per frame
+    const probe = document.createElement('i'); probe.style.color = css.getPropertyValue(name).trim();
+    document.body.appendChild(probe); const m = getComputedStyle(probe).color.match(/[\d.]+/g).map(Number); probe.remove();
+    return m.slice(0, 3);
+  };
+  const C = { ink: rgb('--ink'), inkSoft: rgb('--ink-soft'), accent: rgb('--accent'), accentSoft: rgb('--accent-soft') };
+  const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], p))).join(',')})`;
+
+  /* ---------- timing (seconds; reel 1:52.7 = 0) ---------- */
+  const CUT1 = 1.6, CUT2 = 4.77, CUT3 = 6.6, END = 8.6;
+  const S1 = [0.12, 0.32, 0.42];                 // inside / your / institution.
+  const S2 = [CUT1, 1.9, 2.1, 2.33, 2.55, 2.78];   // fieldnote is the infrastructure / connecting them.
+  const S3 = [4.78, 5.02, 5.26, 5.5, 5.73];       // Schedule a discovery call today.
+  const DRAW_TILE = [1.62, 2.18];               // one continuous stroke, like a signature
+  const DRAW_WM = [6.62, 7.04];
+
+  /* A word arrives from below, pale, a touch large; settles in 0.3s (expoOut: out of a fade). */
+  function word(el, t0, t, soft, full, rise = .45, blur = 0) {
+    const p = phase(t, t0, t0 + .3, 'expoOut');
+    if (t < t0) { el.style.opacity = 0; return; }
+    el.style.opacity = .3 + .7 * p;
+    el.style.color = mix(soft, full, phase(t, t0, t0 + .22, 'smooth'));
+    el.style.transform = `translateY(${(1 - p) * rise}em) scale(${1 + .08 * (1 - p)})`;
+    el.style.filter = blur ? `blur(${(1 - p) * blur}px)` : 'none';
+  }
+  function plane(el, s, y = 0, blur = 0) {
+    el.style.transform = `translateY(${y}px) scale(${s})`;
+    el.style.filter = blur > .05 ? `blur(${blur}px)` : 'none';
+  }
+
+  /* ---------- the mark: dash-drawn strokes ---------- */
+  function prepMark(svg) {
+    return $$('path', svg).map(p => { const L = p.getTotalLength(); p.style.strokeDasharray = `${L} ${L + 2}`; p.style.strokeDashoffset = L; return { p, L }; });
+  }
+  const penEase = x => .75 * x + .25 * M.eases.smooth(x);   // pen speed: near-constant, eases at the ends
+  function drawMark(strokes, [a0, a1], t) {
+    // strokes share the window by length, in document order, so a two-stroke mark draws stroke by stroke
+    const total = strokes.reduce((n, s) => n + s.L, 0);
+    let p = penEase(phase(t, a0, a1, 'linear')) * total;
+    strokes.forEach(s => {
+      const q = clamp(p / s.L); p -= s.L;
+      s.p.style.strokeDashoffset = s.L * (1 - q);
+      s.p.style.opacity = q > 0 ? 1 : 0;      // a round cap would otherwise show a dot before the pen lands
+    });
+  }
+  const tileMark = prepMark($('.tile svg')), wmMark = prepMark($('.wm svg'));
+
+  /* ---------- cables: 7 per side, S-curves that merge before the tile ---------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  const OFFS = [0, -131, 131, -241, 241, -387, 387];       // y at the frame edge, from centre
+  const MERGE = 695, EDGE = 798, FAR = -280, CY = 540;
+  const S = x => x * x * (3 - 2 * x);
+  const g = u => S(clamp(Math.pow(u, .95) / 1.12)) / .968;   // fitted to the reel: flat into the merge, still rising at the edge
+  const defs = $('.cables defs'), group = $('.cables .lines');
+  const grad = (id, x1, x2, stops) => {
+    const lg = document.createElementNS(NS, 'linearGradient');
+    lg.id = id; lg.setAttribute('gradientUnits', 'userSpaceOnUse');
+    lg.setAttribute('x1', x1); lg.setAttribute('x2', x2); lg.setAttribute('y1', 0); lg.setAttribute('y2', 0);
+    stops.forEach(([o, a]) => { const st = document.createElementNS(NS, 'stop'); st.setAttribute('offset', o);
+      st.setAttribute('stop-color', 'var(--accent)'); st.style.stopColor = 'var(--accent)'; st.setAttribute('stop-opacity', a); lg.appendChild(st); });
+    defs.appendChild(lg);
+  };
+  for (const side of [-1, 1]) {
+    const X = x => side < 0 ? x : 1920 - x;
+    grad(`thin${side}`, X(MERGE), X(-120), [[0, 1], [.3, .92], [.7, .5], [1, .2]]);
+    grad(`thick${side}`, X(MERGE + 40), X(330), [[0, 1], [.5, .5], [1, 0]]);
+  }
+  const cables = [];
+  OFFS.forEach((off, i) => {
+    const k = Math.ceil(i / 2);                               // pair index: centre first, outer last
+    for (const side of [-1, 1]) {
+      const X = x => side < 0 ? x : 1920 - x;
+      const pts = [];
+      for (let n = 0; n <= 64; n++) { const x = lerp(FAR, MERGE, n / 64); pts.push([X(x), CY + off * g((MERGE - x) / MERGE)]); }
+      pts.push([X(EDGE), CY]);
+      const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+      const mk = (w, gid, op) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d);
+        p.setAttribute('fill', 'none'); p.setAttribute('stroke', `url(#${gid})`); p.setAttribute('stroke-width', w);
+        p.setAttribute('stroke-linecap', 'round'); p.dataset.op = op; p.style.opacity = 0; group.appendChild(p); return p; };
+      const thin = mk(5.5, `thin${side}`, 1 - .07 * k), thick = mk(8.5, `thick${side}`, 1 - .05 * k);
+      const L = thin.getTotalLength();
+      [thin, thick].forEach(p => { p.style.strokeDasharray = `${L} ${L}`; p.style.strokeDashoffset = L; });
+      cables.push({ thin, thick, L, start: [1.82, 1.98, 2.13, 2.3][k] + (side > 0 ? .05 : 0) });
+    }
+  });
+  // the stub where the bundle plugs into the tile, thicker toward the tile
+  const stubs = [-1, 1].map(side => {
+    const X = x => side < 0 ? x : 1920 - x;
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M${X(MERGE - 50)} ${CY - 3} L${X(EDGE)} ${CY - 7.5} L${X(EDGE)} ${CY + 7.5} L${X(MERGE - 50)} ${CY + 3} Z`);
+    p.setAttribute('fill', 'var(--accent)'); p.style.fill = 'var(--accent)'; group.appendChild(p); return p;
+  });
+
+  const scenes = $$('.scene');
+  const s1Words = $$('.s1 .w'), s2Words = $$('.s2 .w'), s3Words = $$('.s3 .w'), wmChars = $$('.wm .ch');
+  const s1Plane = $('.s1 .plane'), tp = $('.s2 .tp'), xp = $('.s2 .xp'), s3Plane = $('.s3 .plane'), wp = $('.s4 .wp');
+  const tile = $('.tile'), band = $('.tile .band'), bloom = $('.bloom');
+
+  function seek(t) {
+    const sc = t < CUT1 ? 0 : t < CUT2 ? 1 : t < CUT3 ? 2 : 3;
+    scenes.forEach((s, i) => s.style.visibility = i === sc ? 'visible' : 'hidden');
+
+    /* scene 1: the line builds; the camera pulls back, accelerating into the cut */
+    s1Words.forEach((w, i) => i < 2 ? word(w, S1[i], t, C.inkSoft, C.ink)
+                                    : word(w, S1[i], t, C.accentSoft, C.accent, .3, 7));
+    const pull1 = t > 1.2 ? .9 * (t - 1.2) ** 2 : 0;
+    plane(s1Plane, 1 - pull1);
+
+    /* scene 2: the pull-back continues across the cut. The tile is the near plane
+       (2.2x at the cut), the copy the far one (1.5x); both decay on expoOut over 2s. */
+    const d = t - CUT1;
+    const drift = 1 + .031 * (3.3 - t);
+    const e = 1.1 * (1 - phase(d, 0, 2, 'expoOut'));
+    const exitY = t > 4.5 ? -2000 * (t - 4.5) ** 2.2 : 0;   // the scene tilts away, accelerating into the cut
+    const defocus = 7 * e * e;
+    tile.style.opacity = phase(t, CUT1, CUT1 + .16, 'smooth');
+    plane(tp, drift * (1 + e), exitY, defocus);
+    plane(xp, drift * (1 + .42 * e), exitY, defocus * .8);
+    s2Words.forEach((w, i) => i === 0
+      ? word(w, S2[0] - .3, t, C.accent, C.accent, 0)     // already in place when the cut lands
+      : word(w, S2[i], t, C.inkSoft, C.ink));
+    drawMark(tileMark, DRAW_TILE, t);
+    cables.forEach(c => {
+      const p = phase(t, c.start, c.start + .52, 'cubicOut');
+      const off = c.L * (1 - p);
+      c.thin.style.strokeDashoffset = off; c.thick.style.strokeDashoffset = off;
+      // opacity, not visibility: a child set visible would show through the hidden scene
+      c.thin.style.opacity = p > 0 ? c.thin.dataset.op : 0; c.thick.style.opacity = p > 0 ? c.thick.dataset.op : 0;
+    });
+    const plug = phase(t, 2.22, 2.5, 'smooth');
+    stubs.forEach(s => s.style.opacity = plug);
+    const glow = phase(t, 2.25, 2.95, 'smooth');
+    band.style.opacity = .4 * glow;
+    tile.style.boxShadow = [
+      'inset 0 0 0 1.5px rgba(255,255,255,.95)',
+      'inset 0 -8px 18px rgba(110,120,200,.10)',
+      '0 16px 36px rgba(34,44,130,.13)',
+      '0 0 0 1px rgba(70,84,200,.07)',
+      `0 0 ${30 + 30 * glow}px ${6 * glow}px rgba(64,86,236,${.55 * glow})`,
+    ].join(',');
+
+    /* scene 3: the CTA lands still rising from the tilt, builds word by word, then recedes into the cut */
+    const settle3 = 32 * (1 - phase(t, CUT2, CUT2 + .3, 'expoOut'));
+    const pull3 = t > 6.2 ? .05 * ((t - 6.2) / .37) ** 1.6 : 0;
+    plane(s3Plane, 1 - pull3, settle3);
+    s3Words.forEach((w, i) => word(w, S3[i], t, i === 2 || i === 3 ? C.accentSoft : C.inkSoft, i === 2 || i === 3 ? C.accent : C.ink));
+
+    /* scene 4: ground blooms; letters fade up left to right; the mark draws beside them */
+    bloom.style.opacity = phase(t, CUT3, CUT3 + .3, 'smooth');
+    const e4 = 1 - phase(t, CUT3, CUT3 + 1.8, 'expoOut');
+    plane(wp, (1 + .02 * phase(t, 7.4, END, 'linear') * -1) * (1 + .13 * e4));
+    wmChars.forEach((ch, i) => {
+      const t0 = 6.64 + i * .042, p = phase(t, t0, t0 + .16, 'smooth');
+      ch.style.opacity = t < t0 ? 0 : .35 + .65 * p;
+      ch.style.filter = p < 1 ? `blur(${(1 - p) * 3}px)` : 'none';
+    });
+    drawMark(wmMark, DRAW_WM, t);
+  }
+
+  fx.wait(Promise.all([
+    document.fonts.load('400 60px "Sharp Grotesk"'), document.fonts.load('500 60px "Sharp Grotesk"'),
+    document.fonts.load('italic 400 60px "Sorts Mill Goudy"'),
+  ]));
+  fx.register({ duration: END, loop: false, seek });
+})();
+</script>

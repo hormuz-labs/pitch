@@ -1,0 +1,36 @@
+{
+  "name": "Arc Line Logo Reveal",
+  "seconds": 4.8,
+  "move": "on a dark ground an S-shaped swirl of light blooms into a vivid blue-violet gradient while a big white wordmark blurs in letter by letter, a thin line with a glowing bead traces a large rounded arc up the left side and across the top, then the scene turns light and the bead becomes the node that lines fan out from",
+  "how": "0-0.47s: dark ground, black to a deep blue glow at the bottom. Flood: a two-armed spiral computed per pixel in a 480x270 canvas (CSS-scaled x4, blur 13 -> 28 quarter-px). The reveal is one constant-width S ribbon along the spiral's light arm that the camera dives into: its scale grows e^(10t), about 1.4x a frame, so the ribbon swells past the frame and the gaps between its arms slide out at the corners; full frame in 0.4s (0.47-0.87). Then the colour spiral's centre drifts off the top-right corner and its twist relaxes, leaving broad diagonal bands with a deep band behind the name. Wordmark: letters blur in left to right (16px -> 0 on expoOut 0.3s, opacity to 0.93 in 0.16s), 46ms apart from 0.5s, the script tail last; a camera pull-back 1.82x -> 1 on expoOut over 2s, with the arc on a far plane at 0.45 of the excess (parallax). Arc: M161 1150 V395 A240 to (401,155) H2600, a 2.4px white trail drawn by stroke-dashoffset to a 40px glossy bead (rim light lower-left, 22px blue glow). Bead distance s(t) = 575 + 532*cubicOut((t-0.7)/1.1) + 230*(t-0.7) + 540*max(0,t-2.4)^2: a fast arrival up the side and round the corner (~1700px/s), a slow cruise along the top (~230px/s) while the name holds, then accelerating off to the right, fitted to the reel. Exit: from 3.22 a light band sweeps in from the right (expoIn) and lightens the field; the camera pans after the bead (-130px, quadratic, 3.3-3.57); the name dims 26% (2.3-3.3), then defocuses from the right, the tail first and letters right to left 22ms apart (to 14px blur, 0.45 opacity). Cut at 3.6 to the light scene: it lands 9px defocused, 1.22x and 190px high and settles in 0.5s expoOut onto the node (bead -> node match cut); 11 thin spokes shoot out from the node in 0.55s expoOut, ~25ms apart from 3.66, among scattered dots; hold to 4.8.",
+  "moves": [
+    "gradient-flood",
+    "swirl",
+    "blur-in",
+    "letter-stagger",
+    "wordmark-reveal",
+    "line-trace",
+    "glowing-dot",
+    "arc-path",
+    "camera-pull-back",
+    "parallax-depth",
+    "light-sweep",
+    "defocus-out",
+    "match-cut",
+    "lines-fan-out"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Brand tokens on .stage: --flood-deep/base/mid/light as the accent ramp, --night and --night-glow for the dark ground, --mark for the logo colour on the flood, --trail and --bead* for the line and bead, --day-*/--node/--ink for the light scene. Arc geometry (vertical x, 240px corner radius, top y) to frame the logo; spokes and dots to the next scene's layout. Keep the 0.4s S-dive, the 46ms blur stagger, the parallax ratio and the bead's fast-slow-fast distance curve.",
+  "port": "Custom shot type js/shots/arc-line-logo-reveal.js. Seek-style page: tween a proxy {t: 0 -> 4.8} over D (ease 'none') on the returned timeline and call seek(proxy.t) from ShotKit.frameHook(el, ...); the flood canvas is drawn inside that hook (keep it quarter size: ~230k pixels a frame), tokens read from el. The logo is the product's own file from assets/logo/, never this placeholder text and 'fn' path: place it as an <img> or inline SVG on the flood, its white/knockout version if the brand has one, else filter: brightness(0) invert(1) on a single-colour logo. The reel blurs letters in one by one; with one logo file do it as a left -> right mask wipe (mask-image linear-gradient with a ~12% soft edge, swept over ~0.45s, about 9 letters x 46ms + 0.3s) together with blur(16px -> 0) on expoOut; a stroke-SVG script part may instead draw on with stroke-dashoffset. The exit is the same mask and blur run right -> left. If the light node scene is the next storyboard row, everything from 3.6 belongs to that shot: keep the bead's exit speed and the 0.5s settle so the match cut lands.",
+  "caveats": [
+    "The flood is the costly part (a per-pixel canvas field at quarter resolution, upscaled); here it renders at roughly 0.3-0.6 s a frame in software GL.",
+    "In the reel the script tail fades in with blur rather than drawing; the placeholder 'fn' path does the same and must be replaced by the product's logo file.",
+    "The light scene after the cut stands in for the reel's next scene; the sentence the reel builds above the node is left out.",
+    "Sharp Grotesk 500 is lighter than the reel's heavy geometric wordmark."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

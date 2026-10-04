@@ -1,0 +1,42 @@
+{
+  "name": "Explainer Problem Act (chain study)",
+  "seconds": 23.3,
+  "move": "a narrated problem act chained without a cut: a white disc bursts out of the opening line and floods dark into light, the spoken line builds over product cards that drift in and then rush past the lens, a big line scrolls, a push dives into a dark grid of glowing tiles, pills fill and pull back into a pattern whose lines become a branching line, the dark ground shrinks into a card, and a sphere rolls under the closing line",
+  "how": "One seek(t) page timed 1:1 with the reel (t = reel time), one stage, twelve moments, each handing over with a join. 0.00–0.62 dark ground (black, blue glow low), 151px white \"Every day,\" re-centres per word and drifts left. JOIN flood 0.62–0.92: a white disc grows from the gap after \"Every\" (r = 30·e^(15(t−0.615)), crisp edge) revealing the light ground; inside it the same words are already at the light row's size. 0.80 the keyword pill slides in from +120px blurred (expoOut 0.14s), the row makes room for it (move 0.3s), and from 1.0–1.23 the pill blurs out while \"ideas\" turns bold ink. Rows are laid out at their final width and words land in place (rise 0.3s, grey→ink 0.25s). JOIN 1.83: the second row lands, the caption shrinks 1.38→1.0 (expoOut 0.5s) and seven cards fly in from beyond the edges at depths (0.75s expoOut, staggered 0–0.12s, extra tilt settling). 3.05 push (zoom 1.03→1.40, expoOut 0.4s) while the old line crossfades to \"And every day,\"; 4.08 pull back (→1.03) on \"too many of them\". JOIN 4.24–5.45 near-lens rush: each card in turn turns blue and blurs (0.14s) then drifts outward (expoIn 0.8s) and clears; \"fade out.\" lands in the accent and blurs away 5.2–5.4, leaving bare ground. 5.47 the big 160px line enters blurred at the left (20px→0 over 0.27s), letters arrive 0.028s apart; 6.08–7.05 the line pans one long move (≈1180px, peak velocity ~6.3) ahead of the voice, old words dissolve under a left-edge mask, \"real.\" in accent. JOIN 7.45: it dissolves and the next row appears as a ghost (8%) at 1.42×, words solidify as spoken while the camera pulls back to 0.96 (move, 1s), then an expoIn push (×1.6 by 9.43) into a hard cut on motion. 9.43–11.84 dark tile grid (pitch 388, translucent tiles over the blue glow): the camera keeps sliding (expoOut), then pans down and back (zoom 1→0.82); Students/Staff/Faculty glows switch on 9.42/10.25/10.8 and wander a third of a tile, labels fade in 0.18s; 11.55–11.85 the pan accelerates into the cut. JOIN 11.84 cut on motion into big outlined pills whose rows are still sliding in alternate directions (650px, settle expoOut 0.7s). Thinking fills with a soft-edged sweep 12.3; expoInOut whip to Asking (fills 12.95); pull back 0.74→0.42 (move 0.45s) as the rows below build in; Building fills 13.55; connectors draw Thinking→Asking and Building→Asking 13.95–14.45; 14.3–14.62 the pattern fades, the hero group slides right (expoIn) and its out-lines run off the right edge. JOIN 14.8: the line comes back in from the left as three branches merging into one (merge 70→292px expoOut 0.8s, end 170→864px quartOut 2s) beside a blue glow curtain; 17.1–17.7 the camera whips right (smoother, 1250px; curtain at 2× parallax) and \"The research\" lands centred. JOIN 18.12 ground → card: the dark ground shrinks into a square on blue (side = 823 − 340(t−18.12) + 1097·e^(−14.5(t−18.12))), the caption shrinks less (1→0.6) and wraps \"gets stuck.\" under it. 19.17 hard cut to light: \"Not because the ideas are weak.\" fills while the camera pulls back 1.2→1.0 (move 1.1s) and a lavender glow swings from the top-left corner into a band across the top. 20.88 hard cut: a sphere rushes in from the left with \"But\", decelerates under the line, rides the scroll back left, then leaves right; 175px words land whole and grey with ink sweeping through them (45ms/letter), the line re-centres while it fits then right-aligns and scrolls; speed lines are the sphere's recent path in the line's frame, so they stream out when it moves on its own and shrink while it rides the scroll.",
+  "moves": [
+    "flood-reveal",
+    "keyword-pill",
+    "spoken-line",
+    "line-recentre",
+    "depth-cards",
+    "camera-pull-back",
+    "camera-push",
+    "near-lens-rush",
+    "scrolling-line",
+    "ghost-line",
+    "cut-on-motion",
+    "glow-grid",
+    "pill-fill",
+    "pattern-pullback",
+    "branching-line",
+    "camera-whip",
+    "ground-to-card",
+    "sphere-speed-lines",
+    "light-dark-alternation",
+    "chain-study"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Keep the chain, not the content: every handover is a join (flood from a letter, a camera step under a text swap, a rush that empties the frame, a push or pan that a hard cut rides, lines that become the next line, the ground that becomes a card), the pacing is the narration's (each word lands when spoken, each move begins on a phrase, quiet stretches hold one slow element), and the ground alternates dark → light → dark → blue card → light so each turn of the argument changes the light. Change the copy to the product's own problem act, the cards to its real UI at depths, the grid/pill labels to its audience and verbs, the palette tokens on .stage (--accent, --ground, --ground-dark, --blue-ground, --lavender) to the brand; type sizes follow the words' widths (rows here are 1290–1640px wide at their largest).",
+  "port": "Build it as several shots on one stage, not one shot: (1) dark title shot; (2) light card shot entered with `morph: { from: <the word gap / a small disc actor>, to: \"ground\" }` for the flood; (3) big-line shot; (4) ghost-line shot ending in a `zoom` beat that the cut to (5) the grid shot rides; (6) pill shot entered mid-pan (cut on motion); (7) branch shot whose line continues the pills' out-lines; (8) card shot whose square card starts as the whole frame on the previous shot's dark ground and shrinks onto a blue ground (the closing frame of launch-primitives/branching-line-network; a morph can only grow into the ground, not out of it); (9) light line shot; (10) sphere shot with the sphere as an actor. The spoken words go in `captions` (`style.stack: \"line\"`, `align: \"center\"`, re-centring as each word is said), never baked into shots; the big line that scrolls off to the left (3) is the one exception, a custom shot, since captions do not scroll. Take each moment's motion from the library: launch-primitives/word-dot-flood (1→2), spoken-line-recentre (all captions), depth-drift-cards (2–4, including the rush), grid-glow-labels (5), pill-grid-pullback (6), branching-line-network (7–8), sphere-speed-lines (10). Each custom piece is a `js/shots/<type>.js` whose animate(el, s, D) tweens a proxy {t} over the shot and redraws from this page's draw functions in ShotKit.frameHook.",
+  "caveats": [
+    "Sharp Grotesk is wider than the reel's geometric face; sizes are matched by word width, so letters read slightly smaller than the reel's",
+    "Cards, grid labels and pill words are placeholders (fieldnote, generic team words); the reel's brand and UI are not reproduced",
+    "Each moment is simpler than its full primitive (no 3D depth sort, glows are CSS gradients, cards tilt with CSS perspective only)",
+    "Ends at reel 23.15 with a short frozen hold; the reel cuts straight into its next act"
+  ],
+  "fidelity": "motion-study",
+  "loop": false,
+  "size": "1920x1080"
+}

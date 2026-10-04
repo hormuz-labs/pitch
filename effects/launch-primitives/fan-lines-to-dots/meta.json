@@ -1,0 +1,31 @@
+{
+  "name": "Fan Lines To Dots",
+  "seconds": 5.6,
+  "move": "lines fan out from one glowing node to scattered dots that glide into an even row, then the camera drops through a cloud to curved lines running down to round avatar badges",
+  "how": "One seek(t): SVG lines/dots, DOM node, sentences and badges. A blue haze from the previous shot clears over 1s. Dots fade in from a 6px blur at 0.22s; the node pops in (backOut) at 0.28s and 11 lines draw out of it together, quadOut over 0.45s with an 8ms stagger. At 1.3s the dots glide from scatter to an evenly spaced row (68px gap, y=903) with the house `move` ease over 0.9s (≤60ms centre-out stagger); the node sinks 126px on the same ease and swells a halo and a lit underside. Sentences are centred, laid out final, words arriving dim and 12px low (opacity 0.16s, rise expoOut 0.36s); sentence 1 lifts away before the glide. The drop: progress expoIn over 2.2–3.38s raises the node 447px, the row 198px and squeezes it to 45% width, so the fan stretches tall and narrow; a cloud whose dense blue edge is a measured track (1240→−180px, peak ~2300px/s at 3.3–3.6s) sweeps up and swallows it. The second scene fades in under a 4.5px blur at 3.32s; its node keeps rising on a two-term decay (τ .13/.9s), 8 cubic lines draw down from it (quadOut, 0.9s) and three badges rise 220px out of the frame edge (expoOut 0.7s) at 3.95/4.35/4.75s as the last word is swapped and the line glides to re-centre (move, 0.32s).",
+  "moves": [
+    "line-draw",
+    "fan-out",
+    "dots-to-row",
+    "node-glow",
+    "camera-drop",
+    "cloud-wipe",
+    "word-build",
+    "word-swap",
+    "badge-rise"
+  ],
+  "libs": [
+    "svg",
+    "motion"
+  ],
+  "adapt": "Swap the CSS tokens on .stage for brand colours; SCATTER (sorted by x) is the opening layout and the row count follows it; badge icons are inline SVG (person, code, star) — swap in the product's avatars or role icons. Keep the timing ratios: lines settle before the first sentence ends, the glide is one `move` (0.9s), the drop is slow-then-hard (expoIn ~1.2s) and the second scene's settle is long (~1.4s).",
+  "port": "Custom shot type js/shots/fan-to-row.js: build the markup in el; animate(el, s, D) tweens a proxy {t:0}→{t:5.6} (ease 'none') and ShotKit.frameHook(el, () => seek(proxy.t)) draws it, selectors scoped to el. Put the glide start (1.3s) and the drop start (2.2s) on s.beatTimes. The three sentences are spoken words: give them to the film's captions (stack:'line', align center, pos 'top' for the first two, enter 'rise') and delete .s1/.s2 here; keep .s3 in the shot because it rides the camera (it sits 200px above the second node and rises with it) — or make it a caption phrase whose y is tweened from the node in frameHook. The cloud wipe is the join: if the next row is another shot, end this one at 3.42s with the cloud covering the frame and start the next under the same cloud.",
+  "caveats": [
+    "The cloud is CSS gradients and soft blobs, not a photographed sky; it reads as fog over a light ground only.",
+    "The old fan's squeeze and the new node's rise are separate measured curves, not one 3D camera; keep them together when retiming.",
+    "Sharp Grotesk stands in for the reel's rounder geometric sans."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

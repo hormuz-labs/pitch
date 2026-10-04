@@ -1,0 +1,33 @@
+{
+  "name": "Depth Drift Cards",
+  "seconds": 4.6,
+  "move": "product UI cards at different depths drift in around the words from beyond the frame edges, near ones big and cropped, the camera breathes in and out on each caption change, then every card floods saturated blue and blurs like a shape rushing past the lens, draining away until the light ground is empty",
+  "how": "Seven DOM cards (conversation list, message, line chart, bar-chart projects card, person card, two sticky notes) on a light lavender ground. Fly-in t 0.27-0.64 staggered top cards first, bottom (near, larger, frame-cropped) cards last: each slides from beyond its nearest edge along a near-radial path, expoOut over 1.0 s (expo-decay measured: speed x0.8 per frame), with an extra 5-22 deg of tilt that settles and motion blur = speed/600 px. Meanwhile the caption alone pulls back 1.36 -> 1.0 (move, t 0.12-1.0) about a point above line 1, so cards arrive at full size while the words shrink to meet them. After landing the set converges on the caption (6 % vertically, 1.5 % horizontally over 2.3 s). Camera = one uniform zoom about (960,560) for cards and caption: push 1.0 -> 1.47 (cubic in-out, t 1.15-2.05) and pull 1.47 -> 0.96 (cubic in-out, t 2.15-3.1); each caption swap sits on the speed peak (t 1.58, 2.6) and swaps in one frame. Words rise 16 px from light grey into ink (expoOut 0.24 s), 0.14-0.2 s apart. Clear-out t 2.72-3.26, 0.08-0.12 s apart (bottom-left, top-right, top, top-left, notes, bottom-right): saturated blue enters from each card's right edge (0.16 s), the card blurs, tilts 3-14 deg further and leans 4 % toward the lens; 0.5 s later an elliptical hole sweeps the blue out to the right (0.12 s) over a pale ghost of the card, leaving a ')' rim that fades (0.12 s). The last word pair ('fade out.', bold, tinted) blurs out at t 3.77-3.93; empty ground holds to 4.6.",
+  "moves": [
+    "depth",
+    "parallax",
+    "card-fly-in",
+    "drift",
+    "camera-pullback",
+    "camera-push",
+    "caption-swap",
+    "color-flood",
+    "lens-blur",
+    "blur-out",
+    "clear-frame",
+    "ui-cards"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Swap the cards for the product's own surfaces (keep a mix of two or three near, large, frame-cropped cards and four far, small ones), the caption for the script's line, and --accent/--blob-* for the brand's strongest colour. Keep the timing ratios: cards land within 0.45 s of each other, camera speed peaks exactly on each caption swap, blue holds about 0.5 s per card before it drains.",
+  "port": "A custom shot type js/shots/depth-drift-cards.js: animate(el, s, D) returns a timeline that tweens a proxy {t: 0 -> 4.6} (linear) and draws seek(t) in ShotKit.frameHook; times scale to D. Layers: the ground and caption belong to the film's stage (caption words become the film's caption track, swaps placed on s.beatTimes); a world layer carries one uniform camera zoom (1.0 -> 1.47 -> 0.96) for cards and caption, and the caption has its own extra opening pull (1.36 -> 1). Per layer per second: cards travel 330-700 px in their first 0.3 s (peak ~4,800 px/s off-frame, ~1,500 px/s crossing the edge, then x0.8 a frame), then converge ~12 px/s; the camera zoom peaks at ~0.75x/s on each swap; the blue holds still. Read the frame from window.__STAGE (cards are placed in a 1920x1080 world; scale positions for 9:16).",
+  "caveats": [
+    "The reel's push and pull are a single uniform zoom; there is no differential parallax between cards during them. Depth reads from size, frame cropping and the fly-in distances, not from separate layer speeds.",
+    "The reel's flooded cards look like tilted glass slabs; this is a 2D card with a gradient blob, a dark D-shaped core and a ')' rim, approximated with mask-image (mask-composite: intersect).",
+    "Sticky-note handwriting uses Sorts Mill Goudy italic; a film should use a real hand font or the product's own notes."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

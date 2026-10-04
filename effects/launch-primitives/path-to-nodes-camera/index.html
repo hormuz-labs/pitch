@@ -1,0 +1,217 @@
+<!doctype html><meta charset="utf-8">
+<title>Path To Nodes Camera</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{
+    --sky:#f8f7fc; --mist:#eceafb; --lilac:#c6cdfb; --deep:#8a9cf9;   /* ground, top to bottom */
+    --glow:96,118,245;          /* the soft light under the sentence (rgb) */
+    --ink:#14162c;              /* sentence and labels */
+    --path:#3a4bc8;             /* the line and the node outlines */
+    --node:#2f42d2; --node-lit:#86a0ff; --node-deep:#141e8c;   /* the dot */
+    --pill:#eef0f7; --pill-2:#e3e6f0; --icon:#3340c8;
+    background:linear-gradient(180deg,var(--sky) 0%,var(--sky) 38%,var(--mist) 56%,var(--lilac) 76%,var(--deep) 100%);
+    font-family:"Sharp Grotesk",Arial,sans-serif;
+  }
+  .light{position:absolute;left:50%;top:100%;width:2400px;height:1300px;margin:-650px 0 0 -1200px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(var(--glow),.55),rgba(var(--glow),.25) 55%,rgba(var(--glow),0));will-change:transform,opacity}
+  .world{position:absolute;left:0;top:0;width:10px;height:10px;will-change:transform,filter}
+  svg.paths{position:absolute;left:0;top:0;overflow:visible}
+  svg.paths path{fill:none;stroke:var(--path);stroke-width:3;stroke-linecap:butt}
+  .sentence{position:absolute;white-space:nowrap;font-size:34px;line-height:1;font-weight:400;letter-spacing:-.01em;color:var(--ink)}
+  .sentence .c{display:inline-block}
+  .ball{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;
+    background:radial-gradient(circle at 70% 74%,var(--node-lit) 0%,var(--node) 42%,var(--node-deep) 100%);will-change:transform}
+  .pill{position:absolute;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:30px;
+    border:3px solid transparent;
+    background:linear-gradient(180deg,var(--pill),var(--pill-2)) padding-box,linear-gradient(215deg,rgba(58,75,200,.18) 0%,var(--path) 42%,var(--path) 100%) border-box;
+    box-shadow:0 12px 30px rgba(52,62,150,.12);will-change:width,opacity}
+  .pill .row{display:flex;align-items:center;flex:none}
+  .pill .ic{flex:none;overflow:hidden;display:flex;justify-content:flex-start}
+  .pill .ic svg{flex:none;width:46px;height:46px;fill:none;stroke:var(--icon);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .pill .lb{flex:none;font-size:52px;line-height:1;color:var(--ink);letter-spacing:-.01em;white-space:nowrap}
+</style>
+<div class="stage">
+  <div class="light"></div>
+  <div class="world">
+    <svg class="paths" width="10" height="10">
+      <defs><linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1">
+        <stop class="f0" offset="0" style="stop-color:var(--path)"/><stop class="f1" offset="1" style="stop-color:var(--path)"/>
+      </linearGradient></defs>
+      <path class="p0" style="stroke:url(#fade)"/>
+      <path class="p1"/><path class="p2"/><path class="p3"/>
+    </svg>
+    <div class="sentence"><span class="pre">Anyone inside your organisation </span><span class="w-can">can</span> <span class="last"></span></div>
+    <div class="ball"></div>
+    <div class="pill n0"><div class="row"><div class="ic"><svg viewBox="0 0 48 48"><path d="M24 6l14 14-9 16H19L10 20z"/><circle cx="24" cy="24" r="3.5"/><path d="M24 6v14.5M17 42h14"/></svg></div><div class="lb">Designer</div></div></div>
+    <div class="pill n1"><div class="row"><div class="ic"><svg viewBox="0 0 48 48"><rect x="5" y="9" width="38" height="30" rx="5"/><path d="M14 20l5 4-5 4M23 29h10"/></svg></div><div class="lb">Engineer</div></div></div>
+    <div class="pill n2"><div class="row"><div class="ic"><svg viewBox="0 0 48 48"><path d="M11 43V6M11 8h25l-6 8.5 6 8.5H11"/></svg></div><div class="lb">Lead</div></div></div>
+  </div>
+  <svg width="0" height="0" style="position:absolute"><filter id="mb" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur class="mbk" stdDeviation="0 0"/></filter></svg>
+</div>
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const M = window.Motion, $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  fx.wait(document.fonts.load('400 52px "Sharp Grotesk"'));
+
+  // cubic-bezier solved for x
+  const B = (a, b, u) => 3 * a * u * (1 - u) * (1 - u) + 3 * b * u * u * (1 - u) + u * u * u;
+  const bezier = (x1, y1, x2, y2) => x => {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 26; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; }
+    return B(y1, y2, (lo + hi) / 2);
+  };
+  const E = {
+    move: M.eases.move,
+    whip: bezier(0.35, 0, 0.2, 1),        // the drop's follow: no hang at the start, hard stop
+    punch: bezier(0.7, 0, 0.3, 1),        // the quick push onto the first node
+    pull: bezier(0.45, 0, 0.2, 1),        // the pull back to the whole flow
+    drop: bezier(0.55, 0, 0.3, 1),        // the line's head, out of the dot and down into the node
+    quadIn: x => x * x,
+  };
+
+  // ---- the world (px at the final, pulled-back framing) ----
+  const DOT = { x: 940, y: -185, r: 20 };
+  const NODES = [{ x: 940, y: 356, h: 140 }, { x: 480, y: 567, h: 132 }, { x: 1046, y: 772, h: 140 }];
+  const R1 = 60, R2 = 45, PAD = 44, ICON = 46, GAP = 16;
+
+  const world = $('.world'), light = $('.light'), ball = $('.ball'), sentence = $('.sentence');
+  const last = $('.last'), can = $('.w-can');
+  'contribute.'.split('').forEach(ch => { const s = document.createElement('span'); s.className = 'c'; s.textContent = ch; last.appendChild(s); });
+  const letters = $$('.last .c');
+  const pills = $$('.pill'), icons = $$('.pill .ic'), labels = $$('.pill .lb'), rows = $$('.pill .row');
+  const p0 = $('.p0'), p1 = $('.p1'), p2 = $('.p2'), p3 = $('.p3');
+  const f0 = $('.f0'), f1 = $('.f1'), grad = $('#fade'), mbk = $('.mbk');
+
+  let L = null;   // layout, measured once fonts are in
+  function layout() {
+    const lw = labels.map(l => l.getBoundingClientRect().width);
+    const full = lw.map(w => w + ICON + GAP + 2 * PAD);
+    const text = lw.map(w => w + 2 * PAD - 10);
+    // the sentence ends just left of the dot
+    const sw = sentence.getBoundingClientRect().width;
+    const sx = DOT.x - DOT.r - 22 - sw;
+    sentence.style.left = sx + 'px'; sentence.style.top = (DOT.y - 19) + 'px';
+    const preW = $('.pre').getBoundingClientRect().width + can.getBoundingClientRect().width;
+    const N = NODES.map((n, i) => ({ ...n, w: full[i], tw: text[i], left: n.x - full[i] / 2, right: n.x + full[i] / 2, top: n.y - n.h / 2 }));
+    // the paths: the drop, then rounded orthogonal legs from node edge to node
+    const a = N[0], b = N[1], c = N[2];
+    p0.setAttribute('d', `M${DOT.x} ${DOT.y + DOT.r}V${a.top}`);
+    p1.setAttribute('d', `M${a.left} ${a.y}H${b.x + R1}A${R1} ${R1} 0 0 0 ${b.x} ${a.y + R1}V${b.top}`);
+    const mid = 756;
+    p2.setAttribute('d', `M${b.right} ${b.y}H${mid - R2}A${R2} ${R2} 0 0 1 ${mid} ${b.y + R2}V${c.y - R2}A${R2} ${R2} 0 0 0 ${mid + R2} ${c.y}H${c.left}`);
+    p3.setAttribute('d', `M${c.right} ${c.y}H${c.right + 440}`);
+    const len = [p0, p1, p2, p3].map(p => p.getTotalLength());
+    return { N, len, sx, partCenter: sx + preW / 2 };
+  }
+
+  // ---- the camera: keyframes and the eases between them (measured off the reel) ----
+  function camAt(t) {
+    // on the sentence: a push-in anchored on its end — the dot travels from off the right edge to 0.8W
+    // while the zoom grows 1.5→2.28 (move), then creeps after the drip as it falls (quadIn)
+    const Z0 = 1.5, Z1 = 2.28;
+    if (t < 1.42) {
+      const k = M.phase(t, 0.25, 0.8, E.move);
+      const z = Math.exp(M.lerp(Math.log(Z0), Math.log(Z1), k));
+      const sx0 = 960 + (DOT.x - L.partCenter) * Z0;
+      const dsx = M.lerp(M.lerp(sx0, 1540, k), 1325, E.quadIn(M.phase(t, 0.8, 1.42, 'linear')));
+      return { x: DOT.x - (dsx - 960) / z, y: DOT.y + 9 / z, z };
+    }
+    const K = {
+      s2: { x: DOT.x - 365 / Z1, y: DOT.y + 9 / Z1, z: Z1 },   // where the sentence framing ends
+      d0: { x: 940, y: 442, z: 1.0 },                 // the first node, wide
+      d1: { x: 940, y: 438, z: 1.7 },                 // punched in
+      d2: { x: 869, y: 466, z: 1.7 },
+      e1: { x: 479, y: 568, z: 1.7 },                 // the second node
+      e2: { x: 560, y: 592, z: 1.7 },
+      l1: { x: 990, y: 759, z: 1.7 },                 // the third node
+      l2: { x: 1030, y: 750, z: 1.7 },
+      all: { x: 960, y: 540, z: 1.0 },                // the whole flow
+      end: { x: 960, y: 540, z: 0.965 },
+    };
+    const SEG = [
+      [1.42, 1.54, 's2', 'd0', E.whip],
+      [2.3, 2.46, 'd0', 'd1', E.punch],
+      [2.46, 3.15, 'd1', 'd2', E.move],
+      [3.15, 4.2, 'd2', 'e1', E.move],
+      [4.2, 4.65, 'e1', 'e2', E.quadIn],
+      [4.65, 5.7, 'e2', 'l1', E.move],
+      [5.7, 6.12, 'l1', 'l2', E.move],
+      [6.12, 6.95, 'l2', 'all', E.pull],
+      [6.95, 7.6, 'all', 'end', 'smooth'],
+    ];
+    let cam = K.s2;
+    for (const [a, b, from, to, ease] of SEG) {
+      if (t < a) break;
+      const k = M.phase(t, a, b, ease), A = K[from], Bk = K[to];
+      cam = { x: M.lerp(A.x, Bk.x, k), y: M.lerp(A.y, Bk.y, k), z: Math.exp(M.lerp(Math.log(A.z), Math.log(Bk.z), k)) };
+    }
+    return cam;
+  }
+
+  // a node opens: a sliver waits on the path, unfolds to its word, then makes room for its icon
+  function pill(i, t, appear, unfold) {
+    const n = L.N[i], el = pills[i];
+    const sl = 46;
+    const a = M.phase(t, unfold, unfold + 0.11, E.punch), b = M.phase(t, unfold + 0.12, unfold + 0.4, 'cubicOut');
+    const w = M.lerp(M.lerp(sl, sl + 14, M.phase(t, appear, unfold, 'linear')), n.tw, a) + (n.w - n.tw) * b;
+    el.style.width = w + 'px'; el.style.height = n.h + 'px';
+    el.style.left = (n.x - w / 2) + 'px'; el.style.top = n.top + 'px';
+    el.style.opacity = M.phase(t, appear, appear + 0.12, 'linear');
+    icons[i].style.width = ((ICON + GAP) * b) + 'px';
+    icons[i].style.opacity = M.phase(t, unfold + 0.18, unfold + 0.36, 'linear');
+  }
+  const draw = (p, len, d) => { p.style.strokeDasharray = `${len} ${len + 10}`; p.style.strokeDashoffset = (len * (1 - M.clamp(d))).toFixed(2); };
+
+  let prev = null;
+  fx.register({ duration: 7.6, loop: false, seek(t) {
+    if (!L) L = layout();
+    const cam = camAt(t);
+    M.camera(world, { x: cam.x, y: cam.y, zoom: cam.z });
+    // blur from the camera's own speed: directional for pans, round for zooms
+    const back = camAt(Math.max(0, t - 1 / 30));
+    const vx = Math.abs(cam.x - back.x) * cam.z, vy = Math.abs(cam.y - back.y) * cam.z, vz = Math.abs(Math.log(cam.z / back.z)) * 900;
+    // only the whips smear (the drop, the punch, the legs, the pull back); the push-in on the sentence stays crisp
+    const smear = [[1.42, 1.58], [2.28, 2.5], [3.15, 4.2], [4.65, 5.7], [6.1, 7.0]].some(([a, b]) => t > a && t < b);
+    const bz = smear ? Math.max(0, vz - 15) * 0.03 : 0;
+    const bx = smear ? Math.min(20, Math.max(0, vx - 15) * 0.12 + bz) : 0, by = smear ? Math.min(20, Math.max(0, vy - 15) * 0.12 + bz) : 0;
+    mbk.setAttribute('stdDeviation', `${bx.toFixed(2)} ${by.toFixed(2)}`);
+    world.style.filter = bx + by > 0.4 ? 'url(#mb)' : 'none';
+    light.style.opacity = M.between(t, 1.4, 1.7, 1, 0.55).toFixed(3);
+
+    // the sentence: the last word's letters drop into place, then the dot is born after the period
+    can.style.opacity = M.phase(t, 0, 0.12, 'linear');
+    letters.forEach((c, i) => {
+      const at = 0.2 + 0.035 * i, k = M.phase(t, at, at + 0.32, 'expoOut');
+      const off = [0.5, -0.35, 0.6, -0.5, 0.45, -0.6, 0.3, 0.55, -0.4, 0.5, 0][i];
+      c.style.opacity = M.phase(t, at, at + 0.1, 'linear');
+      c.style.transform = `translateY(${((1 - k) * off * 34).toFixed(2)}px)`;
+    });
+    const born = M.phase(t, 0.66, 1.0, 'backOut');
+    M.set(ball, { x: DOT.x, y: DOT.y, scale: Math.max(0, born) });
+
+    // the drop: out of the dot, accelerating, then decelerating into the first node
+    const HEAD_MID = 70;   // where the head is when the camera leaves the sentence
+    const headY = t < 1.45 ? M.lerp(DOT.y + DOT.r, HEAD_MID, Math.pow(M.phase(t, 0.92, 1.45, 'linear'), 1.15))
+                           : M.lerp(HEAD_MID, L.N[0].top, M.phase(t, 1.45, 1.78, 'cubicOut'));
+    const dropLen = headY - (DOT.y + DOT.r);
+    p0.style.strokeDasharray = `${Math.max(0, dropLen)} 99999`;
+    p0.style.strokeWidth = M.between(t, 1.4, 1.62, 5.6, 3).toFixed(2);
+    // while the camera is on the sentence the drip's head fades out; once it lands it is crisp
+    const fadeLen = M.lerp(Math.min(120, 0.55 * Math.max(1, dropLen)), 0.01, M.phase(t, 1.4, 1.6, 'linear'));
+    grad.setAttribute('y1', (headY - fadeLen).toFixed(2)); grad.setAttribute('y2', headY.toFixed(2));
+    f1.setAttribute('stop-opacity', fadeLen > 1 ? 0 : 1);
+
+    // node one, the push in, then each leg: a short hesitant stub, then the path runs with the camera
+    pill(0, t, 1.5, 1.87);
+    draw(p1, L.len[1], M.phase(t, 2.8, 3.2, 'linear') * 35 / L.len[1] + (1 - 35 / L.len[1]) * M.phase(t, 3.25, 3.65, E.quadIn));
+    pill(1, t, 3.27, 3.64);
+    draw(p2, L.len[2], M.phase(t, 4.25, 4.65, 'linear') * 30 / L.len[2] + (1 - 30 / L.len[2]) * M.phase(t, 4.7, 5.17, E.quadIn));
+    pill(2, t, 4.78, 5.17);
+    draw(p3, L.len[3], M.phase(t, 6.15, 7.0, 'cubicOut'));
+  } });
+})();
+</script>

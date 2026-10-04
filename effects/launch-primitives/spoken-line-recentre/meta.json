@@ -1,0 +1,32 @@
+{
+  "name": "Spoken Line Recentre",
+  "seconds": 5.1,
+  "move": "a spoken sentence builds word by word, centred: each word rises in at the right end while the line glides left to stay centred; a keyword arrives inside a blurred blue pill that dissolves and leaves it bold; then a second line builds below and the block lifts to stay centred",
+  "how": "Each word lands at its slot at the right end of its line on its onset: it rises 0.38 em (expoOut over 0.55 s), un-blurs from 0.04 em (0.13 s) and fades in over about one frame. It is born moving, not popped. Each word adds half its width plus a space to its line's centre, gliding on `move` over 0.8 s from 0.22 s before the onset, so the line keeps re-centring as it grows. A new line starts centred under the first and lifts the block half a pitch (pitch 1.32 em) on `move` over 0.75 s, from 0.25 s before its first word. The keyword's mark: a pill (accent with deep edges and an inset vignette, radius 0.12 em, 0.12 em padding, 1.2 em tall) arrives in 0.12 s, its blur dropping from 22 px to 6.5 px while scaleX grows from 0.75 to 1 from its left edge. A copy of the word on it goes ink, then 60% white (onset +0.10 s to +0.26 s), then ink. The pill then fades (onset +0.2 s to +0.33 s) while its left edge wipes right (onset +0.25 s to +0.36 s), leaving the bold ink word. Reel timing: pill 0:00.81 to 0:01.17; 'are' 0:01.27, 'born' 0:01.47; line 2 at 0:01.83, 0:01.97, 0:02.10.",
+  "moves": [
+    "word-by-word",
+    "line-recentre",
+    "keyword-highlight",
+    "pill-sweep",
+    "two-line-build",
+    "vertical-recentre",
+    "rise-in",
+    "blur-in",
+    "captions",
+    "kinetic-type"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "In WORDS, set each word's text, its onset (from the aligned narration), its `line` (where the sentence breaks) and which word is `key`. SIZE and LEADING set the type. Map --ground, --ground-glow, --ink, --accent, --accent-deep and --accent-ink to brand tokens. Keep the glide on `move` (0.8 s) and the pill's quick blurred arrival and dissolve (about 0.36 s in all).",
+  "port": "A film does this with the engine's `captions`, not a custom shot type. Use one phrase: `{ cue: \"every week good ideas are born inside your team\", words: [\"Every\", \"week,\", \"good\", { text: \"ideas\", weight: 800, fx: [\"mark\"] }, \"are\", \"born\", \"inside\", \"your\", \"team.\"] }` with style `{ stack: \"line\", align: \"center\", pos: \"center\", enter: \"rise\" (or \"blur\"), case: \"none\", weight: 400, size: 0.074, shadow: false, color: <ink> }`. Each word lands on its onset from the aligned narration (`cue`, `audio/vo-words.json`) and the line re-centres as words land. Set `margin` so the line wraps before 'inside', or split the sentence into two phrases, the first held with `out`/`until`, so the centred block lifts as the second line starts. `fx: [\"mark\"]` is the pill: it sweeps in blurred, shows the word white on blue, then dissolves to bold ink. Put the light ground in the shot under it (`card` with a `gradient`).",
+  "caveats": [
+    "Measured on the reel, the glide anticipates the phrase. Line 1 reaches its final centre in one 0.7 s move starting at 0:00.56, before 'are' and 'born' land, and line 2 builds in place with its left edge fixed where the finished line will be centred. This page, like captions, re-centres after every word, so the line moves a little after each one.",
+    "From 0:01.7 to 0:02.3 the reel also pulls the camera back (the block shrinks to 0.73x) as product cards come in. That belongs to the next shot and is left out.",
+    "The same grammar returns at 0:07.6 to 0:08.6 ('Because inside every institution'). There each word also fades from pale grey to ink, and the line arrives on a sideways slide.",
+    "Sharp Grotesk 400 stands in for the reel's face. The keyword is 500 with a 0.04 em stroke for bold."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

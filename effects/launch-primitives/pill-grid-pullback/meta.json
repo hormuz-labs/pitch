@@ -1,0 +1,33 @@
+{
+  "name": "Pill Grid Pullback",
+  "seconds": 3.3,
+  "move": "huge outlined word pills alternate with line icons in rows sliding sideways on a dark ground, each spoken verb lights up with a blue gradient fill in turn, then the camera pulls back almost 3x until the pills tile the whole frame and connector lines draw a path out of the lit ones before it cuts to a dark blue ground",
+  "how": "World at zoom 1: pills 300 px tall (8 px #1d38bb outline), 'Thinking' set 512 px wide in Sharp Grotesk 400 with 182 px side padding, a 140 px line icon on a dark disc in each 453 px gap, rows 360 px apart. Rows appear one at a time (row 0 at the cut, the rows above at 0.06 s, row 1 at 1.2 s, row 2 at 1.93 s, the rest one per frame from 2.0 s) and slide in 540 px from alternating sides, settling as 2^(-10t/1.4..2.0) (already moving at t=0). Each lit pill (0.48, 1.21, 1.95 s) grows an inner pill (inset 14 to 3 px) whose 140%-wide gradient strip (lavender #c9cff3, blue #2841bc, navy, black) slides in from the left over about 0.4 s, so blue arrives first and lavender last. Camera (Motion.camera): holds on row 0, then a smootherstep whip 0.79 to 1.62 s, 1710 px right and one row down to the second lit pill, while zoom eases 1 to 0.755 (smooth, 0.77 to 1.82 s); then the pull-back proper on cubic-bezier(.2,0,.05,1) over 1.75 to 2.95 s, zoom x0.473 (ends at 0.357, 2.8x smaller) while panning 1010 px back left to frame the three lit pills. Connectors are SVG paths in their row (stub, 50 px elbow into the gutter, a long run right) drawn on with power-2 ease-in lengths from 2.05 s, stroke blue to lavender toward the moving head. From 2.22 s unlit pills dim to 5% and soften (blur up to 6 px), the navy floor glow gives way to a diagonal blue band; from 2.62 s the camera whips right exponentially and the pattern cuts out at 2.9 s onto the band ground (held to 3.3 s).",
+  "moves": [
+    "camera-pull-back",
+    "zoom-out",
+    "tiled-pattern",
+    "pill-rows",
+    "row-slide",
+    "gradient-fill",
+    "highlight-sequence",
+    "connector-draw",
+    "path-reveal",
+    "dim-to-focus"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "WORDS are the verbs the narration says (three short ones is the rhythm) and ICONS one line icon per word; colours are .stage tokens (--ground, --line, --fill-1..8, --wire, --wire-head, --band). The lit path is row 0's anchor pill, row 1's at +1800 px and row 2's at +1190 px: keep row 1 to the right so the whip travels. Keep the pill at 300 px tall at zoom 1, filling a quarter of the frame height; the size, and how small it ends, is the move.",
+  "port": "Custom shot type js/shots/pill-grid.js: build the rows in animate(el, s, D) from the verbs the narration says, and return a timeline tweening a proxy {t: 0 to 3.3} (ease none) drawn in ShotKit.frameHook with this page's seek(t) scoped to el. Or rebuild on GSAP: a {x, y, zoom} tween fed to Motion.camera on a world element (power3.inOut for the whip, CustomEase cubic-bezier(.2,0,.05,1) for the pull-back), expo.out row slides fired as each row appears, an xPercent tween on each .strip for the fill, strokeDasharray tweens for the connectors. Put the three fills on s.beatTimes where each verb is spoken. The 2.62 to 2.9 s whip and cut is the join into a dark next shot; drop it otherwise and hold on the path.",
+  "caveats": [
+    "Rows repeat Thinking, users, Asking, building, Building, user strictly; the reel shuffles a few",
+    "Sharp Grotesk stands in for the reel's geometric sans",
+    "The connectors never meet; the reel cuts before Thinking's line reaches Asking's",
+    "The dimming blurs about 150 elements per frame, heavy in a live preview",
+    "Ends on the empty band ground, which is the next scene's"
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

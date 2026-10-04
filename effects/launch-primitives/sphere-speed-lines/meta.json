@@ -1,0 +1,28 @@
+{
+  "name": "Sphere Speed Lines",
+  "seconds": 3,
+  "move": "a glossy blue-violet sphere rolls in from the left trailing fine speed lines along the bottom of a light frame while a huge sentence builds word by word above it and the camera pans along the line, then the sphere speeds up and flies out right and the scene flips to dark",
+  "how": "The sentence (Sharp Grotesk 400, set 1.7 frame widths wide, about 180 px, baseline at 57.6% of the height) sits in a world the camera pans 1.27 widths from 0.12 to 1.57 s on cubic-bezier(.55,.15,.625,1), so the full stop ends at 87.5% of the frame. A word lands every 0.233 s (7 frames) from 0.1 s: it pops in pale, rises 45 px (cubicOut 0.3 s) and darkens left to right (a grey-to-ink background-clip gradient swept over 0.36 s). The sphere is a 412 px disc lit from the upper right (radial #e6ebf7 to #2a3cb8) over a 1.14x, 34 px-blurred blue disc that sits 0.12R high and lags its screen motion by 20 ms, with motion blur above 2000 px/s. Path in frame units: x = .12 + .78 quartOut(s/1.1) + .32 s + 1.2 (s-1.5)^2.5, y drops .5 to .87 (quartOut over 0.6 s) and later rises by 1.1 (s-1.85)^1.6: a fast arrival that lands on the floor, rolls slower than the camera (drifting back to the left of frame), then accelerates up and out. Speed lines: five 2.2 px grey strokes on a canvas, each the sphere's own last 1.1 s of path ending under it, heads 70 ms apart; the fan is wide while it drops and near-parallel once it rolls, and the lines catch up from 0.27 s. Text the sphere passes under turns pale and recovers behind it (a mask: wash = e^(-d/0.13W) of the distance behind the sphere). From 1.95 s the floor floods blue; at 2.36 s a hard flip to a black-to-navy ground, held to 3 s.",
+  "moves": [
+    "sphere-roll",
+    "speed-lines",
+    "motion-trail",
+    "word-by-word",
+    "camera-pan",
+    "text-wake",
+    "flip-to-dark"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "SENTENCE is the spoken line and WORD_EVERY should follow its word timings; colours are .stage tokens (--ground, --ground-low, --floor, --ink, --ghost, --orb-1..6, --night, --night-low). Keep the line about 1.7 widths long so the camera has to pan while the sphere rolls under it; a shorter sentence means less pan (CAM_END is derived from the set width).",
+  "port": "Custom shot type js/shots/sphere-line.js. The sentence belongs in the film's captions (spoken words): the shot reads it from s, splits it into words and lands word i at its caption time instead of every 0.233 s. animate(el, s, D) returns a timeline tweening a proxy {t: 0 to 3} drawn in ShotKit.frameHook with this page's seek(t) scoped to el (the speed lines are a canvas). The flip at 2.36 s is the join to a dark next shot; drop it otherwise and end on the sphere's exit.",
+  "caveats": [
+    "The reel's face is wider than Sharp Grotesk, so the words sit a little narrower and smaller",
+    "Speed lines are path history, so they follow any path you give the sphere; the reel's exit lines rise a touch steeper",
+    "The last 0.64 s is the dark ground the next scene starts on"
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

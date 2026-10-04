@@ -1,0 +1,34 @@
+{
+  "name": "Logo Tile Converge",
+  "seconds": 8.6,
+  "move": "a soft app-icon tile lands as the camera pulls back and its script mark draws itself on, fine curved lines sweep in from both frame edges and converge into the tile's sides like cables plugging in, then a call-to-action line builds and the wordmark assembles letter by letter with the mark drawing beside it",
+  "how": "Four beats joined by hard cuts on one continuous camera (the outgoing scene accelerates away, the incoming one decelerates). 0-1.6s: a sentence ends on an accent italic word; words rise 0.45em from pale at 1.08x and settle in 0.3s expoOut (the italic word also de-blurs 7px); the plane recedes 1-0.9(t-1.2)^2 into the cut. 1.6s: the tile scene lands mid pull-back: the tile plane is 2.2x and the copy plane 1.46x (0.42 of the excess) and both decay as 1.1*(1-expoOut(dt/2s)), defocus 7*e^2 px, then drift -3%/s. The mark is one continuous stroke drawn by stroke-dashoffset over 0.56s (1.62-2.18, pen ease 75% linear + 25% smoothstep, round caps), starting while still blurred. Copy words every ~0.22s. Cables: 7 per side, at 0, +-131, +-241, +-387px from centre at the frame edge, y = cy + off*smoothstep(u^0.95/1.12) so they run flat into a merge ~100px before the tile, then a 12-15px stub plugs into it; a 5.5px stroke whose opacity fades 1 -> 0.2 toward the edge plus an 8.5px overlay that fades out by x=330 make the taper. Each draws edge -> tile in 0.52s cubicOut, pairs at 1.82/1.98/2.13/2.3s (centre first, outer last, right side 0.05s behind). Tile: 324px, radius 40, #f6f6fa -> #ebebf3, 1.5px white inner rim, soft drop shadow; as the bundles plug in (2.25-2.95) a blue glow grows (alpha 0 -> 0.55, 30 -> 60px) and a blurred accent band shows through the tile at line height. 4.5-4.77: the scene tilts up -2000(t-4.5)^2.2 px into the cut; the CTA lands 32px low and settles in 0.3s expoOut, words every 0.24s, then recedes 5% accelerating into the cut at 6.6. End card: periwinkle ground blooms from below in 0.3s; plane 1.13 -> 1 expoOut over 1.8s; letters fade pale -> full with 3px blur, 42ms apart from 6.64; the mark draws 6.62-7.04 beside them; hold to 8.6.",
+  "moves": [
+    "script-draw-on",
+    "stroke-dashoffset",
+    "app-icon-tile",
+    "lines-converge",
+    "cables-plug-in",
+    "glow",
+    "camera-pull-back",
+    "parallax-depth",
+    "word-by-word",
+    "logo-assemble",
+    "wordmark-reveal",
+    "match-cut"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Brand tokens on .stage (--accent for mark, cables, glow and accent words; --ink; --ground-*; --tile/--tile-low; --bloom). Copy lines from facts.md. Tile size and radius to the product's app icon. OFFS sets cable count and spread. Keep the pull-back decay and its depth ratio, the ~0.55s mark draw, the 0.15s pair stagger with the outer pair last, and the glow that switches on as the cables plug in.",
+  "port": "Custom shot type js/shots/logo-tile-converge.js (or three shots split at the cuts: tile, CTA, end card, carrying the camera's velocity across each cut). Seek-style page: tween a proxy {t: 0 -> 8.6} over D (ease 'none') on the returned timeline and call seek(proxy.t) from ShotKit.frameHook(el, ...); build the DOM, the cable paths and their dash lengths in mount, selectors scoped to el. The logo is the product's own file from assets/logo/, never this placeholder 'fn' path or retyped letters: the mark alone goes in the tile, the full logo on the end card. If the mark is a stroke SVG (paths with stroke and no fill), inline it and draw its paths in document order with stroke-dashoffset exactly as drawMark does (one window split by path length). Otherwise (filled SVG, PNG) place it as an <img> or inline SVG and reveal it with a mask wipe along the stroke direction: a mask-image linear-gradient with a ~15% soft edge, angled along the mark's main stroke (bottom-left -> top-right for a rising script), swept over the same 0.56s with the pen ease. End card: the full logo file; if wordmark and mark are separate files, wipe the wordmark left -> right (~0.4s, the 42ms/letter stagger) with a 3px blur settling, and draw or wipe the mark beside it; if it is one file, one soft left -> right mask wipe over ~0.45s.",
+  "caveats": [
+    "The reel's script words are a brush script; the library only has Sorts Mill Goudy italic, so 'institution.' reads as a serif italic.",
+    "The 'fn' script mark is a placeholder path drawn for this page; films must use the product's own logo file (see port).",
+    "The cable taper is two overlapping strokes with opacity gradients, not a variable-width stroke; very thin cables lose it.",
+    "Three hard cuts (1.6, 4.77, 6.6) ride one camera: if you split the shots, keep the accelerating exit and the decelerating entry on either side of each cut."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

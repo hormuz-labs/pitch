@@ -1,0 +1,522 @@
+<!doctype html><meta charset="utf-8">
+<title>Explainer Problem Act</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<!--
+  A motion study of a narrated explainer's first act (reel 0:00–0:23), timed 1:1
+  with the reel: page time t == reel time. The point is the CHAIN — how each
+  moment hands over to the next without a cut, at the narration's pace.
+
+  moment                         reel        join into the next
+  1 dark "Every day,"            0.00–0.62   a white disc bursts from the word gap and floods the frame (disc → ground)
+  2 light line + pill keyword    0.62–1.83   row 2 arrives → camera pulls back, cards drift in at depths
+  3 cards at depths              1.83–4.25   push in on "And…", pull back on "too many…" (text swaps ride the camera steps)
+  4 near-lens rush               4.25–5.45   cards turn blue and blur past the lens; the frame empties to bare ground
+  5 big scrolling line           5.47–7.50   the line pans ahead of the voice, old words fade at the left edge
+  6 ghosted line + push          7.48–9.43   pull back while the ghost row fills, then accelerating push → cut on motion
+  7 dark grid, travelling glows  9.43–11.84  camera keeps panning into the cut
+  8 pills, pull back             11.84–14.78 three filled pills emit lines; pattern fades, lines run off right
+  9 branching line               14.78–18.12 the line comes back in from the left; pan right past the glow band
+ 10 ground → card                18.12–19.17 the dark ground shrinks into a square card on blue (ground → card)
+ 11 light "Not because…"         19.17–20.88 hard cut, camera pulls back 1.2→1.0 while the row fills
+ 12 sphere + speed lines         20.88–23.15 sphere rushes in with the first word; the line scrolls, the sphere rolls under it
+-->
+<style>
+  .stage{
+    --ground:#f7f6fb; --ground-dark:#020206; --ink:#15151d; --soft:#b8b8c8; --on-dark:#ffffff;
+    --accent:#2338c8; --accent-2:#4b61ea; --lavender:#a9b3f6; --glow:#3349e6; --blue-ground:#1f35c2;
+    --card:#ffffff; --card-line:#e5e5f0; --muted:#5d5d6c; --pill-line:#2a3dd0;
+    background:var(--ground-dark); overflow:hidden; font-family:"Sharp Grotesk",Arial,sans-serif; color:var(--ink);
+  }
+  .scene{position:absolute;inset:0;overflow:hidden;visibility:hidden}
+  .fill{position:absolute;inset:0}
+  .row{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+  .w{position:absolute;left:0;top:0;white-space:pre;line-height:1}
+  .w.b{font-weight:500;-webkit-text-stroke:.022em currentColor}
+  .w .pbg{position:absolute;left:-.26em;right:-.26em;top:-.12em;bottom:-.16em;border-radius:.22em;background:linear-gradient(90deg,#3d53e6,#2237c9);z-index:-1}
+  .w.pillw{z-index:1;isolation:isolate}
+
+  /* grounds */
+  .g-dark{background:radial-gradient(170% 78% at 62% 122%,#1f31b2 0%,#16248e 28%,#0b1250 50%,#04061a 66%,#020206 80%)}
+  .g-light{background:linear-gradient(180deg,#f8f7fc 0%,#f6f5fb 50%,#e8eafc 70%,#c7cdf9 88%,#aab3f5 100%)}
+  .band{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55}
+  .g-blue{background:linear-gradient(90deg,#2443dc 0%,#1f36c4 38%,#1c31b6 100%)}
+
+  /* 2–4 light world */
+  .world{position:absolute;left:0;top:0;width:0;height:0}
+  .crd{position:absolute;left:0;top:0;background:var(--card);border:1.5px solid var(--card-line);border-radius:24px;
+       box-shadow:0 22px 60px rgba(70,84,200,.13),0 2px 8px rgba(40,40,90,.05);overflow:hidden;color:#1a1a24;transform-origin:50% 50%}
+  .crd .lens{position:absolute;inset:-4px;opacity:0;background:radial-gradient(90% 90% at 42% 50%,#1b2cba 0%,#2a40d8 45%,#4d63ec 78%,#93a2f7 100%)}
+  .crd h4{position:absolute;font-weight:400;font-size:24px;letter-spacing:-.01em}
+  .dots{position:absolute;font-size:26px;letter-spacing:3px;color:#22222c}
+  .dot{position:absolute;border-radius:50%;background:var(--accent)}
+  .bar{position:absolute;height:9px;border-radius:5px;background:linear-gradient(90deg,var(--accent) 0%,#6d7ff0 55%,rgba(150,160,240,0) 100%)}
+  .ago{position:absolute;font-size:19px;color:#2a2a34}
+  .note{background:#fbfbfd;border-radius:6px}
+  .note .tape{position:absolute;left:50%;top:-4px;width:34px;height:26px;margin-left:-17px;background:#e8e8ee;border-radius:3px}
+  .hand{position:absolute;font:italic 400 30px/1.45 "Sorts Mill Goudy",serif;color:#25253a}
+  .swash{position:absolute;height:3px;border-radius:3px;background:var(--accent-2)}
+  .bars i{position:absolute;bottom:0;width:15px;background:var(--accent);border-radius:2px}
+
+  /* 7 grid */
+  .tile{position:absolute;width:357px;height:357px;margin:-178.5px 0 0 -178.5px;border-radius:44px;background:linear-gradient(180deg,rgba(18,18,28,.72),rgba(12,12,20,.6));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.035)}
+  .glow{position:absolute;width:820px;height:820px;margin:-410px 0 0 -410px;border-radius:50%;
+        background:radial-gradient(circle,rgba(78,100,255,.95) 0%,rgba(58,78,238,.8) 22%,rgba(38,56,196,.42) 44%,rgba(20,30,120,0) 66%)}
+  .rim{position:absolute;width:260px;height:460px;margin:-230px 0 0 -130px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.8),rgba(220,226,255,.4) 45%,rgba(200,210,255,0));filter:blur(34px)}
+  .ico{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .label{position:absolute;color:#fff;font-size:73px;white-space:nowrap;transform:translate(-50%,-50%)}
+
+  /* 8 pills */
+  .pill{position:absolute;height:301px;margin-top:-150.5px;border-radius:151px;border:7px solid var(--pill-line);background:#04040b;color:#fff;font-size:119px;
+        display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
+  .pill .pf{position:absolute;inset:0;background:linear-gradient(90deg,#aeb9fa 0%,#5068ec 18%,#2a40da 45%,#1f33c0 100%)}
+  .pill span{position:relative}
+  .picon{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+
+  /* 9–10 branch + slab */
+  .slab{position:absolute;overflow:hidden}
+  .band-blue{position:absolute;border-radius:50%;filter:blur(70px)}
+  .streaks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 38px,rgba(0,0,10,.18) 38px 46px);mix-blend-mode:multiply}
+
+  /* 11–12 light again */
+  .glowT{position:absolute;border-radius:50%;filter:blur(80px)}
+  .sphere{position:absolute;left:0;top:0;width:410px;height:410px;margin:-205px 0 0 -205px;border-radius:50%;
+          background:radial-gradient(circle at 78% 20%,#eceeff 0%,#b8c1f8 24%,#7083ee 50%,#3a50da 76%,#2337c4 100%);
+          box-shadow:0 0 60px 30px rgba(58,80,226,.5),0 0 130px 50px rgba(120,140,245,.22)}
+  .mask-left{-webkit-mask-image:linear-gradient(90deg,transparent 0,transparent 60px,#000 230px);mask-image:linear-gradient(90deg,transparent 0,transparent 60px,#000 230px)}
+</style>
+
+<div class="stage">
+  <!-- 1 -->
+  <section class="scene" id="s-open"><div class="fill g-dark"></div></section>
+
+  <!-- 2–6: one light stage; revealed through the flood disc -->
+  <section class="scene" id="s-light">
+    <div class="fill g-light"></div>
+    <div class="band" id="lb1" style="width:1900px;height:420px;background:#c9cff9"></div>
+    <div class="band" id="lb2" style="width:1500px;height:360px;background:#b4bdf7"></div>
+    <div class="fill mask-left" id="beforeWrap"></div>
+    <div class="world" id="cards">
+      <div class="crd" data-k="convo" style="width:452px;height:271px">
+        <h4 style="left:34px;top:30px">Conversations</h4><div class="dots" style="right:30px;top:20px">•••</div>
+        <div class="dot" style="left:34px;top:88px;width:40px;height:40px"></div><div class="bar" style="left:90px;top:96px;width:180px"></div><div class="bar" style="left:90px;top:112px;width:120px;opacity:.6"></div><div class="ago" style="right:30px;top:98px">2d ago</div>
+        <div class="dot" style="left:34px;top:146px;width:40px;height:40px"></div><div class="bar" style="left:90px;top:154px;width:180px"></div><div class="bar" style="left:90px;top:170px;width:120px;opacity:.6"></div><div class="ago" style="right:30px;top:156px">3d ago</div>
+        <div class="dot" style="left:34px;top:204px;width:40px;height:40px"></div><div class="bar" style="left:90px;top:212px;width:180px"></div><div class="bar" style="left:90px;top:228px;width:120px;opacity:.6"></div><div class="ago" style="right:30px;top:214px">5d ago</div>
+        <div class="lens"></div></div>
+      <div class="crd" data-k="chat" style="width:385px;height:181px">
+        <div class="dot" style="left:30px;top:28px;width:40px;height:40px"></div><h4 style="left:84px;top:34px">Maya</h4><div class="ago" style="right:28px;top:40px;font-size:16px">10:32 AM</div>
+        <div class="ago" style="left:84px;top:88px;font-size:17px;line-height:1.25;color:#55556a">What if we pooled our<br>field notes in one place?</div><div class="dots" style="left:84px;top:132px;font-size:20px;color:#55556a">•••</div>
+        <div class="lens"></div></div>
+      <div class="crd" data-k="dash" style="width:640px;height:300px">
+        <h4 style="left:300px;top:6px;font-size:30px">fieldnote · activity</h4>
+        <svg style="position:absolute;left:30px;top:70px" width="580" height="200" viewBox="0 0 580 200"><g stroke="#d9dbe9" stroke-width="1.5"><path d="M0 40H580M0 100H580M0 160H580"/></g><polyline fill="none" stroke="#3a3a55" stroke-width="2" points="20,150 85,145 150,120 220,140 300,115 380,60 430,30 520,48"/><g fill="#3a3a55"><circle cx="20" cy="150" r="5"/><circle cx="85" cy="145" r="5"/><circle cx="150" cy="120" r="5"/><circle cx="220" cy="140" r="5"/><circle cx="300" cy="115" r="5"/><circle cx="430" cy="30" r="5"/><circle cx="520" cy="48" r="5"/></g></svg>
+        <div class="lens"></div></div>
+      <div class="crd note" data-k="noteL" style="width:206px;height:200px"><div class="tape"></div>
+        <div class="hand" style="left:26px;top:34px;font-size:23px">New approach<br>for cold<br>storage?</div><div class="swash" style="left:26px;top:150px;width:70px"></div><div class="lens"></div></div>
+      <div class="crd note" data-k="noteR" style="width:272px;height:264px"><div class="tape"></div>
+        <div class="hand" style="left:40px;top:44px">Share<br>across<br>teams</div><div class="swash" style="left:118px;top:186px;width:96px"></div><div class="swash" style="left:132px;top:198px;width:80px"></div><div class="lens"></div></div>
+      <div class="crd" data-k="proj" style="width:680px;height:430px">
+        <h4 style="left:16px;top:44px;font-size:36px">Research projects</h4><div class="dots" style="right:56px;top:40px;font-size:34px">•••</div>
+        <div class="bars" style="position:absolute;left:16px;top:120px;width:460px;height:140px"><i style="left:0;height:70px"></i><i style="left:52px;height:136px"></i><i style="left:104px;height:70px"></i><i style="left:156px;height:136px"></i><i style="left:208px;height:70px"></i><i style="left:260px;height:136px"></i><i style="left:312px;height:70px"></i><i style="left:364px;height:136px"></i><i style="left:416px;height:70px"></i></div>
+        <div style="position:absolute;left:16px;top:300px;font-size:58px">0</div><div class="ago" style="left:16px;top:372px;font-size:26px">Active projects</div>
+        <div class="lens"></div></div>
+      <div class="crd" data-k="prof" style="width:700px;height:330px">
+        <div class="dot" style="left:58px;top:42px;width:80px;height:80px"></div><h4 style="left:164px;top:62px;font-size:44px">Dr. Lane</h4><div class="ago" style="right:46px;top:72px;font-size:28px">10:32 AM</div>
+        <div class="ago" style="left:164px;top:150px;font-size:30px;line-height:1.3">Let’s revisit this idea<br>next term.</div><div class="dots" style="left:164px;top:236px;font-size:28px">•••</div>
+        <div class="lens"></div></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="scene" id="s-grid"><div class="fill g-dark"></div><div class="world" id="gridw"></div></section>
+
+  <!-- 9–10 (under 8 so the pill ground can dissolve onto it) -->
+  <section class="scene" id="s-branch">
+    <div class="fill g-blue"></div>
+    <div class="slab" id="slab">
+      <div class="fill" style="background:var(--ground-dark)"></div>
+      <div class="band-blue" id="bandA" style="width:1600px;height:2600px;background:radial-gradient(closest-side,#1b2ba4 0%,#1a2a9c 50%,#121e78 74%,rgba(8,12,50,0) 100%)"></div>
+      <div class="band-blue" id="bandB" style="width:700px;height:2200px;background:radial-gradient(closest-side,rgba(2,2,10,.55),rgba(2,2,10,0))"></div>
+      <svg id="branch" style="position:absolute;left:0;top:0;overflow:visible" width="1920" height="1080"><g fill="none" stroke="#2c40d4" stroke-width="5" stroke-linecap="round"><path id="br-top"/><path id="br-mid"/><path id="br-bot"/></g></svg>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="scene" id="s-pills"><div class="fill g-dark" id="pillGround"></div><div class="world" id="pillw"></div></section>
+
+  <!-- 11 -->
+  <section class="scene" id="s-weak"><div class="fill" style="background:var(--ground)"></div>
+    <div class="glowT" id="wg1" style="width:2200px;height:900px;background:radial-gradient(closest-side,#7f90f4,#a9b4f7 45%,rgba(200,206,250,0))"></div>
+    <div class="glowT" id="wg2" style="width:1400px;height:600px;background:radial-gradient(closest-side,#8b9af5,rgba(190,198,250,0))"></div>
+  </section>
+
+  <!-- 12 -->
+  <section class="scene" id="s-sphere"><div class="fill g-light" style="background:linear-gradient(180deg,#f9f8fc 0%,#f6f5fb 55%,#e5e7fc 78%,#c4cbf8 100%)"></div>
+    <svg id="trail" style="position:absolute;left:0;top:0" width="1920" height="1080"><g fill="none" stroke="#8d8ea0" stroke-width="1.6" stroke-linecap="round"></g></svg>
+    <div id="sphereRow"></div><div class="sphere" id="sphere"></div>
+  </section>
+</div>
+
+<script src="../../_lib/motion.js"></script><script src="../../_lib/fx.js"></script>
+<script>
+const M = Motion, P = M.phase, B = M.between, lerp = M.lerp, clamp = M.clamp;
+const CX = 960, CY = 540, D = 23.3, END = 23.15;
+const $ = (s, r = document) => r.querySelector(s);
+const show = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; };
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, p) => { const A = hex(a), Bc = hex(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, Bc[i], clamp(p)))).join(',')})`; };
+const css = n => getComputedStyle($('.stage')).getPropertyValue(n).trim();
+/* start + eased deltas: path({x:0}, [[a, b, {x: 10}, 'move'], …]) → t => {x} */
+function path(start, keys) {
+  let prev = { ...start };
+  const segs = keys.map(([a, b, to, e]) => { const d = {}; for (const k in to) d[k] = to[k] - prev[k]; prev = { ...prev, ...to }; return [a, b, d, e || 'move']; });
+  return t => { const v = { ...start }; for (const [a, b, d, e] of segs) { const p = P(t, a, b, e); if (p) for (const k in d) v[k] += d[k] * p; } return v; };
+}
+
+/* ── Captions: the spoken words. One Row = one caption stack; words carry their
+   spoken time. Modes, per row of the stack:
+     row      laid out at its final width, centred; words appear in place
+     recentre each word re-centres the row (eased step per word)
+     fit      re-centres while it fits, then right-aligns at `right` (scrolls)
+     left     left-anchored at `left` (the big scrolling line; panned by f.x)
+   Reveals: rise (word rises from grey), chars (soft letter wipe), ghost (row shows faint, words solidify). */
+class Row {
+  constructor(parent, o) {
+    Object.assign(this, { size: 80, cx: CX, cy: CY, lh: 1.3, modes: ['row'], reveal: 'rise', gap: .3, step: .4, lag: 0, ghost: .08,
+      ink: css('--ink'), soft: css('--soft'), accent: css('--accent'), vfinal: false }, o);
+    this.el = document.createElement('div'); this.el.className = 'row' + (o.cls ? ' ' + o.cls : '');
+    this.el.style.fontSize = this.size + 'px'; parent.appendChild(this.el);
+    this.words = o.words.map(([text, t, f = '']) => {
+      const s = document.createElement('span'); s.className = 'w' + (f.includes('b') ? ' b' : '') + (f.includes('p') ? ' pillw' : '');
+      const w = { text, t, el: s, br: f.includes('n'), accent: f.includes('a'), pill: f.includes('p') };
+      if (this.reveal === 'chars' || this.reveal === 'sweep') w.chars = [...text].map(ch => { const c = document.createElement('span'); c.textContent = ch; s.appendChild(c); return c; });
+      else s.textContent = text;
+      if (w.pill) { w.pbg = document.createElement('i'); w.pbg.className = 'pbg'; s.prepend(w.pbg); }
+      this.el.appendChild(s); return w;
+    });
+  }
+  layout() {
+    const g = this.gap * this.size; this.rows = []; let cur = null;
+    for (const w of this.words) {
+      w.width = w.el.getBoundingClientRect().width;
+      if (!cur || w.br) { cur = { words: [], t: w.t }; this.rows.push(cur); }
+      cur.words.push(w);
+    }
+    this.rows.forEach((r, k) => {
+      let x = 0; for (const w of r.words) { w.rx = x; x += w.width + g; }
+      r.width = x - g; r.pre = r.words.map(w => w.rx + w.width); r.mode = this.modes[Math.min(k, this.modes.length - 1)];
+    });
+  }
+  rowX(r, t) {
+    const m = r.mode;
+    if (m === 'row') return this.cx - r.width / 2;
+    if (m === 'left') return this.left;
+    const at = i => m === 'recentre' ? this.cx - r.pre[i] / 2 : (r.pre[i] <= this.maxW ? this.cx - r.pre[i] / 2 : this.right - r.pre[i]);
+    let x = at(0);
+    for (let i = 1; i < r.words.length; i++) { const a = r.words[i].t + this.lag; x += (at(i) - at(i - 1)) * P(t, a, a + this.step, 'move'); }
+    return x;
+  }
+  draw(t, f = {}) {
+    const on = (f.alpha ?? 1) > 0.002; this.el.style.display = on ? '' : 'none'; if (!on) return;
+    const lh = this.lh * this.size, n = this.rows.length;
+    let y0 = this.cy;
+    if (this.vfinal) y0 -= (n - 1) * lh / 2;
+    else for (let k = 1; k < n; k++) y0 -= lh / 2 * P(t, this.rows[k].t, this.rows[k].t + .45, 'move');
+    this.rows.forEach((r, k) => { const rx = this.rowX(r, t); for (const w of r.words) this.word(w, t, rx + w.rx, y0 + k * lh); });
+    const s = f.scale ?? 1;
+    this.el.style.transformOrigin = `${f.px ?? CX}px ${f.py ?? CY}px`;
+    this.el.style.transform = `translate(${f.x || 0}px,${f.y || 0}px) scale(${s})`;
+    this.el.style.opacity = f.alpha ?? 1;
+    this.el.style.filter = (f.blur || 0) > .05 ? `blur(${f.blur}px)` : 'none';
+  }
+  word(w, t, x, y) {
+    const S = this.size, to = w.accent ? this.accent : this.ink, st = w.el.style;
+    let a = P(t, w.t, w.t + .14, 'smooth'), dy = 0, blur = 0;
+    if (this.reveal === 'rise') { dy = (1 - P(t, w.t, w.t + .3, 'expoOut')) * .16 * S; blur = (1 - a) * .05 * S; }
+    if (this.reveal === 'ghost') a = lerp(this.ghost, 1, P(t, w.t, w.t + .12)), blur = (1 - P(t, w.t, w.t + .12)) * 2.5;
+    if (this.reveal === 'chars') {          // letters arrive one by one, near-ink
+      a = t >= w.t ? 1 : 0;
+      const cd = Math.min(.028, (w.dur || .3) / w.chars.length);
+      w.chars.forEach((c, j) => { const tj = w.t + j * cd; c.style.opacity = P(t, tj, tj + .06); c.style.color = mix(this.soft, to, P(t, tj + .02, tj + .2)); });
+    } else if (this.reveal === 'sweep') {   // the word lands whole and grey; ink sweeps through it left to right
+      a = P(t, w.t, w.t + .08);
+      w.chars.forEach((c, j) => { const tj = w.t + .04 + j * .045; c.style.color = mix(this.soft, to, P(t, tj, tj + .22)); });
+    } else st.color = mix(this.soft, to, P(t, w.t + .02, w.t + .25));
+    if (w.pill) { // keyword in a pill: slides in blurred, then the pill dissolves and the word resolves to bold ink
+      const slide = 1 - P(t, w.t, w.t + .14, 'expoOut');
+      x += slide * 120; blur = slide * 16; a = P(t, w.t, w.t + .06);
+      w.pbg.style.opacity = 1 - P(t, w.t + .2, w.t + .43); w.pbg.style.filter = `blur(${P(t, w.t + .14, w.t + .43) * 12}px)`;
+      st.color = mix('#e9ecff', to, P(t, w.t + .17, w.t + .3));
+    }
+    st.opacity = a;
+    st.transform = `translate(${x}px,${y - S * .5 + dy}px)`;
+    st.filter = blur > .1 ? `blur(${blur}px)` : 'none';
+  }
+}
+
+/* ── scenes ─────────────────────────────────────────────────────────── */
+const sOpen = $('#s-open'), sLight = $('#s-light'), sGrid = $('#s-grid'), sPills = $('#s-pills'), sBranch = $('#s-branch'), sWeak = $('#s-weak'), sSphere = $('#s-sphere');
+
+// 1 dark opener
+const rOpen = new Row(sOpen, { size: 151, cy: 555, modes: ['recentre'], step: .3, ink: '#ffffff', soft: '#8a90c0', words: [['Every', -1], ['day,', .1]] });
+
+// 2–6 light
+const rWalls = new Row(sLight, { size: 61, cy: 555, lh: 1.48, words: [['Every', .7], ['day,', .7], ['ideas', .8, 'bp'], ['are', 1.27], ['born', 1.47], ['inside', 1.8, 'n'], ['your', 1.97], ['walls.', 2.1]] });
+const rAnd = new Row(sLight, { size: 76, cy: 540, words: [['And', 3.07], ['every', 3.2], ['day,', 3.37]] });
+const rToo = new Row(sLight, { size: 50, cy: 540, words: [['too', 4.12], ['many', 4.27], ['of', 4.37], ['them', 4.5]] });
+const rFade = new Row(sLight, { size: 78, cy: 545, words: [['fade', 4.93, 'ab'], ['out.', 5.03, 'ab']], soft: '#b9c1f2' });
+const rBefore = new Row($('#beforeWrap'), { size: 160, cy: 548, left: 150, modes: ['left'], reveal: 'chars', words: [['Before', 5.47], ['they', 5.75], ['become', 5.93], ['anything', 6.32], ['real.', 6.75, 'a']] });
+const rBecause = new Row(sLight, { size: 77, cy: 540, reveal: 'ghost', words: [['Because', 7.53], ['inside', 7.75], ['every', 7.92], ['institution', 8.07]] });
+
+// 9–10 inside the slab
+const slab = $('#slab');
+const rResearch = new Row(slab, { size: 90, cy: 540, lh: 1.2, vfinal: true, modes: ['recentre', 'row'], ink: '#f4f4f8', soft: '#8e8ea4', words: [['The', 17.38], ['research', 17.55, 'b'], ['gets', 18.12, 'n'], ['stuck.', 18.36]] });
+
+// 11, 12
+const rWeak = new Row(sWeak, { size: 77, cy: 543, words: [['Not', 19.15], ['because', 19.37], ['the', 19.5], ['ideas', 19.72], ['are', 19.85], ['weak.', 20.0]] });
+const rSystem = new Row($('#sphereRow'), { size: 175, cy: 556, modes: ['fit'], maxW: 1700, right: 1780, step: .5, lag: -.1, reveal: 'sweep', soft: '#c3c3d0',
+  words: [['But', 20.92], ['because', 21.15], ['the', 21.38], ['system', 21.55], ['isn’t', 21.85], ['there.', 22.05]] });
+const ROWS = [rOpen, rWalls, rAnd, rToo, rFade, rBefore, rBecause, rResearch, rWeak, rSystem];
+
+/* ── 1 → 2: flood. The disc grows exponentially from the gap after "Every". */
+const discR = t => t < .6 ? 0 : 30 * Math.exp(15 * (t - .615));
+function drawOpen(t) {
+  const drift = -60 * P(t, .2, .95, 'linear');
+  rOpen.draw(t, { x: drift, scale: 1 + .03 * P(t, 0, .95, 'linear'), py: 555 });
+  return drift;
+}
+
+/* ── 2–4: cards at depths. cx,cy are offsets from frame centre at zoom 1. */
+const CARDS = {
+  convo: { cx: -596, cy: -345, rot: -2, rx: 8, ry: 10, depth: .9, fly: .00, rush: 4.40 },
+  chat:  { cx: 66, cy: -412, rot: 3, rx: 10, ry: -4, depth: .85, fly: .05, rush: 4.44 },
+  dash:  { cx: 700, cy: -432, rot: 10, rx: 22, ry: -16, depth: .9, fly: .08, rush: 4.32 },
+  noteL: { cx: -655, cy: -6, rot: -5, rx: 6, ry: 18, depth: 1, fly: .1, rush: 4.6 },
+  noteR: { cx: 636, cy: -18, rot: -9, rx: 6, ry: -14, depth: 1, fly: .12, rush: 4.68 },
+  proj:  { cx: -630, cy: 400, rot: 2, rx: 14, ry: 12, depth: 1.25, fly: .03, rush: 4.24 },
+  prof:  { cx: 620, cy: 440, rot: 2.5, rx: 12, ry: -12, depth: 1.2, fly: .06, rush: 4.8 },
+};
+const cardEls = [...document.querySelectorAll('#cards .crd')].map(el => ({ el, lens: $('.lens', el), w: el.offsetWidth, h: el.offsetHeight, ...CARDS[el.dataset.k] }));
+// camera dolly for the card plane: pull back as row 2 lands, push on "And", pull on "too"
+const camLight = path({ z: 1 }, [[2.4, 3.05, { z: 1.03 }, 'linear'], [3.05, 3.45, { z: 1.4 }, 'expoOut'], [3.45, 4.08, { z: 1.45 }, 'linear'],
+  [4.08, 4.45, { z: 1.03 }, 'expoOut'], [4.45, 5.4, { z: 1.07 }, 'linear']]);
+function drawCards(t) {
+  const Z = camLight(t).z;
+  for (const c of cardEls) {
+    const a0 = 1.83 + c.fly, fly = 1 - P(t, a0, a0 + .75, 'expoOut');                  // 1 → 0 as the card settles
+    const pull = P(t, c.rush, c.rush + .14, 'expoOut'), go = P(t, c.rush + .12, c.rush + .95, 'expoIn'); // near-lens rush
+    const k = 1 + .9 * fly + .06 * pull + .75 * go, ks = 1 + .55 * fly + .14 * pull + .8 * go;
+    const Zc = 1 + (Z - 1) * c.depth;
+    const sway = Math.sin(t * .9 + c.cx * .01) * 6;
+    const x = CX + c.cx * Zc * k + sway, y = CY + c.cy * Zc * k + Math.cos(t * .7 + c.cy * .01) * 5;
+    const op = P(t, a0, a0 + .12) * (1 - P(t, c.rush + .4, c.rush + .75));
+    c.el.style.visibility = op > .002 ? 'visible' : 'hidden';
+    c.el.style.opacity = op;
+    c.el.style.transform = `translate(${x - c.w / 2}px,${y - c.h / 2}px) perspective(1600px) rotateX(${c.rx}deg) rotateY(${c.ry}deg) rotate(${c.rot + 14 * fly * Math.sign(c.cx)}deg) scale(${Zc * ks})`;
+    const near = pull + go;
+    c.lens.style.opacity = clamp(near * 1.6);
+    c.el.style.filter = near > .01 ? `blur(${4 + 14 * near}px)` : 'none';
+  }
+}
+function drawLight(t, discAt) {
+  // ground drift
+  $('#lb1').style.transform = `translate(${-200 + 120 * Math.sin(t * .35)}px,${760 + 30 * Math.sin(t * .5)}px)`;
+  $('#lb2').style.transform = `translate(${700 + 140 * Math.cos(t * .3)}px,${860 + 25 * Math.cos(t * .45)}px)`;
+  // flood mask
+  const r = discR(t);
+  sLight.style.clipPath = t < .95 ? `circle(${r}px at ${discAt.x}px ${discAt.y}px)` : 'none';
+  drawCards(t);
+  // the "Every day," words land at the opener's centred position (at the light row's size), then make room for the pill
+  const r1 = rWalls.rows[0], wED = r1.pre[1], s0 = 1.38 - .38 * P(t, 1.83, 2.35, 'expoOut');
+  const room = s0 * (r1.width - wED) / 2 * (1 - P(t, .8, 1.1, 'move'));
+  rWalls.draw(t, { x: room, scale: s0, py: 555, alpha: 1 - P(t, 3.04, 3.11) });
+  rAnd.draw(t, { scale: .9 + .1 * P(t, 3.05, 3.5, 'expoOut'), alpha: P(t, 3.05, 3.1) * (1 - P(t, 4.05, 4.12)) });
+  rToo.draw(t, { alpha: 1 - P(t, 4.86, 4.98), blur: 10 * P(t, 4.84, 4.98) });
+  rFade.draw(t, { alpha: 1 - P(t, 5.24, 5.42), blur: 16 * P(t, 5.18, 5.42), scale: 1 + .06 * P(t, 4.97, 5.42, 'linear') });
+  // the big line: pans one move ahead of the voice (camera leads), old words fade under the left mask
+  const pan = -1180 * (.85 * P(t, 6.08, 6.5, 'smoother') + .15 * P(t, 6.35, 7.05, 'cubicOut'));
+  rBefore.draw(t, { x: pan, alpha: (t >= 5.47 ? 1 : 0) * (1 - P(t, 7.43, 7.53)), blur: 20 * (1 - P(t, 5.47, 5.74)) + 8 * P(t, 7.43, 7.53), scale: 1 - .04 * P(t, 7.0, 7.45, 'linear') });
+  // the ghosted line: pull back while it fills, then an accelerating push that the cut rides into the grid
+  const pb = 1.42 - .46 * P(t, 7.48, 8.45, 'move'), push = 1 + .6 * P(t, 8.4, 9.43, 'expoIn');
+  rBecause.draw(t, { alpha: P(t, 7.46, 7.56), scale: pb * push, px: lerp(850, CX, P(t, 7.48, 8.45)), py: lerp(540, 240, P(t, 8.4, 8.9)) });
+}
+
+/* ── 7: dark grid. World unit: tile pitch 388; Students icon at (0,0). */
+const PITCH = 388, ICONS = {
+  person: '<path d="M24 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M8 43c0-9 7-15 16-15s16 6 16 15"/>',
+  people: '<path d="M19 22a7 7 0 1 0 0-14 7 7 0 0 0 0 14z"/><path d="M5 42c0-8 6-13 14-13s14 5 14 13"/><path d="M29 9a7 7 0 0 1 0 13"/><path d="M35 29c5 2 8 6 8 13"/>',
+  building: '<path d="M12 43V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v34"/><path d="M30 19h5a2 2 0 0 1 2 2v22"/><path d="M7 43h34"/><path d="M17 14h2M23 14h2M17 21h2M23 21h2M17 28h2M23 28h2"/><path d="M19 43v-7h4v7"/>',
+};
+const svgIcon = (k, cls) => `<svg class="${cls}" viewBox="0 0 48 48">${ICONS[k]}</svg>`;
+const gridw = $('#gridw');
+const LIT = [ // the labelled tiles and their travelling glows
+  { name: 'Students', icon: 'person', c: 0, r: 0, on: 9.42, lab: 9.45, path: [[-.35, 0], [0, 0, 9.47, 9.95], [.06, .32, 10.1, 10.75], [-.22, .12, 10.8, 11.5]] },
+  { name: 'Staff', icon: 'people', c: -1, r: 2, on: 10.25, lab: 10.35, path: [[.3, -.25], [0, 0, 10.25, 10.75], [.15, -.1, 10.9, 11.6]] },
+  { name: 'Faculty', icon: 'building', c: 2, r: 1, on: 10.8, lab: 10.95, path: [[-.3, -.15], [0, 0, 10.8, 11.25], [.12, .05, 11.3, 11.8]] },
+];
+(function buildGrid() {
+  let h = '';
+  for (let r = -4; r <= 6; r++) for (let c = -5; c <= 8; c++) h += `<div class="tile" style="left:${c * PITCH}px;top:${r * PITCH}px"></div>`;
+  for (const [c, r, k] of [[5, 0, 'building'], [4, 3, 'person']])
+    h += svgIcon(k, 'ico dim').replace('<svg', `<svg style="left:${c * PITCH}px;top:${r * PITCH}px;opacity:.85"`);
+  for (const L of LIT) h += `<div class="glow" data-n="${L.name}"></div><div class="rim" data-n="${L.name}"></div>` +
+    svgIcon(L.icon, 'ico').replace('<svg', `<svg style="left:${L.c * PITCH}px;top:${L.r * PITCH}px"`) +
+    `<div class="label" data-n="${L.name}" style="left:${(L.c - 1.5) * PITCH}px;top:${L.r * PITCH}px">${L.name}</div>`;
+  gridw.innerHTML = h;
+  for (const L of LIT) { L.glow = $(`.glow[data-n="${L.name}"]`, gridw); L.rim = $(`.rim[data-n="${L.name}"]`, gridw); L.label = $(`.label[data-n="${L.name}"]`, gridw); }
+})();
+const camGrid = path({ x: -248, y: 4, z: 1 }, [[9.43, 9.95, { x: -311, y: 8 }, 'expoOut'], [10.0, 10.72, { y: 569, x: -298 }], [10.0, 11.3, { z: .82 }],
+  [10.72, 11.55, { x: 215, y: 376 }], [11.55, 11.85, { x: 470 }, 'expoIn']]);
+function drawGrid(t) {
+  const cam = camGrid(t);
+  M.camera(gridw, { x: cam.x, y: cam.y, zoom: cam.z });
+  for (const L of LIT) {
+    let gx = L.path[0][0], gy = L.path[0][1];
+    for (const [x, y, a, b] of L.path.slice(1)) { const p = P(t, a, b, 'move'); gx = lerp(gx, x, p); gy = lerp(gy, y, p); }
+    const g = P(t, L.on, L.on + .3, 'smooth');
+    const X = (L.c + gx) * PITCH, Y = (L.r + gy) * PITCH;
+    L.glow.style.transform = `translate(${X}px,${Y}px) scale(${.75 + .25 * g})`; L.glow.style.opacity = g * .95;
+    L.rim.style.transform = `translate(${L.c * PITCH + 200 + gx * 120}px,${Y}px)`; L.rim.style.opacity = g * (.55 + .35 * Math.sin(t * 2 + L.c));
+    L.label.style.opacity = P(t, L.lab, L.lab + .18);
+  }
+}
+
+/* ── 8: pills. World unit at zoom 1: pill h 301, row pitch 365; T (filled Thinking) centred at (0,0). */
+const pillw = $('#pillw'), LAB = [['Thinking', 870, 'people'], ['Asking', 760, 'building'], ['Building', 836, 'person']], GAP = 466, CYC = 870 + 760 + 836 + 3 * GAP;
+const ROWOFF = { '-3': 900, '-2': -1714, '-1': -1285, 0: -435, 1: 115, 2: 2010, 3: -879, 4: -638, 5: 1300 };
+const ROWIN = { 1: 12.85, 2: 13.5, 3: 13.66, 4: 13.74, 5: 13.82 };   // rows below T build in as the story reaches them
+const HERO = { '0:Thinking': ['T', 12.3], '1:Asking': ['A', 12.95], '2:Building': ['B', 13.55] }, heroes = {};
+(function buildPills() {
+  let h = '';
+  for (let r = -3; r <= 5; r++) {
+    h += `<div class="prow" data-r="${r}" style="position:absolute;left:0;top:0">`;
+    let x = ROWOFF[r] - 3 * CYC, li = 0;
+    while (x < 9000) {
+      const [lab, w, ic] = LAB[li % 3];
+      const hero = HERO[`${r}:${lab}`] && Math.abs(x + w / 2 - ({ T: 0, A: 1823, B: 1121 })[HERO[`${r}:${lab}`][0]]) < 10 ? HERO[`${r}:${lab}`][0] : '';
+      h += `<div class="pill${hero ? ' hero' : ''}" data-h="${hero}" data-r="${r}" style="left:${x}px;top:${r * 365}px;width:${w}px">${hero ? '<i class="pf"></i>' : ''}<span>${lab}</span></div>`;
+      h += svgIcon(ic, 'picon').replace('<svg', `<svg data-r="${r}" style="left:${x + w + GAP / 2}px;top:${r * 365}px"`);
+      x += w + GAP; li++;
+    }
+    h += '</div>';
+  }
+  // the connectors the three filled pills emit (they run off right and become the branching line)
+  h += `<svg style="position:absolute;left:0;top:0;overflow:visible" width="1" height="1"><g fill="none" stroke="#3046dc" stroke-width="7" stroke-linecap="round">
+    <path id="cT" d="M435 0H560Q620 0 620 60V305Q620 365 680 365H1451"/><path id="cB" d="M1544 730H1580Q1640 730 1640 670V516"/>
+    <path id="cA" d="M2211 365H9000"/><path id="cA2" d="M2211 365H2290Q2350 365 2350 425V445Q2350 505 2410 505H9000"/></g></svg>`;
+  pillw.innerHTML = h;
+  for (const el of pillw.querySelectorAll('.pill.hero')) heroes[el.dataset.h] = { el, pf: $('.pf', el), t: Object.values(HERO).find(v => v[0] === el.dataset.h)[1] };
+  for (const id of ['cT', 'cA', 'cA2', 'cB']) { const p = $('#' + id); p.len = p.getTotalLength(); p.style.strokeDasharray = p.len; }
+})();
+const pillPlain = [...pillw.querySelectorAll('.pill:not(.hero), .picon')], prows = [...pillw.querySelectorAll('.prow')];
+const camPills = path({ x: -100, y: -10, z: 1 }, [[11.84, 12.5, { x: 10, y: -14 }, 'expoOut'], [12.55, 13.25, { x: 1780, y: 292, z: .8 }, 'expoInOut'],
+  [13.25, 13.6, { x: 1700, y: 300, z: .74 }, 'linear'], [13.6, 14.05, { x: 850, y: 365, z: .42 }], [14.05, 14.6, { x: 900, y: 380, z: .34 }, 'linear']]);
+function drawPills(t) {
+  const cam = camPills(t), drift = -1700 * P(t, 14.42, 14.8, 'expoIn');   // the hero group slides right (camera left)
+  M.camera(pillw, { x: cam.x + drift, y: cam.y, zoom: cam.z });
+  const slide = 650 * (1 - P(t, 11.84, 12.55, 'expoOut'));   // the cut lands mid-slide: rows run in alternate directions and settle
+  for (const el of prows) el.style.transform = `translateX(${(Math.abs(+el.dataset.r) % 2 ? -1 : 1) * slide}px)`;
+  const dim = (1 - .45 * P(t, 13.7, 14.05)) * (1 - P(t, 14.3, 14.62));
+  const rowA = r => r < 1 ? 1 : P(t, ROWIN[r] ?? 13.9, (ROWIN[r] ?? 13.9) + .25);
+  for (const el of pillPlain) el.style.opacity = dim * rowA(+el.dataset.r);
+  for (const k in heroes) {
+    const h = heroes[k], f = P(t, h.t, h.t + .55, 'move'), m = `linear-gradient(90deg,#000 ${f * 140 - 45}%,transparent ${f * 140}%)`;
+    h.pf.style.webkitMaskImage = h.pf.style.maskImage = m; h.el.style.opacity = rowA(+h.el.dataset.r) * (1 - P(t, 14.64, 14.76));
+  }
+  [['cT', 13.95, 1], ['cB', 14.02, 1], ['cA', 14.08, 0], ['cA2', 14.12, 0]].forEach(([id, a, link]) => {
+    const p = $('#' + id), visLen = link ? p.len * P(t, a, a + .45, 'move') : 150 * P(t, a, a + .3, 'move') + 9000 * P(t, 14.3, 14.78, 'expoIn');
+    p.style.strokeDashoffset = p.len - Math.min(p.len, visLen); p.style.opacity = 1 - P(t, 14.66, 14.76);
+  });
+  $('#pillGround').style.opacity = 1 - P(t, 14.38, 14.72);
+}
+
+/* ── 9–10: branching line, pan past the glow band, then the dark ground becomes a card. */
+const slabSide = t => t < 18.12 ? 0 : 823 - 340 * (t - 18.12) + 1097 * Math.exp(-14.5 * (t - 18.12));
+function drawBranch(t) {
+  const pan = -1250 * P(t, 17.1, 17.7, 'smoother'), bandPan = 2 * pan, bandA = 1 - P(t, 18.1, 18.2);
+  // three branches merge, then one line runs right (drawn in from the left edge)
+  const mx = B(t, 14.8, 15.6, 70, 292, 'expoOut') + 16 * P(t, 15.6, 16.6, 'linear') + pan, ex = B(t, 14.8, 16.8, 170, 864, 'quartOut') + pan, y = 541;
+  const top = `M${mx - 520} ${y - 300}C${mx - 250} ${y - 300} ${mx - 160} ${y} ${mx} ${y}`, bot = `M${mx - 520} ${y + 300}C${mx - 250} ${y + 300} ${mx - 160} ${y} ${mx} ${y}`;
+  $('#br-top').setAttribute('d', top); $('#br-bot').setAttribute('d', bot); $('#br-mid').setAttribute('d', `M${mx - 520} ${y}H${ex}`);
+  $('#branch').style.opacity = P(t, 14.8, 14.84);
+  // glow band in the dark world: drifts, then the pan carries it across and off left
+  $('#bandA').style.transform = `translate(${1090 + 60 * Math.sin(t * .8) + bandPan}px,${-760 + 40 * Math.cos(t * .6)}px) rotate(${6 + 4 * Math.sin(t * .5)}deg)`;
+  $('#bandA').style.opacity = bandA; $('#bandB').style.opacity = bandA;
+  $('#bandB').style.transform = `translate(${1500 + 80 * Math.cos(t * .7) + bandPan}px,${-560}px) rotate(-4deg)`;
+  // ground → card: the dark ground shrinks to a square slab on blue
+  const s = slabSide(t), full = s === 0 || s >= 1920;
+  const sw = full ? 1920 : s, sh = full ? 1080 : Math.min(1080, s), sx = (1920 - sw) / 2, sy = (1080 - sh) / 2;
+  slab.style.left = sx + 'px'; slab.style.top = sy + 'px'; slab.style.width = sw + 'px'; slab.style.height = sh + 'px';
+  // caption keeps stage coordinates inside the slab, scaled about its centre
+  const ts = 1 - .26 * P(t, 18.03, 18.3, 'cubicOut') - .17 * Math.max(0, t - 18.25);
+  rResearch.draw(t, { x: -sx, y: -sy, scale: ts, px: CX, py: CY, alpha: P(t, 17.36, 17.4) });
+}
+
+/* ── 11: light, pull back while the row fills. */
+function drawWeak(t) {
+  const p = P(t, 19.17, 20.85, 'move');
+  $('#wg1').style.transform = `translate(${lerp(-760, -140, p)}px,${lerp(-160, -470, p)}px) rotate(${lerp(-32, -3, p)}deg) scale(${lerp(.9, 1.25, p)})`; $('#wg1').style.opacity = .8 + .2 * p;
+  $('#wg2').style.transform = `translate(${lerp(-300, 300, p)}px,${lerp(-200, -380, p)}px) rotate(${lerp(-40, -10, p)}deg)`;
+  rWeak.draw(t, { scale: 1.2 - .2 * P(t, 19.17, 20.3, 'move'), py: 543 });
+}
+
+/* ── 12: sphere + speed lines; the line scrolls, the sphere rolls under it. */
+const SPH = [[20.86, -40, 470], [20.9, 240, 534], [20.933, 440, 642], [20.967, 620, 717], [21.0, 780, 769], [21.033, 900, 809], [21.067, 1000, 837], [21.1, 1160, 873],
+  [21.2, 1300, 875], [21.3, 1352, 900], [21.4, 1332, 918], [21.5, 1272, 928], [21.6, 1184, 930], [21.7, 1072, 935], [21.8, 940, 940], [21.9, 704, 944], [22.0, 360, 944],
+  [22.1, 240, 944], [22.2, 200, 942], [22.3, 220, 940], [22.4, 260, 938], [22.5, 340, 934], [22.6, 440, 925], [22.7, 600, 910], [22.8, 760, 895], [22.9, 1000, 870],
+  [23.0, 1300, 800], [23.1, 1660, 680], [23.2, 2050, 540]];
+function sph(t) { // Catmull-Rom through the reel's samples
+  t = clamp(t, SPH[0][0], SPH[SPH.length - 1][0]);
+  let i = SPH.findIndex(k => k[0] > t) - 1; if (i < 0) i = SPH.length - 2;
+  const p0 = SPH[Math.max(0, i - 1)], p1 = SPH[i], p2 = SPH[i + 1], p3 = SPH[Math.min(SPH.length - 1, i + 2)], u = (t - p1[0]) / (p2[0] - p1[0]);
+  const cr = (a, b, c, d) => .5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u * u + (-a + 3 * b - 3 * c + d) * u * u * u);
+  return [cr(p0[1], p1[1], p2[1], p3[1]), cr(p0[2], p1[2], p2[2], p3[2])];
+}
+const sysScroll = t => -230 * Math.max(0, t - 22.2) - 520 * P(t, 22.85, 23.3, 'expoIn');
+const lineX = t => rSystem.rowX(rSystem.rows[0], t) + sysScroll(t);
+const trailG = $('#trail g'); trailG.innerHTML = '<path/><path/><path/><path/><path/>';
+function drawSphere(t) {
+  rSystem.draw(t, { x: sysScroll(t) });
+  const [x, y] = sph(t), [x0, y0] = sph(t - .033), v = Math.hypot(x - x0, y - y0);
+  M.set($('#sphere'), { x, y, scale: 1, blur: Math.max(0, v - 40) * .12 });
+  // speed lines: the sphere's path in the line's world, so they shrink while it rides the scroll and stream out when it moves on its own
+  const L = lineX(t), lines = [...trailG.children];
+  lines.forEach((pth, j) => {
+    let d = ''; const off = (j - 2) * 1;
+    for (let k = 0; k <= 24; k++) {
+      const tp = t - k * .035; if (tp < 20.88) break;
+      const [px, py] = sph(tp), age = k / 24, sh = L - lineX(tp);
+      d += (d ? 'L' : 'M') + (px + sh - 150 * age * age).toFixed(1) + ' ' + (py - 40 + off * (8 + 70 * age) + 30 * age).toFixed(1);
+    }
+    pth.setAttribute('d', d); pth.style.opacity = .75 * P(t, 21.0, 21.15);
+  });
+}
+
+/* ── seek ─────────────────────────────────────────────────────────────── */
+let laid = false;
+function seek(t0) {
+  if (!laid) return;
+  const t = Math.min(t0, END);
+  const inn = (a, b) => t >= a && t < b;
+  show(sOpen, inn(0, .95)); show(sLight, inn(.6, 9.43)); show(sGrid, inn(9.43, 11.84)); show(sPills, inn(11.84, 14.78));
+  show(sBranch, inn(14.38, 19.17)); show(sWeak, inn(19.17, 20.88)); show(sSphere, t >= 20.88);
+  let discAt = { x: CX, y: CY };
+  if (inn(0, .95)) {
+    const drift = drawOpen(t), r = rOpen.rows[0], w0 = r.words[0];
+    discAt = { x: rOpen.rowX(r, .62) + w0.width + rOpen.gap * rOpen.size / 2 + drift, y: 555 - .04 * rOpen.size };
+  }
+  if (inn(.6, 9.43)) drawLight(t, discAt);
+  if (inn(9.43, 11.84)) drawGrid(t);
+  if (inn(14.38, 19.17)) drawBranch(t);
+  if (inn(11.84, 14.78)) drawPills(t);
+  if (inn(19.17, 20.88)) drawWeak(t);
+  if (t >= 20.88) drawSphere(t);
+}
+fx.wait(Promise.all(['400 100px "Sharp Grotesk"', '500 100px "Sharp Grotesk"', 'italic 400 30px "Sorts Mill Goudy"'].map(f => document.fonts.load(f))).then(() => {
+  for (const r of ROWS) r.layout();
+  rBefore.words.forEach((w, i, a) => { w.dur = (a[i + 1] ? a[i + 1].t : w.t + .4) - w.t; });
+  rSystem.words.forEach((w, i, a) => { w.dur = (a[i + 1] ? a[i + 1].t : w.t + .4) - w.t; });
+  laid = true;
+}));
+fx.register({ duration: D, loop: false, seek });
+</script>

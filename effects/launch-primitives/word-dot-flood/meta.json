@@ -1,0 +1,30 @@
+{
+  "name": "Word Dot Flood",
+  "seconds": 3.8,
+  "move": "a white dot bursts from between the words of a line building on a near-black ground and grows until it floods the frame, turning it into a light ground where the same line carries on, smaller, in dark ink",
+  "how": "Night ground with a deep-blue glow rising from the bottom (translateY 140 to -20 px on move over 1 s). Words land on their onsets rising 0.4 em (expoOut, 0.65 s) and un-blurring (0.14 s); the line glides on move to centre each phrase so far ('Every day,' over 0.88 s from 0.26 s before the first word; the rest of the line over 0.7 s from 0.25 s before 'ideas', peaking at the flood), so the last words land in room already made. Flood: at 0.72 s a seed appears in the gap after the first word at x-height centre; from 0.77 s the radius grows by a constant x1.67 per frame (r = 22 * 1.67^(30(t - 0.767)), exponential, the expoScale curve) and passes the corners in about 8 frames (0.27 s). Crisp edge, no glow. The disc is a circular clip of the next scene, so its white-to-periwinkle gradient is fixed to the frame. There is no per-glyph inversion: the disc covers the white words, and the dark words (0.57x the size, the same line state) cut in on one frame at 0.99 s, once the disc holds the whole line. The keyword then arrives in a blurred blue pill (blur 22 to 6.5 px, scaleX 0.75 to 1 in 0.12 s), shows ink, then 60% white, then ink again, then fades and wipes off left to right.",
+  "moves": [
+    "circle-reveal",
+    "flood-transition",
+    "dot-burst",
+    "dark-to-light",
+    "word-by-word",
+    "line-recentre",
+    "keyword-highlight",
+    "kinetic-type"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "WORDS: the narration's words and onsets, and the key word. The seed sits after word 0 (seedU). NIGHT_WIDTH sets the opening type size and SHRINK the size after the flood. GLIDES sets which phrase each glide centres. Map --night, --night-glow, --ground, --ground-glow, --ink and --accent to brand tokens. Keep the exponential growth (x1.67 per frame, about 0.27 s to cover), and keep the dark words hidden until the disc covers the line.",
+  "port": "A join between two shots. Shot A is the night ground with the words and a `.seed` element: a 44 px white disc in the gap after the first word, hidden until 0.72 s. Shot B has `bg` set to the light ground and `morph: { from: \".seed\", to: \"ground\", dur: 0.27, ease: \"expoScale(0.02,1)\" }`. The engine grows the seed from its centre into a disc that covers the frame, then makes it B's ground. Do not use the default `move` ease: the reel grows at a constant ratio per frame. The custom part is the line that survives the cut at another size and colour. Build it as a shot type `js/shots/flood-line.js` whose `animate(el, s, D)` returns a timeline with a proxy `{ t }` tweened 0 to D (linear), drawn in `ShotKit.frameHook` by this page's seek(t): the word landings, the phrase glides, the white line at full size and the ink line at 0.57x sharing one centre, and the ink line's one-frame cut-in. If B's words are `captions` instead (`stack: \"line\"`, `align: \"center\"`, `enter: \"rise\"`), the keyword is `fx: [\"mark\"]`. Take word times from the aligned narration (`cue`).",
+  "caveats": [
+    "In the reel the disc is born at frame centre, in the word gap against the y's right arm, not inside the d's counter. Here the seed sits in the gap after the first word, so with other copy or another face it lands where that gap falls: about 40 px right of centre with this copy.",
+    "ShotKit.morph's disc is a flat `ground` colour. The reel's disc is the next scene's gradient seen through a circle, which this page reproduces with a clip-path. The morph join loses that gradient.",
+    "The reel's glide anticipates whole phrases (measured: 0:00.56 to 0:01.26, one 0.7 s move). Per-word `captions` re-centring would move the line again after 'are' and 'born'.",
+    "Sharp Grotesk stands in for the reel's geometric face, which has a curled y. Type is fitted by width: the first two words span 797 px."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

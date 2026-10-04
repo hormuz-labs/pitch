@@ -1,0 +1,194 @@
+<!doctype html><meta charset="utf-8">
+<title>Fan Lines To Dots</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{
+    --sky:#faf7fc; --mist:#edeefd; --lilac:#cad1ff; --periwinkle:#a8b5fe; --deep:#8c9ffd;  /* ground, top to bottom */
+    --cloud:122,141,236;      /* the layer the camera drops through (rgb) */
+    --band:58,80,218;         /* its dense edge (rgb) */
+    --ink:#14172e;            /* sentences */
+    --ink-dim:#9aa0c8;        /* a word as it arrives */
+    --wire:#13162f;           /* fan lines and dots */
+    --node:#2c40cf; --node-lit:#5a71f0;
+    --wire-2:79,96,216;       /* the second fan's lines (rgb) */
+    --badge:#2a3cc9; --badge-lit:#5d72f2; --badge-ink:#ffffff;
+    background:linear-gradient(180deg,var(--sky) 0%,var(--sky) 30%,var(--mist) 50%,var(--lilac) 69%,var(--periwinkle) 83%,var(--deep) 100%);
+    font-family:"Sharp Grotesk",Arial,sans-serif;
+  }
+  .haze{position:absolute;inset:0;background:linear-gradient(180deg,rgba(120,138,230,.75),rgba(84,108,226,.85) 70%,rgba(70,96,222,.9));will-change:opacity}
+  .haze i{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(228,231,255,.55),rgba(228,231,255,0))}
+  svg.wires{position:absolute;inset:0;overflow:visible}
+  .fanA line{stroke:var(--wire);stroke-width:2.3}
+  .fanA circle{fill:var(--wire)}
+  .fanB path{fill:none;stroke:rgba(var(--wire-2),.62);stroke-width:2}
+  .node{position:absolute;left:0;top:0;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
+    background:radial-gradient(circle at 42% 32%,var(--node-lit),var(--node) 55%,#1f2fb0 100%);will-change:transform}
+  .node .lit{position:absolute;inset:0;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,0) 45%,rgba(240,243,255,.95) 78%,#fff)}
+  .halo{position:absolute;left:0;top:0;width:220px;height:220px;margin:-110px 0 0 -110px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(70,92,235,.55),rgba(80,100,235,.22) 45%,rgba(90,110,240,0));will-change:transform,opacity}
+  .line{position:absolute;left:0;top:0;width:1920px;text-align:center;white-space:nowrap;color:var(--ink);will-change:transform}
+  .s1,.s2{font-size:60px;font-weight:500;letter-spacing:-.015em}
+  .s3{font-size:110px;font-weight:400;letter-spacing:-.02em;width:auto;text-align:left}
+  .w{display:inline-block;opacity:0}
+  .cloud{position:absolute;left:-10%;width:120%;height:2600px;will-change:transform,opacity;
+    background:linear-gradient(180deg,rgba(150,154,196,0) 0,rgba(150,154,196,.42) 300px,rgba(var(--band),.6) 400px,rgba(var(--band),.86) 470px,rgba(var(--band),.7) 540px,rgba(var(--cloud),.92) 660px,rgba(var(--cloud),.95) 860px,rgba(var(--cloud),.95) 100%)}
+  .cloud i{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(214,219,252,.42),rgba(214,219,252,0))}
+  .cloud b{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(92,112,226,.35),rgba(92,112,226,0))}
+  .worldB{position:absolute;left:0;top:0;width:0;height:0;will-change:transform}
+  .dotB{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#5c74f5,#2236c8)}
+  .badge{position:absolute;width:160px;height:160px;margin:-80px 0 0 -80px;border-radius:50%;
+    background:radial-gradient(circle at 36% 28%,var(--badge-lit),var(--badge) 50%,#1a2496 100%);box-shadow:0 16px 40px rgba(30,44,170,.34);display:grid;place-items:center;opacity:0;will-change:transform,opacity}
+  .badge svg{width:60px;height:60px;fill:none;stroke:var(--badge-ink);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .sceneB{position:absolute;inset:0;will-change:filter,opacity}
+</style>
+<div class="stage">
+  <div class="haze"><i style="left:-12%;top:-30%;width:1100px;height:900px"></i><i style="left:55%;top:-20%;width:1000px;height:700px;opacity:.6"></i></div>
+  <div class="sceneA">
+    <svg class="wires" width="1920" height="1080"><g class="fanA"></g></svg>
+    <div class="halo hA"></div>
+    <div class="node nA"><div class="lit"></div></div>
+    <div class="line s1" style="top:150px"><span class="w">We</span> <span class="w">connect</span> <span class="w">your</span> <span class="w">organisation</span></div>
+    <div class="line s2" style="top:174px"><span class="w">one</span> <span class="w">workspace</span> <span class="w">for</span> <span class="w">ideas.</span></div>
+  </div>
+  <div class="cloud">
+    <i style="left:0%;top:560px;width:900px;height:420px"></i><i style="left:42%;top:600px;width:1100px;height:380px;opacity:.8"></i>
+    <b style="left:22%;top:820px;width:700px;height:300px"></b><i style="left:70%;top:900px;width:900px;height:460px;opacity:.7"></i>
+    <i style="left:8%;top:1120px;width:1000px;height:420px;opacity:.6"></i><b style="left:55%;top:1250px;width:800px;height:320px"></b>
+  </div>
+  <div class="sceneB">
+    <svg class="wires" width="1920" height="1080"><g class="fanB"></g></svg>
+    <div class="worldB">
+      <div class="badge b0" style="left:0;top:415px"><svg viewBox="0 0 48 48"><circle cx="24" cy="17" r="7"/><path d="M11 39c1.5-7 6.6-11 13-11s11.5 4 13 11"/></svg></div>
+      <div class="badge b1" style="left:-290px;top:265px"><svg viewBox="0 0 48 48"><path d="M17 15L8 24l9 9M31 15l9 9-9 9M27 11l-6 26"/></svg></div>
+      <div class="badge b2" style="left:345px;top:360px"><svg viewBox="0 0 48 48"><path d="M24 7l5 10.5 11.5 1.6-8.3 8 2 11.4L24 33l-10.2 5.5 2-11.4-8.3-8 11.5-1.6z"/></svg></div>
+      <div class="dotB"></div>
+    </div>
+    <div class="line s3"><span class="w">Where</span> <span class="w r r0">designers</span><span class="w r r1">engineers</span><span class="w r r2">leads</span></div>
+  </div>
+</div>
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const M = window.Motion, $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const NS = 'http://www.w3.org/2000/svg';
+  fx.wait(document.fonts.load('500 54px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('400 104px "Sharp Grotesk"'));
+
+  // ---- the first fan: one node, eleven scattered dots that glide into a row
+  const SCATTER = [[536,459],[632,459],[713,716],[866,467],[918,1034],[969,797],[1034,636],[1187,984],[1244,467],[1248,716],[1355,422]];
+  const ROW_Y = 903, GAP = 68;
+  const fanA = $('.fanA');
+  const linesA = SCATTER.map(() => { const l = document.createElementNS(NS, 'line'); fanA.appendChild(l); return l; });
+  const dotsA = SCATTER.map(() => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('r', 5.4); fanA.appendChild(c); return c; });
+  const nodeA = $('.nA'), haloA = $('.hA'), litA = $('.nA .lit');
+
+  // ---- the second fan: a node under the next sentence, curved lines running down to badges
+  const fanB = $('.fanB');
+  const ENDS = [-540, -330, -190, -60, 60, 185, 320, 540];
+  const linesB = ENDS.map(dx => {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M0 0C${dx * 0.04} 220 ${dx * 0.55} 400 ${dx} 720`);
+    fanB.appendChild(p); return p;
+  });
+  const lenB = linesB.map(p => p.getTotalLength());
+  const worldB = $('.worldB'), sceneB = $('.sceneB'), cloud = $('.cloud'), haze = $('.haze');
+  const badges = [0, 1, 2].map(i => $('.b' + i));
+  const s1 = $$('.s1 .w'), s2 = $$('.s2 .w'), s3 = $('.s3'), where = $('.s3 .w'), roles = $$('.s3 .r');
+
+  let widths = null;
+  // where the cloud's dense edge sits on screen, measured off the reel (piecewise linear: it is a blur)
+  const BAND = [[2.8, 1240], [3.0, 1030], [3.28, 810], [3.35, 648], [3.42, 486], [3.52, 281], [3.58, 130], [3.65, 43], [3.75, -60], [3.95, -180]];
+  const track = (t, pts) => {
+    if (t <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) return M.lerp(pts[i - 1][1], pts[i][1], (t - pts[i - 1][0]) / (pts[i][0] - pts[i - 1][0]));
+    return pts[pts.length - 1][1];
+  };
+  const word = (el, t, at, rise = 12) => {           // a word arrives: dim, a little low, then ink
+    const k = M.phase(t, at, at + 0.36, 'expoOut');
+    el.style.opacity = M.phase(t, at, at + 0.16, 'linear');
+    el.style.transform = `translateY(${((1 - k) * rise).toFixed(2)}px)`;
+    el.style.color = M.phase(t, at, at + 0.28, 'smooth') < 1 ? `color-mix(in srgb, var(--ink) ${(100 * M.phase(t, at, at + 0.28, 'smooth')).toFixed(1)}%, var(--ink-dim))` : '';
+  };
+
+  fx.register({ duration: 5.6, loop: false, seek(t) {
+    // the haze left by the previous scene clears
+    haze.style.opacity = (1 - M.phase(t, 0.1, 1.15, 'smooth')).toFixed(3);
+
+    // the camera drop: slow, then hard — the fan rises, narrows, and is gone at 3.38s
+    const c = M.phase(t, 2.2, 3.38, 'expoIn');
+    const ax = 960;
+    const ay = M.between(t, 1.25, 2.2, 356, 482, 'move') - 28 * M.phase(t, 2.1, 3.0, 'smooth') - 447 * c;
+    const squeeze = 1 - 0.55 * c, rowY = ROW_Y - 198 * c;
+    SCATTER.forEach(([sx, sy], i) => {
+      const st = 0.012 * Math.abs(i - 5);
+      const g = M.phase(t, 1.3 + st, 2.2 + st, 'move');   // scatter is sorted by x, so the row keeps the order
+      const x = M.lerp(sx, 960 + (i - 5) * GAP * squeeze, g), y = M.lerp(sy, rowY, g);
+      dotsA[i].setAttribute('cx', x.toFixed(2)); dotsA[i].setAttribute('cy', y.toFixed(2));
+      // lines draw out of the node, quadOut, a hair of stagger by angle
+      const d = M.phase(t, 0.31 + 0.008 * i, 0.76 + 0.008 * i, 'linear'), p = 1 - (1 - d) * (1 - d);
+      const l = linesA[i];
+      l.setAttribute('x1', ax); l.setAttribute('y1', ay.toFixed(2));
+      l.setAttribute('x2', (ax + (x - ax) * p).toFixed(2)); l.setAttribute('y2', (ay + (y - ay) * p).toFixed(2));
+      l.style.opacity = p > 0 ? 1 : 0;
+    });
+    const dotsOn = M.phase(t, 0.22, 0.48, 'smooth');
+    fanA.style.opacity = (1 - M.phase(t, 3.38, 3.44, 'linear')).toFixed(3);
+    dotsA.forEach(d => { d.style.opacity = dotsOn; });
+    fanA.style.filter = t < 0.5 ? `blur(${(6 * (1 - dotsOn)).toFixed(2)}px)` : 'none';
+
+    const grow = M.phase(t, 0.28, 0.55, 'backOut'), swell = M.phase(t, 1.35, 2.15, 'smooth');
+    const nScale = grow * (0.78 + 0.22 * swell);
+    M.set(nodeA, { x: ax, y: ay, scale: Math.max(0, nScale), opacity: M.phase(t, 0.26, 0.32, 'linear') * (1 - M.phase(t, 3.38, 3.44, 'linear')) });
+    litA.style.opacity = swell.toFixed(3);
+    M.set(haloA, { x: ax, y: ay, scale: 0.6 + 0.4 * swell, opacity: (0.25 + 0.75 * swell) * grow * (1 - M.phase(t, 3.36, 3.44, 'linear')) });
+
+    // sentences 1 and 2: word by word, centred, the first one clears before the second
+    [0.35, 0.55, 0.78, 1.0].forEach((at, i) => word(s1[i], t, at));
+    [1.72, 1.92, 2.18, 2.38].forEach((at, i) => word(s2[i], t, at));
+    const out1 = M.phase(t, 1.45, 1.62, 'smooth');
+    s1.forEach(w => { if (t > 1.45) { w.style.opacity = 1 - out1; w.style.transform = `translateY(${(-10 * out1).toFixed(2)}px)`; } });
+    const out2 = M.phase(t, 3.38, 3.44, 'linear');
+    if (t > 3.38) s2.forEach(w => { w.style.opacity = 1 - out2; });
+
+    // the cloud the camera falls through: a dense edge sweeps up the frame, then thins out
+    const bandY = track(t, BAND);
+    cloud.style.transform = `translateY(${(bandY - 450).toFixed(1)}px)`;
+    cloud.style.opacity = (1 - M.phase(t, 3.7, 4.6, 'smooth') * 0.96).toFixed(3);
+
+    // the second fan: its node keeps rising as the drop decelerates
+    const tb = t - 3.42;
+    const by = tb < 0 ? 836 : 573 + 262 * (0.75 * Math.exp(-tb / 0.13) + 0.25 * Math.exp(-tb / 0.9));
+    worldB.style.transform = `translate(960px,${by.toFixed(2)}px)`;
+    sceneB.style.opacity = M.phase(t, 3.32, 3.42, 'linear').toFixed(3);
+    sceneB.style.filter = `blur(${(4.5 * (1 - M.phase(t, 3.38, 3.8, 'cubicOut'))).toFixed(2)}px)`;
+    fanB.setAttribute('transform', `translate(960 ${by.toFixed(2)})`);
+    linesB.forEach((p, i) => {
+      const d = M.phase(t, 3.42 + 0.02 * Math.abs(i - 3.5), 4.3, x => 1 - (1 - x) * (1 - x));
+      p.style.strokeDasharray = lenB[i];
+      p.style.strokeDashoffset = (lenB[i] * (1 - d)).toFixed(2);
+    });
+    // badges rise in from under the frame, one per word
+    [3.95, 4.35, 4.75].forEach((at, i) => {
+      const k = M.phase(t, at, at + 0.7, 'expoOut');
+      M.set(badges[i], { y: (1 - k) * 220, scale: 0.86 + 0.14 * k, opacity: M.phase(t, at, at + 0.12, 'linear') });
+    });
+
+    // sentence 3 rides with the node; the last word is swapped and the line re-centres with a glide
+    if (!widths) widths = roles.map(r => { r.style.display = 'inline-block'; const v = r.getBoundingClientRect().width; r.style.display = 'none'; return v; });
+    const lead = where.getBoundingClientRect().width + 0.27 * 110;   // "Where" + a space
+    const leftOf = i => 960 - (lead + widths[i]) / 2;
+    const swaps = [3.5, 4.32, 4.72];
+    const cur = t >= swaps[2] ? 2 : t >= swaps[1] ? 1 : 0;
+    let x0 = leftOf(0);
+    if (t >= swaps[1]) x0 = M.lerp(leftOf(0), leftOf(1), M.phase(t, swaps[1], swaps[1] + 0.32, 'move'));
+    if (t >= swaps[2]) x0 = M.lerp(leftOf(1), leftOf(2), M.phase(t, swaps[2], swaps[2] + 0.32, 'move'));
+    const textY = by - 200 - 27 * (1 - M.phase(t, 3.4, 4.0, 'cubicOut'));
+    s3.style.transform = `translate(${x0.toFixed(2)}px,${textY.toFixed(2)}px)`;
+    word(where, t, 3.34, 10);
+    roles.forEach((r, i) => { r.style.display = i === cur ? 'inline-block' : 'none'; });
+    word(roles[cur], t, swaps[cur], 16);
+  } });
+})();
+</script>

@@ -1,0 +1,144 @@
+<!doctype html><meta charset="utf-8"><title>Sphere Speed Lines</title><meta name="fx" content="w=1920 h=1080"><link rel="stylesheet" href="../../_lib/base.css">
+<style>
+.stage{
+  --ground:#fbf9fc; --ground-low:#d0d8fb; --floor:#8a9cfc; --ink:#111013; --ghost:#9a99a3;
+  --orb-1:#e6ebf7; --orb-2:#c0c7ef; --orb-3:#8f9be2; --orb-4:#6577d6; --orb-5:#3a4ec5; --orb-6:#2a3cb8;
+  --trail:#5b5b6b; --night:#000002; --night-low:#112175;
+  background:var(--ground); font-family:"Sharp Grotesk",sans-serif;
+}
+.ground{position:absolute;inset:0;background:linear-gradient(180deg,var(--ground) 0%,var(--ground) 52%,#f4f4fb 64%,#ecedfc 76%,#e1e5fc 88%,var(--ground-low) 100%)}
+.floor{position:absolute;inset:0;opacity:0;background:linear-gradient(180deg,transparent 50%,color-mix(in srgb,var(--floor) 30%,transparent) 66%,color-mix(in srgb,var(--floor) 70%,transparent) 84%,var(--floor) 100%)}
+.world{position:absolute;left:0;top:0}
+.sentence{position:absolute;white-space:nowrap;line-height:1;font-weight:400;letter-spacing:-.015em}
+.sentence span{display:inline-block;color:transparent;-webkit-background-clip:text;background-clip:text;opacity:0}
+.trails{position:absolute;inset:0;width:1920px;height:1080px}
+.orb,.halo{position:absolute;left:0;top:0;width:412px;height:412px;margin:-206px 0 0 -206px;border-radius:50%}
+.orb{background:radial-gradient(circle at 80% 15%,var(--orb-1) 0%,var(--orb-2) 20%,var(--orb-3) 39%,var(--orb-4) 60%,var(--orb-5) 80%,var(--orb-6) 100%)}
+.halo{background:radial-gradient(circle at 40% 62%,var(--orb-5) 0%,var(--orb-4) 60%,var(--orb-3) 100%);filter:blur(34px);opacity:.9}
+.night{position:absolute;inset:0;opacity:0;background:linear-gradient(180deg,var(--night) 0%,var(--night) 30%,#030419 50%,#060d33 62%,#0d1754 80%,var(--night-low) 100%)}
+</style>
+<div class="stage">
+  <div class="ground"></div><div class="floor"></div>
+  <div class="world"><div class="sentence"></div></div>
+  <canvas class="trails" width="1920" height="1080"></canvas>
+  <div class="halo"></div><div class="orb"></div>
+  <div class="night"></div>
+</div>
+<script src="../../_lib/motion.js"></script><script src="../../_lib/fx.js"></script>
+<script>
+/* t = 0 is 2 frames before the reel's cut (0:20.83), so the sphere arrives from off frame.
+   Positions are in frame widths (x) and heights (y) of a 1920x1080 film; the world pans under a camera. */
+const M = Motion, D = 3.0, W = 1920, H = 1080;
+const SENTENCE = 'But because the system isn’t there.';   // the spoken words: in a film, from captions
+const R = 206;                                   // sphere radius (0.19 of frame height)
+const T0 = .067;                                 // reel cut (0:20.9) in effect time
+const CUT = 2.36;                                // the flip to dark (0:23.2)
+const WORD_EVERY = .233, FIRST_WORD = .1;        // one word every 7 frames
+const LEFT = .44 * W, BASE = .576 * H, TEXT_W = 1.7 * W;   // sentence start, baseline, set width
+const quartOut = u => 1 - Math.pow(1 - u, 4);   // unclamped, so it extrapolates back off frame
+function bezier(x1, y1, x2, y2) {               // cubic-bezier as an ease
+  const B = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+  return x => { if (x <= 0 || x >= 1) return M.clamp(x); let lo = 0, hi = 1;
+    for (let k = 0; k < 26; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; }
+    return B(y1, y2, (lo + hi) / 2); };
+}
+const pan = bezier(.55, .15, .625, 1);           // the camera: slow to leave, fastest late, short stop
+
+/* the sphere's path in world frame-widths / frame-heights (fitted to the reel) */
+function orbX(t) { const s = t - T0; return .12 + .78 * quartOut(Math.min(s, 1.1) / 1.1) + .32 * s + 1.2 * Math.pow(Math.max(0, s - 1.5), 2.5); }
+function orbY(t) { const s = t - T0; return .5 + .37 * quartOut(Math.max(-.09, Math.min(s, .6)) / .6) - 1.1 * Math.pow(Math.max(0, s - 1.85), 1.6); }
+let CAM_END = 1.27;
+function cam(t) { const r = t + 20.833; return CAM_END * pan(M.phase(r, 20.95, 22.4, 'linear')) + 1.2 * Math.pow(Math.max(0, r - 22.95), 2); }
+
+const floor = document.querySelector('.floor'), sentence = document.querySelector('.sentence'), world = document.querySelector('.world');
+const orb = document.querySelector('.orb'), halo = document.querySelector('.halo'), night = document.querySelector('.night');
+const cv = document.querySelector('.trails'), ctx = cv.getContext('2d');
+let words = [], FS = 200;
+
+function build() {
+  sentence.innerHTML = SENTENCE.split(' ').map(w => `<span>${w}</span>`).join(' ');
+  words = [...sentence.children];
+  sentence.style.fontSize = '200px';                 // size the line so the sentence sets TEXT_W wide
+  FS = 200 * TEXT_W / sentence.getBoundingClientRect().width;
+  sentence.style.fontSize = FS + 'px';
+  const probe = document.createElement('canvas').getContext('2d');
+  // put the baseline at BASE: line-height 1, so the baseline sits at half-leading + ascent
+  probe.font = `400 ${FS}px "Sharp Grotesk"`;
+  const m = probe.measureText('Bg');
+  const asc = m.fontBoundingBoxAscent, desc = m.fontBoundingBoxDescent;
+  sentence.style.left = LEFT + 'px';
+  sentence.style.top = (BASE - ((FS - (asc + desc)) / 2 + asc)) + 'px';
+  const w = sentence.getBoundingClientRect().width;
+  CAM_END = (LEFT + w - .875 * W) / W;           // pan until the full stop sits at 87.5% of frame
+}
+
+/* text the sphere has just rolled under turns pale and recovers behind it (a wake in world x) */
+function wakeMask(sx) {
+  const stops = [], x0 = sx - .6 * W, x1 = sx + .15 * W;
+  for (let k = 0; k <= 36; k++) {
+    const x = x0 + (x1 - x0) * k / 36, d = sx - x;             // d > 0: behind the sphere
+    const wash = d >= 0 ? Math.exp(-d / (.13 * W)) : M.phase(d, -.08 * W, 0, 'smooth');
+    stops.push(`rgba(0,0,0,${(1 - .88 * wash).toFixed(3)}) ${(x - LEFT).toFixed(1)}px`);
+  }
+  return `linear-gradient(90deg,#000 ${(x0 - LEFT - 1).toFixed(1)}px,${stops.join(',')},#000 ${(x1 - LEFT + 1).toFixed(1)}px)`;
+}
+
+function seek(t) {
+  const c = cam(t) * W;
+  world.style.transform = `translate3d(${-c}px,0,0)`;
+
+  // words: one every 7 frames, rising 45 px out of a pale grey and darkening left to right
+  words.forEach((w, i) => {
+    const a = FIRST_WORD + i * WORD_EVERY;
+    w.style.opacity = M.phase(t, a - .02, a, 'linear');
+    w.style.transform = `translate3d(0,${45 * (1 - M.phase(t, a, a + .3, 'cubicOut'))}px,0)`;
+    const p = M.lerp(-15, 140, M.phase(t, a, a + .36, 'smooth'));
+    w.style.backgroundImage = `linear-gradient(90deg,var(--ink) ${p - 30}%,var(--ghost) ${p + 30}%)`;
+  });
+
+  // sphere: in from the left with a fast arrival, settles onto the floor, rolls, then accelerates up and out
+  const sx = orbX(t) * W, sy = orbY(t) * H, dt = 1 / 60;
+  const vx = (orbX(t + dt) - orbX(t - dt)) * W / (2 * dt) - (cam(t + dt) - cam(t - dt)) * W / (2 * dt);
+  const vy = (orbY(t + dt) - orbY(t - dt)) * H / (2 * dt);
+  const speed = Math.hypot(vx, vy), blur = Math.max(0, (speed - 2000) / 220);
+  orb.style.left = (sx - c) + 'px'; orb.style.top = sy + 'px';
+  // the blue glow: a blurred disc a little larger than the sphere, sitting high and lagging its screen motion
+  const k = Math.min(1, .18 * R / Math.max(1, speed * .02));
+  halo.style.left = (sx - c - vx * .02 * k) + 'px'; halo.style.top = (sy - .12 * R - vy * .02 * k) + 'px';
+  halo.style.transform = `scale(${1.14 + Math.min(.12, speed / 30000)})`;
+  orb.style.filter = blur > .2 ? `blur(${blur.toFixed(2)}px)` : 'none';
+  sentence.style.webkitMaskImage = sentence.style.maskImage = t > FIRST_WORD ? wakeMask(sx) : 'none';
+
+  // speed lines: five fine lines drawn from the sphere's own path history (hidden under it), fanning behind it
+  ctx.clearRect(0, 0, W, H);
+  const s = t - T0, show = M.phase(s, .2, .27, 'linear');
+  if (show > 0 && t < CUT) {
+    const extra = .2 * (1 - M.phase(s, .2, .45, 'smooth'));     // the lines catch up with the sphere
+    const open = 1 - M.phase(s, .8, 1.2, 'smooth');               // wide fan while it drops in, near-parallel once it rolls
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const lag = extra + i * .07;
+      const tail = 1.1;
+      ctx.beginPath();
+      let first = true;
+      for (let q = 0; q <= 60; q++) {
+        const back = lag + tail * q / 60, th = t - back;
+        if (th < 0) break;
+        const hx = orbX(th) * W - c, hy = orbY(th) * H;
+        const dist = sx - c - hx;
+        const y = M.lerp(hy, sy, i * .1 * open) + i * (4 + .006 * Math.max(0, dist));
+        if (first) { ctx.moveTo(hx, y); first = false; } else ctx.lineTo(hx, y);
+      }
+      const g = ctx.createLinearGradient(sx - c, 0, sx - c - tail * 1.4 * W, 0);
+      g.addColorStop(0, 'rgba(91,91,107,.85)'); g.addColorStop(.7, 'rgba(91,91,107,.7)'); g.addColorStop(1, 'rgba(91,91,107,0)');
+      ctx.strokeStyle = g; ctx.globalAlpha = show; ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  floor.style.opacity = M.phase(t, 1.95, CUT, 'smooth');   // the floor floods blue into the flip
+  night.style.opacity = t >= CUT ? 1 : 0;
+}
+
+fx.wait(document.fonts.load('400 100px "Sharp Grotesk"').then(() => { build(); seek(0); }));
+fx.register({ duration: D, loop: false, seek });
+</script>

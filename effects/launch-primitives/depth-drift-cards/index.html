@@ -1,0 +1,240 @@
+<!doctype html><meta charset="utf-8"><title>Depth Drift Cards</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+.stage{
+  --ground-top:#fbf9fd; --ground-mid:#f4f4fb; --ground-low:#b3bdfd;
+  --ink:#1d1d25; --ink-soft:#bdbdc9; --muted:#8a8a99;
+  --accent:#1f36c0; --accent-soft:#7f89cf;
+  --card:#ffffff; --card-edge:rgba(34,44,138,.45);
+  --blob-core:#4a5fd8; --blob-mid:#2c40b8; --blob-rim:#1a2890;
+  background:
+    radial-gradient(130% 55% at 62% 112%, #a9b5ff 0%, rgba(169,181,255,0) 70%),
+    linear-gradient(180deg,var(--ground-top) 0%,var(--ground-mid) 50%,#e3e6fd 72%,var(--ground-low) 100%);
+  font-family:"Sharp Grotesk",Arial,sans-serif; color:var(--ink);
+}
+.world,.cap,.capin{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:960px 560px}
+.capin{transform-origin:960px 380px}
+.card{position:absolute;left:0;top:0;will-change:transform}
+.face{position:absolute;inset:0;border-radius:var(--r,24px);overflow:hidden;
+  background:linear-gradient(175deg,rgba(255,255,255,.96) 0%,rgba(250,250,255,.84) 55%,rgba(244,245,255,.66) 100%);
+  border:1px solid rgba(214,218,245,.9);
+  box-shadow:0 30px 70px rgba(60,72,170,.13),-2px 3px 0 var(--card-edge)}
+.blobwrap{position:absolute;inset:-2%;opacity:0;will-change:filter,opacity}
+/* the flooded card: saturated body, a dark D-shaped core toward the right,
+   a lit rim on the right edge, a softer left edge */
+.blob{position:absolute;inset:0;border-radius:var(--r,24px) 16% 16% var(--r,24px) / var(--r,24px) 24% 24% var(--r,24px);
+  background:
+    radial-gradient(64% 32% at 60% 50%,#131f88 0%,rgba(22,34,140,.75) 50%,rgba(22,34,140,0) 100%),
+    linear-gradient(90deg,var(--blob-core) 0%,#3a4fd2 45%,#2a3cbc 82%,#7d8eeb 94%,#5165da 100%);
+  /* --hx: centre of an elliptical hole; its right-hand arc is the edge the blue
+     enters behind and drains away from, so the last of it is a ")" rim */
+  --hx:-80%;
+  -webkit-mask-image:radial-gradient(62% 220% at var(--hx) 50%,transparent 95%,#000 100%),linear-gradient(90deg,rgba(0,0,0,.7) 0%,#000 30%);
+  mask-image:radial-gradient(62% 220% at var(--hx) 50%,transparent 95%,#000 100%),linear-gradient(90deg,rgba(0,0,0,.7) 0%,#000 30%);
+  -webkit-mask-composite:source-in;mask-composite:intersect}
+.dots{display:flex;gap:7px}.dots i{width:9px;height:9px;border-radius:50%;background:#2a2a35;display:block}
+.av{border-radius:50%;background:var(--accent);flex:none}
+/* conversations */
+.c-conv{width:444px;height:272px;--r:30px}
+.c-conv .face{padding:30px 34px}
+.c-conv h4{font:500 24px/1 "Sharp Grotesk";display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.row{display:flex;align-items:center;gap:14px;height:56px}
+.row .av{width:42px;height:42px}
+.bars{flex:1;display:flex;flex-direction:column;gap:7px}
+.bars b{display:block;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--accent) 0%,rgba(31,54,192,.55) 55%,rgba(31,54,192,0) 100%)}
+.bars b+b{width:62%;opacity:.55}
+.row em{font:400 19px/1 "Sharp Grotesk";font-style:normal;color:#30303c;width:76px;text-align:right}
+/* message */
+.c-msg{width:376px;height:170px;--r:22px}
+.c-msg .face{padding:24px 28px}
+.msg-h{display:flex;align-items:center;gap:14px}
+.msg-h .av{width:36px;height:36px}
+.msg-h span{font:400 24px/1 "Sharp Grotesk";flex:1}
+.msg-h small{font:400 15px/1 "Sharp Grotesk";color:var(--muted)}
+.c-msg p{font:400 17px/1.3 "Sharp Grotesk";color:#6c6c7a;margin:14px 0 10px 50px;width:210px}
+.c-msg .dots{margin-left:50px}.c-msg .dots i{width:7px;height:7px;background:#777}
+/* line chart */
+.c-chart{width:650px;height:300px;--r:26px}
+.c-chart .face{padding:26px 34px}
+.c-chart h4{font:500 30px/1 "Sharp Grotesk";margin-bottom:6px}
+.c-chart svg{position:absolute;left:30px;top:70px;width:590px;height:200px}
+/* sticky notes */
+.note .face{border-radius:6px;background:linear-gradient(170deg,#fbfbfe 0%,#f2f2fb 100%);border-color:rgba(205,208,238,.9);
+  font:italic 400 25px/1.55 "Sorts Mill Goudy",serif;color:#2a2a38;padding:42px 30px 20px}
+.note .tape{position:absolute;left:50%;top:-10px;width:44px;height:24px;margin-left:-22px;border-radius:3px;background:rgba(232,233,246,.95);box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.note svg{display:block;margin-top:2px}
+.c-noteL{width:208px;height:208px}
+.c-noteR{width:250px;height:250px}
+.c-noteR .face{font-size:31px;padding:50px 36px 20px}
+/* projects */
+.c-proj{width:680px;height:470px;--r:34px}
+.c-proj .face{padding:40px 40px;background:linear-gradient(175deg,rgba(255,255,255,.9) 0%,rgba(240,242,255,.72) 60%,rgba(214,220,255,.6) 100%)}
+.c-proj h4{font:500 37px/1 "Sharp Grotesk";display:flex;justify-content:space-between;align-items:center}
+.c-proj .dots i{width:12px;height:12px}
+.chart{display:flex;align-items:flex-end;gap:28px;height:150px;margin:44px 0 24px 18px}
+.chart i{display:block;width:21px;background:var(--accent);border-radius:2px}
+.c-proj big{display:block;font:400 54px/1 "Sharp Grotesk"}
+.c-proj small{display:block;font:400 26px/1.3 "Sharp Grotesk";color:#2c2c38}
+/* person card */
+.c-prof{width:710px;height:400px;--r:34px}
+.c-prof .face{padding:40px 44px;background:linear-gradient(175deg,rgba(255,255,255,.9) 0%,rgba(236,239,255,.72) 60%,rgba(206,213,255,.62) 100%)}
+.prof-h{display:flex;align-items:center;gap:22px}
+.prof-h .av{width:78px;height:78px}
+.prof-h span{font:400 46px/1 "Sharp Grotesk";flex:1;letter-spacing:-.01em}
+.prof-h small{font:400 27px/1 "Sharp Grotesk"}
+.c-prof p{font:400 30px/1.3 "Sharp Grotesk";color:#2c2c38;margin:24px 0 18px 100px}
+.c-prof .dots{margin-left:100px}.c-prof .dots i{width:11px;height:11px}
+/* caption */
+.sent{position:absolute;left:0;right:0;top:560px;transform:translateY(-50%);text-align:center;font:400 53px/90px "Sharp Grotesk";letter-spacing:-.012em;white-space:nowrap}
+.sent b{font-weight:500}
+.s1{font-size:62px}
+.s4{font-size:84px;letter-spacing:-.02em}
+.w{display:inline-block;will-change:transform,opacity}
+</style>
+
+<div class="stage">
+  <div class="world">
+    <div class="card c-chart"><div class="face"><h4>Dashboard</h4>
+      <svg viewBox="0 0 590 200" fill="none">
+        <g stroke="#c9cbe0" stroke-width="1.5"><path d="M0 60H590M0 120H590M0 180H590"/></g>
+        <polyline points="20,150 95,146 175,118 255,138 345,124 455,64 545,82" stroke="#3a3f6e" stroke-width="2.4"/>
+        <g fill="#2b2f60"><circle cx="20" cy="150" r="5"/><circle cx="95" cy="146" r="5"/><circle cx="175" cy="118" r="5"/><circle cx="255" cy="138" r="5"/><circle cx="345" cy="124" r="5"/><circle cx="455" cy="64" r="5"/><circle cx="545" cy="82" r="5"/></g>
+      </svg></div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card c-msg"><div class="face">
+      <div class="msg-h"><i class="av"></i><span>Design team</span><small>10:32 AM</small></div>
+      <p>What if we pooled our notes in one place?</p><div class="dots"><i></i><i></i><i></i></div>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card c-conv"><div class="face">
+      <h4>Conversations<span class="dots"><i></i><i></i><i></i></span></h4>
+      <div class="row"><i class="av"></i><span class="bars"><b></b><b></b></span><em>2d ago</em></div>
+      <div class="row"><i class="av"></i><span class="bars"><b></b><b></b></span><em>3d ago</em></div>
+      <div class="row"><i class="av"></i><span class="bars"><b></b><b></b></span><em>5d ago</em></div>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card note c-noteL"><div class="face"><span class="tape"></span>New approach<br>for onboarding?
+      <svg width="80" height="12" viewBox="0 0 80 12" fill="none"><path d="M2 8C20 3 42 2 78 5M10 11C28 8 44 8 62 9" stroke="#3846b8" stroke-width="2" stroke-linecap="round"/></svg>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card note c-noteR"><div class="face"><span class="tape"></span>Share<br>across<br>teams
+      <svg width="110" height="16" viewBox="0 0 110 16" fill="none"><path d="M4 11C34 4 70 2 106 4M18 15C46 10 74 9 100 10" stroke="#3846b8" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card c-proj"><div class="face">
+      <h4>Open Projects<span class="dots"><i></i><i></i><i></i></span></h4>
+      <div class="chart"><i style="height:48%"></i><i style="height:100%"></i><i style="height:52%"></i><i style="height:98%"></i><i style="height:54%"></i><i style="height:100%"></i><i style="height:52%"></i><i style="height:96%"></i><i style="height:50%"></i></div>
+      <big>12</big><small>Active projects</small>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+    <div class="card c-prof"><div class="face">
+      <div class="prof-h"><i class="av"></i><span>Field lead</span><small>10:32 AM</small></div>
+      <p>Let’s revisit this idea<br>next quarter.</p><div class="dots"><i></i><i></i><i></i></div>
+    </div><div class="blobwrap"><div class="blob"></div></div></div>
+  </div>
+  <div class="cap"><div class="capin">
+    <div class="sent s1"><span class="w">Every</span> <span class="w">day,</span> <b class="w">ideas</b> <span class="w">are</span> <span class="w">born</span><br><span class="w">inside</span> <span class="w">your</span> <span class="w">walls.</span></div>
+    <div class="sent s2"><span class="w">And</span> <span class="w">every</span> <span class="w">day,</span></div>
+    <div class="sent s3"><span class="w">too</span> <span class="w">many</span> <span class="w">of</span> <span class="w">them</span></div>
+    <div class="sent s4"><b class="w">fade</b> <b class="w">out.</b></div>
+  </div></div>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+/* Times are seconds from the start of the effect (reel 0:01.5 = 0).
+   Layers, in the order they sit:
+     ground  — stage, never moves
+     world   — the camera: one uniform zoom about (960,560) for cards AND caption
+     cards   — slide in from beyond the frame edge (expoOut, 1.0 s), then converge slowly on the caption
+     caption — inside the world, plus its own opening pull (1.36 -> 1) */
+const M = Motion, D = 4.6;
+const cubicInOut = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const $ = s => document.querySelector(s);
+
+/* Camera: rest 1.0; push to 1.47 centred on the first caption swap (t 1.6);
+   pull back to 0.96 centred on the second swap (t 2.6). The speed peak hides each swap. */
+const camZ = t => 1 + 0.47 * M.phase(t, 1.15, 2.05, cubicInOut) - 0.51 * M.phase(t, 2.15, 3.1, cubicInOut);
+/* The caption's own opening pull-back: 1.36 -> 1.0 while the cards rush in. */
+const capPull = t => M.between(t, 0.12, 1.0, 1.36, 1, 'move');
+
+/* x,y = rest centre (world px at zoom 1); r = tilt; depth 0 far .. 1 near-lens;
+   dir/L = where it comes from (beyond the edge); s = slide start;
+   turn = floods blue; drain = blue drains off to the right. */
+const CARDS = [
+  { sel: '.c-conv',  x: 363,  y: 176,  r: 2.5, depth: .30, dir: [-.98, -.2], L: 700, rIn: -12, rT: 3, s: .27, turn: 3.03, drain: 3.53 },
+  { sel: '.c-msg',   x: 1023, y: 125,  r: 3.5, depth: .20, dir: [0, -1],     L: 330, rIn: 5,   rT: 3, s: .36, turn: 2.93, drain: 3.43 },
+  { sel: '.c-chart', x: 1676, y: 112,  r: 9,   depth: .80, dir: [.85, -.53], L: 560, rIn: 8,   rT: 4, s: .42, turn: 2.80, drain: 3.30 },
+  { sel: '.c-noteL', x: 306,  y: 536,  r: -3,  depth: .45, dir: [-1, .02],   L: 520, rIn: -14, rT: 14, s: .46, turn: 3.07, drain: 3.59 },
+  { sel: '.c-noteR', x: 1594, y: 521,  r: -9,  depth: .50, dir: [1, -.06],   L: 560, rIn: -22, rT: 6, s: .52, turn: 3.14, drain: 3.73 },
+  { sel: '.c-proj',  x: 316,  y: 926,  r: -1,  depth: .95, dir: [-.87, .49], L: 640, rIn: -6,  rT: 4, s: .60, turn: 2.72, drain: 3.28 },
+  { sel: '.c-prof',  x: 1586, y: 1018, r: 1.5, depth: 1.0, dir: [.58, .81],  L: 480, rIn: 6,   rT: 3, s: .64, turn: 3.26, drain: 3.83 },
+];
+for (const c of CARDS) {
+  c.el = $(c.sel); c.face = c.el.querySelector('.face');
+  c.wrap = c.el.querySelector('.blobwrap'); c.blob = c.el.querySelector('.blob');
+  c.el.style.left = (c.x - c.el.offsetWidth / 2) + 'px';
+  c.el.style.top = (c.y - c.el.offsetHeight / 2) + 'px';
+}
+
+/* Words: [sentence, word index, arrives at, colour]. Each rises 16 px out of a
+   light grey into ink in 0.24 s (expoOut); a sentence leaves in one or two frames. */
+const SENTS = [
+  { el: $('.s1'), out: [1.55, 1.62], words: [0, 0, 0, 0, 0, .22, .42, .56] },
+  { el: $('.s2'), out: [2.57, 2.6], words: [1.58, 1.75, 1.92] },
+  { el: $('.s3'), out: [3.43, 3.46], words: [2.62, 2.77, 2.9, 3.03] },
+  { el: $('.s4'), out: [3.77, 3.93], words: [3.46, 3.6], blurOut: true, tint: true },
+];
+for (const s of SENTS) s.ws = [...s.el.querySelectorAll('.w')];
+const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(M.lerp(v, b[i], p))).join(',')})`;
+const SOFT = [189, 189, 201], INK = [29, 29, 37], TINT = [58, 74, 184];
+
+function seek(t) {
+  const z = camZ(t);
+  $('.world').style.transform = `scale(${z})`;
+  $('.cap').style.transform = `scale(${z})`;
+  $('.capin').style.transform = `scale(${capPull(t)})`;   // the opening pull scales about a point above line 1
+
+  for (const c of CARDS) {
+    const pr = M.clamp((t - c.s) / 1.0);
+    const p = M.eases.expoOut(pr);
+    const left = 1 - p;
+    // speed in px/s along the path, for motion blur while it rushes in
+    const v = t < c.s ? 0 : c.L * 10 * Math.LN2 * Math.pow(2, -10 * pr);
+    // after landing the set keeps converging on the caption: 6 %/2.3 s vertically, 1.5 % horizontally
+    const cv = M.phase(t, 1.0, 3.3, 'linear');
+    let x = c.dir[0] * c.L * left - (c.x - 960) * .015 * cv;
+    let y = c.dir[1] * c.L * left - (c.y - 560) * .06 * cv;
+    let rot = c.r + c.rIn * left + c.rT * M.phase(t, c.turn, c.drain + .2, 'smooth');   // a slow swirl while flooded
+
+    // blue enters at the card's right edge and sweeps left (0.16 s), holds,
+    // then drains out to the right (0.12 s) leaving a ")" rim that fades (0.12 s)
+    const turn = M.phase(t, c.turn, c.turn + .16, 'smooth');
+    const drain = M.phase(t, c.drain, c.drain + .12, 'linear');         // the hole sweeps right, leaving the rim
+    const rim = M.phase(t, c.drain + .12, c.drain + .24, 'linear');
+    const gone = M.phase(t, c.drain + .08, c.drain + .24, 'smooth');   // the ")" rim thins and fades
+    const scale = 1 + .04 * turn + .03 * drain;   // leans toward the lens as it floods
+
+    c.el.style.opacity = t < c.s ? 0 : 1;
+    c.el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${scale})`;
+    const moveBlur = Math.min(8, v / 600);
+    c.face.style.filter = `blur(${moveBlur + c.depth * .5 + 1.5 * turn}px)`;
+    c.face.style.opacity = (1 - .55 * turn) * (1 - drain * drain);    // a pale ghost shows where the blue has gone
+    c.wrap.style.opacity = Math.min(1, turn * 3) * (1 - gone);
+    c.wrap.style.filter = `blur(${9 - 4 * drain}px)`;
+    // hole centre: 60% (covers the card) -> -80% (clear) as it floods; -80% -> 30% (a thin rim left) -> 44% as it drains
+    const hx = drain > 0 ? M.lerp(-80, 30, drain) + 14 * rim : M.lerp(60, -80, turn);
+    c.blob.style.setProperty('--hx', hx + '%');
+  }
+
+  for (const s of SENTS) {
+    const out = M.phase(t, s.out[0], s.out[1], 'smooth');
+    s.el.style.opacity = 1 - out;
+    s.el.style.filter = s.blurOut ? `blur(${14 * out}px)` : '';
+    s.ws.forEach((w, i) => {
+      const at = s.words[i];
+      const p = at <= 0 ? 1 : M.phase(t, at, at + .24, 'expoOut');
+      w.style.opacity = M.clamp(p * 1.4);
+      w.style.transform = `translateY(${16 * (1 - p)}px)`;
+      w.style.color = mix(SOFT, s.tint ? TINT : INK, p);
+    });
+  }
+}
+fx.register({ duration: D, loop: false, seek });
+</script>

@@ -5,7 +5,18 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const invLerp = (a, b, v) => a === b ? 1 : clamp((v - a) / (b - a));
 
+  /* `move`, the film engine's default ease: cubic-bezier(0.5, 0, 0.15, 1),
+     from rest, peaking a third of the way, settling long. */
+  const bez = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+  const move = x => {
+    if (x <= 0 || x >= 1) return clamp(x);
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; if (bez(0.5, 0.15, m) < x) lo = m; else hi = m; }
+    return bez(0, 1, (lo + hi) / 2);
+  };
+
   const eases = {
+    move,
     linear: t => t,
     smooth: t => t * t * (3 - 2 * t),
     smoother: t => t * t * t * (t * (t * 6 - 15) + 10),

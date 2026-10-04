@@ -1,0 +1,181 @@
+<!doctype html><meta charset="utf-8">
+<title>Spoken Line Recentre</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage {
+    --ground: #fbf9fd;         /* light lavender-white ground */
+    --ground-glow: #98a8fc;    /* periwinkle low on it */
+    --ink: #23242e;            /* the words */
+    --accent: #2f48e4;         /* the keyword's pill */
+    --accent-deep: #0f1d8c;
+    --accent-ink: #eef0ff;     /* the keyword while it sits on the pill */
+    background: var(--ground);
+    font-family: "Sharp Grotesk", "Atlas Grotesk", sans-serif;
+  }
+  .glow { position: absolute; left: -12%; right: -12%; top: 0; height: 130%; will-change: transform;
+    background:
+      radial-gradient(30% 34% at 50% 52%, color-mix(in srgb, var(--ground) 55%, transparent) 0%, transparent 100%),
+      linear-gradient(to top, var(--ground-glow) 0%, var(--ground-glow) 23%, color-mix(in srgb, var(--ground-glow) 92%, var(--ground)) 29%,
+        color-mix(in srgb, var(--ground-glow) 55%, var(--ground)) 42%, color-mix(in srgb, var(--ground-glow) 25%, var(--ground)) 55%, transparent 68%);
+  }
+  .words { position: absolute; left: 0; top: 0; }
+  .w { position: absolute; left: 0; top: 0; line-height: 1; white-space: pre; font-weight: 400; color: var(--ink); opacity: 0;
+    will-change: transform, opacity, filter; }
+  .w.key { font-weight: 500; -webkit-text-stroke: 0.04em currentColor; }
+  .mark { position: absolute; left: 0; top: 0; opacity: 0; transform-origin: 0 50%;
+    background: linear-gradient(90deg, var(--accent-deep) 0%, var(--accent) 22%, var(--accent) 78%, var(--accent-deep) 100%);
+    box-shadow: inset 0 0 0.16em color-mix(in srgb, var(--accent-deep) 85%, transparent);
+    border-radius: 0.12em; will-change: transform, opacity, filter, clip-path; }
+  .measure { position: absolute; left: -9999px; top: 0; font-size: 100px; line-height: 1; white-space: pre; visibility: hidden; }
+</style>
+
+<div class="stage">
+  <div class="glow"></div>
+  <div class="words"></div>
+  <div class="measure"></div>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const { phase, lerp, envelope } = Motion;
+  const W = 1920, CX = W / 2;
+
+  /* The spoken sentence. `at` is each word's onset (from the aligned narration
+     in a film); `line` which line it builds on; `key` the word that arrives
+     inside the pill. */
+  const WORDS = [
+    { text: 'Every', at: 0.26, line: 0 },
+    { text: 'week,', at: 0.53, line: 0 },
+    { text: 'good', at: 0.86, line: 0 },
+    { text: 'ideas', at: 1.14, line: 0, key: true },
+    { text: 'are', at: 1.6, line: 0 },
+    { text: 'born', at: 1.8, line: 0 },
+    { text: 'inside', at: 2.16, line: 1 },
+    { text: 'your', at: 2.3, line: 1 },
+    { text: 'team.', at: 2.43, line: 1 },
+  ];
+  const SIZE = 80;             // px
+  const BASE = 584;            // baseline of a single line (px); a block of two centres on it
+  const LEADING = 1.32;        // line pitch, em
+  const LEAD = 0.22, GLIDE = 0.8;    // a line starts re-centring LEAD s before its new word lands, over GLIDE s
+  const VLEAD = 0.25, VGLIDE = 0.75; // the block's lift when a new line starts
+  const RISE = 0.38;           // em a word rises through as it lands
+
+  const stage = document.querySelector('.stage');
+  const glow = stage.querySelector('.glow');
+  const root = stage.querySelector('.words');
+  let L = null;
+
+  function layout() {
+    const m = stage.querySelector('.measure');
+    const span = (txt, key) => { const s = document.createElement('span'); s.textContent = txt; s.className = key ? 'w key' : 'w'; s.style.opacity = 1; s.style.position = 'static'; m.appendChild(s); return s; };
+    const widths = WORDS.map(w => span(w.text, w.key).getBoundingClientRect().width * SIZE / 100);
+    const sp = (span('a a').getBoundingClientRect().width - span('aa').getBoundingClientRect().width) * SIZE / 100;
+    const probe = document.createElement('div');
+    probe.style.lineHeight = '1';
+    probe.innerHTML = 'x<i style="display:inline-block;width:0;height:0;vertical-align:baseline"></i>';
+    m.appendChild(probe);
+    const baseEm = (probe.querySelector('i').getBoundingClientRect().top - probe.getBoundingClientRect().top) / 100;
+
+    // each line's own layout (px from the line's left edge)
+    const x = [], R = [];
+    WORDS.forEach((w, k) => {
+      const first = !k || WORDS[k - 1].line !== w.line;
+      x[k] = first ? 0 : R[k - 1] + sp;
+      R[k] = x[k] + widths[k];
+    });
+    root.style.fontSize = SIZE + 'px';
+    const els = WORDS.map((w) => {
+      const e = document.createElement('span');
+      e.className = 'w' + (w.key ? ' key' : '');
+      e.textContent = w.text;
+      root.appendChild(e);
+      return e;
+    });
+    const k = WORDS.findIndex(w => w.key);
+    const mark = document.createElement('div'); mark.className = 'mark';
+    const markInk = document.createElement('span'); markInk.className = 'w key'; markInk.textContent = WORDS[k].text;
+    root.insertBefore(mark, els[k].nextSibling);
+    root.appendChild(markInk);
+    L = { x, R, widths, els, k, mark, markInk, top: -baseEm * SIZE };
+  }
+
+  /* A line's centre (px from its left edge): each word adds half its width and
+     a space, gliding on `move` from LEAD s before the word lands. The word
+     lands at the right end; the line glides left so it stays centred. */
+  function centre(line, t) {
+    let c = 0;
+    WORDS.forEach((w, k) => {
+      if (w.line !== line) return;
+      const first = !k || WORDS[k - 1].line !== line;
+      c += (L.R[k] - (first ? 0 : L.R[k - 1])) / 2 * phase(t, w.at - LEAD, w.at - LEAD + GLIDE, 'move');
+    });
+    return c;
+  }
+
+  /* The block stays centred vertically: each new line lifts it half a pitch. */
+  function lift(t) {
+    let y = 0;
+    WORDS.forEach((w, k) => {
+      if (k && WORDS[k - 1].line !== w.line) y -= LEADING * SIZE / 2 * phase(t, w.at - VLEAD, w.at - VLEAD + VGLIDE, 'move');
+    });
+    return y;
+  }
+
+  /* A word is born moving: it rises RISE em and un-blurs as it lands. */
+  const rise = (t, at) => RISE * SIZE * (1 - phase(t, at, at + 0.55, 'expoOut'));
+
+  function seek(t) {
+    if (!L) return;
+    glow.style.transform = `translate3d(0,${lerp(-40, 120, phase(t, 0, 3.6, 'move'))}px,0)`;
+    const cs = [centre(0, t), centre(1, t)], dy = lift(t);
+    WORDS.forEach((w, k) => {
+      const e = L.els[k];
+      if (t < w.at - 0.03) { e.style.opacity = 0; return; }
+      const left = CX + L.x[k] - cs[w.line];
+      const top = BASE + dy + w.line * LEADING * SIZE + L.top + rise(t, w.at);
+      const blur = 0.04 * SIZE * (1 - phase(t, w.at, w.at + 0.13, 'expoOut'));
+      e.style.opacity = phase(t, w.at - 0.03, w.at + 0.01, 'smooth');
+      e.style.transform = `translate3d(${left}px,${top}px,0)`;
+      e.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
+    });
+    placeMark(t, cs, dy);
+  }
+
+  /* fx "mark": the keyword's pill sweeps in blurred and stretched, holds the
+     word white on blue, then fades and wipes off left to right, leaving the
+     word bold in ink. Times from the keyword's onset. */
+  function placeMark(t, cs, dy) {
+    const k = L.k, w = WORDS[k], on = w.at, s = SIZE;
+    const { mark, markInk } = L;
+    if (t < on - 0.015 || t > on + 0.4) { mark.style.opacity = 0; markInk.style.opacity = 0; return; }
+    const left = CX + L.x[k] - cs[w.line];
+    const base = BASE + dy + w.line * LEADING * s;
+    const padX = 0.12 * s;
+    const arrive = phase(t, on, on + 0.12, 'expoOut');
+    const sharpen = phase(t, on, on + 0.11, 'smooth');
+    const wipe = phase(t, on + 0.25, on + 0.36, 'smooth');
+    mark.style.width = (L.widths[k] + 2 * padX) + 'px';
+    mark.style.height = 1.2 * s + 'px';
+    mark.style.transform = `translate3d(${left - padX - (1 - arrive) * 0.18 * s}px,${base + L.top - 0.06 * s}px,0) scaleX(${lerp(0.75, 1, arrive)})`;
+    mark.style.opacity = phase(t, on - 0.015, on, 'smooth') * (1 - phase(t, on + 0.205, on + 0.325, 'smooth'));
+    mark.style.filter = `blur(${lerp(22, 6.5, sharpen) + 9 * wipe}px)`;
+    mark.style.clipPath = wipe > 0 ? `inset(-30px -30px -30px ${wipe * 100}%)` : 'none';
+    // a copy of the word rides on the pill: ink, then white on blue, then ink
+    const white = 0.6 * envelope(t, on + 0.1, on + 0.13, on + 0.215, on + 0.26, 'smooth');
+    markInk.style.color = `color-mix(in srgb, var(--accent-ink) ${(white * 100).toFixed(1)}%, var(--ink))`;
+    markInk.style.opacity = phase(t, on + 0.062, on + 0.085, 'smooth') * (t < on + 0.37 ? 1 : 0);
+    markInk.style.transform = `translate3d(${left}px,${base + L.top + rise(t, on)}px,0)`;
+    markInk.style.filter = `blur(${lerp(3, 1.2, sharpen) + 1.2 * white}px)`;
+  }
+
+  fx.wait(Promise.all([
+    document.fonts.load('400 100px "Sharp Grotesk"'),
+    document.fonts.load('500 100px "Sharp Grotesk"'),
+  ]).then(layout));
+  fx.register({ duration: 5.1, loop: false, seek });
+})();
+</script>

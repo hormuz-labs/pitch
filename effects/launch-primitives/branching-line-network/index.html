@@ -1,0 +1,112 @@
+<!doctype html><meta charset="utf-8">
+<title>Branching Line Network</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{
+    --night:#020206;          /* the dark the line runs through */
+    --line:#1e35b6;           /* the line */
+    --glow:28,48,180;         /* the light band behind it (rgb) */
+    --ink:#ffffff;            /* the sentence */
+    --ground:#1b34b7;         /* what the frame shrinks onto */
+    --ground-lit:#2240d3;
+    background:var(--ground);
+  }
+  .ground{position:absolute;inset:0;background:linear-gradient(90deg,var(--ground-lit) 0%,var(--ground) 30%)}
+  .frame{position:absolute;inset:0;background:var(--night);overflow:hidden;will-change:clip-path}
+  .glow{position:absolute;left:0;top:0;width:1800px;height:5000px;will-change:transform,opacity;
+    background:radial-gradient(closest-side,rgba(var(--glow),.9) 0%,rgba(var(--glow),.84) 12%,rgba(var(--glow),.68) 26%,rgba(var(--glow),.46) 42%,rgba(var(--glow),.24) 60%,rgba(var(--glow),.09) 78%,rgba(var(--glow),0) 100%)}
+  svg.net{position:absolute;left:0;top:0;overflow:visible}
+  svg.net path{fill:none;stroke:var(--line);stroke-width:6.5;stroke-linecap:butt}
+  .copy{position:absolute;left:960px;top:540px;width:0;height:0;will-change:transform}
+  .ln{position:absolute;left:0;white-space:nowrap;font:400 88px/1 "Sharp Grotesk",Arial,sans-serif;letter-spacing:-.01em;color:var(--ink);transform:translate(-50%,-50%)}
+  .ln b{font-weight:500;-webkit-text-stroke:1.6px var(--ink)}
+  .w{opacity:0}
+</style>
+<div class="stage">
+  <div class="ground"></div>
+  <div class="frame">
+    <div class="glow"></div>
+    <svg class="net" width="1920" height="1080" viewBox="0 0 1920 1080">
+      <g class="world">
+        <path class="center" d="M-2400 0H0"/>
+        <path d="M-2400 -210H-330C-165 -210 -132 0 0 0"/>
+        <path d="M-2400 210H-330C-165 210 -132 0 0 0"/>
+      </g>
+    </svg>
+    <div class="copy">
+      <div class="ln l1" style="top:-55px"><span class="w w1">The</span> <b class="w w2">research</b></div>
+      <div class="ln l2" style="top:50px"><span class="w w3">gets</span> <span class="w w4">stuck.</span></div>
+    </div>
+  </div>
+</div>
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const M = window.Motion, $ = s => document.querySelector(s);
+  const frame = $('.frame'), glow = $('.glow'), world = $('.world'), center = $('.center');
+  const copy = $('.copy'), words = [1, 2, 3, 4].map(i => $('.w' + i));
+  fx.wait(document.fonts.load('400 88px "Sharp Grotesk"'));
+  fx.wait(document.fonts.load('500 88px "Sharp Grotesk"'));
+
+  // cubic-bezier, solved for x — the reel's whip pan is (0.9, 0, 0.25, 1)
+  const B = (a, b, u) => 3 * a * u * (1 - u) * (1 - u) + 3 * b * u * u * (1 - u) + u * u * u;
+  const bezier = (x1, y1, x2, y2) => x => {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 26; k++) { const m = (lo + hi) / 2; if (B(x1, x2, m) < x) lo = m; else hi = m; }
+    return B(y1, y2, (lo + hi) / 2);
+  };
+  const whip = bezier(0.9, 0, 0.25, 1);
+  // The line arrives at full speed and settles long: two decays each, fitted to the reel.
+  const decay = (tau, a, t1, t2) => tau <= 0 ? 0 : 1 - a * Math.exp(-tau / t1) - (1 - a) * Math.exp(-tau / t2);
+
+  const T_LINE = 0.23;               // the head enters the frame
+  const PAN0 = 2.15, PAN1 = 3.30, PAN = 860;
+  const CARD = 3.505;                // the frame starts shrinking into a card
+  const S_END = 579;                 // the card's settled side
+
+  fx.register({ duration: 5, loop: false, seek(t) {
+    // 1. the line: the world slides in from the left while the head draws on
+    const tau = t - T_LINE;
+    const merge = 3 + 320 * decay(tau, 0.6, 0.07, 0.55);        // where the branches join, on screen
+    const head = 58.5 + 818 * decay(tau, 0.55, 0.14, 0.7) - merge; // the head, past the join
+    const cam = PAN * whip((t - PAN0) / (PAN1 - PAN0));
+    world.setAttribute('transform', `translate(${(merge - cam).toFixed(2)} 540)`);
+    center.setAttribute('d', `M-2400 0H${head.toFixed(2)}`);
+    world.style.opacity = t < T_LINE ? 0 : 1;
+
+    // 2. the light band: drifts right with the arrival, then slides past at ~2x the camera
+    const gx = 1180 + 530 * (1 - Math.exp(-Math.max(0, t - 0.1) / 0.35)) - 2.05 * cam;
+    const tilt = M.between(t, 0, 0.7, 32, 6, 'expoOut');
+    const spread = M.between(t, 0, 0.6, 0.45, 1, 'cubicOut');
+    const glowOn = M.between(t, 0, 0.35, 0.5, 1) * M.between(t, 2.85, 3.45, 1, 0.35) * M.between(t, 3.45, 3.9, 1, 0);
+
+    // 3. the sentence lives in the world; it rises a little as it arrives
+    const rise = M.between(t, 2.78, 3.5, 50, 0, 'cubicOut');
+    let tx = PAN - cam, ty = rise, k = 1;
+
+    // 4. the frame becomes the card: a square clip collapses fast, then settles long
+    let side = 99999;
+    if (t >= CARD) {
+      const tc = t - CARD;
+      side = S_END + (1920 - S_END) * (0.6 * Math.exp(-tc / 0.05) + 0.4 * Math.exp(-tc / 0.25));
+    }
+    // the sentence starts shrinking two frames before the clip, then drifts with the card
+    const tk = t - 3.46;
+    if (tk > 0) k = 0.70 + 0.30 * (0.6 * Math.exp(-tk / 0.035) + 0.4 * Math.exp(-tk / 0.25));
+    const ix = Math.max(0, (1920 - side) / 2), iy = Math.max(0, (1080 - side) / 2);
+    frame.style.clipPath = side > 3000 ? 'none' : `inset(${iy.toFixed(2)}px ${ix.toFixed(2)}px)`;
+    // the glow is part of the frame, so it shrinks with it (it sits on the card's left edge)
+    const gk = Math.min(1, side / 1920);
+    const gsx = 960 + (gx - 960) * gk;
+    glow.style.transform = `translate(${(gsx - 900).toFixed(1)}px,${(540 - 2500).toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${(gk * spread).toFixed(4)},${gk.toFixed(4)})`;
+    glow.style.opacity = glowOn.toFixed(3);
+
+    copy.style.transform = `translate(${tx.toFixed(2)}px,${ty.toFixed(2)}px) scale(${k.toFixed(4)})`;
+    const on = [[2.79, 3.0], [3.0, 3.2], [3.53, 3.68], [3.71, 3.87]];
+    words.forEach((w, i) => { w.style.opacity = M.phase(t, on[i][0], on[i][1], 'linear').toFixed(3); });
+  } });
+})();
+</script>

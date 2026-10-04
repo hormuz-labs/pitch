@@ -1,0 +1,227 @@
+<!doctype html><meta charset="utf-8">
+<title>Word Dot Flood</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage {
+    --night: #010104;          /* the opening ground */
+    --night-glow: #1b2db4;     /* deep blue rising from the bottom of it */
+    --night-ink: #f3f5f9;      /* words on the night ground */
+    --ground: #fbf9fd;         /* the ground the disc floods in */
+    --ground-glow: #98a8fc;    /* periwinkle low on that ground */
+    --ink: #23242e;            /* words on the light ground */
+    --accent: #2f48e4;         /* the keyword's pill */
+    --accent-deep: #0f1d8c;
+    --accent-ink: #eef0ff;
+    background: var(--night);
+    font-family: "Sharp Grotesk", "Atlas Grotesk", sans-serif;
+  }
+  .scene { position: absolute; inset: 0; overflow: hidden; }
+  .glow { position: absolute; left: -12%; right: -12%; top: 0; height: 130%; will-change: transform; }
+  .night { background: var(--night); }
+  .night .glow {
+    background:
+      radial-gradient(46% 40% at 72% 80%, color-mix(in srgb, var(--night-glow) 70%, transparent), transparent 100%),
+      linear-gradient(to top, color-mix(in srgb, var(--night-glow) 78%, transparent) 0%, color-mix(in srgb, var(--night-glow) 66%, transparent) 23%,
+        color-mix(in srgb, var(--night-glow) 30%, transparent) 40%, color-mix(in srgb, var(--night-glow) 8%, transparent) 52%, transparent 60%);
+  }
+  .day { background: var(--ground); clip-path: circle(0px at 50% 50%); }
+  .day .glow {
+    background:
+      radial-gradient(30% 34% at 50% 52%, color-mix(in srgb, var(--ground) 55%, transparent) 0%, transparent 100%),
+      linear-gradient(to top, var(--ground-glow) 0%, var(--ground-glow) 23%, color-mix(in srgb, var(--ground-glow) 92%, var(--ground)) 29%,
+        color-mix(in srgb, var(--ground-glow) 55%, var(--ground)) 42%, color-mix(in srgb, var(--ground-glow) 25%, var(--ground)) 55%, transparent 68%);
+  }
+  .line { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  .w { position: absolute; left: 0; top: 0; line-height: 1; white-space: pre; font-weight: 400; opacity: 0; will-change: transform, opacity, filter; }
+  .night .w { color: var(--night-ink); }
+  .day .w { color: var(--ink); }
+  .w.key { font-weight: 500; -webkit-text-stroke: 0.04em currentColor; }
+  .mark { position: absolute; left: 0; top: 0; opacity: 0; transform-origin: 0 50%;
+    background: linear-gradient(90deg, var(--accent-deep) 0%, var(--accent) 22%, var(--accent) 78%, var(--accent-deep) 100%);
+    box-shadow: inset 0 0 0.16em color-mix(in srgb, var(--accent-deep) 85%, transparent);
+    border-radius: 0.12em; will-change: transform, opacity, filter, clip-path; }
+  .day .w.mark-ink { -webkit-text-stroke: 0.04em currentColor; }
+  .measure { position: absolute; left: -9999px; top: 0; font-size: 100px; line-height: 1; white-space: pre; visibility: hidden; }
+</style>
+
+<div class="stage">
+  <div class="scene night"><div class="glow"></div><div class="line"></div></div>
+  <div class="scene day"><div class="glow"></div><div class="line"></div></div>
+  <div class="measure"></div>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const { phase, lerp, clamp, envelope } = Motion;
+  const W = 1920, H = 1080, CX = W / 2;
+
+  /* The spoken line. `at` is the word's onset (film seconds); `key` marks the
+     keyword that arrives inside the pill. */
+  const WORDS = [
+    { text: 'Every', at: 0.1 },
+    { text: 'day,', at: 0.36 },
+    { text: 'ideas', at: 0.975, key: true },
+    { text: 'are', at: 1.43 },
+    { text: 'born', at: 1.63 },
+  ];
+  const NIGHT_WIDTH = 797;     // px the first two words span on the night ground
+  const SHRINK = 0.57;         // the line's size after the flood, as a share of before
+  const NIGHT_BASE = 586;      // baselines (px)
+  const DAY_BASE = 594;
+  /* The line glides on `move` to centre each phrase so far, starting before
+     its words land, so they land in room already made (measured on the reel:
+     "Every day," over 0.88 s; then the whole line over 0.7 s, peaking at the flood). */
+  const GLIDES = [
+    { upTo: 1, start: -0.093, dur: 0.88 },
+    { upTo: 4, start: 0.727, dur: 0.7 },
+  ];
+  const RISE = 0.4;            // em a word rises through as it lands
+
+  /* The flood: a seed in the gap after the first word, then a disc growing by
+     a constant ratio per frame (exponential: 22 px → past the corners in ~8 frames). */
+  const T_SEED = 0.717, T_GROW = 0.767, R0 = 22, PER_FRAME = 1.67;
+  const T_DAY_WORDS = 0.99;   // the dark words cut in once the disc holds the whole line
+
+  const stage = document.querySelector('.stage');
+  const night = stage.querySelector('.night'), day = stage.querySelector('.day');
+  const nightGlow = night.querySelector('.glow'), dayGlow = day.querySelector('.glow');
+  let L = null;
+
+  function layout() {
+    const m = stage.querySelector('.measure');
+    const span = (txt, key) => { const s = document.createElement('span'); s.textContent = txt; s.className = key ? 'w key' : 'w'; s.style.opacity = 1; s.style.position = 'static'; m.appendChild(s); return s; };
+    const widths = WORDS.map(w => span(w.text, w.key).getBoundingClientRect().width);
+    const sp = span('a a').getBoundingClientRect().width - span('aa').getBoundingClientRect().width;
+    // baseline and x-height of the face, per em
+    const probe = document.createElement('div');   // a line box like a word's: line-height 1
+    probe.style.lineHeight = '1';
+    probe.innerHTML = 'x<i style="display:inline-block;width:0;height:0;vertical-align:baseline"></i>';
+    m.appendChild(probe);
+    const baseEm = (probe.querySelector('i').getBoundingClientRect().top - probe.getBoundingClientRect().top) / 100;
+    const cv = document.createElement('canvas').getContext('2d');
+    cv.font = '400 100px "Sharp Grotesk"';
+    const xhEm = cv.measureText('x').actualBoundingBoxAscent / 100;
+    // local layout at 100px: left edges and right edges of each word
+    const x = [], R = [];
+    widths.forEach((w, k) => { x[k] = k ? R[k - 1] + sp : 0; R[k] = x[k] + w; });
+    const nightSize = NIGHT_WIDTH / R[1] * 100, daySize = nightSize * SHRINK;
+
+    const build = (scene, size, base) => {
+      const line = scene.querySelector('.line');
+      line.style.fontSize = size + 'px';
+      const els = WORDS.map((w) => {
+        const e = document.createElement('span');
+        e.className = 'w' + (w.key ? ' key' : '');
+        e.textContent = w.text;
+        line.appendChild(e);
+        return e;
+      });
+      return { line, els, size, top: base - baseEm * size };
+    };
+    const nightLine = build(night, nightSize, NIGHT_BASE);
+    const dayLine = build(day, daySize, DAY_BASE);
+
+    // the keyword's pill and its white copy, in the day line
+    const k = WORDS.findIndex(w => w.key);
+    const mark = document.createElement('div'); mark.className = 'mark';
+    const markInk = document.createElement('span'); markInk.className = 'w mark-ink'; markInk.textContent = WORDS[k].text;
+    dayLine.line.insertBefore(mark, dayLine.els[k].nextSibling);  // above the ink word; the copy rides above it
+    dayLine.line.appendChild(markInk);
+
+    // the seed sits in the gap after the first word, at x-height centre
+    const seedU = R[0] + sp * 0.25;
+    L = { x, R, sp, widths, xhEm, nightLine, dayLine, k, mark, markInk, seedU };
+    L.seed = { x: CX + (seedU - centre(T_SEED)) * nightSize / 100, y: NIGHT_BASE - xhEm * nightSize / 2 };
+    L.rMax = Math.hypot(Math.max(L.seed.x, W - L.seed.x), Math.max(L.seed.y, H - L.seed.y)) + 4;
+  }
+
+  /* The line's centre, in local units (px at 100px type): half the width of
+     the words its glides have taken in so far. */
+  function centre(t) {
+    let c = 0, prev = 0;
+    for (const g of GLIDES) {
+      const R = L.R[g.upTo] / 2;
+      c += (R - prev) * phase(t, g.start, g.start + g.dur, 'move');
+      prev = R;
+    }
+    return c;
+  }
+
+  function radius(t) {
+    if (t < T_SEED) return 0;
+    if (t < T_GROW) return R0 * Math.pow((t - T_SEED) / (T_GROW - T_SEED), 1.5);
+    return R0 * Math.pow(PER_FRAME, (t - T_GROW) * 30);
+  }
+
+  /* A word is born moving: it rises RISE em and un-blurs as it lands. */
+  function placeWord(e, line, k, t, c, shown) {
+    const w = WORDS[k], s = line.size;
+    const left = CX + (L.x[k] - c) * s / 100;
+    if (!shown || t < w.at) { e.style.opacity = 0; return left; }
+    const dy = RISE * s * (1 - phase(t, w.at, w.at + 0.65, 'expoOut'));
+    const blur = 0.022 * s * (1 - phase(t, w.at, w.at + 0.14, 'expoOut'));
+    e.style.opacity = phase(t, w.at - 0.03, w.at + 0.01, 'smooth');
+    e.style.transform = `translate3d(${left}px,${line.top + dy}px,0)`;
+    e.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
+    return left;
+  }
+
+  /* The keyword's pill: sweeps in blurred and stretched, shows the word white
+     on blue, then fades and wipes off left to right, leaving the word in ink. */
+  function placeMark(t, c) {
+    const line = L.dayLine, k = L.k, s = line.size, on = WORDS[k].at;
+    const { mark, markInk } = L;
+    const left = CX + (L.x[k] - c) * s / 100;
+    const padX = 0.12 * s, top = line.top - 0.06 * s, h = 1.2 * s;
+    if (t < on || t > on + 0.4) { mark.style.opacity = 0; markInk.style.opacity = 0; return; }
+    const arrive = phase(t, on, on + 0.12, 'expoOut');
+    const sharpen = phase(t, on, on + 0.11, 'smooth');
+    const wipe = phase(t, on + 0.25, on + 0.36, 'smooth');
+    mark.style.width = (L.widths[k] * s / 100 + 2 * padX) + 'px';
+    mark.style.height = h + 'px';
+    mark.style.transform = `translate3d(${left - padX - (1 - arrive) * 0.18 * s}px,${top}px,0) scaleX(${lerp(0.75, 1, arrive)})`;
+    mark.style.opacity = phase(t, T_DAY_WORDS - 0.015, T_DAY_WORDS, 'smooth') * (1 - phase(t, on + 0.205, on + 0.325, 'smooth'));
+    mark.style.filter = `blur(${lerp(22, 6.5, sharpen) + 9 * wipe}px)`;
+    mark.style.clipPath = wipe > 0 ? `inset(-30px -30px -30px ${wipe * 100}%)` : 'none';
+    // a copy of the word rides on the pill: ink, then white on blue, then ink
+    // again as the pill wipes off (the ink word under the pill takes over after)
+    const dy = RISE * s * (1 - phase(t, on, on + 0.65, 'expoOut'));
+    const white = 0.6 * envelope(t, on + 0.1, on + 0.13, on + 0.215, on + 0.26, 'smooth');
+    markInk.style.color = `color-mix(in srgb, var(--accent-ink) ${(white * 100).toFixed(1)}%, var(--ink))`;
+    markInk.style.opacity = phase(t, on + 0.062, on + 0.085, 'smooth') * (t < on + 0.37 ? 1 : 0);
+    markInk.style.transform = `translate3d(${left}px,${line.top + dy}px,0)`;
+    markInk.style.filter = `blur(${lerp(3, 1.2, sharpen) + 1.2 * white}px)`;
+  }
+
+  function seek(t) {
+    if (!L) return;
+    const c = centre(t);
+    // grounds
+    nightGlow.style.transform = `translate3d(0,${lerp(140, -20, phase(t, 0, 1.0, 'move'))}px,0)`;
+    nightGlow.style.opacity = lerp(0.55, 1, phase(t, 0, 0.9, 'smooth'));
+    dayGlow.style.transform = `translate3d(0,${lerp(-30, 150, phase(t, 1.0, 2.4, 'move'))}px,0)`;
+    // the flood
+    const r = radius(t);
+    const flooded = r >= L.rMax;
+    night.style.visibility = flooded ? 'hidden' : 'visible';
+    day.style.clipPath = flooded ? 'none' : `circle(${r.toFixed(2)}px at ${L.seed.x.toFixed(1)}px ${L.seed.y.toFixed(1)}px)`;
+    // the words: white on the night until the flood, ink on the day after
+    L.nightLine.els.forEach((e, k) => placeWord(e, L.nightLine, k, t, c, !flooded));
+    const dayOn = phase(t, T_DAY_WORDS - 0.015, T_DAY_WORDS, 'smooth');
+    L.dayLine.els.forEach((e, k) => {
+      placeWord(e, L.dayLine, k, t, c, t >= T_DAY_WORDS - 0.015);
+      if (t >= T_DAY_WORDS - 0.015 && WORDS[k].at < T_DAY_WORDS) e.style.opacity = dayOn;
+    });
+    placeMark(t, c);
+  }
+
+  fx.wait(Promise.all([
+    document.fonts.load('400 100px "Sharp Grotesk"'),
+    document.fonts.load('500 100px "Sharp Grotesk"'),
+  ]).then(layout));
+  fx.register({ duration: 3.8, loop: false, seek });
+})();
+</script>

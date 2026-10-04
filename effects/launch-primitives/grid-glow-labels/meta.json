@@ -1,0 +1,32 @@
+{
+  "name": "Grid Glow Labels",
+  "seconds": 4.6,
+  "move": "a hard cut into a dark grid of rounded tiles where soft blue glows light one tile after another and each role label fades up beside its line icon while the camera pans across, then it rushes left into a cut to a field of big outlined pills that slide to rest and one pill fills with blue",
+  "how": "0-0.53 s: lead-in caption on the light ground, ln(zoom) growing exponentially (1.03 -> ~1.7) toward a point above it, hard cut. Grid: 286 px tiles on a 316 px pitch, translucent near-black on near-black (tile faces 42 % opaque) so light under them shows through faintly and fully in the gaps. Each role is a two-tile label + an icon tile. A glow = a blue body disc and a white-lavender hot spot under the tiles, the same hot spot again screen-blended over the tile faces, and a blue screen halo; the icon tile turns blue glass, lighter on the side facing the hot spot. Glows rise in 0.3-0.45 s (Design t 0.54, Support 1.4, Sales 2.05) and their hot spots orbit the icon tile clockwise ~0.6 pitch out (Design -5 -> 160 deg over 2.3 s), so the lit gap moves right -> below -> left. Labels go from dim grey to white out of a 4 px blur in 0.2 s. Camera {x, y, zoom}: carries the previous push across the cut (zoom 1.10 -> 1.23, expoOut 1.0 s), pans down 480 px while easing back to 1.0 (cubic in-out t 1.1-1.85, peak ~1,000 px/s), pans right 450 / up 190 (move, t 1.8-2.7), then accelerates left x1.4 a frame (1.3(e^(10(t-2.4))-1)) into the cut at t 2.92 at ~2,350 px/s. Pills: the bottom row enters at that speed and settles 520 px left (quartOut 1.0 s); the top row pops in two frames later and slides 488 px right (cubicOut 0.63 s); the 'Thinking' pill fills from the left with a light-to-blue gradient (move, t 3.35-3.95).",
+  "moves": [
+    "glow",
+    "light-sweep",
+    "label-reveal",
+    "icon-label",
+    "camera-pan",
+    "camera-push",
+    "grid",
+    "hard-cut",
+    "match-cut-on-motion",
+    "pill-marquee",
+    "fill"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Replace the three roles and icons (use pitch icons) with the product's audiences or features and the pill words with its verbs; recolour --accent, --glow, --hot and --haze from the brand. Keep: glows arrive one at a time with the label lagging the light by ~0.05 s, the hot spot orbiting rather than sitting still, and the exit accelerating into the cut so the next scene inherits its speed.",
+  "port": "A custom shot type js/shots/grid-glow-labels.js whose animate(el, s, D) tweens a proxy {t: 0 -> 4.6} (linear) and draws seek(t) in ShotKit.frameHook; scale times to D and put the glow arrivals on s.beatTimes. The lead-in caption and the light/dark grounds plus the bottom blue haze belong to the film's stage; drop the lead-in when the previous shot already pushes into its caption. The grid is a world layer under one Motion.camera; the pill field is the next shot (or a second phase of this one): its join is a hard cut on matched speed (~2,300 px/s leftward). Per second: camera zoom 1.10 -> 1.23 in the first second, pans peak at ~1,000-1,600 px/s, hot spots orbit at ~70 deg/s, the exit rush grows x1.4 per frame. Read the frame size from window.__STAGE; the world is in 1920x1080 px.",
+  "caveats": [
+    "The reel's camera pulls back (1.23 -> 1.0) while it pans; it pushes in only across the opening cut.",
+    "In the reel the two pill rows run in opposite directions after the cut and later whip left into another cut; this page lets them settle for a clean hold.",
+    "Icons are placeholder inline SVG strokes; a film uses pitch icons."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

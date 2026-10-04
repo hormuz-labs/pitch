@@ -1,0 +1,31 @@
+{
+  "name": "Path To Nodes Camera",
+  "seconds": 7.6,
+  "move": "a dot at the end of a sentence drips a line down to a labelled node, a rounded-corner path runs on to more nodes with the camera following its head, then pulls back to the whole flow",
+  "how": "One HTML world (sentence, dot, three pills, SVG paths) under a deterministic camera; the world px are the final pulled-back framing. Sentence: the camera pushes in anchored on the sentence end (zoom 1.5→2.28, `move`, 0.25–0.8s) so the end slides from off the right edge to 0.8W, no blur; the last word's letters drop in from ±0.6em (expoOut, 35ms stagger) and the dot is born after the period (backOut, 0.66–1.0s). The drip leaves the dot at 0.92s (5.6px, its head fading over 55% of its length) at ~480 world px/s while the camera creeps after it (quadIn); at 1.42s a 0.12s whip (cubic-bezier(.35,0,.2,1), directional blur) drops to the wide shot of node one, the line thins to 3px and decelerates onto the node (cubicOut, 0.33s). Each node waits as a 46px sliver on the path, unfolds to its word in 0.11s on impact, then widens 0.28s (cubicOut) to make room for its icon, which fades in. A 0.16s punch (cubic-bezier(.7,0,.3,1)) zooms 1→1.7 onto node one. Each leg: a hesitant linear stub (0.4s, ~30px) out of the node's side, then the camera travels with the house `move` ease over 1.05s (fitted to the reel: cubic-bezier(.5,0,.15,1) exactly) while the path's head runs ahead quadIn through its rounded corners (r 60/45) into the next sliver. Pull back: cubic-bezier(.45,0,.2,1) over 0.83s from 1.7 to 1.0, a last line running out of node three, then a slow settle to 0.965.",
+  "moves": [
+    "dot-from-sentence",
+    "line-drop",
+    "path-draw",
+    "rounded-corner-path",
+    "camera-follow",
+    "camera-whip",
+    "punch-zoom",
+    "node-unfold",
+    "pull-back"
+  ],
+  "libs": [
+    "svg",
+    "motion"
+  ],
+  "adapt": "Labels, icons (inline SVG) and node positions are the NODES array; paths are rebuilt from the pill edges, so a longer label just moves the attachment points. Swap the CSS tokens on .stage for brand colours. More nodes: add a pill, a path (side edge → corner → top or side of the next) and two camera keyframes (arrival, drift), and give each leg the same shape: 0.4s stub, 1.05s `move` travel, unfold on impact. Keep the dot at the sentence's last letter and the drop vertical so the line reads as the sentence continuing.",
+  "port": "Custom shot type js/shots/path-to-nodes.js: build the world in el; animate(el, s, D) tweens a proxy {t:0}→{t:7.6} (ease 'none') and ShotKit.frameHook(el, () => seek(proxy.t)) draws it (camera via Motion.camera on the scoped .world, blur through an SVG feGaussianBlur in el); place the dot birth on the sentence's last spoken word, the punch and each leg start on s.beatTimes. The sentence is narration, so it belongs to the film's captions, which sit above every shot and ignore camera moves: give the line as captions.phrases[n] with stack:'line', align 'center', pos 'center', enter 'rise' and out set to the dot's birth time + 0.05s. In frameHook, while the caption is still up, read its last word (document.querySelector('#captions .cap-phrase[data-phrase=\"n\"] .cap-w:last-child').getBoundingClientRect()), convert its right edge and x-height centre to world coordinates through the current camera (x = cam.x + (sx − W/2)/zoom), and set DOT there (r = 0.6 × the caption's cap height in world px); the shot's own .sentence is the same words in the same font at the same box, shown from the caption's out, so the hand-off is invisible and from then on the sentence and dot ride the camera push-in together. Without a voice, keep .sentence and skip the caption phrase.",
+  "caveats": [
+    "In the reel the drop to node one is a hard cut on the moving line; here it is a 0.12s motion-blurred whip so the line stays one object. Replace the whip segment with a jump if the film wants the cut.",
+    "Motion blur is an SVG feGaussianBlur on the world, gated to the whips; heavy worlds (screenshots) blur slower to render.",
+    "Sharp Grotesk stands in for the reel's rounder geometric sans; the pill border is a gradient border-box, not an outline."
+  ],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1920x1080"
+}

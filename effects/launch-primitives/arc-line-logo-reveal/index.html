@@ -1,0 +1,239 @@
+<!doctype html><meta charset="utf-8"><title>Arc Line Logo Reveal</title>
+<meta name="fx" content="w=1920 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage {
+    --night: #000003; --night-glow: #18299a;
+    --flood-light: #e3e6fb; --flood-mid: #7f8ff2; --flood-deep: #2a3bce; --flood-base: #3d51d4;
+    --mark: #eef0ff; --trail: rgba(255,255,255,.88);
+    --bead: #15268f; --bead-rim: #7183f2; --bead-glow: rgba(120,140,255,.55);
+    --day-top: #c9cdee; --day-low: #6f80f1; --node: #3f53cc; --ink: #0c1648;
+    width: 1920px; height: 1080px; overflow: hidden; background: var(--night);
+    font-family: "Sharp Grotesk", "Atlas Grotesk", sans-serif;
+  }
+  .layer { position: absolute; inset: 0; }
+  .night { background:
+      radial-gradient(90% 55% at 50% 108%, color-mix(in srgb, var(--night-glow) 90%, transparent) 0%, transparent 70%),
+      linear-gradient(180deg, var(--night) 0%, var(--night) 22%, #0a1142 58%, #13227a 80%, var(--night-glow) 100%); }
+
+  /* the flood is drawn at quarter size in a canvas and scaled up: a blurred conic field, revealed by
+     two widening swirl arms inside an expanding circle (seek() below) */
+  canvas.flood { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+
+  .plane { position: absolute; inset: 0; transform-origin: 960px 540px; will-change: transform, filter; }
+  svg.arc { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  svg.arc path { fill: none; stroke: var(--trail); stroke-width: 2.4; stroke-linecap: round; }
+  .bead { position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle at 30% 72%, var(--bead-rim) 0%, color-mix(in srgb, var(--bead-rim) 40%, var(--bead)) 30%, var(--bead) 62%, color-mix(in srgb, var(--bead) 80%, #000) 100%);
+    box-shadow: 0 0 22px 6px var(--bead-glow), 0 2px 6px rgba(0,0,20,.35); }
+
+  .wordmark { position: absolute; left: 0; right: 0; top: 0; height: 1080px; display: flex; align-items: center; justify-content: center; }
+  .wm { position: relative; white-space: nowrap; font-weight: 500; font-size: 198px; letter-spacing: -.04em; line-height: 1;
+    color: var(--mark); transform: translate(14px, 4px); }
+  .wm .ch { display: inline-block; opacity: 0; }
+  .wm svg { width: 360px; height: 360px; margin-left: -66px; vertical-align: -115px; overflow: visible; opacity: 0; }
+  .wm svg path { fill: none; stroke: var(--mark); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* the light scene the bead cuts to */
+  .day { visibility: hidden; background:
+      radial-gradient(40% 60% at 14% 18%, rgba(230,232,246,.95) 0%, transparent 70%),
+      radial-gradient(18% 70% at 50% 60%, rgba(78,100,226,.35) 0%, transparent 70%),
+      linear-gradient(180deg, var(--day-top) 0%, #bfc5ee 42%, #98a5f0 76%, var(--day-low) 100%); }
+  .day .plane { transform-origin: 960px 349px; }
+  .node { position: absolute; left: 940px; top: 331px; width: 38px; height: 38px; border-radius: 50%;
+    background: radial-gradient(circle at 36% 30%, #9aa8f4 0%, var(--node) 48%, color-mix(in srgb, var(--node) 75%, #000) 100%);
+    box-shadow: 0 0 14px 2px rgba(80,100,230,.35); }
+  svg.fan { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  svg.fan line { stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; opacity: 0; }
+  svg.fan circle { fill: var(--ink); }
+</style>
+
+<div class="stage">
+  <div class="layer night"></div>
+  <canvas class="flood" width="480" height="270"></canvas>
+
+  <div class="plane arcp">
+    <svg class="arc" viewBox="0 0 1920 1080"><path d="M 161 1150 L 161 395 A 240 240 0 0 1 401 155 L 2600 155"/></svg>
+    <div class="bead"></div>
+  </div>
+  <div class="plane wmp"><div class="wordmark"><div class="wm">
+    <span class="ch">f</span><span class="ch">i</span><span class="ch">e</span><span class="ch">l</span><span class="ch">d</span><span class="ch">n</span><span class="ch">o</span><span class="ch">t</span><span class="ch">e</span><svg viewBox="0 0 200 200"><path d="M 30 136 C 58 126, 100 90, 110 60 C 116 40, 104 26, 93 38 C 82 52, 76 98, 70 136 C 66 162, 60 182, 52 188 C 44 194, 40 184, 48 172 C 58 158, 76 144, 92 136 C 102 130, 110 120, 117 108 C 117 120, 113 131, 110 140 C 120 118, 134 102, 146 106 C 156 110, 151 126, 148 136 C 145 145, 160 145, 180 128"/></svg>
+  </div></div></div>
+
+  <div class="layer day"><div class="plane dayp">
+    <svg class="fan" viewBox="0 0 1920 1080"><g class="spokes"></g><g class="dots"></g></svg>
+    <div class="node"></div>
+  </div></div>
+</div>
+
+<script src="../../_lib/motion.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+(() => {
+  const M = Motion, { phase, between, clamp, lerp } = M;
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  /* timing, seconds (reel 0:33.2 = 0) */
+  const FLOOD = [0.47];         // the swirl appears (reel 0:33.67) and fills the frame in ~0.35s
+  const WORD0 = 0.5, STAG = .046;
+  const CUT = 3.6, END = 4.8;
+
+  /* camera: one pull-back, expoOut over 2s; the wordmark is the near plane, the arc the far one (0.45x the excess) */
+  const pull = t => .82 * (1 - phase(t, WORD0 - .01, WORD0 + 2, 'expoOut'));
+  const panX = t => t > 3.3 ? -130 * ((t - 3.3) / .27) ** 2 : 0;   // follows the bead off to the right before the cut
+
+  /* the bead's distance along the path: a fast arrival up the side and round the corner, a slow cruise
+     along the top while the name holds, then accelerating off to the right (fitted to the reel) */
+  const dist = t => 575 + 532 * phase(t, .7, 1.8, 'cubicOut') + 230 * Math.max(0, t - .7) + 540 * Math.max(0, t - 2.4) ** 2;
+
+  const arcPath = $('svg.arc path'), arcLen = arcPath.getTotalLength();
+  arcPath.style.strokeDasharray = `${arcLen} ${arcLen}`;
+  const bead = $('.bead');
+
+  /* ---------- flood canvas (480x270, CSS-scaled x4) ----------
+     A two-armed spiral computed per pixel at quarter size: the arms open from a thin S-ribbon of light
+     on the dark ground to the full frame, the twist relaxes, and the field keeps drifting. */
+  const css = getComputedStyle($('.stage')), tok = n => css.getPropertyValue(n).trim();
+  const cv = $('canvas.flood'), ctx = cv.getContext('2d');
+  const W = 480, H = 270, PAD = 60, OW = W + 2 * PAD, OH = H + 2 * PAD;   // padding keeps blurred edges opaque
+  const off = Object.assign(document.createElement('canvas'), { width: OW, height: OH });
+  const octx = off.getContext('2d'), img = octx.createImageData(OW, OH);
+  const toRGB = c => { const p = document.createElement('i'); p.style.color = c; document.body.appendChild(p);
+    const m = getComputedStyle(p).color.match(/[\d.]+/g).map(Number); p.remove(); return m; };
+  const STOPS = [[0, '--flood-deep'], [.5, '--flood-base'], [.82, '--flood-mid'], [1, '--flood-light']].map(([p, n]) => [p, toRGB(tok(n))]);
+  const RAMP = Array.from({ length: 256 }, (_, i) => {          // deep -> base -> mid -> light
+    const v = i / 255; let k = 0; while (k < STOPS.length - 2 && v > STOPS[k + 1][0]) k++;
+    const [p0, c0] = STOPS[k], [p1, c1] = STOPS[k + 1], q = (v - p0) / (p1 - p0);
+    return c0.map((c, j) => c + (c1[j] - c) * q);
+  });
+  const sstep = (a, b, x) => { const q = clamp((x - a) / (b - a)); return q * q * (3 - 2 * q); };
+  function drawFlood(t) {
+    ctx.clearRect(0, 0, W, H);
+    if (t < FLOOD[0]) return;
+    const d = img.data, cx = PAD + .5 * W, cy = PAD + .42 * H;
+    // the camera dives into an S-shaped swirl: its scale grows ~1.4x a frame (k = 10/s), so the ribbon
+    // swells past the frame and the gaps between its arms slide out at the corners
+    const S = 36 * Math.exp(10 * (t - FLOOD[0])), Sf = Math.min(S, 150);   // swirl unit, quarter px (mask / colour)
+    const full = phase(t, FLOOD[0] + .16, FLOOD[0] + .4, 'smooth');        // the last dark corners fill in
+    const spin = rad(-95 + 14 * phase(t, FLOOD[0], FLOOD[0] + 1.2, 'cubicOut') - 6 * t);
+    const twist = -lerp(.42, .3, phase(t, FLOOD[0] + .2, FLOOD[0] + 1.4, 'smooth'));   // ends curl clockwise  // curl, radians per swirl unit
+    const amp = lerp(1, .95, phase(t, FLOOD[0] + .3, FLOOD[0] + 1.2, 'smooth'));
+    // once flooded, the colour spiral's centre drifts off the top-right corner (broad diagonal bands) and its
+    // light lobe turns off the middle, so a deep band sits behind the white name
+    const fm = phase(t, FLOOD[0] + .04, FLOOD[0] + .6, 'smooth'), lobe = lerp(.6, 1.75, fm), fcx = lerp(cx, PAD + 1.3 * W, fm), fcy = lerp(cy, PAD - .45 * H, fm);
+    for (let y = 0, i = 0; y < OH; y++) {
+      const dy = y - cy;
+      for (let x = 0; x < OW; x++, i += 4) {
+        const dx = x - cx, r = Math.sqrt(dx * dx + dy * dy), th = Math.atan2(dy, dx);
+        // colour: the two-armed spiral, its light lobe riding the outer edge of the ribbon
+        const fx_ = x - fcx, fy_ = y - fcy, fr = Math.sqrt(fx_ * fx_ + fy_ * fy_);
+        const cf = Math.cos(2 * (Math.atan2(fy_, fx_) - spin + twist * fr / Sf) + lobe);
+        const v = .5 + .5 * cf * sstep(0, 90, fr) * amp;          // blue at the swirl's heart, no pinwheel point
+        const col = RAMP[Math.round(Math.pow(v, 1.2) * 255)];   // leans to the deep blues, like the reel
+        let a = 1;
+        if (full < 1) {                                           // reveal: one S ribbon, half-width ~.85 units, ~2.3 units long
+          const rn = r / S, c = Math.cos(2 * (th - spin + twist * rn));
+          const dist = rn * Math.sin(Math.acos(c) / 2);
+          const rib = (1 - sstep(.68, 1, dist)) * (1 - sstep(1.9, 2.6, rn));
+          a = rib + (1 - rib) * full;
+        }
+        d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = a * 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    const o = octx, X = x => PAD + x * W, Y = y => PAD + y * H;
+    o.globalCompositeOperation = 'source-atop';                  // tints only where the flood already is
+    [[.04, .02, .4, 'rgba(226,229,251,.3)'], [.96, .02, .55, 'rgba(206,212,247,.5)'], [.94, 1, .6, 'rgba(42,62,222,.35)'], [.04, 1, .55, 'rgba(125,143,248,.5)']].forEach(([x, y, r, c]) => {
+      const g = o.createRadialGradient(X(x), Y(y), 0, X(x), Y(y), r * W);
+      g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)'); o.fillStyle = g; o.fillRect(0, 0, OW, OH);
+    });
+    // the scene turns light from the right as the bead leaves
+    if (t > 3.22) {
+      const sw = phase(t, 3.22, CUT, 'expoIn'), bx = X(lerp(1.15, .2, sw));
+      const g = o.createLinearGradient(bx - .22 * W, 0, bx + .22 * W, 0), a = .95 * phase(t, 3.22, 3.4, 'smooth');
+      g.addColorStop(0, 'rgba(228,231,251,0)'); g.addColorStop(.5, `rgba(228,231,251,${a})`); g.addColorStop(1, 'rgba(228,231,251,0)');
+      o.fillStyle = g; o.fillRect(0, 0, OW, OH);
+      o.fillStyle = `rgba(214,218,246,${.35 * sw})`; o.fillRect(0, 0, OW, OH);
+    }
+    o.globalCompositeOperation = 'source-over';
+    // ~50px at full size while the ribbon opens, melting to ~110px once the field has settled
+    ctx.filter = `blur(${lerp(13, 28, phase(t, FLOOD[0] + .15, 1.6, 'smooth'))}px)`;
+    ctx.drawImage(off, -PAD, -PAD);
+    ctx.filter = 'none';
+  }
+  const rad = d => d * Math.PI / 180;
+
+  const arcp = $('.arcp'), wmp = $('.wmp'), chars = $$('.wm .ch'), tail = $('.wm svg');
+  const day = $('.day'), dayp = $('.dayp'), node = $('.node');
+
+  /* spokes and dots of the light scene, relative to the node (measured off the reel, scaled to 1920) */
+  const NS = 'http://www.w3.org/2000/svg', NX = 959, NY = 350, K = 1.505;
+  const SPOKES = [[-240, 64], [-182, 66], [-137, 213], [-57, 85], [-20, 391], [10, 258], [46, 166], [132, 361], [169, 212], [164, 71], [230, 45]];
+  const DOTS = [[-282, 76], [-215, 78], [-58, 85], [54, 194], [193, 84], [271, 54], [-164, 249], [13, 303], [198, 249], [155, 425], [-25, 461],
+                [-420, 120, 3], [380, 300, 3], [-330, 420, 2.5], [450, 470, 2.5]];
+  const spokes = SPOKES.map(([dx, dy], i) => {
+    const l = document.createElementNS(NS, 'line');
+    l.setAttribute('x1', NX); l.setAttribute('y1', NY); $('.spokes').appendChild(l);
+    return { l, dx: dx * K, dy: dy * K, t0: CUT + .06 + ((i * 7) % 11) * .025 };
+  });
+  DOTS.forEach(([dx, dy, blur]) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', NX + dx * K); c.setAttribute('cy', NY + dy * K); c.setAttribute('r', blur ? 6 : 5.5);
+    if (blur) { c.style.filter = `blur(${blur}px)`; c.style.opacity = .45; }
+    $('.dots').appendChild(c);
+  });
+
+  function plane(el, s, x = 0, y = 0, blur = 0) {
+    el.style.transform = `translate(${x}px,${y}px) scale(${s})`;
+    el.style.filter = blur > .05 ? `blur(${blur}px)` : 'none';
+  }
+
+  function seek(t) {
+    const light = t >= CUT;
+    day.style.visibility = light ? 'visible' : 'hidden';
+
+    drawFlood(t);
+
+    /* wordmark: letters blur in left to right, the script tail last. On the way out it defocuses from the
+       right, where the light comes in: the tail first, then the letters right to left. */
+    const e = pull(t), x = panX(t);
+    const N = chars.length;
+    const outAt = k => phase(t, 3.28 + (N - k) * .022, 3.28 + (N - k) * .022 + .2, 'smooth');   // k = N is the tail
+    plane(wmp, 1 + e + .012 * phase(t, 2.6, 3.4, 'smooth'), x, 0, 0);
+    wmp.style.opacity = 1 - .26 * phase(t, 2.3, 3.3, 'smooth');
+    chars.forEach((ch, i) => {
+      const t0 = WORD0 + i * STAG, q = phase(t, t0, t0 + .3, 'expoOut'), o = outAt(i);
+      ch.style.opacity = t < t0 ? 0 : .93 * phase(t, t0, t0 + .16, 'smooth') * (1 - .55 * o);
+      const b = 16 * (1 - q) + 14 * o;
+      ch.style.filter = b > .05 ? `blur(${b}px)` : 'none';
+    });
+    const t1 = WORD0 + N * STAG + .02, q = phase(t, t1, t1 + .35, 'expoOut'), o = outAt(N);
+    tail.style.opacity = t < t1 ? 0 : .93 * phase(t, t1, t1 + .2, 'smooth') * (1 - .55 * o);
+    const tb = 14 * (1 - q) + 16 * o;
+    tail.style.filter = tb > .05 ? `blur(${tb}px)` : 'none';
+
+    /* arc + bead */
+    plane(arcp, 1 + .45 * e, x);
+    const s = dist(t);
+    arcPath.style.strokeDashoffset = arcLen - Math.min(s, arcLen);
+    arcPath.style.opacity = t < .7 ? 0 : 1;
+    const pt = arcPath.getPointAtLength(Math.min(s, arcLen));
+    bead.style.opacity = phase(t, .7, .76, 'smooth');
+    bead.style.transform = `translate(${pt.x}px,${pt.y}px)`;
+
+    /* light scene: lands defocused and a touch high, tilts down onto the node; spokes shoot out */
+    if (light) {
+      const d = phase(t, CUT, CUT + .5, 'expoOut');
+      plane(dayp, lerp(1.22, 1, d), 0, lerp(-190, 0, d), 9 * (1 - phase(t, CUT, CUT + .3, 'cubicOut')));
+      spokes.forEach(sp => {
+        const g = phase(t, sp.t0, sp.t0 + .55, 'expoOut');
+        sp.l.setAttribute('x2', NX + sp.dx * g); sp.l.setAttribute('y2', NY + sp.dy * g);
+        sp.l.style.opacity = g > 0 ? .85 : 0;   // opacity, not visibility: a visible child would show through the hidden layer
+      });
+    }
+  }
+
+  fx.wait(document.fonts.load('500 200px "Sharp Grotesk"'));
+  fx.register({ duration: END, loop: false, seek });
+})();
+</script>
