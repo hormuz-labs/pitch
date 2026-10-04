@@ -59,10 +59,11 @@ name the film they want; they can recognise it.
 
 - Each direction is a different idea from the mechanism, not the same idea in
   three palettes. Every one uses the brand's measured colours and type.
-- Give each one a still of its **opening frame**: an HTML still at the film's
-  size, `directions/<a|b|c>.html` (the stills land on the asset shelf), using the brand fonts and colours from
-  recon, then capture them all in one call:
+- Give each one a still of its **opening frame**, `directions/<a|b|c>.html` at
+  the film's size (the stills land on the asset shelf), captured in one call:
   `pitch motion screenshot --html directions/a.html --out directions/a.png --width 1920 --height 1080 && …`.
+  A film's frame, not a website's hero: no header, kicker or footer; one thing
+  leads and fills it, the product's own (inspect's sheet) where it has some.
   Look at each still; it has to be a frame you would be proud to open on.
 - Ask with one `ask_user` question: per direction, `label` is the idea in a
   few plain words, `hint` one line on what the viewer sees, `image` its still,
@@ -70,8 +71,7 @@ name the film they want; they can recognise it.
   motion designer: no craft words (kinetic, glow, cinematic, slam). Put your pick first with the reason
   in `intro`, then end the turn.
 
-The chosen still is frame one's target; the others stay in `directions/` and
-are not built.
+The chosen still is frame one's target; the others are not built.
 
 ## The storyboard
 
