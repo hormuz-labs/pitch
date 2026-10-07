@@ -7,7 +7,7 @@ Watch the agent work. Point at the preview. Ask for the next cut.
 
 <br />
 
-**[Open the studio ↗](https://trypitch.co)** &nbsp; / &nbsp; [The experience](#the-experience) &nbsp; / &nbsp; [Under the hood](#under-the-hood) &nbsp; / &nbsp; [Run locally](#run-locally) &nbsp; / &nbsp; [API & MCP](#api-and-mcp)
+**[Open the studio ↗](https://trypitch.co)** &nbsp; / &nbsp; [The experience](#the-experience) &nbsp; / &nbsp; [Under the hood](#under-the-hood) &nbsp; / &nbsp; [Run locally](#run-locally) &nbsp; / &nbsp; [API & MCP](#api-and-mcp) &nbsp; / &nbsp; [Contributing](#contributing)
 
 <br />
 
@@ -113,7 +113,17 @@ A project’s source files, recordings, and renders live together. The database 
 
 ## 04 / Take the controls.
 
-For local development, have **Bun, Node.js, and Docker Compose** available. Native media tools also need FFmpeg and, for transcription/alignment, `whisper-cli` plus a model. The API’s container image provides the host binaries.
+For local development, have these available:
+
+| Requirement | Notes |
+| :--- | :--- |
+| **Bun 1.3.14** | The package manager and the API runtime (pinned in `package.json`). |
+| **Node.js 22** | Used by build tooling and the agent’s scripts. |
+| **Docker Compose** | Runs PostgreSQL and MinIO for development. |
+| **FFmpeg**, `whisper-cli` + a model | Native media tools for rendering and transcription/alignment. The API’s container image already includes them. |
+| **Linux** for the sandbox | The agent’s shell is confined with bubblewrap. On macOS it runs unconfined (see `make sandbox-check`). |
+
+You also need your own accounts for the hosted services you enable: at minimum **Clerk** (auth) and a **Gemini** API key (agent and media). Everything else is optional and switched on by its key.
 
 ### Set the environment
 
@@ -121,7 +131,7 @@ For local development, have **Bun, Node.js, and Docker Compose** available. Nati
 cp .env.example .env
 ```
 
-Fill in the keys in [`.env.example`](.env.example). The core services use:
+Fill in the keys in [`.env.example`](.env.example); every value in it is a placeholder. Never commit your `.env` (it is git-ignored). The core services use:
 
 | Configuration | Used for |
 | :--- | :--- |
@@ -208,6 +218,31 @@ The server exposes `create_project`, `prompt_project`, `get_project`, `list_proj
 
 <br />
 
+<a id="contributing"></a>
+
+## 06 / Contributing
+
+Issues and pull requests are welcome. For anything larger than a fix, open an issue first so the approach can be agreed before you build it.
+
+- **Read [`AGENTS.md`](AGENTS.md) first.** It explains the architecture and the rules that keep it coherent: capabilities are a host tool plus a skill (never a new “flow”), extensions reach the server only through host actions, and the workspace directory is the source of truth.
+- **Run the checks before you open a PR:**
+
+  ```bash
+  bunx biome check <changed files>
+  bunx vitest run tests/
+  bunx tsc --noEmit -p apps/api/tsconfig.json
+  bunx tsc --noEmit -p apps/web/tsconfig.solid.json
+  bunx tsc --noEmit -p apps/web/tsconfig.node.json
+  ```
+
+- **Keep secrets out of the repo.** Use `.env` for keys and placeholders in `.env.example`; tests use obviously fake fixtures.
+
+### Security
+
+Please do not report vulnerabilities in public issues. Email [officialtrypitch@gmail.com](mailto:officialtrypitch@gmail.com) with the details and steps to reproduce, and we will respond as quickly as we can.
+
+<br />
+
 ---
 
 ### License
@@ -228,6 +263,3 @@ Free for personal and non-commercial use. For a commercial license, contact [off
 <sub>Pitch · © 2026 Hormuz Labs</sub>
 
 </div>
-
-
---

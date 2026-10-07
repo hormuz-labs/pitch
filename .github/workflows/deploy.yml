@@ -10,7 +10,9 @@ on:
 
 jobs:
   test:
-    runs-on: self-hosted
+    # Pull requests can come from forks, so they never reach the self-hosted
+    # deploy box (it holds the production env file).
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -80,10 +82,13 @@ jobs:
           # The docker-compose.yml file hardcodes `env_file: - .env`
           # We must create a symlink or copy the env file to the runner's workspace directory
           # so docker-compose can find it exactly where it expects it.
-          cp /workspace/.env .env
+          # DEPLOY_ENV_FILE is a repository variable: the env file's path on the runner.
+          ENV_FILE="${{ vars.DEPLOY_ENV_FILE }}"
+          test -n "$ENV_FILE" || { echo "Set the DEPLOY_ENV_FILE repository variable"; exit 1; }
+          cp "$ENV_FILE" .env
 
           export IMAGE_TAG=${{ github.sha }}
-          export ENV_FILE="/workspace/.env"
+          export ENV_FILE
           echo "Deploying commit: $IMAGE_TAG"
 
           # Build the API (using local Docker cache on the self-hosted runner)

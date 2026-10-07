@@ -15,7 +15,7 @@ For every entry create `effects/<familySlug>/<slug>/index.html`:
 
 Process: write 4–5 effects, then render them with
 `node effects/render.mjs <familySlug>/<slug> <familySlug>/<slug> ... --jobs 2`
-(run from the repo root `/workspace`). For each, Read its `strip.jpg` (8 frames across the loop) and judge it: does it show the described move across the frames, is anything blank, clipped, static, or wrong? Read `render.json` for console errors. Fix the HTML and re-render with `--force` until the strip shows the move and there are no errors. Then the next 4–5. Do not skip the strip check — a render that "succeeded" with a blank stage is a failure.
+(run from the repo root). For each, Read its `strip.jpg` (8 frames across the loop) and judge it: does it show the described move across the frames, is anything blank, clipped, static, or wrong? Read `render.json` for console errors. Fix the HTML and re-render with `--force` until the strip shows the move and there are no errors. Then the next 4–5. Do not skip the strip check — a render that "succeeded" with a blank stage is a failure.
 
 Do not touch `effects/_lib`, `effects/render.mjs`, `effects/build-index.mjs`, `effects/catalog.json`, or folders outside your batch. Do not run `--all` or `--missing`. Do not git commit.
 

@@ -82,7 +82,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       STORAGE_DRIVER: gcs
-      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      GCS_PROJECT: ${GCS_PROJECT:-}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
       STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
       STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}
@@ -147,7 +147,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       STORAGE_DRIVER: gcs
-      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      GCS_PROJECT: ${GCS_PROJECT:-}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
       STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
       STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}
@@ -187,7 +187,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       STORAGE_DRIVER: gcs
-      GCS_PROJECT: ${GCS_PROJECT:-your-gcp-project}
+      GCS_PROJECT: ${GCS_PROJECT:-}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-silverfish-media}
       STORAGE_PROFILES_BUCKET: ${STORAGE_PROFILES_BUCKET:-silverfish-profiles}
       STUDIO_WORKSPACE_BUCKET: ${STUDIO_WORKSPACE_BUCKET:-silverfish-workspaces}

@@ -38,7 +38,11 @@ fi
 
 SERVER_HOST="${PITCH_TUNNEL_HOST:-connect.trypitch.tech}"
 SERVER_PORT="${PITCH_TUNNEL_PORT:-7000}"
-TOKEN="${PITCH_TUNNEL_TOKEN:-${FRP_TOKEN:-your_tunnel_token_here}}"
+TOKEN="${PITCH_TUNNEL_TOKEN:-${FRP_TOKEN:-}}"
+if [ -z "$TOKEN" ]; then
+    echo "Error: set PITCH_TUNNEL_TOKEN (or FRP_TOKEN) to your frps auth token."
+    exit 1
+fi
 DOMAIN_BASE="${PITCH_TUNNEL_DOMAIN:-trypitch.tech}"
 
 TMP_CONFIG=$(mktemp /tmp/frpc.XXXXXX)
