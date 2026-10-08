@@ -1,7 +1,7 @@
 import { A } from '@solidjs/router'
 import { For, type JSX, onMount } from 'solid-js'
 import { PitchWordmark } from './brand'
-import { SOCIALS } from './socials'
+import { GITHUB_SOCIAL, SOCIALS } from './socials'
 import '../../styles/landing-broadcast.css'
 
 export { SOCIALS } from './socials'
@@ -46,7 +46,7 @@ const columns: Footer15Column[] = [
       { label: 'AgenC', href: '/AgenC' },
     ],
   },
-  { title: 'Social', links: SOCIALS },
+  { title: 'Social', links: [...SOCIALS, GITHUB_SOCIAL] },
 ]
 const InternalOrExternal = (props: { link: Footer15Link }) =>
   props.link.href.startsWith('/') ? (
@@ -121,7 +121,7 @@ export function Footer15(props: Footer15Props) {
                     {column.title}
                   </h3>
                   {column.title === 'Social' ? (
-                    <div class="flex flex-row gap-4 justify-center sm:justify-start items-center mt-4 leading-none">
+                    <div class="flex flex-row flex-wrap gap-3 sm:gap-4 justify-center sm:justify-start items-center mt-4 leading-none">
                       <For each={column.links}>
                         {link => (
                           <a

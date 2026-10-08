@@ -1,7 +1,12 @@
 import { Instagram, Linkedin, Youtube } from 'lucide-solid'
-import { DiscordIcon, XIcon } from './brand'
+import { DiscordIcon, GithubIcon, XIcon } from './brand'
 
 export const DISCORD_INVITE_URL = 'https://discord.gg/a4SBW36mD'
+export const GITHUB_SOCIAL = {
+  label: 'GitHub',
+  href: 'https://github.com/hormuz-labs/pitch',
+  icon: GithubIcon,
+}
 
 export const SOCIALS = [
   { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: XIcon },

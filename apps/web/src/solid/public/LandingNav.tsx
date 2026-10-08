@@ -5,10 +5,10 @@ import { Portal } from 'solid-js/web'
 import tabLogoB from '../../assets/tabLogoB.svg'
 import { useAuth } from '../core/auth'
 import { useTheme } from '../core/theme'
-import { PitchLogoAnimation } from './brand'
-import { SOCIALS } from './LandingFooter'
+import { GithubIcon, PitchLogoAnimation } from './brand'
 import { McpSetup } from './McpSetup'
 import { PRODUCTS, ProductGlyph } from './productCatalog'
+import { GITHUB_SOCIAL } from './socials'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 
@@ -188,13 +188,16 @@ export const LandingNav = () => {
           </div>
           <div class="lb-nav-r">
             <div class="lb-nav-social">
-              <For each={SOCIALS}>
-                {social => (
-                  <a href={social.href} target="_blank" rel="noreferrer" aria-label={social.label}>
-                    {social.icon?.({ size: 15 })}
-                  </a>
-                )}
-              </For>
+              <a
+                class="lb-github-star"
+                href={GITHUB_SOCIAL.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Star Pitch on GitHub"
+              >
+                <GithubIcon size={18} />
+                <span>Star on GitHub</span>
+              </a>
             </div>
             <button
               type="button"
@@ -270,15 +273,16 @@ export const LandingNav = () => {
               </button>
             </div>
             <div class="lb-mobile-socials">
-              <span>Follow</span>
+              <span>Source</span>
               <div>
-                <For each={SOCIALS}>
-                  {s => (
-                    <a href={s.href} target="_blank" rel="noreferrer">
-                      {s.label}
-                    </a>
-                  )}
-                </For>
+                <a
+                  href={GITHUB_SOCIAL.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Star Pitch on GitHub"
+                >
+                  <GithubIcon size={16} /> Star on GitHub
+                </a>
               </div>
             </div>
           </div>

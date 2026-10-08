@@ -3,11 +3,13 @@ import { useAuth } from '../core/auth'
 import { Seo } from '../core/Seo'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import '../../styles/about.css'
 
 const Page = (props: {
   title: string
   description: string
   path: string
+  contentClass?: string
   children: JSX.Element
 }) => {
   const auth = useAuth(),
@@ -18,7 +20,7 @@ const Page = (props: {
       <Show when={!signed()}>
         <LandingNav />
       </Show>
-      <div class="max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1">
+      <div class={props.contentClass ?? 'max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1'}>
         <div class="relative inline-block mb-8">
           <h1 class="text-3xl font-bold">{props.title}</h1>
         </div>
@@ -35,9 +37,10 @@ export const AboutUs = () => (
     title="About Us"
     description="Who builds Pitch, the AI production studio for launch films, product demos, slide decks and video edits, and how its agent does the work."
     path="/about"
+    contentClass="about-content"
   >
-    <section class="mb-8 space-y-6 text-gray-600 leading-relaxed text-base">
-      <h2 class="text-2xl font-semibold mb-4 text-gray-900">Directable AI Production Studio</h2>
+    <section class="about-copy">
+      <h2>Directable AI Production Studio</h2>
       <p>
         Pitch is a directable AI production studio that turns a URL, recording, document, asset, or
         rough idea into polished launch films, product demos, demo recordings, slide decks, and
@@ -45,14 +48,14 @@ export const AboutUs = () => (
         real browser workflows, generate narration and music, edit footage, and render the final
         result.
       </p>
-      <h2 class="text-2xl font-semibold my-4 text-gray-900">Live, Interactive Workflow</h2>
+      <h2>Live, Interactive Workflow</h2>
       <p>
         What makes Pitch different is its live, interactive workflow. Instead of accepting a
         one-shot AI output, you can watch the work take shape, select any visual element, timestamp,
         or asset, and request precise changes in plain language. The same project can evolve from a
         deck into a demo recording or launch video without starting over or switching tools.
       </p>
-      <h2 class="text-2xl font-semibold my-4 text-gray-900">Complete Control</h2>
+      <h2>Complete Control</h2>
       <p>
         Pitch helps founders, marketers, and product teams move from an unfinished idea to
         presentation-ready creative work faster, with fewer handoffs, less production overhead, and
