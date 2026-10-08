@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="apps/web/public/tabLogoB.svg" alt="Pitch logo" width="96" height="96" />
+
+<br />
+
 **An AI production studio you can actually direct.**
 
 Bring a URL, a recording, a deck, or an idea.<br />
@@ -247,7 +251,11 @@ Please do not report vulnerabilities in public issues. Email [officialtrypitch@g
 
 ### License
 
-Free for personal and non-commercial use. For a commercial license, contact [officialtrypitch@gmail.com](mailto:officialtrypitch@gmail.com).
+Pitch is licensed under the [Apache License 2.0](LICENSE), allowing personal and commercial use, modification, and distribution.
+
+Redistributions must include the license, retain applicable copyright and attribution notices, and reproduce the attribution in [NOTICE](NOTICE) as required by the license. Modified files must carry notices stating that they were changed. Attribution: **Pitch by Hormuz Labs**.
+
+Third-party assets retain their respective licenses.
 
 <br />
 
@@ -261,5 +269,15 @@ Free for personal and non-commercial use. For a commercial license, contact [off
 **[See you in the studio ↗](https://trypitch.co)**
 
 <sub>Pitch · © 2026 Hormuz Labs</sub>
+
+<br /><br />
+
+[![Website: trypitch.co](https://img.shields.io/badge/Website-trypitch.co-16a34a?style=flat)](https://trypitch.co)
+[![Discord: Join](https://img.shields.io/badge/Discord-Join-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/a4SBW36mD)
+[![X: trypitchdotco](https://img.shields.io/badge/X-trypitchdotco-000000?style=flat&logo=x&logoColor=white)](https://x.com/trypitchdotco)
+[![YouTube: Pitch](https://img.shields.io/badge/YouTube-Pitch-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/@trypitchdotco)
+[![Instagram: trypitch.co](https://img.shields.io/badge/Instagram-trypitch.co-E4405F?style=flat&logo=instagram&logoColor=white)](https://www.instagram.com/trypitch.co)
+[![LinkedIn: Pitch](https://img.shields.io/badge/LinkedIn-Pitch-0A66C2?style=flat)](https://www.linkedin.com/company/trypitchdotco/)
+[![GitHub: hormuz-labs/pitch](https://img.shields.io/badge/GitHub-hormuz--labs%2Fpitch-181717?style=flat&logo=github&logoColor=white)](https://github.com/hormuz-labs/pitch)
 
 </div>
