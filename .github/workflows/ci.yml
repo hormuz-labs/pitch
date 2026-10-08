@@ -1,0 +1,39 @@
+name: CI
+
+# Pushes to main are verified by deploy-gke.yml before it deploys.
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install browser test tools
+        run: |
+          bun install --global @playwright/cli@0.1.17
+          bunx playwright install chromium
+
+      - name: Build workspace packages
+        run: bun --filter @saas/shared --filter @saas/storage --filter @saas/email --filter @saas/db build
+
+      - name: Run all tests
+        run: make test
+
+      - name: Typecheck API and web
+        run: |
+          bunx tsc --noEmit -p apps/api/tsconfig.json
+          bunx tsc --noEmit -p apps/web/tsconfig.solid.json
+          bunx tsc --noEmit -p apps/web/tsconfig.node.json

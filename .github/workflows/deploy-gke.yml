@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   deploy:
-    # `both` keeps the Compose host deploying too, for the api → api-v2 transition.
+    # The repository variable DEPLOY_TARGET (gke) turns deploys on.
     if: vars.DEPLOY_TARGET == 'gke' || vars.DEPLOY_TARGET == 'both'
     runs-on: ubuntu-latest
     # Workers roll one at a time and each may drain for up to STUDIO_DRAIN_MS.
