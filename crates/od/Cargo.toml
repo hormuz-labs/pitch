@@ -1,0 +1,40 @@
+[package]
+name = "od"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Pitch Studio: the design-agent server and the od CLI"
+
+[[bin]]
+name = "od"
+path = "src/main.rs"
+
+[dependencies]
+goose.workspace = true
+goose-providers.workspace = true
+rmcp.workspace = true
+anyhow = "1"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["macros", "multipart"] }
+tower-http = { version = "0.7", features = ["fs", "cors", "trace"] }
+tokio = { version = "1.48", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+schemars = "1"
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive", "env"] }
+mime_guess = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+base64 = "0.22"
+rand = "0.9"
+regex = "1"
+walkdir = "2"
+async-stream = "0.3"
+imagesize = "0.13"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
