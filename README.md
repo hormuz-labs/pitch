@@ -30,6 +30,13 @@ Open http://127.0.0.1:7456. Data lives in `.od/` (`OD_DATA_DIR`).
 For UI work, `cd web && bunx vite` proxies `/api` to the server
 (`OD_DAEMON=http://127.0.0.1:7456`).
 
+## Marketing site
+
+`site/` is trypitch.co, built with Astro to static HTML (`cd site && bun install
+&& bun run build`, or `bunx astro dev`). `.github/workflows/deploy-web.yml`
+deploys it to Vercel once the repository variable `SITE_DEPLOY=astro` is set;
+until then pushes only build and check it.
+
 ## Desktop app (macOS)
 
 `crates/desktop` wraps the same server in a [Tauri](https://tauri.app) window.

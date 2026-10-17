@@ -16,6 +16,7 @@ crates/od/        the server and `od` binary (axum + SQLite + goose)
 crates/desktop/    the Tauri desktop app: embeds the server, opens one window
 web/              the studio (Solid + Vite), built to web/dist and served by `od`
 content/          skills, design templates, design systems, craft notes (Apache 2.0)
+site/             trypitch.co: Astro, static HTML, Solid islands (deployed by deploy-web.yml)
 ```
 
 ## Rules
@@ -38,11 +39,22 @@ content/          skills, design templates, design systems, craft notes (Apache 
   `crates/od/prompts/CHANGES.md` are licence obligations: keep them.
 - Commit small and often.
 
+## Marketing site
+
+`site/` renders the pages that used to live in the old app's `src/solid/public`
+as static HTML. Those components are kept close to their original form:
+`@solidjs/router` is aliased to `src/shims/router.tsx` (plain links; app paths
+go to `PUBLIC_STUDIO_URL`), and `src/solid/core/{auth,theme,Seo}.tsx` are
+stand-ins (signed out, shared theme, meta written by each Astro page). Asset
+imports in TSX need `?url`. Anything touching `window`/`document` belongs in
+`onMount` or a guarded `onCleanup` — pages render on the server at build time.
+
 ## Checks
 
 ```bash
 cargo build && cargo test
 cd web && bunx tsc --noEmit && bunx vite build
+cd site && bun run build
 ```
 
 `cargo fetch` needs the git CLI (`.cargo/config.toml` sets it) because the

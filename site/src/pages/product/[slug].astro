@@ -1,0 +1,23 @@
+---
+import Island from '../../islands/Product'
+import Base from '../../layouts/Base.astro'
+import { PRODUCTS, type ProductEntry } from '../../solid/public/productCatalog'
+
+export function getStaticPaths() {
+  return PRODUCTS.map((product) => ({ params: { slug: product.slug }, props: { product } }))
+}
+const { product: p } = Astro.props as { product: ProductEntry }
+const path = `/product/${p.slug}`
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'FAQPage',
+      mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+    },
+  ],
+}
+---
+<Base title={p.seoTitle} description={p.seoDescription} path={path} jsonLd={jsonLd}>
+  <Island client:load path={path} params={{ slug: p.slug }} />
+</Base>

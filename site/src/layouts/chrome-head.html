@@ -1,0 +1,137 @@
+<!-- Structured data: Organization + SoftwareApplication + HowTo + FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://trypitch.co/#org",
+          "name": "Pitch",
+          "url": "https://trypitch.co/",
+          "logo": "https://trypitch.co/tabLogoB.svg",
+          "email": "support@trypitch.co",
+          "sameAs": [
+            "https://x.com/trypitchdotco",
+            "https://www.instagram.com/trypitch.co",
+            "https://www.linkedin.com/company/trypitchdotco/",
+            "https://www.youtube.com/@trypitchdotco"
+          ],
+          "alternateName": [
+            "TryPitch",
+            "trypitch.co"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://trypitch.co/#site",
+          "url": "https://trypitch.co/",
+          "name": "Pitch",
+          "publisher": {
+            "@id": "https://trypitch.co/#org"
+          },
+          "alternateName": [
+            "TryPitch",
+            "trypitch.co"
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- Google tag (gtag.js) — queued immediately, fetched after load.
+         The tag is ~500 kB and an `async` script in <head> still competes with
+         the render-blocking stylesheet for bandwidth on a cold connection.
+         dataLayer calls made before the script arrives are replayed by it, so
+         the pageview is not lost by waiting. -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-VC3NZ72GWY');
+      addEventListener('load', function () {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VC3NZ72GWY';
+        document.head.appendChild(s);
+      });
+    </script>
+    <style>
+      /* Stair preloader — pure CSS so the intro runs on the prerendered HTML at
+         first paint, with no JS parsed. Panels animate `transform`, not
+         top/bottom, so the 20 sheets composite on the GPU instead of forcing
+         layout every frame. Whole sequence ends at ~1.79s.
+         Timeline: type 0.05-0.64s · cursor 0.42-0.98s · text out 0.86-1.16s ·
+         stairs 0.92-1.79s. */
+      #pitch-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        overflow: hidden;
+        pointer-events: none;
+        contain: strict;
+      }
+      #pitch-preloader .plcols { position: absolute; inset: 0; display: flex; }
+      #pitch-preloader .plcol { position: relative; flex: 1; height: 100%; }
+      #pitch-preloader .plp {
+        position: absolute;
+        left: -1%;
+        width: 102%;
+        height: 51vh;
+        background: #000;
+        will-change: transform;
+        animation: pl-open 0.55s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+        animation-delay: calc(0.92s + var(--c) * 0.035s);
+      }
+      #pitch-preloader .plp-t { top: 0; --pl-to: -100%; }
+      #pitch-preloader .plp-b { bottom: 0; --pl-to: 100%; }
+      @keyframes pl-open { to { transform: translate3d(0, var(--pl-to), 0); } }
+
+      #pitch-preloader .pltext {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 24px;
+        mix-blend-mode: difference;
+        animation: pl-fade 0.3s ease 0.86s forwards;
+      }
+      @keyframes pl-fade { to { opacity: 0; } }
+      #pitch-preloader .pltext-in { display: flex; flex-wrap: nowrap; gap: 0 clamp(6px, 2vw, 24px); }
+      #pitch-preloader .plw { display: inline-flex; }
+      #pitch-preloader .plw-i { font-style: italic; }
+      #pitch-preloader .plc {
+        color: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 700;
+        font-size: clamp(10px, 3.5vw, 35px);
+        letter-spacing: -0.02em;
+        white-space: pre;
+        opacity: 0;
+        animation: pl-char 0.01s linear forwards;
+        animation-delay: calc(0.05s + var(--i) * 0.018s);
+      }
+      @keyframes pl-char { to { opacity: 1; } }
+
+      #pitch-preloader .plcur {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 60;
+        color: #fff;
+        opacity: 0;
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+        transform: translate3d(120px, 78px, 0);
+        animation: pl-cursor 0.56s cubic-bezier(0.33, 1, 0.68, 1) 0.42s forwards;
+      }
+      @keyframes pl-cursor {
+        0%   { opacity: 0; transform: translate3d(120px, 78px, 0) scale(1); }
+        25%  { opacity: 1; }
+        68%  { opacity: 1; transform: translate3d(30px, 6px, 0) scale(1); }
+        82%  { opacity: 1; transform: translate3d(30px, 6px, 0) scale(0.78); }
+        100% { opacity: 0; transform: translate3d(30px, 6px, 0) scale(1); }
+      }
+
+      html.pl-lock, html.pl-lock body { overflow: hidden; }
+      @media (prefers-reduced-motion: reduce) { #pitch-preloader { display: none; } }
+    </style>

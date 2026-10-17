@@ -1,0 +1,8 @@
+---
+import Island from '../islands/Pricing'
+import { PRICING_JSON_LD } from '../solid/public/landingJsonLd'
+import Base from '../layouts/Base.astro'
+---
+<Base title="Pricing: credit-based plans for AI video and decks | Pitch" description="Pay for the launch videos, product demos, slide decks and edits you actually make. Monthly credit plans, add-on top-ups, and no upfront charge per project." path="/pricing" jsonLd={PRICING_JSON_LD}>
+  <Island client:load path="/pricing" />
+</Base>

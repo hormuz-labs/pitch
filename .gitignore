@@ -37,3 +37,9 @@ web/dist/
 
 # Tauri generated schemas
 /crates/desktop/gen/
+
+# Marketing site
+/site/node_modules/
+/site/dist/
+/site/.astro/
+/site/.vercel/

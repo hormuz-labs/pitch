@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pitch — temporarily unreachable</title>
+<!--
+  Standalone twin of src/views/StatusView.tsx, for Cloudflare Custom Error Pages.
+
+  When the tunnel in front of api.trypitch.co is down, the request never reaches
+  the app, so nothing in React can render — Cloudflare answers from its own edge.
+  This page is what it should answer with.
+
+  To install: Cloudflare dashboard -> the trypitch.co zone -> Rules -> Custom
+  Pages -> "500 Class Errors" (and "1000 Class Errors" for tunnel/1033) -> point
+  it at the public URL of this file. Cloudflare fetches and caches it, so it must
+  stay self-contained: no external CSS, JS, fonts or images.
+
+  Cloudflare requires the ::CLOUDFLARE_ERROR_500S_BOX:: token to appear in the
+  body of a 500-class custom page; it is rendered in the detail strip below.
+-->
+<style>
+  :root {
+    --st-bg: #ededed;
+    --st-surface: #fafafa;
+    --st-ink: #020202;
+    --st-ink-2: #3d3a39;
+    --st-ink-dim: #8a8580;
+    --st-line: #dcdcda;
+    --st-line-2: #b8b3b0;
+    --st-accent: #1385d6;
+    --st-watermark: #dededc;
+    --st-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --st-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --st-bg: #0a0a0a;
+      --st-surface: #121212;
+      --st-ink: #f4f4f3;
+      --st-ink-2: #b2aeaa;
+      --st-ink-dim: #6c6864;
+      --st-line: #222221;
+      --st-line-2: #33322f;
+      --st-accent: #3db4f5;
+      --st-watermark: #171717;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    overflow: hidden;
+    background: var(--st-bg);
+    color: var(--st-ink);
+    font-family: var(--st-sans);
+    line-height: 1.5;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  .watermark {
+    position: absolute;
+    z-index: 0;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--st-watermark);
+    font-size: clamp(13rem, 42vw, 34rem);
+    font-weight: 650;
+    line-height: 0.72;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+  }
+  canvas { position: relative; z-index: 1; display: block; opacity: 0.92; }
+  .copy {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 46ch;
+  }
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--st-ink-dim);
+    font-family: var(--st-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--st-accent);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .eyebrow::before { animation: pulse 2s ease-out infinite; }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(19, 133, 214, 0); }
+    45% { box-shadow: 0 0 0 5px rgba(19, 133, 214, 0.18); }
+  }
+  h1 {
+    margin: 14px 0 0;
+    font-weight: 400;
+    font-size: clamp(1.9rem, 4.2vw, 2.9rem);
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  h1 em { font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+  p.body { margin: 14px 0 0; max-width: 44ch; color: var(--st-ink-2); }
+  .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 28px; }
+  .cta, .ghost {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity .15s ease, border-color .18s ease, transform .12s ease;
+  }
+  .cta { border: 1px solid var(--st-ink); background: var(--st-ink); color: var(--st-bg); }
+  .cta:hover { opacity: .88; }
+  .ghost { border: 1px solid var(--st-line-2); background: transparent; color: var(--st-ink); }
+  .ghost:hover { border-color: var(--st-ink); }
+  .cta:active, .ghost:active { transform: scale(.98); }
+  .detail {
+    position: relative;
+    z-index: 1;
+    margin-top: 30px;
+    padding: 9px 14px;
+    border: 1px solid var(--st-line);
+    border-radius: 8px;
+    background: var(--st-surface);
+    color: var(--st-ink-dim);
+    font-family: var(--st-mono);
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    max-width: min(560px, 100%);
+    overflow-x: auto;
+  }
+  .links {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+    width: min(520px, 100%);
+    margin-top: 26px;
+    padding-top: 22px;
+    border-top: 1px solid var(--st-line);
+    font-family: var(--st-mono);
+    font-size: 11px;
+  }
+  .links a { color: var(--st-ink-dim); text-decoration: none; }
+  .links a:hover { color: var(--st-ink); text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="watermark" aria-hidden="true">503</div>
+  <canvas id="p-ascii" width="260" height="260" style="width:260px;height:260px" aria-hidden="true"></canvas>
+
+  <div class="copy">
+    <p class="eyebrow">Service unreachable</p>
+    <h1>The studio is <em>off the air</em>.</h1>
+    <p class="body">
+      Pitch is temporarily unreachable. Your projects and renders are safe — this is a
+      connection problem, not a data one. It usually clears within a few minutes.
+    </p>
+    <div class="actions">
+      <a class="cta" href="/" onclick="location.reload();return false;">Try again</a>
+      <a class="ghost" href="mailto:support@trypitch.co?subject=Pitch%20is%20unreachable">Contact support</a>
+    </div>
+  </div>
+
+  <div class="detail">::CLOUDFLARE_ERROR_500S_BOX::</div>
+
+  <nav class="links">
+    <a href="https://trypitch.co/">Home</a>
+    <a href="https://trypitch.co/pricing">Pricing</a>
+    <a href="https://trypitch.co/blog">Blog</a>
+    <a href="mailto:support@trypitch.co">Support</a>
+  </nav>
+
+<script>
+(function () {
+  var CELL = 13, BLOOM = 5, LOGO = 200;
+  var blocks = [], xs = [53, 86, 119], ys = [45, 68, 91, 114, 137];
+  [[0,1,2],[0,2],[0,1,2],[0],[0]].forEach(function (cols, r) {
+    cols.forEach(function (c) { blocks.push({ x: xs[c], y: ys[r], w: 28, h: 18 }); });
+  });
+  function dist(px, py) {
+    var m = 1e9;
+    for (var k = 0; k < blocks.length; k++) {
+      var b = blocks[k];
+      var dx = Math.max(b.x - px, 0, px - (b.x + b.w));
+      var dy = Math.max(b.y - py, 0, py - (b.y + b.h));
+      var d = Math.hypot(dx, dy);
+      if (d < m) m = d;
+    }
+    return m;
+  }
+  function hash(i, j) {
+    var s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  }
+  var fams = [['.','▵','▴','▲'],['.','·','•','●'],['.',':','+','#'],['.','·','*','✳']];
+  var cv = document.getElementById('p-ascii'), ctx = cv.getContext('2d');
+  var S = 260, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = S * dpr; cv.height = S * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var scale = S / LOGO * 1.42, off = (S - LOGO * scale) / 2, n = Math.ceil(S / CELL);
+  var ink = getComputedStyle(document.body).color;
+
+  function draw(t) {
+    ctx.clearRect(0, 0, S, S);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = Math.round(CELL * 0.92) + 'px ui-monospace, Menlo, monospace';
+    ctx.fillStyle = ink;
+    var phase = (t % 9) / 9 * Math.PI * 2;
+    for (var j = 0; j < n; j++) {
+      for (var i = 0; i < n; i++) {
+        var cx = i * CELL + CELL / 2, cy = j * CELL + CELL / 2;
+        var px = (cx - off) / scale, py = (cy - off) / scale;
+        var d = dist(px, py);
+        var core = d <= 0 ? 1 : Math.pow(Math.max(0, 1 - d / BLOOM), 2.2) * 0.75;
+        if (core <= 0.001) continue;
+        var wave = 0.5 + 0.5 * Math.sin((px * 0.05 + py * 0.032) - phase * 2);
+        var breathe = 0.5 + 0.5 * Math.sin(phase);
+        var nz = hash(i, j), solid = Math.sqrt(core);
+        var val = solid * (0.72 + 0.28 * wave) * (0.88 + 0.12 * breathe) - nz * 0.18 * (1 - core);
+        if (val < 0.1) continue;
+        var a = Math.atan2(py - 100, px - 100) + phase + nz * 0.5;
+        var fam = fams[((Math.floor(a / (Math.PI / 2)) % 4) + 4) % 4];
+        ctx.globalAlpha = Math.min(1, 0.48 + val * 1.05);
+        ctx.fillText(fam[Math.min(3, Math.max(0, Math.floor(val * 4.2)))], cx, cy);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  draw(0);
+  if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    (function loop(ts) { draw(ts / 1000); requestAnimationFrame(loop); })(0);
+  }
+})();
+</script>
+</body>
+</html>

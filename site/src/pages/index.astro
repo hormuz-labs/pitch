@@ -1,0 +1,8 @@
+---
+import Island from '../islands/Landing'
+import { LANDING_JSON_LD } from '../solid/public/landingJsonLd'
+import Base from '../layouts/Base.astro'
+---
+<Base title="TryPitch: AI launch videos, product demos and decks" description="Pitch is an AI production studio you direct by chat. Turn a URL, file or idea into launch films, product demos, slide decks and edited videos." path="/" jsonLd={LANDING_JSON_LD}>
+  <Island client:load path="/" />
+</Base>
