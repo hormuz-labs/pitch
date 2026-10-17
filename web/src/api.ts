@@ -96,6 +96,15 @@ export type DesignSystemDetail = DesignSystem & {
 
 export type RunEvent = { id: number; event: string; data: any };
 
+export type ModelSettings = {
+  protocol: 'openai' | 'anthropic' | 'gemini';
+  baseUrl: string;
+  effectiveBaseUrl: string;
+  model: string;
+  models: string[];
+  hasKey: boolean;
+};
+
 function token(): string | null {
   try {
     return localStorage.getItem('studio:token');
@@ -145,6 +154,11 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export const api = {
   config: () => call<{ models: string[]; defaultModel: string; previewPort?: number; previewOrigin?: string | null }>('GET', '/config'),
+  settings: () => call<ModelSettings>('GET', '/settings'),
+  saveSettings: (body: { protocol: string; baseUrl: string | null; model: string; models: string[]; apiKey?: string }) =>
+    call<ModelSettings>('PUT', '/settings', body),
+  providerModels: (body: { protocol: string; baseUrl?: string; apiKey?: string }) =>
+    call<{ models: string[] }>('POST', '/settings/models', body),
   skills: () => call<{ skills: Skill[] }>('GET', '/skills').then((r) => r.skills),
   skill: (id: string) => call<{ skill: Skill & { body: string; hasExample: boolean } }>('GET', `/skills/${id}`).then((r) => r.skill),
   designSystems: () => call<{ designSystems: DesignSystem[] }>('GET', '/design-systems').then((r) => r.designSystems),

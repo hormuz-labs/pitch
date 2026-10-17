@@ -3,7 +3,7 @@ import { api, type Skill } from './api';
 
 // App-wide data, loaded once and refreshed on demand.
 export const store = createRoot(() => {
-  const [config] = createResource(() => api.config().catch(() => ({ models: [], defaultModel: '' })));
+  const [config, { refetch: refreshConfig }] = createResource(() => api.config().catch(() => ({ models: [] as string[], defaultModel: '' })));
   const [skills] = createResource(() => api.skills().catch(() => [] as Skill[]));
   const [designSystems] = createResource(() => api.designSystems().catch(() => []));
   const [projects, { refetch: refreshProjects, mutate: setProjects }] = createResource(() =>
@@ -15,6 +15,7 @@ export const store = createRoot(() => {
   const [handoff, setHandoff] = createSignal<{ skill: Skill; prompt: string } | null>(null);
   return {
     config,
+    refreshConfig,
     skills,
     designSystems,
     projects,

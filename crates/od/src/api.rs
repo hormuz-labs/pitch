@@ -64,6 +64,8 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(|| async { Json(json!({ "ok": true })) }))
         .route("/version", get(|| async { Json(json!({ "version": env!("CARGO_PKG_VERSION") })) }))
         .route("/config", get(get_config))
+        .route("/settings", get(get_settings).put(put_settings))
+        .route("/settings/models", post(list_provider_models))
         .route("/skills", get(list_skills))
         .route("/skills/{id}", get(get_skill))
         .route("/skills/{id}/example", get(skill_example))
@@ -168,6 +170,113 @@ async fn get_config(State(s): State<AppState>) -> Json<Value> {
         "previewPort": s.config.preview_port,
         "previewOrigin": s.config.preview_origin,
     }))
+}
+
+// ---------- settings ----------
+
+fn settings_json(s: &AppState) -> Value {
+    let stored = crate::config::load_stored(&s.config.data_dir);
+    let m = s.harness.models();
+    json!({
+        "protocol": m.protocol,
+        "baseUrl": stored.base_url.unwrap_or_default(),
+        "effectiveBaseUrl": m.base_url,
+        "model": m.default_model,
+        "models": m.models,
+        "hasKey": !m.api_key.is_empty(),
+    })
+}
+
+async fn get_settings(State(s): State<AppState>) -> Json<Value> {
+    Json(settings_json(&s))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PutSettings {
+    protocol: crate::config::Protocol,
+    base_url: Option<String>,
+    model: String,
+    #[serde(default)]
+    models: Vec<String>,
+    /// Omit to keep the saved key; "" clears it.
+    api_key: Option<String>,
+}
+
+async fn put_settings(State(s): State<AppState>, Json(body): Json<PutSettings>) -> ApiResult<Json<Value>> {
+    let stored = crate::config::StoredModel {
+        protocol: Some(body.protocol),
+        base_url: body.base_url.map(|b| b.trim().to_string()).filter(|b| !b.is_empty()),
+        model: Some(body.model.trim().to_string()).filter(|m| !m.is_empty()),
+        models: body.models.into_iter().map(|m| m.trim().to_string()).filter(|m| !m.is_empty()).collect(),
+    };
+    crate::config::save_stored(&s.config.data_dir, &stored, body.api_key.as_deref())?;
+    s.harness.set_models(crate::config::ModelSettings::load(&s.config.data_dir)?);
+    Ok(Json(settings_json(&s)))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ModelsQuery {
+    protocol: crate::config::Protocol,
+    base_url: Option<String>,
+    api_key: Option<String>,
+}
+
+/// Ask the provider which models it offers, for the settings picker. Uses the
+/// key in the request, or the saved one.
+async fn list_provider_models(State(s): State<AppState>, Json(q): Json<ModelsQuery>) -> ApiResult<Json<Value>> {
+    use crate::config::Protocol;
+    let saved = s.harness.models();
+    let key = q.api_key.filter(|k| !k.is_empty()).unwrap_or(saved.api_key);
+    let base = q
+        .base_url
+        .map(|b| b.trim().trim_end_matches('/').to_string())
+        .filter(|b| !b.is_empty())
+        .unwrap_or_else(|| match q.protocol {
+            Protocol::Gemini => "https://generativelanguage.googleapis.com/v1beta/openai".into(),
+            Protocol::Anthropic => "https://api.anthropic.com".into(),
+            Protocol::OpenAi => saved.base_url.clone(),
+        });
+    if base.is_empty() {
+        return Err(bad_request("enter the endpoint's base URL first"));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(anyhow::Error::from)?;
+    let req = match q.protocol {
+        Protocol::Gemini => client.get(format!("{base}/models")).bearer_auth(&key),
+        Protocol::OpenAi => client.get(format!("{base}/v1/models")).bearer_auth(&key),
+        Protocol::Anthropic => client
+            .get(format!("{base}/v1/models"))
+            .header("x-api-key", &key)
+            .header("anthropic-version", "2023-06-01"),
+    };
+    let resp = req.send().await.map_err(|e| bad_request(format!("could not reach the provider: {e}")))?;
+    let status = resp.status();
+    let body: Value = resp.json().await.unwrap_or(Value::Null);
+    if !status.is_success() {
+        let msg = body
+            .pointer("/error/message")
+            .or_else(|| body.pointer("/0/error/message"))
+            .and_then(Value::as_str)
+            .unwrap_or("request failed");
+        return Err(bad_request(format!("provider said {status}: {msg}")));
+    }
+    let mut ids: Vec<String> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|list| {
+            list.iter()
+                .filter_map(|m| m.get("id").and_then(Value::as_str))
+                .map(|id| id.trim_start_matches("models/").to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    ids.sort();
+    ids.dedup();
+    Ok(Json(json!({ "models": ids })))
 }
 
 // ---------- content library ----------

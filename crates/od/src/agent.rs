@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{Context, Result};
 use futures::StreamExt;
@@ -33,7 +33,7 @@ pub struct Harness {
     pub scopes: Arc<Scopes>,
     tools: Arc<OdTools>,
     attached: Mutex<HashSet<String>>,
-    model: ModelSettings,
+    model: RwLock<ModelSettings>,
 }
 
 impl Harness {
@@ -53,18 +53,23 @@ impl Harness {
             scopes,
             tools,
             attached: Mutex::new(HashSet::new()),
-            model,
+            model: RwLock::new(model),
         }
     }
 
-    pub fn models(&self) -> &ModelSettings {
-        &self.model
+    pub fn models(&self) -> ModelSettings {
+        self.model.read().unwrap().clone()
+    }
+
+    /// Swap the model endpoint; the next run uses it.
+    pub fn set_models(&self, model: ModelSettings) {
+        *self.model.write().unwrap() = model;
     }
 
     fn provider(&self) -> Result<Arc<dyn Provider>> {
-        let m = &self.model;
+        let m = &self.models();
         if m.base_url.is_empty() {
-            anyhow::bail!("No model endpoint is configured. Set OD_MODEL_BASE_URL (the model proxy), OD_MODEL and OD_MODEL_API_KEY, then restart the server.");
+            anyhow::bail!("No model is set up yet. Open Settings and choose a provider, model and key.");
         }
         Ok(match m.protocol {
             Protocol::OpenAi | Protocol::Gemini => {
@@ -118,8 +123,8 @@ impl Harness {
 
     async fn prepare(&self, session_id: &str, model: &str, system_prompt: String) -> Result<()> {
         let config = ModelConfig::new(model)
-            .with_context_limit(Some(self.model.context_limit))
-            .with_max_tokens(Some(self.model.max_tokens));
+            .with_context_limit(Some(self.models().context_limit))
+            .with_max_tokens(Some(self.models().max_tokens));
         self.agent
             .update_provider(self.provider()?, config, session_id)
             .await?;
@@ -274,9 +279,9 @@ async fn execute_inner(
         .model
         .clone()
         .filter(|m| !m.is_empty())
-        .unwrap_or_else(|| harness.model.default_model.clone());
+        .unwrap_or_else(|| harness.models().default_model);
     if model.is_empty() {
-        anyhow::bail!("No model is configured. Set OD_MODEL (and OD_MODELS for the picker), then restart the server.");
+        anyhow::bail!("No model is set up yet. Open Settings and choose a provider, model and key.");
     }
     harness.prepare(&session_id, &model, system).await?;
 

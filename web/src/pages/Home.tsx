@@ -1,4 +1,4 @@
-import { useNavigate } from '@solidjs/router';
+import { A, useNavigate } from '@solidjs/router';
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { api, previewUrl, type Skill } from '../api';
 import { FrameThumb } from '../components/bits';
@@ -99,6 +99,11 @@ export function Home() {
         Let's create <span class="word">{skill() ? skill()!.name : chip().word}</span>
       </h1>
       <div class="sub">Good work starts here</div>
+      <Show when={store.config() && !store.config()!.models.length}>
+        <A href="/settings" class="applied" style={{ 'margin-bottom': '14px', background: 'var(--bg-subtle)', color: 'var(--text-strong)' }}>
+          <Icon name="gear" size={13} /> Set up a model in Settings to start
+        </A>
+      </Show>
       <div class="composer-tray">
         <div class="composer">
           <Show when={skill()}>

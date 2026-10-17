@@ -29,6 +29,7 @@ export function Shell(props: { children?: JSX.Element }) {
         {link('/projects', 'grid', 'All projects')}
         {link('/design-systems', 'palette', 'Design systems')}
         {link('/plugins', 'puzzle', 'Plugins')}
+        {link('/settings', 'gear', 'Settings')}
         <div class="rail-section">Recent projects</div>
         <div class="rail-recent">
           <For each={(store.projects() ?? []).slice(0, 14)}>

@@ -6,6 +6,7 @@ import { DesignSystems } from './pages/DesignSystems';
 import { Home } from './pages/Home';
 import { Library } from './pages/Library';
 import { Projects } from './pages/Projects';
+import { Settings } from './pages/Settings';
 import { Studio } from './pages/Studio';
 import './styles.css';
 
@@ -20,6 +21,7 @@ initPreviewOrigin().then(() => render(
         <Route path="/projects" component={Projects} />
         <Route path="/design-systems/:id?" component={DesignSystems} />
         <Route path="/plugins" component={Library} />
+        <Route path="/settings" component={Settings} />
       </Route>
     </Router>
   ),
