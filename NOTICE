@@ -4,3 +4,9 @@ Copyright 2026 Hormuz Labs
 Developed by Hormuz Labs.
 https://trypitch.co
 https://github.com/hormuz-labs/pitch
+
+This product includes third-party material licensed under the Apache License,
+Version 2.0: the skills, design systems, design templates, craft notes and
+prompt templates in content/ (licence in content/LICENSE), and the prompt texts
+in crates/od/prompts/, which were modified (see crates/od/prompts/CHANGES.md).
+Folders that carry their own LICENSE file keep that license.

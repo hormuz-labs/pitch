@@ -1,1 +1,0 @@
-export { PrivacyPolicy } from './LegalViews'

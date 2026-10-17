@@ -1,1 +1,0 @@
-export { TermsOfService } from './LegalViews'

@@ -1,1 +1,0 @@
-ALTER TABLE "Project" ADD COLUMN "pinnedAt" TIMESTAMP(3);

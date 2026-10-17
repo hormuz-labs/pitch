@@ -1,1 +1,0 @@
-ALTER TABLE "UserProfile" ADD COLUMN "gptEnabled" BOOLEAN NOT NULL DEFAULT false;
