@@ -34,3 +34,6 @@ web/dist/
 .claude/*
 /.od/
 /.od-mock/
+
+# Tauri generated schemas
+/crates/desktop/gen/

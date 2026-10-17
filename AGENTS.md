@@ -13,6 +13,7 @@ crates/od/        the server and `od` binary (axum + SQLite + goose)
   src/markers.rs    od-title / od-done / od-next / od-focus turn markers
   src/runs.rs       runs in memory + journaled to <data>/runs/<id>/events.jsonl
   prompts/          prompt texts (third-party, Apache 2.0; see prompts/CHANGES.md)
+crates/desktop/    the Tauri desktop app: embeds the server, opens one window
 web/              the studio (Solid + Vite), built to web/dist and served by `od`
 content/          skills, design templates, design systems, craft notes (Apache 2.0)
 ```

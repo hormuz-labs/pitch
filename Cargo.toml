@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# The desktop app needs a system webview to build; `cargo build` skips it.
+default-members = ["crates/od"]
 
 [workspace.package]
 version = "0.1.0"

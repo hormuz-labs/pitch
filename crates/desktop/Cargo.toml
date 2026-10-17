@@ -1,0 +1,24 @@
+[package]
+name = "pitch-studio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Pitch Studio desktop app"
+
+[[bin]]
+name = "pitch-studio"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+od = { path = "../od" }
+tauri = { version = "2.12", features = [] }
+tauri-plugin-opener = "2"
+tokio = { version = "1.48", features = ["net"] }
+anyhow = "1"
+dirs = "6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

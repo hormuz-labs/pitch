@@ -30,6 +30,21 @@ Open http://127.0.0.1:7456. Data lives in `.od/` (`OD_DATA_DIR`).
 For UI work, `cd web && bunx vite` proxies `/api` to the server
 (`OD_DAEMON=http://127.0.0.1:7456`).
 
+## Desktop app (macOS)
+
+`crates/desktop` wraps the same server in a [Tauri](https://tauri.app) window.
+The server runs inside the app on loopback ports chosen at startup; data lives
+in `~/Library/Application Support/co.trypitch.studio`, and the model is set in
+**Settings**.
+
+```bash
+cd web && bunx vite build && cd ..
+cargo run -p pitch-studio
+```
+
+The workspace's default members skip the desktop crate, so a plain
+`cargo build` (and CI) never needs a system webview.
+
 ## License
 
 Pitch is licensed under the [Apache License 2.0](LICENSE), allowing personal and commercial use, modification, and distribution.
