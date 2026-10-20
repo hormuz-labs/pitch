@@ -136,6 +136,11 @@ const overview: DocPage = {
         <>
           <A to="/docs/api">REST API reference</A> lists every endpoint.
         </>,
+        <>
+          Need help or hit an issue? Email{' '}
+          <A to="mailto:support@trypitch.co">support@trypitch.co</A> or join{' '}
+          <A to="https://discord.gg/a4SBW36mD">our Discord</A>.
+        </>,
       ],
     },
   ],
@@ -1237,7 +1242,10 @@ const errors: DocPage = {
           '500',
           <C key="i">internal_error</C>,
           'Something broke on our side.',
-          'Retry with backoff. If it persists, email support.',
+          <>
+            Retry with backoff. If it persists, email{' '}
+            <A to="mailto:support@trypitch.co">support@trypitch.co</A>.
+          </>,
         ],
       ],
     },
@@ -1776,6 +1784,49 @@ const tools: DocPage = {
   ],
 }
 
+/* ── Help & support ────────────────────────────────────────────────────── */
+
+const help: DocPage = {
+  slug: 'help',
+  title: 'Help & support',
+  group: 'Guide',
+  nav: 'Help & Support',
+  lede: 'Report a bug, troubleshoot a video or voiceover, or reach the Pitch team directly.',
+  blocks: [
+    { k: 'h2', text: 'Contact the team' },
+    {
+      k: 'list',
+      items: [
+        <>
+          Email us anytime at <A to="mailto:support@trypitch.co">support@trypitch.co</A>.
+        </>,
+        <>
+          Join <A to="https://discord.gg/a4SBW36mD">our Discord</A> for fast help from the team and
+          community.
+        </>,
+        'In the app, open Help & support in the left sidebar to send an issue report with your session error log and a screenshot.',
+      ],
+    },
+    { k: 'h2', text: 'Video & voiceover troubleshooting' },
+    {
+      k: 'list',
+      items: [
+        <>
+          <strong>No voiceover yet while a video is building:</strong> Launch films build scene by
+          scene in a live preview and mix narration with music at the end of the turn. If a turn
+          stops early, the studio automatically rebuilds the audio mix or you can send a follow-up
+          message asking the agent to finish or adjust the narration.
+        </>,
+        <>
+          <strong>Exporting an MP4:</strong> Launch films play live in the studio first. Use the{' '}
+          <C>Export</C> menu in the top-right corner of the studio to render a 720p, 1080p, or 4K
+          MP4.
+        </>,
+      ],
+    },
+  ],
+}
+
 export const DOC_PAGES: DocPage[] = [
   overview,
   gettingStarted,
@@ -1785,6 +1836,7 @@ export const DOC_PAGES: DocPage[] = [
   files,
   polling,
   errors,
+  help,
   restApi,
   tools,
 ]

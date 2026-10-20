@@ -45,7 +45,7 @@ export function useAuth() {
 }
 
 export function useUser() {
-  return { isLoaded: () => true, isSignedIn: () => false, user: () => null }
+  return { isLoaded: () => true, isSignedIn: () => false, user: () => null, userAccessor: () => null }
 }
 
 export function useSignIn() {
