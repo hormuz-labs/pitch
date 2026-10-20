@@ -263,6 +263,112 @@ export function studioModelSpecs(
 /** @deprecated use studioModelSpecs */
 export const extraStudioModelSpecs = studioModelSpecs
 
+export type StudioModelTier = 'low' | 'medium' | 'high' | 'max' | 'ultra'
+
+export interface StudioTierConfig {
+  tier: StudioModelTier
+  label: 'Low' | 'Medium' | 'High' | 'Max' | 'Ultra'
+  description: string
+  /** Ordered primary → fallback models for this tier. */
+  models: readonly string[]
+}
+
+export const STUDIO_MODEL_TIERS: readonly StudioTierConfig[] = [
+  {
+    tier: 'low',
+    label: 'Low',
+    description: 'Fast, economical drafts and lightweight edits.',
+    models: [AZURE_LUNA_SPEC, GPT_54_MINI_SPEC, GEMINI_38_FLASH_SPEC],
+  },
+  {
+    tier: 'medium',
+    label: 'Medium',
+    description: 'Balanced speed and quality for everyday production.',
+    models: [AZURE_TERRA_SPEC, GPT_54_MINI_SPEC, GEMINI_38_FLASH_SPEC],
+  },
+  {
+    tier: 'high',
+    label: 'High',
+    description: 'Detailed planning for complex, multi-step projects.',
+    models: [GEMINI_38_FLASH_SPEC, AZURE_GPT_55_SPEC, GPT_54_SPEC, AZURE_TERRA_SPEC],
+  },
+  {
+    tier: 'max',
+    label: 'Max',
+    description: 'Advanced reasoning and polished video production.',
+    models: [
+      AZURE_GPT_61_SOL_SPEC,
+      AZURE_GPT_6_SOL_SPEC,
+      AZURE_SOL_SPEC,
+      AZURE_GPT_55_SPEC,
+      GPT_54_SPEC,
+      GEMINI_38_FLASH_SPEC,
+    ],
+  },
+  {
+    tier: 'ultra',
+    label: 'Ultra',
+    description: 'Maximum capability for demanding films and demos.',
+    models: [AZURE_ASTRA_SPEC, AZURE_GPT_55_SPEC, AZURE_GPT_61_SOL_SPEC, GEMINI_38_FLASH_SPEC],
+  },
+]
+
+const PRIMARY_TIER_BY_SPEC: Record<string, StudioModelTier> = {
+  [AZURE_LUNA_SPEC]: 'low',
+  [GPT_54_MINI_SPEC]: 'medium',
+  [AZURE_TERRA_SPEC]: 'medium',
+  [GEMINI_38_FLASH_SPEC]: 'high',
+  [GEMINI_31_PRO_SPEC]: 'high',
+  [GPT_54_SPEC]: 'high',
+  [AZURE_GPT_55_SPEC]: 'max',
+  [AZURE_SOL_SPEC]: 'max',
+  [AZURE_GPT_6_SOL_SPEC]: 'max',
+  [AZURE_GPT_61_SOL_SPEC]: 'max',
+  [AZURE_ASTRA_SPEC]: 'ultra',
+}
+
+export function tierForModelSpec(spec: string): StudioModelTier {
+  const normalized = spec.trim().toLowerCase()
+  if (['low', 'medium', 'high', 'max', 'ultra'].includes(normalized)) {
+    return normalized as StudioModelTier
+  }
+  return PRIMARY_TIER_BY_SPEC[spec] ?? 'high'
+}
+
+export function resolveTierModelSpec(
+  tier: StudioModelTier,
+  availableSpecs: Iterable<string>,
+): string | null {
+  const set = new Set(availableSpecs)
+  const config = STUDIO_MODEL_TIERS.find(item => item.tier === tier)
+  if (!config) return null
+  for (const candidate of config.models) {
+    if (set.has(candidate)) return candidate
+  }
+  return null
+}
+
+/**
+ * Primary + automatic fallback within the same tier: when `failedSpec` hits a
+ * rate limit, timeout or provider error, return the next runnable model in that
+ * tier's pool that has not been tried yet in this turn.
+ */
+export function fallbackStudioModel(
+  failedSpec: string,
+  runnableSpecs: Iterable<string>,
+  triedSpecs: ReadonlySet<string> = new Set(),
+): string | null {
+  const runnable = new Set(runnableSpecs)
+  const tier = tierForModelSpec(failedSpec)
+  const config = STUDIO_MODEL_TIERS.find(item => item.tier === tier)
+  if (!config) return null
+  for (const candidate of config.models) {
+    if (candidate === failedSpec || triedSpecs.has(candidate)) continue
+    if (runnable.has(candidate)) return candidate
+  }
+  return null
+}
+
 /** Entitlement is independent of provider credentials and the deployment allowlist. */
 export function canUseStudioModel(spec: string, gptEnabled = false): boolean {
   const { provider } = parseModelSpec(spec)
@@ -277,10 +383,25 @@ export function selectStudioModel(
   requested?: string,
   saved?: string,
 ): string {
-  if (requested !== undefined && !models.some(m => m.spec === requested)) {
+  const availableSpecs = models.map(m => m.spec)
+  const resolveInput = (value?: string): string | undefined => {
+    if (value === undefined) return undefined
+    const lower = value.trim().toLowerCase()
+    if (['low', 'medium', 'high', 'max', 'ultra'].includes(lower)) {
+      return resolveTierModelSpec(lower as StudioModelTier, availableSpecs) ?? undefined
+    }
+    return value
+  }
+  const resolvedRequested = resolveInput(requested)
+  if (
+    requested !== undefined &&
+    (!resolvedRequested || !models.some(m => m.spec === resolvedRequested))
+  ) {
     throw Object.assign(new Error('This model is not available for your account'), { status: 403 })
   }
-  const spec = requested ?? models.find(m => m.spec === saved)?.spec ?? models[0]?.spec
+  const resolvedSaved = resolveInput(saved)
+  const spec =
+    resolvedRequested ?? models.find(m => m.spec === resolvedSaved)?.spec ?? models[0]?.spec
   if (!spec) throw Object.assign(new Error('No studio models are available'), { status: 503 })
   return spec
 }

@@ -44,7 +44,7 @@ import { PitchWordmark } from '../public/brand'
 import { DISCORD_INVITE_URL } from '../public/socials'
 import { useBrowserProfile } from '../studio/useBrowserProfile'
 import { DiscordOfferModal } from './DiscordOfferModal'
-import { ModelCatalog } from './ModelCatalog'
+import { ModelCatalog, tierLabelForModel } from './ModelCatalog'
 import { NewProjectAttachment } from './NewProjectAttachment'
 import { NewProjectPreferences } from './NewProjectPreferences'
 import { SelectedSkillMode, SKILLS, type Skill, SkillPicker } from './NewProjectSkillPicker'
@@ -111,7 +111,7 @@ export function NewProjectView(props: {
   let referenceInput!: HTMLInputElement
   let textarea!: HTMLTextAreaElement
   const activeSkill = createMemo(() => SKILLS.find(item => item.id === skill()))
-  const selectedModel = createMemo(() => models().find(item => item.spec === model()))
+  const selectedModelLabel = createMemo(() => tierLabelForModel(models(), model()))
   // A job starts on any balance that covers the server's minimum (MIN_BALANCE
   // in projects/usage.ts) and runs until it reaches zero, so the estimate is
   // never a gate.
@@ -551,7 +551,7 @@ export function NewProjectView(props: {
                     triggerClass="new-model-trigger"
                     trigger={
                       <>
-                        <span>{selectedModel()?.label ?? 'Model'}</span>
+                        <span>{selectedModelLabel()}</span>
                         <ChevronDown size={14} />
                       </>
                     }

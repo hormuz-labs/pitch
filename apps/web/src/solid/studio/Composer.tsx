@@ -9,7 +9,7 @@ import {
   UPLOAD_LIMITS_LABEL,
 } from '../../lib/attachments'
 import { firstUrlInText, isAuthenticatedFor } from '../../lib/authOrigins'
-import { ModelCatalog } from '../account/ModelCatalog'
+import { ModelCatalog, tierLabelForModel } from '../account/ModelCatalog'
 import { ComposerShell } from '../common/ComposerShell'
 import { CreditMarker } from './CreditMarker'
 import { studio } from './client'
@@ -179,20 +179,9 @@ export function Composer(props: {
     promptUrl() !== dismissed() &&
     !profile.loading() &&
     !isAuthenticatedFor(promptUrl(), profile.origins())
-  const selectedModel = () => models().find(m => m.spec === (s.model ?? defaultModel()))
-  const activeModelLabel = () => {
-    const spec = s.activeModel ?? s.model ?? defaultModel()
-    if (!spec) return 'Model'
-    return (
-      models().find(model => model.spec === spec)?.label ??
-      spec
-        .split('/')
-        .at(-1)!
-        .split('-')
-        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ')
-    )
-  }
+  const selectedModelLabel = () => tierLabelForModel(models(), s.model ?? defaultModel())
+  const activeModelLabel = () =>
+    tierLabelForModel(models(), s.activeModel ?? s.model ?? defaultModel())
   const send = async (delivery?: 'queue' | 'steer') => {
     const text = s.draft.trim()
     if (!text || uploading()) return
@@ -312,7 +301,7 @@ export function Composer(props: {
                   aria-haspopup="listbox"
                   aria-expanded={modelOpen()}
                 >
-                  <span>{selectedModel()?.label ?? 'Model'}</span>
+                  <span>{selectedModelLabel()}</span>
                   <ChevronDown size={12} />
                 </button>
                 <Show when={modelOpen()}>

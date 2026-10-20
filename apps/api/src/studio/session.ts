@@ -42,6 +42,7 @@ import { abortHostActions } from './host-actions.js'
 import {
   assembleStudioPicker,
   DEFAULT_STUDIO_MODEL,
+  fallbackStudioModel,
   type PickerModel,
   parseModelSpec,
   studioModelSpecs,
@@ -1039,6 +1040,18 @@ function updateEntry(s: Session, entry: Entry): void {
   emit(s, { type: 'update', entry })
 }
 
+async function runnableSpecsForSession(): Promise<string[]> {
+  if (!modelRuntime) return []
+  const specs: string[] = []
+  for (const spec of ALLOWED_SPECS) {
+    const { provider, id } = parseModelSpec(spec)
+    if (modelRuntime.getModel(provider, id) && providerIsRunnable(provider)) {
+      specs.push(spec)
+    }
+  }
+  return specs
+}
+
 async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
   s.active = request
   // setBusy() runs just before runPrompt(), so publish the model once the
@@ -1046,6 +1059,10 @@ async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
   emit(s, { type: 'status', busy: true, activeModel: request.model ?? null })
   let failed = false
   try {
+    let currentSpec =
+      request.model ??
+      (s.session.model ? `${s.session.model.provider}/${s.session.model.id}` : MODEL_SPEC)
+    const initialSpec = currentSpec
     if (request.model) await applyModel(s, request.model)
     request.entry.checkpointId ??= await createWorkspaceCheckpoint(
       s.ws.dir,
@@ -1061,7 +1078,23 @@ async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
       : request.text
     s.pendingBindings.push(request.entry)
     s.modelError = null
+    const triedSpecs = new Set<string>([currentSpec])
     await s.session.prompt(full)
+    while (s.modelError && !s.stopping) {
+      const nextSpec = fallbackStudioModel(initialSpec, await runnableSpecsForSession(), triedSpecs)
+      if (!nextSpec) break
+      logger.warn(
+        { projectId: s.projectId, from: currentSpec, to: nextSpec, error: s.modelError },
+        'primary model in tier failed; falling back to next model in tier',
+      )
+      triedSpecs.add(nextSpec)
+      currentSpec = nextSpec
+      request.model = nextSpec
+      s.modelError = null
+      await applyModel(s, nextSpec)
+      emit(s, { type: 'status', busy: true, activeModel: nextSpec })
+      await s.session.prompt(full)
+    }
     if (s.modelError) {
       logger.error({ projectId: s.projectId, error: s.modelError }, 'model call failed')
       emit(s, { type: 'error', message: s.modelError })
