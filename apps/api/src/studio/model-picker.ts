@@ -8,6 +8,7 @@ import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/rates.js'
  */
 
 export const GEMINI_38_FLASH_SPEC = 'google/gemini-3.8-flash'
+export const GEMINI_4_ARGON_SPEC = 'google/gemini-4-argon'
 export const GEMINI_31_PRO_SPEC = 'google/gemini-3.1-pro-preview'
 
 export const GPT_54_SPEC = 'openai/gpt-5.4'
@@ -23,6 +24,7 @@ export const AZURE_ASTRA_SPEC = 'azure-apim/gpt-6-astra'
 /** Menu order. The first runnable entry is also the studio default. */
 export const DEFAULT_STUDIO_MODELS = [
   GEMINI_38_FLASH_SPEC,
+  GEMINI_4_ARGON_SPEC,
   GEMINI_31_PRO_SPEC,
   GPT_54_MINI_SPEC,
   GPT_54_SPEC,
@@ -40,6 +42,7 @@ export const DEFAULT_STUDIO_MODEL = GEMINI_38_FLASH_SPEC
 /** Relative credit price for a turn, independent of the provider's token price. */
 export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
   [GEMINI_38_FLASH_SPEC]: 1,
+  [GEMINI_4_ARGON_SPEC]: 2,
   [GEMINI_31_PRO_SPEC]: 2,
   [GPT_54_MINI_SPEC]: 1,
   [GPT_54_SPEC]: 2,
@@ -55,6 +58,7 @@ export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
 /** Display names; the public pricing table quotes these (tests/model-credit-rates.test.ts). */
 export const STUDIO_MODEL_LABELS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Gemini 3.8 Flash',
+  [GEMINI_4_ARGON_SPEC]: 'Gemini 4 Argon',
   [GEMINI_31_PRO_SPEC]: 'Gemini 3.1 Pro',
   [GPT_54_SPEC]: 'GPT-5.4',
   [GPT_54_MINI_SPEC]: 'GPT-5.4 mini',
@@ -70,6 +74,7 @@ export const STUDIO_MODEL_LABELS: Record<string, string> = {
 /** One-line descriptions for the public pricing table. */
 export const STUDIO_MODEL_DETAILS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Fast multimodal production',
+  [GEMINI_4_ARGON_SPEC]: 'Frontier multimodal reasoning and production',
   [GEMINI_31_PRO_SPEC]: 'Complex multimodal projects',
   [GPT_54_MINI_SPEC]: 'Fast everyday production',
   [GPT_54_SPEC]: 'Complex planning and execution',
@@ -278,19 +283,19 @@ export const STUDIO_MODEL_TIERS: readonly StudioTierConfig[] = [
     tier: 'low',
     label: 'Low',
     description: 'Fast, economical drafts and lightweight edits.',
-    models: [AZURE_LUNA_SPEC, GPT_54_MINI_SPEC, GEMINI_38_FLASH_SPEC],
+    models: [AZURE_LUNA_SPEC, GEMINI_38_FLASH_SPEC, GPT_54_MINI_SPEC],
   },
   {
     tier: 'medium',
     label: 'Medium',
     description: 'Balanced speed and quality for everyday production.',
-    models: [AZURE_TERRA_SPEC, GPT_54_MINI_SPEC, GEMINI_38_FLASH_SPEC],
+    models: [GEMINI_38_FLASH_SPEC, AZURE_TERRA_SPEC, GPT_54_MINI_SPEC],
   },
   {
     tier: 'high',
     label: 'High',
     description: 'Detailed planning for complex, multi-step projects.',
-    models: [GEMINI_38_FLASH_SPEC, AZURE_GPT_55_SPEC, GPT_54_SPEC, AZURE_TERRA_SPEC],
+    models: [GEMINI_4_ARGON_SPEC, AZURE_TERRA_SPEC, GPT_54_SPEC, GEMINI_38_FLASH_SPEC],
   },
   {
     tier: 'max',
@@ -301,23 +306,24 @@ export const STUDIO_MODEL_TIERS: readonly StudioTierConfig[] = [
       AZURE_GPT_6_SOL_SPEC,
       AZURE_SOL_SPEC,
       AZURE_GPT_55_SPEC,
+      GEMINI_4_ARGON_SPEC,
       GPT_54_SPEC,
-      GEMINI_38_FLASH_SPEC,
     ],
   },
   {
     tier: 'ultra',
     label: 'Ultra',
     description: 'Maximum capability for demanding films and demos.',
-    models: [AZURE_ASTRA_SPEC, AZURE_GPT_55_SPEC, AZURE_GPT_61_SOL_SPEC, GEMINI_38_FLASH_SPEC],
+    models: [AZURE_ASTRA_SPEC, AZURE_GPT_55_SPEC, AZURE_GPT_61_SOL_SPEC, GEMINI_4_ARGON_SPEC],
   },
 ]
 
 const PRIMARY_TIER_BY_SPEC: Record<string, StudioModelTier> = {
   [AZURE_LUNA_SPEC]: 'low',
+  [GEMINI_38_FLASH_SPEC]: 'medium',
   [GPT_54_MINI_SPEC]: 'medium',
   [AZURE_TERRA_SPEC]: 'medium',
-  [GEMINI_38_FLASH_SPEC]: 'high',
+  [GEMINI_4_ARGON_SPEC]: 'high',
   [GEMINI_31_PRO_SPEC]: 'high',
   [GPT_54_SPEC]: 'high',
   [AZURE_GPT_55_SPEC]: 'max',

@@ -13,6 +13,7 @@ import {
   DEFAULT_TYPICAL_TURN,
   estimatedModelCredits,
   fallbackStudioModel,
+  GEMINI_4_ARGON_SPEC,
   GEMINI_31_PRO_SPEC,
   GEMINI_38_FLASH_SPEC,
   GPT_54_MINI_SPEC,
@@ -377,23 +378,23 @@ describe('assembleStudioPicker', () => {
 
   it('resolves capability tiers (low, medium, high, max, ultra) and falls back within a tier on error', () => {
     const highTier = STUDIO_MODEL_TIERS.find(t => t.tier === 'high')
-    expect(highTier?.models).toContain(GEMINI_38_FLASH_SPEC)
+    expect(highTier?.models[0]).toBe(GEMINI_4_ARGON_SPEC)
 
-    // High tier primary is Gemini 3.8 Flash; if it fails or hits a rate limit,
-    // fallbackStudioModel picks the next runnable model in High (e.g. GPT-5.5 / GPT-5.4 / Terra).
-    const runnable = [GEMINI_38_FLASH_SPEC, AZURE_GPT_55_SPEC, AZURE_TERRA_SPEC]
+    // High tier primary is Gemini 4 Argon; if it fails or hits a rate limit,
+    // fallbackStudioModel picks the next runnable model in High (Terra -> GPT-5.4 -> Gemini 3.8 Flash).
+    const runnable = [GEMINI_4_ARGON_SPEC, AZURE_TERRA_SPEC, GPT_54_SPEC, GEMINI_38_FLASH_SPEC]
     const firstFallback = fallbackStudioModel(
-      GEMINI_38_FLASH_SPEC,
+      GEMINI_4_ARGON_SPEC,
       runnable,
-      new Set([GEMINI_38_FLASH_SPEC]),
+      new Set([GEMINI_4_ARGON_SPEC]),
     )
-    expect(firstFallback).toBe(AZURE_GPT_55_SPEC)
+    expect(firstFallback).toBe(AZURE_TERRA_SPEC)
 
     const secondFallback = fallbackStudioModel(
-      GEMINI_38_FLASH_SPEC,
+      GEMINI_4_ARGON_SPEC,
       runnable,
-      new Set([GEMINI_38_FLASH_SPEC, AZURE_GPT_55_SPEC]),
+      new Set([GEMINI_4_ARGON_SPEC, AZURE_TERRA_SPEC]),
     )
-    expect(secondFallback).toBe(AZURE_TERRA_SPEC)
+    expect(secondFallback).toBe(GPT_54_SPEC)
   })
 })

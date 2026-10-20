@@ -86,6 +86,22 @@
             "medium": "medium",
             "high": "high"
           }
+        },
+        {
+          "id": "gemini-4-argon",
+          "name": "Gemini 4 Argon",
+          "api": "google-generative-ai",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 2, "output": 10, "cacheRead": 0.1, "cacheWrite": 0 },
+          "contextWindow": 1048576,
+          "maxTokens": 65536,
+          "thinkingLevelMap": {
+            "off": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high"
+          }
         }
       ]
     }
