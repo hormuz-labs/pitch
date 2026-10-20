@@ -27,7 +27,7 @@ const columns: Footer15Column[] = [
     links: [
       { label: 'About Us', href: '/about' },
       { label: 'Blog', href: '/blog' },
-      { label: 'Contact', href: 'mailto:support@trypitch.co' },
+      { label: 'support@trypitch.co', href: 'mailto:support@trypitch.co' },
     ],
   },
   {

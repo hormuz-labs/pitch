@@ -67,6 +67,20 @@ describe('describeWorkspace', () => {
     write(ws, 'renders/__intermediate.mp4')
     expect((await describeWorkspace(ws)).preview).toBeNull()
   })
+
+  it('ignores un-muxed silent demo capture masters until a synchronized source is built', async () => {
+    const ws = workspace()
+    write(ws, 'recording/demo.mkv')
+    write(ws, 'recording/demo.mkv.capture.mkv')
+    write(ws, 'recording/demo.webm')
+    expect((await describeWorkspace(ws)).preview).toBeNull()
+
+    write(ws, 'recording/source-abc123.mp4')
+    expect((await describeWorkspace(ws)).preview).toEqual({
+      kind: 'video',
+      url: expect.stringContaining('recording/source-abc123.mp4'),
+    })
+  })
 })
 
 describe('RELEVANT', () => {
@@ -74,9 +88,13 @@ describe('RELEVANT', () => {
     for (const rel of [
       'deck.html',
       'index.html',
+      'shots.js',
       'js/shots.js',
+      'audio/mix.wav',
+      'audio/vo.wav',
       'renders/demo-1.mp4',
       'recording/upload.mp4',
+      'recording/source-123.mp4',
       'recording/live.json',
       'recording/browser.json',
       'build/output.pdf',

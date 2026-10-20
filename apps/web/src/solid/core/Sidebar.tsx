@@ -1,6 +1,7 @@
 import { A, useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
+  CircleHelp,
   FileText,
   MoreHorizontal,
   PanelLeftClose,
@@ -269,6 +270,14 @@ export function Sidebar(props: {
           >
             <AppWindow size={16} />
             <span>Browser sessions</span>
+          </button>
+          <button
+            type="button"
+            class="conversation-sidebar__row"
+            onClick={() => props.openSettings('support')}
+          >
+            <CircleHelp size={16} />
+            <span>Help &amp; support</span>
           </button>
           <Show when={props.isAdmin}>
             <button

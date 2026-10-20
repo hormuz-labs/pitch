@@ -184,7 +184,24 @@ export function AppShell(props: ParentProps) {
 
   onMount(() => {
     const settings = new URLSearchParams(window.location.search).get('settings')
-    if (settings === 'connections') setSettingsSection('connections')
+    if (
+      settings &&
+      [
+        'profile',
+        'notifications',
+        'plans',
+        'usage',
+        'credits',
+        'rewards',
+        'connections',
+        'mcp',
+        'api',
+        'support',
+        'account',
+      ].includes(settings)
+    ) {
+      setSettingsSection(settings as SettingsSection)
+    }
     captureRefFromUrl()
     const resize = () => {
       const mobile = window.innerWidth < 1024

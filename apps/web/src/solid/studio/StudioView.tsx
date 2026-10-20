@@ -23,6 +23,8 @@ import {
   Show,
   Switch,
 } from 'solid-js'
+import { useAppShell } from '../core/AppShell'
+import { recordAppError } from '../core/analytics'
 import { AdminReviewBar } from './AdminReviewBar'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
@@ -565,6 +567,7 @@ export function Actions(
 }
 export function StudioView(props: { projectId: string; admin?: boolean }) {
   const s = useProject(props.projectId, { admin: props.admin }),
+    { openSettings } = useAppShell(),
     navigate = useNavigate(),
     chatId = createUniqueId(),
     previewId = createUniqueId(),
@@ -872,6 +875,16 @@ export function StudioView(props: { projectId: string; admin?: boolean }) {
                       }
                       onAnswer={s.readOnly ? undefined : s.send}
                       onEdit={s.readOnly ? undefined : entry => void s.rollback(entry)}
+                      onReportIssue={
+                        s.readOnly
+                          ? undefined
+                          : entry => {
+                              recordAppError('studio_turn', entry.text, {
+                                projectId: props.projectId,
+                              })
+                              openSettings('support')
+                            }
+                      }
                     />
                   </Show>
                 </div>

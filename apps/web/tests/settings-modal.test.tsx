@@ -43,6 +43,7 @@ import { SettingsModal, type SettingsSection } from '../src/solid/account/Settin
 import { BuyCreditsSection } from '../src/solid/account/settings/BuyCreditsSection'
 import { PlansSection } from '../src/solid/account/settings/PlansSection'
 import { UsageSection } from '../src/solid/account/settings/UsageSection'
+import { clearRecentAppErrors, posthog, recordAppError } from '../src/solid/core/analytics'
 
 const summary = {
   balance: 4200,
@@ -120,6 +121,52 @@ describe('settings modal UI', () => {
     )
     expect(screen.getByRole('link', { name: /Join our Discord/ })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Read the documentation/ })).toBeTruthy()
+    expect(screen.getByText('Report an issue')).toBeTruthy()
+  })
+
+  it('captures issue reports and recent session errors to PostHog', async () => {
+    clearRecentAppErrors()
+    const capture = vi.spyOn(posthog, 'capture').mockImplementation(() => undefined as never)
+    recordAppError('studio_turn', 'Voiceover synthesis timed out on scene 3', {
+      projectId: 'proj_123',
+    })
+
+    render(() => <ModalHarness initial="support" />)
+
+    expect(screen.getByText(/1 recent error captured in this session/)).toBeTruthy()
+    expect(screen.getByText('Voiceover synthesis timed out on scene 3')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Issue category'), { target: { value: 'video' } })
+    fireEvent.input(screen.getByLabelText('Describe the issue'), {
+      target: { value: 'Video stopped halfway and had no voiceover.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Send report/ }))
+
+    expect(capture).toHaveBeenCalledWith(
+      'issue_reported',
+      expect.objectContaining({
+        category: 'video',
+        message: 'Video stopped halfway and had no voiceover.',
+        user_email: 'ada@example.com',
+        recent_error_count: 1,
+        latest_error: 'Voiceover synthesis timed out on scene 3',
+      }),
+    )
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenCalledWith(
+        '/users/issues',
+        'token',
+        expect.objectContaining({
+          category: 'video',
+          message: 'Video stopped halfway and had no voiceover.',
+          userEmail: 'ada@example.com',
+        }),
+      ),
+    )
+    expect(
+      screen.getByText(/Report sent\. Your issue and session diagnostics have been logged/),
+    ).toBeTruthy()
+    capture.mockRestore()
   })
 
   it('renders rewards as three distinct, actionable regions', async () => {

@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router'
-import { Code, CreditCard, ExternalLink, Mail, User, Webhook, X } from 'lucide-solid'
+import { CircleHelp, Code, CreditCard, User, Webhook, X } from 'lucide-solid'
 import { createSignal, For, onMount, Show, Suspense } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
@@ -15,6 +15,7 @@ import { PlansSection } from './settings/PlansSection'
 import { ProfileSection } from './settings/ProfileSection'
 import { RewardsSection } from './settings/RewardsSection'
 import { SocialSection } from './settings/SocialSection'
+import { SupportSection } from './settings/SupportSection'
 import { UsageSection } from './settings/UsageSection'
 import '../../styles/settings-modal.css'
 
@@ -41,12 +42,13 @@ interface Summary {
     projects: Array<{ id: string; title: string; creditsCharged: number; updatedAt: string }>
   }
 }
-type Tab = 'profile' | 'billing' | 'api' | 'webhooks'
+type Tab = 'profile' | 'billing' | 'api' | 'webhooks' | 'support'
 const tabs = [
   { value: 'profile', label: 'My Profile' },
   { value: 'billing', label: 'Billing & Credits' },
   { value: 'api', label: 'API & MCP' },
   { value: 'webhooks', label: 'Webhooks' },
+  { value: 'support', label: 'Help & Support' },
 ]
 
 export function SettingsView() {
@@ -96,8 +98,10 @@ export function SettingsView() {
                   <CreditCard size={16} />
                 ) : item.value === 'api' ? (
                   <Code size={16} />
-                ) : (
+                ) : item.value === 'webhooks' ? (
                   <Webhook size={16} />
+                ) : (
+                  <CircleHelp size={16} />
                 )}{' '}
                 {item.label}
               </button>
@@ -149,6 +153,9 @@ export function SettingsView() {
           </Show>
           <Show when={tab() === 'webhooks'}>
             <WebhookManager />
+          </Show>
+          <Show when={tab() === 'support'}>
+            <SupportSection />
           </Show>
         </div>
       </main>
@@ -517,36 +524,7 @@ export function SettingsModal(props: {
                 <ApiKeysView embedded />
               </Show>
               <Show when={props.section === 'support'}>
-                <section class="settings-card settings-support-panel">
-                  <div class="settings-support-panel__heading">
-                    <strong>Help &amp; support</strong>
-                    <small>Get help, share feedback, or reach the Pitch team.</small>
-                    <a class="settings-primary" href="mailto:support@trypitch.co">
-                      <Mail size={14} />
-                      Contact support
-                    </a>
-                  </div>
-                  <div class="settings-support">
-                    <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
-                      <span>
-                        <strong>Join our Discord</strong>
-                        <small>Chat with the community and get fast answers.</small>
-                      </span>
-                      <ExternalLink size={14} />
-                    </a>
-                    <a href="/docs" target="_blank" rel="noopener">
-                      <span>
-                        <strong>Read the documentation</strong>
-                        <small>Find guides for the API, MCP, and studio.</small>
-                      </span>
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
-                  <p class="settings-support-panel__footer">
-                    Prefer email? Reach us at{' '}
-                    <a href="mailto:support@trypitch.co">support@trypitch.co</a>.
-                  </p>
-                </section>
+                <SupportSection />
               </Show>
               <Show when={props.section === 'account'}>
                 <AccountSection onClose={props.onClose} />

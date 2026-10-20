@@ -17,6 +17,7 @@ import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
 import { Dynamic, Portal } from 'solid-js/web'
 import tabLogoB from '../../assets/tabLogoB.svg'
 import { type Block, DOC_PAGES, findPage } from '../../docs/pages'
+import { IssueReportCard } from '../account/settings/SupportSection'
 import { Seo } from '../core/Seo'
 import { useTheme } from '../core/theme'
 import { PitchLogoAnimation } from './brand'
@@ -24,6 +25,7 @@ import { highlight } from './highlight'
 import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 import '../../styles/docs.css'
+import '../../styles/settings-modal.css'
 
 const anchor = (s: string) =>
   s
@@ -189,6 +191,7 @@ export const DocsView = (props: { slug?: string }) => {
                   <A href="/docs/getting-started">Guide</A>
                   <A href="/docs/mcp">AI Agents (MCP)</A>
                   <A href="/docs/api">API Reference</A>
+                  <A href="/docs/help">Help &amp; Support</A>
                   <a href="/llms.txt" target="_blank" rel="external noreferrer">
                     LLMs
                   </a>
@@ -331,11 +334,30 @@ export const DocsView = (props: { slug?: string }) => {
                     </div>
                   )}
                 </For>
+                <div class="docs-side-group">
+                  <p class="docs-side-title">Support</p>
+                  <a class="docs-side-link" href="mailto:support@trypitch.co">
+                    support@trypitch.co
+                  </a>
+                  <a
+                    class="docs-side-link"
+                    href="https://discord.gg/a4SBW36mD"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Discord community
+                  </a>
+                </div>
               </aside>
               <main class="docs-body">
                 <p class="lb-chy">{p().group}</p>
                 <h1>{p().title}</h1>
                 <p class="docs-lede">{p().lede}</p>
+                <Show when={p().slug === 'help'}>
+                  <div style={{ 'margin-top': '28px' }}>
+                    <IssueReportCard />
+                  </div>
+                </Show>
                 <For each={p().blocks}>{b => <BlockView block={b} />}</For>
                 <nav class="docs-pager">
                   {pages[index - 1] ? (

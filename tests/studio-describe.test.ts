@@ -139,3 +139,29 @@ describe('asset storyboard discovery', () => {
     expect(description.extra?.storyboard).toBeUndefined()
   })
 })
+
+describe('launch film audio fallback before mixdown', () => {
+  it('prefers shots.js audio.vo or vo.wav over music.mp3 and sfx_bus.wav when mix.wav is missing', async () => {
+    const ws = workspace({
+      'index.html': '<!doctype html><script src="shots.js"></script>',
+      'shots.js':
+        'window.SHOTS = { audio: { vo: "audio/vo.wav" }, shots: [{ id: "a", type: "word-cut", dur: 2 }] }',
+      'audio/music.mp3': 'music',
+      'audio/sfx_bus.wav': 'sfx',
+      'audio/vo.wav': 'voiceover',
+    })
+    const description = await describeWorkspace(ws)
+    expect(description.audioUrl).toContain('audio/vo.wav')
+  })
+
+  it('prefers audio/vo.wav over audio/music.mp3 even before shots.js sets audio.vo', async () => {
+    const ws = workspace({
+      ...FILM,
+      'audio/music.mp3': 'music',
+      'audio/sfx_bus.wav': 'sfx',
+      'audio/vo.wav': 'voiceover',
+    })
+    const description = await describeWorkspace(ws)
+    expect(description.audioUrl).toContain('audio/vo.wav')
+  })
+})

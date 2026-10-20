@@ -143,8 +143,30 @@ export async function describeLaunch(
     const files = await readdir(audioDir).catch(() => [] as string[])
     if (files.includes('mix.wav')) audioUrl = fileUrl(ws.internal, 'audio/mix.wav')
     else {
-      const pick = files.find(f => /\.(wav|mp3|m4a|aac|ogg)$/i.test(f) && !f.startsWith('.'))
-      if (pick) audioUrl = fileUrl(ws.internal, `audio/${pick}`)
+      let voFromShots: string | null = null
+      const shotsPath = path.join(dir, 'shots.js')
+      if (existsSync(shotsPath)) {
+        try {
+          const spec = evalShots(await readFile(shotsPath, 'utf8'))
+          const rel = typeof spec?.audio?.vo === 'string' ? spec.audio.vo.replace(/^\.\//, '') : ''
+          if (rel && !rel.startsWith('/') && !rel.split('/').includes('..')) {
+            if (existsSync(path.join(dir, rel))) voFromShots = rel
+          }
+        } catch {}
+      }
+      if (voFromShots) {
+        audioUrl = fileUrl(ws.internal, voFromShots)
+      } else {
+        const playable = files.filter(
+          f =>
+            /\.(wav|mp3|m4a|aac|ogg)$/i.test(f) &&
+            !f.startsWith('.') &&
+            !/^(sfx_bus|.*_bus|voice_sfx)\./i.test(f),
+        )
+        const voPick = playable.find(f => /^(vo|narration)([._-].*)?\./i.test(f))
+        const pick = voPick ?? playable[0]
+        if (pick) audioUrl = fileUrl(ws.internal, `audio/${pick}`)
+      }
     }
   }
 

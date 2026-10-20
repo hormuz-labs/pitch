@@ -189,6 +189,7 @@ export function Thread(props: {
   busy: boolean
   onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
+  onReportIssue?: (entry: Entry) => void
   /** URL of a workspace still, for proposed directions on a question card. */
   stillUrl?: (path: string) => string | null
 }) {
@@ -216,6 +217,15 @@ export function Thread(props: {
                         {e.role === 'assistant' ? (
                           <div class="msg assistant md">
                             <AgentMarkdown text={e.text} />
+                            <Show when={props.onReportIssue && e.text.trim().startsWith('⚠')}>
+                              <button
+                                type="button"
+                                class="message-report-issue"
+                                onClick={() => props.onReportIssue?.(e)}
+                              >
+                                Report issue
+                              </button>
+                            </Show>
                           </div>
                         ) : (
                           <div class="user-message">

@@ -1,5 +1,6 @@
 import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { attachmentLimitError } from '../../lib/attachments'
+import { recordAppError } from '../core/analytics'
 import { useAuth } from '../core/auth'
 import {
   adminMediaPath,
@@ -214,8 +215,11 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
         void refreshAssets()
         break
       case 'preview':
-        if (!ev.ok) setPreviewNote(ev.error ?? 'the preview does not load')
-        else {
+        if (!ev.ok) {
+          const msg = ev.error ?? 'the preview does not load'
+          setPreviewNote(msg)
+          recordAppError('studio_preview', msg, { projectId: id })
+        } else {
           setPreviewNote(null)
           previewRefresh.request(true)
         }
@@ -225,6 +229,7 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
         break
       case 'error':
         entryRevision++
+        recordAppError('studio_turn', ev.message, { projectId: id })
         setEntries(v => [
           ...v,
           { id: `err-${Date.now()}`, role: 'assistant', text: `⚠ ${ev.message}` },
@@ -298,6 +303,12 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
         if (st.stage === 'done') {
           if (st.url) download(st.url, exportFilename(st, project()?.title))
           await refresh()
+        } else if (st.stage === 'failed' && st.error) {
+          recordAppError('studio_export', st.error, {
+            projectId: id,
+            format: st.format,
+            res: st.res,
+          })
         }
       }
     } catch {
@@ -467,6 +478,7 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
     } catch (err: any) {
       if (!wasBusy) setBusy(false)
       setDraft(current => current || text)
+      recordAppError('studio_prompt', err?.message ?? 'Could not send', { projectId: id })
       setEntries(v => [
         ...v.filter(entry => entry.id !== localEntryId),
         {
@@ -490,6 +502,15 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
           void refresh()
         }
       } catch (err: any) {
+        const errorText =
+          err?.status === 402
+            ? 'Not enough credits for this resolution'
+            : String(err?.message ?? err)
+        recordAppError('studio_export', errorText, {
+          projectId: id,
+          format: body.format,
+          res: body.res,
+        })
         setExportStatus({
           running: false,
           format: body.format,
@@ -497,10 +518,7 @@ export function useProject(id: string | undefined, opts: { admin?: boolean } = {
           url: null,
           progress: 0,
           stage: 'failed',
-          error:
-            err?.status === 402
-              ? 'Not enough credits for this resolution'
-              : String(err?.message ?? err),
+          error: errorText,
           startedAt: null,
           finishedAt: null,
         })

@@ -21,7 +21,7 @@ import { fileUrl, type Workspace } from '../studio/paths.js'
 /** Media the studio can preview, newest first. */
 const VIDEO_RE = /\.(mp4|webm|mov|mkv)$/i
 const PDF_RE = /\.pdf$/i
-const INTERMEDIATE_RE = /^(raw\.|__)/
+const INTERMEDIATE_RE = /^(raw\.|__|demo\.(mkv|webm)$|.*\.capture\.mkv$)/i
 
 interface Found {
   rel: string
@@ -256,4 +256,4 @@ export async function describeWorkspace(ws: Workspace): Promise<Description> {
 
 /** Workspace-relative paths whose change means "the preview changed". */
 export const RELEVANT =
-  /^(index\.html|deck\.html|js\/shots(\.custom)?\.js|audio\/mix\.wav|recording\/(live|browser|demo-state|demo-config)\.json|recording\/upload\.[a-z0-9]+|renders\/.+|build\/output\.(html|pdf)|storyboard\.json|uploads\/[^/]+\.pdf|[^/]+\.(mp4|webm|mov|mkv))$/
+  /^(index\.html|deck\.html|(js\/)?shots(\.custom)?\.js|js\/[^/]+\.js|js\/shots\/[^/]+\.js|css\/[^/]+\.css|css\/shots\/[^/]+\.css|audio\/[^/]+\.(wav|mp3|m4a|aac|ogg)|recording\/(live|browser|demo-state|demo-config)\.json|recording\/(upload|source-[^/]+)\.[a-z0-9]+|renders\/.+|build\/output\.(html|pdf)|storyboard\.json|uploads\/[^/]+\.pdf|[^/]+\.(mp4|webm|mov|mkv))$/

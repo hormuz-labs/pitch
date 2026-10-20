@@ -148,4 +148,20 @@ describe('SidebarAccountMenu', () => {
     await waitFor(() => expect(readOlder).toHaveBeenCalled())
     expect(screen.getByRole('menuitem', { name: /Credits/ }).textContent).toContain('2,000')
   })
+
+  it('opens Help & support in settings and links to Docs separately', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ balance: 0, activeSubscription: null }))),
+    )
+    const openSettings = vi.fn()
+    render(() => <SidebarAccountMenu openSettings={openSettings} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open account menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Help & support/ }))
+    expect(openSettings).toHaveBeenCalledWith('support')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open account menu' }))
+    expect(screen.getByText('Docs').closest('a')?.getAttribute('href')).toBe('/docs')
+  })
 })

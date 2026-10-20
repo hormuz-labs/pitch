@@ -7,6 +7,11 @@ import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import { type Request, type Response, Router } from 'express'
 import { CREDITS_PER_VIDEO } from '../config.js'
+import {
+  deleteIssueReport,
+  listIssueReports,
+  updateIssueReportStatus,
+} from '../lib/issue-reports.js'
 import { requireAuth } from '../middleware/auth.js'
 import { IDLE_EXPORT } from '../projects/export.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
@@ -85,11 +90,13 @@ router.get('/dashboard', async (_req, res) => {
       orderBy: { createdAt: 'desc' },
     })
     const revenueAgg = await db.prisma.topUpPurchase.aggregate({ _sum: { amountUsd: true } })
-    const [totalProjects, failedProjects, busyRows] = await Promise.all([
+    const [totalProjects, failedProjects, busyRows, userIssues] = await Promise.all([
       db.prisma.project.count(),
       db.prisma.project.count({ where: { lastError: { not: null } } }),
       db.prisma.project.findMany({ where: { busyAt: { not: null } } }),
+      listIssueReports().catch(() => []),
     ])
+    const openUserIssues = userIssues.filter(issue => issue.status === 'open').length
     const busy = await busyProjects(busyRows.map(parseRow))
 
     const usersData = users.map(u => {
@@ -119,7 +126,7 @@ router.get('/dashboard', async (_req, res) => {
       stats: {
         activeSessions: busy.size,
         totalProjects,
-        failedProjects,
+        failedProjects: failedProjects + openUserIssues,
         totalUsers: users.length,
         totalRevenue: revenueAgg._sum?.amountUsd ?? 0,
       },
@@ -1070,6 +1077,108 @@ router.post('/newsletter/send', async (req, res) => {
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to send newsletter broadcast')
     res.status(500).json({ error: 'Failed to send newsletter broadcast' })
+  }
+})
+
+// ── User-submitted issue reports ─────────────────────────────────────────────
+
+router.get('/issues', async (_req, res) => {
+  try {
+    const [reported, errorProjects] = await Promise.all([
+      listIssueReports(),
+      db.prisma.project.findMany({
+        where: { lastError: { not: null } },
+        orderBy: { updatedAt: 'desc' },
+        take: 100,
+      }),
+    ])
+    const ownerIds = [...new Set(errorProjects.map(p => p.userId))]
+    const owners = ownerIds.length
+      ? await db.prisma.userProfile.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, email: true, firstName: true, lastName: true },
+        })
+      : []
+    const ownerMap = new Map(owners.map(o => [o.id, o]))
+    const projectIssues = errorProjects.map(p => {
+      const owner = ownerMap.get(p.userId)
+      const userName = [owner?.firstName, owner?.lastName].filter(Boolean).join(' ').trim() || null
+      return {
+        id: `proj_err_${p.id}`,
+        userId: p.userId,
+        userEmail: owner?.email ?? null,
+        userName,
+        category: 'project_error',
+        message: `${p.title || 'Untitled project'}: ${p.lastError}`,
+        projectId: p.id,
+        pageUrl: `/p/${p.id}`,
+        recentErrors: [
+          {
+            source: 'project_last_error',
+            message: String(p.lastError),
+            projectId: p.id,
+            at: p.updatedAt.toISOString(),
+          },
+        ],
+        screenshotName: null,
+        screenshotDataUrl: null,
+        sessionReplayUrl: null,
+        status: 'open' as const,
+        createdAt: p.updatedAt.toISOString(),
+      }
+    })
+    const issues = [...reported, ...projectIssues].sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+    )
+    res.json({ issues })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to list issue reports')
+    res.status(500).json({ error: 'Failed to load issue reports' })
+  }
+})
+
+router.patch('/issues/:id', async (req, res) => {
+  const status =
+    req.body?.status === 'resolved' ? 'resolved' : req.body?.status === 'open' ? 'open' : null
+  if (!status) {
+    return res.status(400).json({ error: 'status must be "open" or "resolved"' })
+  }
+  try {
+    if (req.params.id.startsWith('proj_err_')) {
+      const projectId = req.params.id.slice('proj_err_'.length)
+      if (status === 'resolved') {
+        await db.prisma.project.updateMany({
+          where: { id: projectId },
+          data: { lastError: null },
+        })
+      }
+      return res.json({ id: req.params.id, status })
+    }
+    const updated = await updateIssueReportStatus(req.params.id, status)
+    if (!updated) return res.status(404).json({ error: 'Issue report not found' })
+    res.json({ id: req.params.id, status })
+  } catch (error: any) {
+    logger.error({ err: error, issueId: req.params.id }, 'Failed to update issue report')
+    res.status(500).json({ error: 'Failed to update issue report' })
+  }
+})
+
+router.delete('/issues/:id', async (req, res) => {
+  try {
+    if (req.params.id.startsWith('proj_err_')) {
+      const projectId = req.params.id.slice('proj_err_'.length)
+      await db.prisma.project.updateMany({
+        where: { id: projectId },
+        data: { lastError: null },
+      })
+      return res.status(204).send()
+    }
+    const deleted = await deleteIssueReport(req.params.id)
+    if (!deleted) return res.status(404).json({ error: 'Issue report not found' })
+    res.status(204).send()
+  } catch (error: any) {
+    logger.error({ err: error, issueId: req.params.id }, 'Failed to delete issue report')
+    res.status(500).json({ error: 'Failed to delete issue report' })
   }
 })
 

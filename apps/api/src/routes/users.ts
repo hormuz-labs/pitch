@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { clerkClient } from '@clerk/express'
+import { clerkClient, getAuth } from '@clerk/express'
 import * as db from '@saas/db'
 import { sendWelcomeEmail } from '@saas/email'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
@@ -7,6 +7,7 @@ import DodoPayments from 'dodopayments'
 import { type Request, Router } from 'express'
 import { DODO_ENV, REFERRAL_REWARDS, SIGNUP_BONUS_CREDITS } from '../config.js'
 import { getVerifiedClerkProfile } from '../lib/clerk.js'
+import { createIssueReport } from '../lib/issue-reports.js'
 import { requireAuth } from '../middleware/auth.js'
 import { deleteClerkUserData } from './clerk-webhooks.js'
 
@@ -124,6 +125,101 @@ router.post('/onboarding', async (req, res) => {
       return res.status(409).json({ error: 'Onboarding already completed' })
     logger.error({ err: error, userId }, 'Failed to save onboarding survey')
     res.status(500).json({ error: 'Failed to save onboarding survey' })
+  }
+})
+
+router.post('/issues', async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const message = typeof body.message === 'string' ? body.message.trim().slice(0, 5000) : ''
+  if (!message) {
+    return res.status(400).json({ error: 'Issue description is required' })
+  }
+  const category = ['bug', 'video', 'billing', 'feedback'].includes(String(body.category))
+    ? String(body.category)
+    : 'bug'
+  const projectId =
+    typeof body.projectId === 'string' && body.projectId.trim()
+      ? body.projectId.trim().slice(0, 100)
+      : null
+  const pageUrl =
+    typeof body.pageUrl === 'string' && body.pageUrl.trim()
+      ? body.pageUrl.trim().slice(0, 500)
+      : null
+  const screenshotName =
+    typeof body.screenshotName === 'string' && body.screenshotName.trim()
+      ? body.screenshotName.trim().slice(0, 160)
+      : null
+  const screenshotDataUrl =
+    typeof body.screenshotDataUrl === 'string' && body.screenshotDataUrl.startsWith('data:image/')
+      ? body.screenshotDataUrl
+      : null
+  const sessionReplayUrl =
+    typeof body.sessionReplayUrl === 'string' && body.sessionReplayUrl.trim()
+      ? body.sessionReplayUrl.trim().slice(0, 500)
+      : null
+  const recentErrors = Array.isArray(body.recentErrors)
+    ? body.recentErrors
+        .filter((item): item is Record<string, unknown> =>
+          Boolean(item && typeof item === 'object'),
+        )
+        .slice(0, 10)
+        .map(item => ({
+          id: typeof item.id === 'string' ? item.id : undefined,
+          source: typeof item.source === 'string' ? item.source.slice(0, 80) : 'app',
+          message: typeof item.message === 'string' ? item.message.slice(0, 1000) : '',
+          projectId: typeof item.projectId === 'string' ? item.projectId.slice(0, 100) : undefined,
+          path: typeof item.path === 'string' ? item.path.slice(0, 240) : undefined,
+          at: typeof item.at === 'string' ? item.at.slice(0, 64) : undefined,
+        }))
+        .filter(item => item.message)
+    : []
+
+  let userId: string | null = null
+  try {
+    userId = getAuth(req)?.userId ?? null
+  } catch {
+    userId = null
+  }
+
+  let userEmail =
+    typeof body.userEmail === 'string' && body.userEmail.trim()
+      ? body.userEmail.trim().slice(0, 200)
+      : null
+  let userName: string | null = null
+
+  if (userId) {
+    try {
+      const profile = await db.prisma.userProfile.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true, lastName: true },
+      })
+      if (profile) {
+        userEmail = profile.email || userEmail
+        userName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() || null
+      }
+    } catch {
+      // Best-effort user enrichment.
+    }
+  }
+
+  try {
+    const report = await createIssueReport({
+      userId,
+      userEmail,
+      userName,
+      category,
+      message,
+      projectId,
+      pageUrl,
+      recentErrors,
+      screenshotName,
+      screenshotDataUrl,
+      sessionReplayUrl,
+    })
+    res.status(201).json({ report })
+  } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to save issue report')
+    res.status(500).json({ error: 'Failed to save issue report' })
   }
 })
 

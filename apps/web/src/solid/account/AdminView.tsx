@@ -34,7 +34,31 @@ import { adminStudio, type ReviewDownload } from '../studio/client'
 import { Dialog, Loading, Select } from './primitives'
 import '../../styles/admin.css'
 
-export type Tab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'affiliates'
+export type Tab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'affiliates' | 'issues'
+
+export interface AdminIssueReport {
+  id: string
+  userId: string | null
+  userEmail: string | null
+  userName: string | null
+  category: string
+  message: string
+  projectId: string | null
+  pageUrl: string | null
+  recentErrors: Array<{
+    id?: string
+    source: string
+    message: string
+    projectId?: string
+    path?: string
+    at?: string
+  }>
+  screenshotName: string | null
+  screenshotDataUrl: string | null
+  sessionReplayUrl: string | null
+  status: 'open' | 'resolved'
+  createdAt: string
+}
 
 export interface AdminProject extends Project {
   userEmail?: string | null
@@ -146,6 +170,7 @@ export interface AdminUserDetail {
 const tabs: [Tab, string][] = [
   ['users', 'Users'],
   ['projects', 'Projects / Jobs'],
+  ['issues', 'Issues'],
   ['onboarding', 'Onboarding'],
   ['newsletter', 'Email list'],
   ['affiliates', 'Affiliates'],
@@ -154,6 +179,8 @@ const tabs: [Tab, string][] = [
 const descriptions: Record<Tab, string> = {
   users: 'Manage creators, inspect balances, adjust credits, and view history.',
   projects: 'Inspect generation jobs, view prompts, watch final videos, and track renders.',
+  issues:
+    'Review user-submitted bug reports, voiceover or render issues, session errors, and screenshots.',
   onboarding: 'Understand who is joining and what they want to create.',
   newsletter: 'Keep your audience in the loop.',
   affiliates: 'Your partners and the audience they bring.',
@@ -284,6 +311,7 @@ export function AdminView() {
   const { getToken } = useAuth()
   const [data, setData] = createSignal<any>(null)
   const [projects, setProjects] = createSignal<AdminProject[]>([])
+  const [issues, setIssues] = createSignal<AdminIssueReport[]>([])
   const [analytics, setAnalytics] = createSignal<any>(null)
   const [newsletter, setNewsletter] = createSignal<any>(null)
   const [loading, setLoading] = createSignal(true)
@@ -294,6 +322,7 @@ export function AdminView() {
   const [search, setSearch] = createSignal('')
   const [status, setStatus] = createSignal('all')
   const [flowFilter, setFlowFilter] = createSignal('all')
+  const [issueStatusFilter, setIssueStatusFilter] = createSignal('all')
 
   // Modals state
   const [selectedProject, setSelectedProject] = createSignal<AdminProject | null>(null)
@@ -322,16 +351,18 @@ export function AdminView() {
     setRefreshing(true)
     setError('')
     try {
-      const [dashboard, projectRows, stats, audience] = await Promise.all([
+      const [dashboard, projectRows, stats, audience, issueRows] = await Promise.all([
         request<any>('/admin/dashboard'),
         request<any>('/admin/projects'),
         request<any>('/admin/analytics'),
         request<any>('/admin/newsletter'),
+        request<{ issues: AdminIssueReport[] }>('/admin/issues').catch(() => ({ issues: [] })),
       ])
       setData(dashboard)
       setProjects(unwrap(projectRows))
       setAnalytics(stats)
       setNewsletter(audience)
+      setIssues(Array.isArray(issueRows?.issues) ? issueRows.issues : [])
       setUpdatedAt(new Date())
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Failed to load admin dashboard')
@@ -488,6 +519,44 @@ export function AdminView() {
     }),
   )
 
+  const filteredIssues = createMemo(() =>
+    issues().filter(issue => {
+      const matchesStatus =
+        issueStatusFilter() === 'all' ? true : issue.status === issueStatusFilter()
+      const q = search().toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        [
+          issue.message,
+          issue.userEmail,
+          issue.userName,
+          issue.userId,
+          issue.projectId,
+          issue.category,
+          issue.pageUrl,
+          ...issue.recentErrors.map(e => e.message),
+        ].some(value => value?.toLowerCase().includes(q))
+      return matchesStatus && matchesSearch
+    }),
+  )
+
+  const handleToggleIssueStatus = async (issue: AdminIssueReport) => {
+    const token = await getToken()
+    if (!token) return
+    const nextStatus = issue.status === 'resolved' ? 'open' : 'resolved'
+    await api.patch(`/admin/issues/${encodeURIComponent(issue.id)}`, token, { status: nextStatus })
+    setIssues(list =>
+      list.map(item => (item.id === issue.id ? { ...item, status: nextStatus } : item)),
+    )
+  }
+
+  const handleDeleteIssue = async (issueId: string) => {
+    const token = await getToken()
+    if (!token) return
+    await api.delete(`/admin/issues/${encodeURIComponent(issueId)}`, token)
+    setIssues(list => list.filter(item => item.id !== issueId))
+  }
+
   return (
     <div class="admin-page">
       <div class="admin-container">
@@ -551,10 +620,14 @@ export function AdminView() {
                 <div>
                   <h2>
                     {tabs.find(item => item[0] === tab())?.[1]}
-                    <Show when={tab() === 'users' || tab() === 'projects'}>
+                    <Show when={tab() === 'users' || tab() === 'projects' || tab() === 'issues'}>
                       <span class="admin-count">
                         {number(
-                          tab() === 'users' ? filteredUsers().length : filteredProjects().length,
+                          tab() === 'users'
+                            ? filteredUsers().length
+                            : tab() === 'projects'
+                              ? filteredProjects().length
+                              : filteredIssues().length,
                         )}
                       </span>
                     </Show>
@@ -562,22 +635,44 @@ export function AdminView() {
                   <p>{descriptions[tab()]}</p>
                 </div>
 
-                <Show when={tab() === 'users' || tab() === 'projects'}>
+                <Show when={tab() === 'users' || tab() === 'projects' || tab() === 'issues'}>
                   <div class="admin-toolbar">
                     <label class="admin-search">
                       <Search size={15} aria-hidden="true" />
                       <input
                         type="search"
-                        aria-label={tab() === 'users' ? 'Search users' : 'Search projects'}
+                        aria-label={
+                          tab() === 'users'
+                            ? 'Search users'
+                            : tab() === 'projects'
+                              ? 'Search projects'
+                              : 'Search issues'
+                        }
                         placeholder={
                           tab() === 'users'
                             ? 'Search name, email, ID…'
-                            : 'Search title, prompt, owner, ID…'
+                            : tab() === 'projects'
+                              ? 'Search title, prompt, owner, ID…'
+                              : 'Search issue message, user, project ID…'
                         }
                         value={search()}
                         onInput={event => setSearch(event.currentTarget.value)}
                       />
                     </label>
+
+                    <Show when={tab() === 'issues'}>
+                      <Select
+                        label="Issue status"
+                        class="admin-select"
+                        value={issueStatusFilter()}
+                        options={[
+                          { value: 'all', label: 'All statuses' },
+                          { value: 'open', label: 'Open' },
+                          { value: 'resolved', label: 'Resolved' },
+                        ]}
+                        onChange={setIssueStatusFilter}
+                      />
+                    </Show>
 
                     <Show when={tab() === 'projects'}>
                       <Select
@@ -627,6 +722,16 @@ export function AdminView() {
                   projects={filteredProjects()}
                   onSelectProject={openProject}
                   onSelectUser={openUser}
+                />
+              </Show>
+
+              <Show when={tab() === 'issues'}>
+                <IssuesTab
+                  issues={filteredIssues()}
+                  onSelectUser={openUser}
+                  onSelectProject={openProject}
+                  onToggleStatus={handleToggleIssueStatus}
+                  onDelete={handleDeleteIssue}
                 />
               </Show>
 
@@ -720,7 +825,7 @@ function Stats(props: { stats: any }) {
             {
               label: 'Recorded errors',
               value: number(props.stats.failedProjects),
-              note: 'Projects with saved error',
+              note: 'Project errors & open issues',
               icon: Activity,
             },
           ]}
@@ -2578,6 +2683,210 @@ function Newsletter(props: { audience: any; refresh: () => Promise<void> }) {
           </For>
         </div>
       </div>
+    </div>
+  )
+}
+
+const issueCategoryLabel = (category: string) => {
+  switch (category) {
+    case 'project_error':
+      return 'Project error'
+    case 'video':
+      return 'Video / voiceover'
+    case 'billing':
+      return 'Billing / credits'
+    case 'feedback':
+      return 'Feedback'
+    default:
+      return 'Bug / crash'
+  }
+}
+
+function IssuesTab(props: {
+  issues: AdminIssueReport[]
+  onSelectUser: (userId: string) => void
+  onSelectProject: (project: { id: string }) => void
+  onToggleStatus: (issue: AdminIssueReport) => Promise<void>
+  onDelete: (issueId: string) => Promise<void>
+}) {
+  return (
+    <div class="admin-table-wrap">
+      <table class="admin-table" aria-label="User-submitted issue reports">
+        <thead>
+          <tr>
+            <th>Reporter</th>
+            <th>Topic</th>
+            <th>Issue &amp; diagnostics</th>
+            <th>Context</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <For
+            each={props.issues}
+            fallback={
+              <tr>
+                <td colSpan="7">
+                  <EmptyState
+                    title="No issue reports yet"
+                    description="User-submitted bug reports, voiceover issues, and screenshots will appear here."
+                  />
+                </td>
+              </tr>
+            }
+          >
+            {issue => (
+              <tr>
+                <td>
+                  <Show
+                    when={issue.userId}
+                    fallback={
+                      <div>
+                        <strong>{issue.userEmail || issue.userName || 'Anonymous'}</strong>
+                      </div>
+                    }
+                  >
+                    <button
+                      type="button"
+                      class="admin-owner-btn"
+                      onClick={() => props.onSelectUser(issue.userId!)}
+                    >
+                      <strong>{issue.userEmail || issue.userName || issue.userId}</strong>
+                      <Show when={issue.userName && issue.userEmail}>
+                        <small>{issue.userName}</small>
+                      </Show>
+                    </button>
+                  </Show>
+                </td>
+                <td>
+                  <Badge
+                    tone={
+                      issue.category === 'bug' || issue.category === 'video' ? 'failed' : undefined
+                    }
+                  >
+                    {issueCategoryLabel(issue.category)}
+                  </Badge>
+                </td>
+                <td style={{ 'max-width': '420px' }}>
+                  <div style={{ 'white-space': 'pre-wrap', 'line-height': '1.45' }}>
+                    {issue.message}
+                  </div>
+                  <Show when={issue.recentErrors.length > 0}>
+                    <div
+                      style={{
+                        'margin-top': '8px',
+                        padding: '8px 10px',
+                        'border-radius': '8px',
+                        background: 'var(--admin-soft)',
+                        'font-size': '11.5px',
+                      }}
+                    >
+                      <strong style={{ display: 'block', 'margin-bottom': '4px' }}>
+                        Session errors ({issue.recentErrors.length}):
+                      </strong>
+                      <For each={issue.recentErrors.slice(0, 3)}>
+                        {err => (
+                          <div style={{ 'font-family': 'monospace', 'margin-top': '2px' }}>
+                            [{err.source}] {err.message}
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                  <Show when={issue.screenshotDataUrl}>
+                    <div style={{ 'margin-top': '8px' }}>
+                      <a
+                        href={issue.screenshotDataUrl!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-block' }}
+                      >
+                        <img
+                          src={issue.screenshotDataUrl!}
+                          alt={issue.screenshotName || 'Issue screenshot'}
+                          style={{
+                            'max-height': '72px',
+                            'max-width': '140px',
+                            'border-radius': '6px',
+                            border: '1px solid var(--border-default)',
+                            'object-fit': 'cover',
+                          }}
+                        />
+                      </a>
+                    </div>
+                  </Show>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px' }}>
+                    <Show when={issue.projectId}>
+                      <div style={{ display: 'flex', 'align-items': 'center', gap: '6px' }}>
+                        <CopyChip text={issue.projectId!} prefix="Project" />
+                        <button
+                          type="button"
+                          class="admin-button admin-button--sm"
+                          onClick={() => props.onSelectProject({ id: issue.projectId! })}
+                        >
+                          <Eye size={12} />
+                          Inspect
+                        </button>
+                      </div>
+                    </Show>
+                    <Show when={issue.sessionReplayUrl}>
+                      <a
+                        href={issue.sessionReplayUrl!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="admin-button admin-button--sm"
+                        style={{ width: 'fit-content' }}
+                      >
+                        <ExternalLink size={12} />
+                        Replay
+                      </a>
+                    </Show>
+                    <Show when={!issue.projectId && !issue.sessionReplayUrl}>
+                      <span style={{ color: 'var(--admin-muted)', 'font-size': '11.5px' }}>
+                        {issue.pageUrl || '—'}
+                      </span>
+                    </Show>
+                  </div>
+                </td>
+                <td>
+                  <Badge tone={issue.status === 'resolved' ? 'ready' : 'working'}>
+                    {issue.status}
+                  </Badge>
+                </td>
+                <td>{dateTime(issue.createdAt)}</td>
+                <td>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      class="admin-button admin-button--sm"
+                      onClick={() => void props.onToggleStatus(issue)}
+                    >
+                      <Check size={12} />
+                      {issue.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                    </button>
+                    <button
+                      type="button"
+                      class="admin-button admin-button--danger admin-button--sm"
+                      aria-label={`Delete issue ${issue.id}`}
+                      onClick={() => {
+                        if (window.confirm('Delete this issue report?')) {
+                          void props.onDelete(issue.id)
+                        }
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
     </div>
   )
 }

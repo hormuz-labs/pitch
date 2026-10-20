@@ -284,10 +284,35 @@
 .settings-support-panel__heading { display: flex; flex-direction: column; align-items: flex-start; }
 .settings-support-panel__heading > strong { font-size: 14px; font-weight: 560; }
 .settings-support-panel__heading > small { color: var(--text-muted); font-size: 11px; }
-.settings-support-panel__heading .settings-primary { margin-top: 14px; text-decoration: none; }
+.settings-support-panel__heading .settings-primary { margin-top: 14px; color: var(--interactive-text); text-decoration: none; }
+.lb-root .docs-body a.settings-primary { color: var(--interactive-text); text-decoration: none; }
+.lb-root .docs-body .settings-support a { text-decoration: none; }
 .settings-support-panel .settings-support { margin-top: 16px; }
 .settings-support-panel__footer { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 11px; }
 .settings-support-panel__footer a { color: var(--text-primary); }
+.settings-issue-form { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.settings-issue-form__row { display: flex; flex-direction: column; gap: 6px; }
+.settings-issue-form__row > label { color: var(--text-secondary); font-size: 12px; font-weight: 540; }
+.settings-issue-form__row > select,
+.settings-issue-form__row > textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border-default); border-radius: 10px;
+  background: var(--bg-page); color: var(--text-primary); font-size: 13px; line-height: 1.45;
+  box-sizing: border-box;
+}
+.settings-issue-form__row > textarea { resize: vertical; min-height: 88px; }
+.settings-issue-errors {
+  padding: 10px 12px; border: 1px solid var(--st-danger-border); border-radius: 10px;
+  background: var(--st-danger-bg); color: var(--st-danger-text); font-size: 11.5px;
+}
+.settings-issue-errors__head { display: flex; align-items: center; gap: 6px; font-weight: 560; }
+.settings-issue-errors > code {
+  display: block; margin-top: 5px; font-family: var(--st-mono); font-size: 11px;
+  color: var(--st-danger-muted); overflow-wrap: anywhere;
+}
+.settings-issue-checkbox { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.settings-issue-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.settings-issue-actions .settings-primary { margin-top: 0; }
+.settings-issue-attachment { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
 
 .settings-embedded > div, .settings-api-keys { max-width: none; padding: 0; }
 .settings-embedded .space-y-6 { padding-bottom: 0; }

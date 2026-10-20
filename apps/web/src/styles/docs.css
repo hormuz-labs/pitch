@@ -34,12 +34,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .docs-top-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 22px;
+  flex: none;
 }
 .lb-root .docs-top-links a {
   font-size: 13px;
@@ -51,9 +54,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   justify-content: flex-end;
-  margin-left: auto;
 }
 
 /* ── three-column shell ────────────────────────────────────────────────── */

@@ -36,6 +36,7 @@ import {
   type VoicePreference,
 } from '../../lib/studio-api'
 import { ComposerShell } from '../common/ComposerShell'
+import { recordAppError } from '../core/analytics'
 import { useAuth, useUser } from '../core/auth'
 import { openStudioProject } from '../core/projectNavigation'
 import { loadRouteModule } from '../core/routes'
@@ -317,8 +318,10 @@ export function NewProjectView(props: {
         ])
       if (openAfter && !prompt().trim()) await create('', allFiles, token)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Upload failed')
-      props.onNotice?.(reason instanceof Error ? reason.message : 'Upload failed', 'error')
+      const message = reason instanceof Error ? reason.message : 'Upload failed'
+      recordAppError('new_project_upload', message)
+      setError(message)
+      props.onNotice?.(message, 'error')
     } finally {
       setUploading(false)
       input.value = ''
@@ -344,6 +347,7 @@ export function NewProjectView(props: {
         return
       }
       const message = reason instanceof Error ? reason.message : 'Could not create the project'
+      recordAppError('new_project_create', message)
       setError(message)
       props.onNotice?.(message, 'error')
     } finally {

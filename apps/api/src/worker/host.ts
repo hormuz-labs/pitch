@@ -37,6 +37,7 @@ import * as storage from '@saas/storage'
 import { parseSlides, renderDeckPdf } from '../flows/deck/index.js'
 import { getAgent } from '../flows/index.js'
 import type { Description, UploadRef } from '../flows/types.js'
+import { ensureMix } from '../lib/mix.js'
 import {
   type Asset,
   addAssets as addAssetsTo,
@@ -290,7 +291,75 @@ function onEvent(h: Held, ev: StudioEvent): void {
       // The transcript grew even when nothing on disk did.
       markDirty(h)
       void refreshArtifactKind(h)
+      if (!ev.busy) void recoverTurnAudio(h)
       break
+  }
+}
+
+/**
+ * Safety net when a turn ends early (abort, crash, credit limit, or a model
+ * that stops before the final mix/source step):
+ * 1. For launch films, rebuild `audio/mix.wav` from `shots.js` + `audio/vo.*` +
+ *    `audio/music.*` so the preview and export have voiceover and music.
+ * 2. For demo recordings, stop any capture left open and assemble
+ *    `recording/source-*.mp4` if a completed take has recorded narration clips
+ *    but no synchronized source or render yet.
+ */
+export async function recoverTurnAudio(h: {
+  id: string
+  ws: Workspace
+  dirtyAt?: number
+  lastActivity?: number
+}): Promise<void> {
+  const dir = h.ws.dir
+  if (existsSync(path.join(dir, 'index.html')) && existsSync(path.join(dir, 'shots.js'))) {
+    try {
+      const mixed = await ensureMix(dir)
+      if (mixed.built) {
+        if ('dirtyAt' in h && typeof h.dirtyAt === 'number') markDirty(h as Held)
+        emitProjectEvent(h.id, { type: 'preview', ok: true, files: ['audio/mix.wav'] })
+      }
+    } catch (err) {
+      logger.warn({ err, projectId: h.id }, 'could not rebuild launch audio mix on idle')
+    }
+  }
+  const recDir = path.join(dir, 'recording')
+  if (!existsSync(recDir)) return
+  if (existsSync(path.join(recDir, 'live.json'))) {
+    try {
+      const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+      await releaseDemoRecording(h.ws)
+    } catch (err) {
+      logger.warn({ err, projectId: h.id }, 'could not finalize live demo recording on idle')
+    }
+  }
+  if (!existsSync(path.join(recDir, 'demo-config.json'))) return
+  try {
+    const [recFiles, renderFiles, statusRaw, stateRaw] = await Promise.all([
+      readdir(recDir).catch(() => [] as string[]),
+      readdir(path.join(dir, 'renders')).catch(() => [] as string[]),
+      readFile(path.join(recDir, 'capture-status.json'), 'utf8').catch(() => ''),
+      readFile(path.join(recDir, 'demo-state.json'), 'utf8').catch(() => ''),
+    ])
+    const hasSynchronizedSource = recFiles.some(f => /^source-.*\.(mp4|webm|mov|mkv)$/i.test(f))
+    const hasRender = renderFiles.some(
+      f => /\.(mp4|webm|mov|mkv)$/i.test(f) && !/^(raw\.|__)/.test(f),
+    )
+    if (hasSynchronizedSource || hasRender) return
+    const status = statusRaw ? JSON.parse(statusRaw) : null
+    const state = stateRaw ? JSON.parse(stateRaw) : null
+    if (
+      status?.state !== 'complete' ||
+      !Array.isArray(state?.audioClips) ||
+      !state.audioClips.length
+    )
+      return
+    const { callHostAction } = await import('../studio/host-actions.js')
+    await callHostAction(dir, 'demo_source', {})
+    if ('dirtyAt' in h && typeof h.dirtyAt === 'number') markDirty(h as Held)
+    emitProjectEvent(h.id, { type: 'preview', ok: true, files: ['recording'] })
+  } catch (err) {
+    logger.warn({ err, projectId: h.id }, 'could not assemble demo source on idle')
   }
 }
 
@@ -631,6 +700,8 @@ function guardTurnCredits(
         message: CREDIT_LIMIT_MESSAGE,
       })
       await stopSession(p.id)
+      const { releaseDemoRecording } = await import('../flows/demo-video/index.js')
+      await releaseDemoRecording(workspaceOf(p)).catch(() => {})
     } catch (err) {
       logger.warn({ err, projectId: p.id }, 'could not check live credit balance')
     } finally {

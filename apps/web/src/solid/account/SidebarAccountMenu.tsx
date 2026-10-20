@@ -1,6 +1,7 @@
 import { A } from '@solidjs/router'
 import {
   ArrowUpRight,
+  BookOpen,
   ChevronUp,
   CircleHelp,
   Code2,
@@ -103,9 +104,13 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
             <Code2 />
             <span>API / MCP</span>
           </button>
-          <A role="menuitem" href="/docs">
+          <button role="menuitem" onClick={() => props.openSettings('support')}>
             <CircleHelp />
-            <span>Docs &amp; help</span>
+            <span>Help &amp; support</span>
+          </button>
+          <A role="menuitem" href="/docs">
+            <BookOpen />
+            <span>Docs</span>
           </A>
           <A role="menuitem" href="/affiliates">
             <Gift />
