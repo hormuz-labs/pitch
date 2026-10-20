@@ -1,0 +1,60 @@
+---
+// Shared page shell: theme before first paint, per-page meta, the site-wide
+// structured data, analytics and the landing intro.
+import '../index.css'
+import chromeHead from './chrome-head.html?raw'
+import chromeBody from './chrome-body.html?raw'
+
+interface Props {
+  title: string
+  description: string
+  path: string
+  image?: string
+  jsonLd?: Record<string, unknown>
+}
+
+const SITE = 'https://trypitch.co'
+const { title, description, path, image, jsonLd } = Astro.props
+const url = `${SITE}${path === '/' ? '/' : path}`
+const ogImage = image ?? `${SITE}/og-image.png?v=2`
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script is:inline>
+      // Apply the saved theme before first paint.
+      (function () {
+        try {
+          var t = localStorage.getItem('pitch:theme')
+          if (t !== 'dark' && t !== 'light') return
+          var root = document.documentElement
+          root.dataset.theme = t
+          root.classList.toggle('dark', t === 'dark')
+          root.style.colorScheme = t
+        } catch (e) {}
+      })()
+    </script>
+    <link rel="icon" type="image/svg+xml" sizes="any" href="/tabLogoB.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Pitch" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={url} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    {jsonLd && <script type="application/ld+json" data-page set:html={JSON.stringify(jsonLd)} />}
+    <Fragment set:html={chromeHead} />
+  </head>
+  <body>
+    <Fragment set:html={chromeBody} />
+    <slot />
+  </body>
+</html>

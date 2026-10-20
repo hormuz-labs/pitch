@@ -1,0 +1,11 @@
+---
+import Island from '../islands/NotFound'
+import Base from '../layouts/Base.astro'
+---
+<Base
+  title="Pitch — Page not found"
+  description="The page you asked for does not exist, or it moved. Nothing is broken on our side — the link just points nowhere."
+  path="/404"
+>
+  <Island client:load path="/404" />
+</Base>

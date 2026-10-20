@@ -1,0 +1,18 @@
+---
+import Island from '../../islands/Docs'
+import Base from '../../layouts/Base.astro'
+import { DOC_PAGES, type DocPage } from '../../docs/pages'
+
+export function getStaticPaths() {
+  return DOC_PAGES.map((page) => ({ params: { slug: page.slug || undefined }, props: { page } }))
+}
+const { page: p } = Astro.props as { page: DocPage }
+const path = p.slug ? `/docs/${p.slug}` : '/docs'
+---
+<Base
+  title={p.slug ? `${p.title} | Pitch API & MCP docs` : 'Pitch API & MCP docs: build with Pitch'}
+  description={p.slug ? p.lede : 'Drive Pitch from an AI agent over MCP or from your own code over REST: create projects, send prompts, export videos and decks, and check credits.'}
+  path={path}
+>
+  <Island client:load path={path} params={{ slug: p.slug }} />
+</Base>

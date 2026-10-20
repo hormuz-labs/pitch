@@ -1,0 +1,9 @@
+---
+import Island from '../islands/Affiliates'
+import { REFERRAL_REWARDS } from '../lib/referral'
+const { signup, purchase } = REFERRAL_REWARDS
+import Base from '../layouts/Base.astro'
+---
+<Base title="Affiliate program: earn credits for referrals | Pitch" description={`Share Pitch and earn credits: ${signup} when a friend signs up through your link, ${purchase} more on their first purchase. Credits only, no cap on referrals.`} path="/affiliates">
+  <Island client:load path="/affiliates" />
+</Base>

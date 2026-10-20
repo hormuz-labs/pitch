@@ -1,95 +1,45 @@
-# Dependencies
+# Rust
+/target/
+
+# Web
 node_modules/
-.pnp
-.pnp.js
+web/dist/
 
-# Testing
-coverage/
-
-# Production
-build/
-dist/
-out/
-*.tsbuildinfo
-packages/shared/src/*.js
-packages/shared/src/*.js.map
-packages/shared/src/*.d.ts
-packages/db/src/*.js
-packages/db/src/*.js.map
-packages/db/src/*.d.ts
-
-# SQLite
+# Runtime data
+/data/
 *.db
-*.sqlite
-*.sqlite-journal
-!packages/db/prisma/schema.prisma
+*.db-shm
+*.db-wal
 
-# Misc
-.DS_Store
-Thumbs.db
+# Secrets
 .env
 .env.*
 !.env.example
 .github_token
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
-.github_token
 .gh_token
+.secrets/
 
-
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-sse-output.log
-
-# OpenCode logs (bind-mounted from worker container)
-opencode-logs/
-
-# IDEs
-.vscode/
-.idea/
-.claude/*
-
-# Project specific: Generated frames and cinematic outputs
-**/demo-cinematic-*/
-**/frame-*.png
-*.mp4
-!assets/backgrounds/*.mp4
-!apps/web/public/backgrounds/*.mp4
-*.wav
-*.mov
-*.webm
-
-# Generated Demos
-demos/
-
-# Recording editor artifacts
-recordings/
-
-.vercel
-.playwright-cli/
-docker-data/
-actions-runner/
-.pitch-dev.pid
-
-.agents/
-output.pdf
-
-# Scratch and workspace output at the REPO ROOT only. These were unanchored,
-# and `projects/` matches at any depth — which silently untracked
-# apps/api/src/projects/ (the project service, assets, usage, thumbnails,
-# export) and broke the container build. Leading slashes keep them to the root.
-/pptx/
-/qa-renders/
+# Leftovers from the TypeScript codebase on main (kept on disk, never tracked here)
+/apps/
+/packages/
+/assets/
+/effects/
 /projects/
-/renders/
+/docker-data/
+/dist/
+/.playwright-cli/
 
-# Raw SFX source packs — hundreds of MB, and the SOURCE for the vendored library.
-# What gets committed is assets/sfx-lib/ (~9MB, produced by scripts/sfx-vendor.mjs).
-assets/1000+UR.FASTEDITOR SFX/
+# Misc
+.DS_Store
+.claude/*
+/.od/
+/.od-mock/
 
-__pycache__/
-*.pyc
+# Tauri generated schemas
+/crates/desktop/gen/
+
+# Marketing site
+/site/node_modules/
+/site/dist/
+/site/.astro/
+/site/.vercel/

@@ -1,0 +1,5 @@
+## Platform delivery contracts
+
+- **Responsive web** = one product adapting across breakpoints. Verify no horizontal scroll at 360/390/430/600/768/820/1024/1366/1440/1920px; use `clamp()` scales and container queries; the mobile layout is a redesign with prioritised content and real navigation.
+- **Multi-target briefs** get one real file per target (`mobile-ios.html`, `mobile-android.html`, `tablet.html`, `desktop.html`) — native chrome and patterns per platform (iPhone frame + Dynamic Island + 44px targets for iOS; Pixel frame + Material nav + 48dp for Android; split panes for tablet; hover/keyboard states for desktop). Never one tabbed comparison page; `index.html` is then a launcher linking the targets.
+- **App prototypes** include the domain's real in-app modules by default (player for media, cart/checkout for commerce, balance/transactions for finance), with states and working interactions. OS widgets/lock-screen surfaces only when explicitly requested.

@@ -1,0 +1,21 @@
+---
+import Island from '../../islands/BlogPost'
+import Base from '../../layouts/Base.astro'
+import { BLOG_POSTS, type Post } from '../../solid/public/blogPosts'
+import { postJsonLd } from '../../solid/public/Blog'
+
+export function getStaticPaths() {
+  return BLOG_POSTS.map((post) => ({ params: { slug: post.slug }, props: { post } }))
+}
+const { post } = Astro.props as { post: Post }
+const path = `/blog/${post.slug}`
+---
+<Base
+  title={post.title.length > 50 ? post.title : `${post.title} | Pitch`}
+  description={post.excerpt}
+  path={path}
+  image={`https://trypitch.co/og/blog/${post.slug}.png`}
+  jsonLd={postJsonLd(post)}
+>
+  <Island client:load path={path} params={{ slug: post.slug }} />
+</Base>
