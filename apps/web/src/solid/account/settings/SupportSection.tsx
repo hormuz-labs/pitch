@@ -26,8 +26,8 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export function IssueReportCard() {
-  let user: () => { primaryEmailAddress?: { emailAddress?: string } } | null | undefined = () =>
-    null
+  let user: () => { primaryEmailAddress?: { emailAddress?: string } | null } | null | undefined =
+    () => null
   let getToken: () => Promise<string | null> = async () => null
   try {
     user = useUser().userAccessor
