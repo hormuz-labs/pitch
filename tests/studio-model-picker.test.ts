@@ -267,6 +267,28 @@ describe('assembleStudioPicker', () => {
     expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMINI_31_PRO_SPEC])
   })
 
+  it('automatically enables configured gateway models without account opt-in', () => {
+    const out = assembleStudioPicker([...catalog, model('azure-apim', 'gpt-6-astra', 'Astra')], {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: false,
+      bifrostEnabled: true,
+    })
+    expect(out.map(m => m.spec)).toContain(GPT_54_SPEC)
+    expect(out.map(m => m.spec)).toContain(AZURE_ASTRA_SPEC)
+    expect(out.map(m => m.spec)).not.toContain(GEMINI_4_ARGON_SPEC)
+    expect(() => selectStudioModel(out, 'openai/unknown')).toThrow('not available')
+  })
+
+  it('automatically enables Azure only, not unapproved direct OpenAI', () => {
+    const out = assembleStudioPicker([...catalog, model('azure-apim', 'gpt-6-astra', 'Astra')], {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: false,
+      azureEnabled: true,
+    })
+    expect(out.map(m => m.spec)).toContain(AZURE_ASTRA_SPEC)
+    expect(out.map(m => m.spec)).not.toContain(GPT_54_SPEC)
+  })
+
   it('gates Azure models behind gptEnabled', () => {
     const azure = [
       model('azure-apim', 'gpt-5.5', 'GPT-5.5'),

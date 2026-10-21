@@ -14,9 +14,20 @@ const mocks = vi.hoisted(() => ({
   events: [] as any[],
   create: vi.fn(),
   subscriber: undefined as ((event: any) => void) | undefined,
+  catalog: [] as any[],
+  profile: vi.fn(async () => ({ gptEnabled: false })),
 }))
 vi.mock('@earendil-works/pi-coding-agent', () => ({
-  ModelRuntime: { create: async () => ({ getModel: () => undefined, setRuntimeApiKey: vi.fn() }) },
+  ModelRuntime: {
+    create: async () => ({
+      getModel: (provider: string, id: string) =>
+        mocks.catalog.find(model => model.provider === provider && model.id === id),
+      getAvailable: async () => mocks.catalog,
+      hasConfiguredAuth: (provider: string) =>
+        mocks.catalog.some(model => model.provider === provider),
+      setRuntimeApiKey: vi.fn(),
+    }),
+  },
   SessionManager: { create: () => ({}) },
   DefaultResourceLoader: class {
     async reload() {}
@@ -38,6 +49,7 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
 vi.mock('@saas/db', () => ({
   prisma: {
     project: { findUnique: async () => ({ outputs: '[]', thumbnailUrl: null, lastError: null }) },
+    userProfile: { findUnique: mocks.profile },
   },
 }))
 vi.mock('@saas/shared', () => ({
@@ -74,12 +86,21 @@ afterEach(async () => {
     await rm(opts.ws.dir, { recursive: true, force: true })
   }
   mocks.events.length = 0
+  mocks.catalog = []
+  mocks.profile.mockResolvedValue({ gptEnabled: false })
+  vi.unstubAllEnvs()
 })
 
-async function start() {
+async function start(model?: string) {
   const dir = await mkdtemp(join(tmpdir(), 'studio-queue-'))
   let finish = () => {}
   const pi = {
+    model: model
+      ? mocks.catalog.find(candidate => `${candidate.provider}/${candidate.id}` === model)
+      : undefined,
+    setModel: vi.fn(async (value: any) => {
+      pi.model = value
+    }),
     isStreaming: false,
     sessionManager: { getBranch: () => [] },
     subscribe: vi.fn((subscriber: (event: any) => void) => {
@@ -102,6 +123,7 @@ async function start() {
     projectId: dir,
     ws: { dir, internal: 'queue-test', flow: 'studio', userId: 'user', name: 'queue-test' },
     sessionFile: null,
+    model,
     agent: {
       systemPrompt: async () => '',
       skills: async () => [],
@@ -122,6 +144,97 @@ async function start() {
 }
 
 describe('studio queue and steering', () => {
+  it.each(['429 rate limit', 'Provider timed out', '503 Service Unavailable'])(
+    'falls back on %s without bypassing account access or double-billing the turn',
+    async errorMessage => {
+      mocks.catalog = [
+        { provider: 'google', id: 'gemini-4-argon' },
+        { provider: 'azure-apim', id: 'gpt-5.6-terra' },
+        { provider: 'openai', id: 'gpt-5.4' },
+        { provider: 'google', id: 'gemini-3.8-flash' },
+      ]
+      const h = await start('google/gemini-4-argon')
+      h.emit({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          stopReason: 'error',
+          errorMessage,
+          usage: { cost: { total: 0.001 } },
+        },
+      })
+      h.finish()
+      await vi.waitFor(() => expect(h.pi.prompt).toHaveBeenCalledTimes(2))
+      expect(h.pi.setModel).toHaveBeenCalledExactlyOnceWith({
+        provider: 'google',
+        id: 'gemini-3.8-flash',
+      })
+      expect(mocks.events.some(event => event.type === 'idle')).toBe(false)
+      h.emit({
+        type: 'message_end',
+        message: { role: 'assistant', stopReason: 'stop', usage: { cost: { total: 0.002 } } },
+      })
+      h.finish()
+      await vi.waitFor(() => expect(h.session.busy).toBe(false))
+      expect(mocks.events.filter(event => event.type === 'error')).toEqual([])
+      expect(mocks.events.filter(event => event.type === 'idle')).toEqual([
+        expect.objectContaining({ turn: 1, cost: 0.003 }),
+      ])
+    },
+  )
+
+  it('allows automatic Azure fallback but never retries an already attempted model', async () => {
+    vi.stubEnv('AZURE_APIM_PRIMARY_KEY', 'test-azure-key')
+    mocks.catalog = [
+      { provider: 'google', id: 'gemini-4-argon' },
+      { provider: 'azure-apim', id: 'gpt-5.6-terra' },
+      { provider: 'openai', id: 'gpt-5.4' },
+    ]
+    const h = await start('google/gemini-4-argon')
+    const error = {
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        stopReason: 'error',
+        errorMessage: '429 rate limit',
+      },
+    }
+    h.emit(error)
+    h.finish()
+    await vi.waitFor(() => expect(h.pi.prompt).toHaveBeenCalledTimes(2))
+    expect(h.pi.setModel).toHaveBeenCalledExactlyOnceWith({
+      provider: 'azure-apim',
+      id: 'gpt-5.6-terra',
+    })
+    h.emit(error)
+    h.finish()
+    await vi.waitFor(() => expect(h.session.busy).toBe(false))
+    expect(h.pi.prompt).toHaveBeenCalledTimes(2)
+    expect(mocks.events.filter(event => event.type === 'error')).toEqual([
+      { type: 'error', message: '429 rate limit' },
+    ])
+  })
+
+  it('does not fall back after the user stops a failed provider call', async () => {
+    mocks.catalog = [
+      { provider: 'google', id: 'gemini-4-argon' },
+      { provider: 'google', id: 'gemini-3.8-flash' },
+    ]
+    const h = await start('google/gemini-4-argon')
+    h.emit({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        stopReason: 'error',
+        errorMessage: 'Provider timed out',
+      },
+    })
+    await stopSession(h.opts.projectId)
+    await vi.waitFor(() => expect(h.session.busy).toBe(false))
+    expect(h.pi.prompt).toHaveBeenCalledTimes(1)
+    expect(h.pi.setModel).not.toHaveBeenCalled()
+  })
+
   it('streams marked source progress into the correct chat tool entry and clears it on completion', async () => {
     const h = await start()
     for (const id of ['source', 'other'])

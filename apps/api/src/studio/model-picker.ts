@@ -2,7 +2,7 @@ import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/rates.js'
 
 /**
  * The composer's model menu is a short allowlist. Google exposes dozens of ids;
- * the product runs Google models and opt-in GPT models below.
+ * the product runs Google models and shared gateway/Azure or opt-in OpenAI models below.
  *
  * Override with STUDIO_MODELS (comma-separated `provider/id` specs).
  */
@@ -108,6 +108,7 @@ export interface PublicModelRate {
 export function publicModelRates(
   specs = studioModelSpecs(),
   prices: Record<string, TokenPrice | undefined> = {},
+  access: StudioModelAccess = {},
 ): PublicModelRate[] {
   return specs.map(spec => {
     return {
@@ -116,7 +117,7 @@ export function publicModelRates(
       detail: STUDIO_MODEL_DETAILS[spec] ?? '',
       credits: estimatedModelCredits(spec, { price: prices[spec] }).total,
       unit: 'typical generation',
-      access: canUseStudioModel(spec, false) ? 'all' : 'request',
+      access: canUseStudioModel(spec, false, access) ? 'all' : 'request',
     }
   })
 }
@@ -375,10 +376,21 @@ export function fallbackStudioModel(
   return null
 }
 
-/** Entitlement is independent of provider credentials and the deployment allowlist. */
-export function canUseStudioModel(spec: string, gptEnabled = false): boolean {
+export interface StudioModelAccess {
+  bifrostEnabled?: boolean
+  azureEnabled?: boolean
+}
+
+/** Shared gateway/Azure access is automatic; direct OpenAI retains the account gate. */
+export function canUseStudioModel(
+  spec: string,
+  gptEnabled = false,
+  access: StudioModelAccess = {},
+): boolean {
   const { provider } = parseModelSpec(spec)
   if (provider === 'google') return true
+  if (provider === 'azure-apim' && access.azureEnabled) return true
+  if (['openai', 'azure-apim'].includes(provider) && access.bifrostEnabled) return true
   if (provider === 'openai' || provider === 'azure-apim') return gptEnabled
   return false
 }
@@ -423,6 +435,7 @@ export function assembleStudioPicker(
     specs: string[]
     defaultSpec?: string
     gptEnabled?: boolean
+    bifrostEnabled?: boolean
     azureEnabled?: boolean
     creditMultipliers?: Record<string, number>
   },
@@ -450,7 +463,7 @@ export function assembleStudioPicker(
   const push = (spec: string): boolean => {
     const row = bySpec.get(spec)
     if (!row || seen.has(spec) || !opts.specs.includes(spec)) return false
-    if (!canUseStudioModel(spec, opts.gptEnabled)) return false
+    if (!canUseStudioModel(spec, opts.gptEnabled, opts)) return false
     seen.add(spec)
     out.push(row)
     return true

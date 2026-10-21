@@ -8,6 +8,7 @@ import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../apps/api/src/studio/session.js', () => ({
+  studioModelAccess: vi.fn(() => ({})),
   studioModelPrices: vi.fn(async () => ({
     'google/gemini-3.8-flash': { input: 0.75, output: 3.75 },
     'azure-apim/gpt-6.1-sol': { input: 4, output: 20 },

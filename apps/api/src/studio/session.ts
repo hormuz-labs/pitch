@@ -29,6 +29,7 @@ import { EXTENSIONS } from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
 import { AUTO_KIND, findStyle } from '../projects/styles.js'
+import { type BifrostConfig, bifrostConfig, configureBifrost } from './bifrost.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
 import {
   createWorkspaceCheckpoint,
@@ -45,6 +46,7 @@ import {
   fallbackStudioModel,
   type PickerModel,
   parseModelSpec,
+  type StudioModelAccess,
   studioModelSpecs,
   type TokenPrice,
   tokenPriceOf,
@@ -186,6 +188,7 @@ export function isProvidedSkillRead(
 
 let modelRuntime: any
 let initPromise: Promise<void> | null = null
+let gateway: BifrostConfig | null = null
 
 /** Where pi keeps its transcripts; the same path on every studio node. */
 export const AGENT_DIR = process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent')
@@ -240,10 +243,21 @@ function providerIsRunnable(provider: string): boolean {
   return false
 }
 
+export function studioModelAccess(): StudioModelAccess {
+  return { bifrostEnabled: gateway !== null, azureEnabled: Boolean(azureApimApiKey()) }
+}
+
 export function initStudio(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
+      const configuredGateway = bifrostConfig()
       modelRuntime = await ModelRuntime.create({ modelsPath: STUDIO_MODELS_JSON })
+      if (configuredGateway) {
+        await configureBifrost(modelRuntime, configuredGateway)
+        gateway = configuredGateway
+        logger.info({ allowed: ALLOWED_SPECS }, 'studio model runtime ready via Bifrost')
+        return
+      }
       const gKey = googleApiKey()
       if (gKey) {
         try {
@@ -967,6 +981,7 @@ export async function listStudioModels(userId?: string): Promise<PickerModel[]> 
     defaultSpec: MODEL_SPEC,
     specs: ALLOWED_SPECS,
     gptEnabled: profile?.gptEnabled === true,
+    ...studioModelAccess(),
   })
 }
 
@@ -1040,18 +1055,6 @@ function updateEntry(s: Session, entry: Entry): void {
   emit(s, { type: 'update', entry })
 }
 
-async function runnableSpecsForSession(): Promise<string[]> {
-  if (!modelRuntime) return []
-  const specs: string[] = []
-  for (const spec of ALLOWED_SPECS) {
-    const { provider, id } = parseModelSpec(spec)
-    if (modelRuntime.getModel(provider, id) && providerIsRunnable(provider)) {
-      specs.push(spec)
-    }
-  }
-  return specs
-}
-
 async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
   s.active = request
   // setBusy() runs just before runPrompt(), so publish the model once the
@@ -1081,7 +1084,11 @@ async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
     const triedSpecs = new Set<string>([currentSpec])
     await s.session.prompt(full)
     while (s.modelError && !s.stopping) {
-      const nextSpec = fallbackStudioModel(initialSpec, await runnableSpecsForSession(), triedSpecs)
+      const nextSpec = fallbackStudioModel(
+        initialSpec,
+        (await listStudioModels(s.ws.userId)).map(model => model.spec),
+        triedSpecs,
+      )
       if (!nextSpec) break
       logger.warn(
         { projectId: s.projectId, from: currentSpec, to: nextSpec, error: s.modelError },

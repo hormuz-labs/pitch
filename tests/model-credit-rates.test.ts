@@ -35,6 +35,16 @@ describe('public model rates', () => {
       expect(rate.access === 'all').toBe(canUseStudioModel(rate.spec, false))
   })
 
+  it('advertises automatic gateway/Azure access without changing credit rates', () => {
+    const direct = publicModelRates()
+    const gateway = publicModelRates(undefined, {}, { bifrostEnabled: true })
+    expect(gateway.every(rate => rate.access === 'all')).toBe(true)
+    expect(gateway.map(rate => rate.credits)).toEqual(direct.map(rate => rate.credits))
+    const azure = publicModelRates(undefined, {}, { azureEnabled: true })
+    expect(azure.find(rate => rate.spec === 'azure-apim/gpt-6-astra')?.access).toBe('all')
+    expect(azure.find(rate => rate.spec === 'openai/gpt-5.4')?.access).toBe('request')
+  })
+
   it('prices every model per typical generation, with no per-length surcharge', () => {
     // Sol and Astra are chat models; generated footage is metered per clip.
     const rates = publicModelRates()
